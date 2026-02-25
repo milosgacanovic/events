@@ -93,6 +93,10 @@ async function buildServer() {
       reply.code(500).send({ error: "auth_not_configured" });
       return;
     }
+    if (err.message === "invalid_token" || err.message === "invalid_subject" || err.message === "invalid_audience") {
+      reply.code(401).send({ error: err.message });
+      return;
+    }
 
     request.log.error({ err }, "Request failed");
     const code = (error as { statusCode?: number }).statusCode ?? 500;

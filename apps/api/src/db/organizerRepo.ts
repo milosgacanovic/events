@@ -180,6 +180,38 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
     values,
   );
 
+  const cityFacet = await pool.query<{ city: string; count: string }>(
+    `
+      with filtered as (
+        select o.id
+        from organizers o
+        where ${whereSql}
+      )
+      select lower(ol.city) as city, count(distinct f.id)::text as count
+      from filtered f
+      join organizer_locations ol on ol.organizer_id = f.id
+      where ol.city is not null
+        and ol.city <> ''
+      group by lower(ol.city)
+    `,
+    values,
+  );
+
+  const tagFacet = await pool.query<{ tag: string; count: string }>(
+    `
+      with filtered as (
+        select o.tags
+        from organizers o
+        where ${whereSql}
+      )
+      select tag, count(*)::text as count
+      from filtered f
+      cross join unnest(f.tags) tag
+      group by tag
+    `,
+    values,
+  );
+
   return {
     items: rows.rows,
     total: Number(totalResult.rows[0]?.count ?? "0"),
@@ -188,9 +220,11 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
       languages: Object.fromEntries(
         languageFacet.rows.map((row) => [row.language, Number(row.count)]),
       ),
+      tags: Object.fromEntries(tagFacet.rows.map((row) => [row.tag, Number(row.count)])),
       countryCode: Object.fromEntries(
         countryFacet.rows.map((row) => [row.country_code, Number(row.count)]),
       ),
+      city: Object.fromEntries(cityFacet.rows.map((row) => [row.city, Number(row.count)])),
     },
     pagination: {
       page,

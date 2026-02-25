@@ -9,6 +9,7 @@ export type AuthConfig = {
 };
 
 type KeycloakPayload = JWTPayload & {
+  azp?: string;
   realm_access?: { roles?: string[] };
   resource_access?: Record<string, { roles?: string[] }>;
 };
@@ -17,6 +18,21 @@ export function extractRolesFromPayload(payload: KeycloakPayload, clientId?: str
   const realmRoles = payload.realm_access?.roles ?? [];
   const clientRoles = clientId ? payload.resource_access?.[clientId]?.roles ?? [] : [];
   return Array.from(new Set([...realmRoles, ...clientRoles]));
+}
+
+export function matchesExpectedAudience(payload: KeycloakPayload, expectedAudience?: string): boolean {
+  if (!expectedAudience) {
+    return true;
+  }
+
+  const aud = payload.aud;
+  const audienceMatches = typeof aud === "string"
+    ? aud === expectedAudience
+    : Array.isArray(aud)
+      ? aud.includes(expectedAudience)
+      : false;
+
+  return audienceMatches || payload.azp === expectedAudience;
 }
 
 export class AuthService {
@@ -35,21 +51,32 @@ export class AuthService {
       throw new Error("missing_bearer");
     }
 
-    if (!this.jwks || !this.config.issuer || !this.config.audience) {
+    if (!this.jwks || !this.config.issuer) {
       throw new Error("auth_not_configured");
     }
 
     const token = authHeader.slice("Bearer ".length);
-    const { payload } = await jwtVerify(token, this.jwks, {
-      issuer: this.config.issuer,
-      audience: this.config.audience,
-    });
+    const expectedAudience = this.config.audience || this.config.clientId;
+
+    let payload: KeycloakPayload;
+    try {
+      const verified = await jwtVerify(token, this.jwks, {
+        issuer: this.config.issuer,
+      });
+      payload = verified.payload as KeycloakPayload;
+    } catch {
+      throw new Error("invalid_token");
+    }
+
+    if (!matchesExpectedAudience(payload, expectedAudience)) {
+      throw new Error("invalid_audience");
+    }
 
     if (!payload.sub) {
       throw new Error("invalid_subject");
     }
 
-    const roles = this.extractRoles(payload as KeycloakPayload);
+    const roles = this.extractRoles(payload);
     const isAdmin = roles.includes(ROLE_ADMIN);
     const isEditor = isAdmin || roles.includes(ROLE_EDITOR);
 

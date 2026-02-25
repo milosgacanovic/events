@@ -23,7 +23,7 @@
 - Required env values:
   - `KEYCLOAK_ISSUER=https://sso.danceresource.org/realms/<REALM>`
   - `KEYCLOAK_JWKS_URL=https://sso.danceresource.org/realms/<REALM>/protocol/openid-connect/certs`
-  - `KEYCLOAK_AUDIENCE=<CLIENT_ID>`
+  - `KEYCLOAK_AUDIENCE=<CLIENT_ID>` (optional; API also accepts `azp=<CLIENT_ID>` for Keycloak default access tokens)
   - `KEYCLOAK_REALM=<REALM>`
   - `KEYCLOAK_CLIENT_ID=<CLIENT_ID>`
   - Optional: `KEYCLOAK_CLIENT_SECRET` (not used by SPA login flow; only relevant for confidential-server flows)
