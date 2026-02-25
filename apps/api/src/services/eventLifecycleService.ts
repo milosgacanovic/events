@@ -1,0 +1,105 @@
+import { DateTime } from "luxon";
+import type { Pool } from "pg";
+
+import {
+  deleteOccurrencesForEvent,
+  getEventByIdWithLocation,
+  getRecurringPublishedEvents,
+  replaceOccurrencesInWindow,
+  setEventStatus,
+} from "../db/eventRepo";
+import { generateOccurrences, defaultOccurrenceHorizon } from "./occurrenceService";
+import type { MeilisearchService } from "./meiliService";
+
+async function regenerateEventOccurrences(
+  pool: Pool,
+  meiliService: MeilisearchService,
+  eventId: string,
+): Promise<void> {
+  const eventWithLocation = await getEventByIdWithLocation(pool, eventId);
+
+  if (!eventWithLocation) {
+    return;
+  }
+
+  const horizon = defaultOccurrenceHorizon();
+  const generated = generateOccurrences(
+    eventWithLocation.event,
+    eventWithLocation.location,
+    horizon,
+  );
+
+  await replaceOccurrencesInWindow(
+    pool,
+    eventId,
+    horizon.fromUtc.toISO() ?? DateTime.utc().toISO()!,
+    horizon.toUtc.toISO() ?? DateTime.utc().toISO()!,
+    generated,
+  );
+
+  await meiliService.upsertOccurrencesForEvent(pool, eventId).catch(() => {});
+}
+
+export async function publishEvent(
+  pool: Pool,
+  meiliService: MeilisearchService,
+  eventId: string,
+): Promise<void> {
+  await setEventStatus(pool, eventId, "published");
+  await regenerateEventOccurrences(pool, meiliService, eventId);
+}
+
+export async function unpublishEvent(
+  pool: Pool,
+  meiliService: MeilisearchService,
+  eventId: string,
+): Promise<void> {
+  await setEventStatus(pool, eventId, "draft");
+  await deleteOccurrencesForEvent(pool, eventId);
+  await meiliService.deleteOccurrencesByEventId(eventId).catch(() => {});
+}
+
+export async function cancelEvent(
+  pool: Pool,
+  meiliService: MeilisearchService,
+  eventId: string,
+): Promise<void> {
+  await setEventStatus(pool, eventId, "cancelled");
+  await regenerateEventOccurrences(pool, meiliService, eventId);
+}
+
+export async function refreshRecurringOccurrences(
+  pool: Pool,
+  meiliService: MeilisearchService,
+): Promise<void> {
+  const horizon = defaultOccurrenceHorizon();
+  const recurring = await getRecurringPublishedEvents(pool);
+
+  for (const event of recurring) {
+    const eventWithLocation = await getEventByIdWithLocation(pool, event.id);
+    if (!eventWithLocation) {
+      continue;
+    }
+
+    const generated = generateOccurrences(
+      eventWithLocation.event,
+      eventWithLocation.location,
+      horizon,
+    );
+
+    await replaceOccurrencesInWindow(
+      pool,
+      event.id,
+      horizon.fromUtc.toISO() ?? DateTime.utc().toISO()!,
+      horizon.toUtc.toISO() ?? DateTime.utc().toISO()!,
+      generated,
+    );
+
+    await meiliService.upsertOccurrencesForEvent(pool, event.id).catch(() => {});
+  }
+
+  const cleanupBefore = DateTime.utc().minus({ days: 30 });
+  await pool.query(`delete from event_occurrences where starts_at_utc < $1::timestamptz`, [
+    cleanupBefore.toISO(),
+  ]);
+}

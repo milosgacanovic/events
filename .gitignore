@@ -1,0 +1,14 @@
+node_modules/
+.npm/
+.pnpm-store/
+.env
+.env.local
+.env.*.local
+*.log
+coverage/
+apps/*/dist/
+apps/*/.next/
+packages/*/dist/
+data/postgres/
+data/meili/
+data/uploads/

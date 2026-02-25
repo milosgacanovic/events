@@ -1,0 +1,22 @@
+{
+  "name": "dr-events-platform",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @dr-events/shared && npm run build -w @dr-events/api && npm run build -w @dr-events/web",
+    "dev:api": "npm run build -w @dr-events/shared && npm run dev -w @dr-events/api",
+    "dev:web": "npm run build -w @dr-events/shared && npm run dev -w @dr-events/web",
+    "typecheck": "npm run build -w @dr-events/shared && npm run typecheck -w @dr-events/api && npm run typecheck -w @dr-events/web && npm run typecheck -w @dr-events/shared",
+    "test": "npm run test -w @dr-events/api",
+    "migrate": "npm run migrate -w @dr-events/api",
+    "seed": "npm run seed -w @dr-events/api",
+    "occurrences:refresh": "npm run occurrences:refresh -w @dr-events/api"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

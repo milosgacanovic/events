@@ -1,0 +1,339 @@
+import {
+  createEventSchema,
+  updateEventSchema,
+  type CreateEventInput,
+  type UpdateEventInput,
+} from "@dr-events/shared";
+import type { FastifyPluginAsync } from "fastify";
+import { DateTime } from "luxon";
+import { z } from "zod";
+
+import {
+  createEvent,
+  getEventBySlug,
+  searchEventsFallback,
+  setEventOrganizers,
+  updateEvent,
+} from "../db/eventRepo";
+import { setEventDefaultLocation } from "../db/locationRepo";
+import { findOrCreateUserBySub } from "../db/userRepo";
+import { cancelEvent, publishEvent, unpublishEvent } from "../services/eventLifecycleService";
+import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
+
+const searchQuerySchema = z.object({
+  q: z.string().optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  practiceCategoryId: z.string().uuid().optional(),
+  practiceSubcategoryId: z.string().uuid().optional(),
+  tags: z.string().optional(),
+  languages: z.string().optional(),
+  attendanceMode: z.enum(["in_person", "online", "hybrid"]).optional(),
+  organizerId: z.string().uuid().optional(),
+  countryCode: z.string().optional(),
+  city: z.string().optional(),
+  hasGeo: z.enum(["true", "false"]).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(50).default(20),
+  sort: z.enum(["startsAtAsc", "startsAtDesc"]).default("startsAtAsc"),
+});
+
+function csvToList(value?: string): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildMeiliFilters(input: {
+  from: string;
+  to: string;
+  practiceCategoryId?: string;
+  practiceSubcategoryId?: string;
+  tags: string[];
+  languages: string[];
+  attendanceMode?: string;
+  organizerId?: string;
+  countryCode?: string;
+  city?: string;
+  hasGeo?: boolean;
+}) {
+  const filters: string[] = [
+    `starts_at_utc >= ${JSON.stringify(input.from)}`,
+    `starts_at_utc <= ${JSON.stringify(input.to)}`,
+  ];
+
+  if (input.practiceCategoryId) {
+    filters.push(`practice_category_id = ${JSON.stringify(input.practiceCategoryId)}`);
+  }
+  if (input.practiceSubcategoryId) {
+    filters.push(`practice_subcategory_id = ${JSON.stringify(input.practiceSubcategoryId)}`);
+  }
+  if (input.tags.length) {
+    for (const tag of input.tags) {
+      filters.push(`tags = ${JSON.stringify(tag)}`);
+    }
+  }
+  if (input.languages.length) {
+    for (const language of input.languages) {
+      filters.push(`languages = ${JSON.stringify(language)}`);
+    }
+  }
+  if (input.attendanceMode) {
+    filters.push(`attendance_mode = ${JSON.stringify(input.attendanceMode)}`);
+  }
+  if (input.organizerId) {
+    filters.push(`organizer_ids = ${JSON.stringify(input.organizerId)}`);
+  }
+  if (input.countryCode) {
+    filters.push(`country_code = ${JSON.stringify(input.countryCode.toLowerCase())}`);
+  }
+  if (input.city) {
+    filters.push(`city = ${JSON.stringify(input.city)}`);
+  }
+  if (typeof input.hasGeo === "boolean") {
+    filters.push(`has_geo = ${input.hasGeo}`);
+  }
+
+  return filters;
+}
+
+const eventRoutes: FastifyPluginAsync = async (app) => {
+  app.get("/events/search", async (request, reply) => {
+    const parsed = searchQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const now = DateTime.utc();
+    const from = parsed.data.from ?? now.toISO();
+    const to = parsed.data.to ?? now.plus({ days: 90 }).toISO();
+    const tags = csvToList(parsed.data.tags);
+    const languages = csvToList(parsed.data.languages);
+    const hasGeo = parsed.data.hasGeo ? parsed.data.hasGeo === "true" : undefined;
+
+    try {
+      const meiliFilters = buildMeiliFilters({
+        from: from ?? now.toISO()!,
+        to: to ?? now.plus({ days: 90 }).toISO()!,
+        practiceCategoryId: parsed.data.practiceCategoryId,
+        practiceSubcategoryId: parsed.data.practiceSubcategoryId,
+        tags,
+        languages,
+        attendanceMode: parsed.data.attendanceMode,
+        organizerId: parsed.data.organizerId,
+        countryCode: parsed.data.countryCode,
+        city: parsed.data.city,
+        hasGeo,
+      });
+
+      const sortExpression = parsed.data.sort === "startsAtDesc" ? "starts_at_utc:desc" : "starts_at_utc:asc";
+      const index = app.meiliService.client.index(OCCURRENCES_INDEX);
+      const result = await index.search<OccurrenceDoc>(parsed.data.q ?? "", {
+        filter: meiliFilters,
+        facets: [
+          "practice_category_id",
+          "practice_subcategory_id",
+          "languages",
+          "attendance_mode",
+          "country_code",
+          "tags",
+          "organizer_ids",
+        ],
+        sort: [sortExpression],
+        limit: parsed.data.pageSize,
+        offset: (parsed.data.page - 1) * parsed.data.pageSize,
+      });
+      const meiliHits = result.hits as OccurrenceDoc[];
+
+      return {
+        hits: meiliHits.map((doc: OccurrenceDoc) => ({
+          occurrenceId: doc.occurrence_id,
+          startsAtUtc: doc.starts_at_utc,
+          endsAtUtc: doc.ends_at_utc,
+          event: {
+            id: doc.event_id,
+            slug: doc.event_slug,
+            title: doc.title,
+            coverImageUrl: null,
+            attendanceMode: doc.attendance_mode,
+            languages: doc.languages,
+            tags: doc.tags,
+            practiceCategoryId: doc.practice_category_id,
+            practiceSubcategoryId: doc.practice_subcategory_id,
+          },
+          location: doc.geo
+            ? {
+                formatted_address: null,
+                city: doc.city,
+                country_code: doc.country_code,
+                lat: doc.geo.lat,
+                lng: doc.geo.lng,
+              }
+            : null,
+          organizers: doc.organizer_ids.map((id: string, index2: number) => ({
+            id,
+            name: doc.organizer_names[index2] ?? "",
+            avatarUrl: null,
+            roles: [],
+          })),
+        })),
+        totalHits: result.estimatedTotalHits ?? result.hits.length,
+        facets: {
+          practiceCategoryId: result.facetDistribution?.practice_category_id ?? {},
+          practiceSubcategoryId: result.facetDistribution?.practice_subcategory_id ?? {},
+          languages: result.facetDistribution?.languages ?? {},
+          attendanceMode: result.facetDistribution?.attendance_mode ?? {},
+          countryCode: result.facetDistribution?.country_code ?? {},
+          tags: result.facetDistribution?.tags ?? {},
+          organizerId: result.facetDistribution?.organizer_ids ?? {},
+        },
+        pagination: {
+          page: parsed.data.page,
+          pageSize: parsed.data.pageSize,
+          totalPages: Math.max(
+            Math.ceil((result.estimatedTotalHits ?? result.hits.length) / parsed.data.pageSize),
+            1,
+          ),
+        },
+      };
+    } catch {
+      const fallback = await searchEventsFallback(app.db, {
+        q: parsed.data.q,
+        from: from ?? now.toISO()!,
+        to: to ?? now.plus({ days: 90 }).toISO()!,
+        practiceCategoryId: parsed.data.practiceCategoryId,
+        practiceSubcategoryId: parsed.data.practiceSubcategoryId,
+        tags,
+        languages,
+        attendanceMode: parsed.data.attendanceMode,
+        organizerId: parsed.data.organizerId,
+        countryCode: parsed.data.countryCode,
+        city: parsed.data.city,
+        hasGeo,
+        page: parsed.data.page,
+        pageSize: parsed.data.pageSize,
+        sort: parsed.data.sort,
+      });
+
+      return fallback;
+    }
+  });
+
+  app.get("/events/:slug", async (request, reply) => {
+    const parsed = z.object({ slug: z.string().min(1) }).safeParse(request.params);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const event = await getEventBySlug(app.db, parsed.data.slug);
+    if (!event) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    return event;
+  });
+
+  app.post("/events", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const parsed = createEventSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    const userId = await findOrCreateUserBySub(app.db, auth.sub);
+    const event = await createEvent(app.db, userId, parsed.data as CreateEventInput);
+
+    if (parsed.data.organizerRoles.length) {
+      await setEventOrganizers(app.db, event.id, parsed.data.organizerRoles);
+    }
+
+    if (parsed.data.locationId !== undefined) {
+      await setEventDefaultLocation(app.db, event.id, parsed.data.locationId ?? null);
+    }
+
+    reply.code(201);
+    return event;
+  });
+
+  app.patch("/events/:id", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const parsed = updateEventSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const event = await updateEvent(app.db, params.data.id, parsed.data as UpdateEventInput);
+
+    if (!event) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    if (parsed.data.organizerRoles) {
+      await setEventOrganizers(app.db, params.data.id, parsed.data.organizerRoles);
+    }
+
+    if (parsed.data.locationId !== undefined) {
+      await setEventDefaultLocation(app.db, params.data.id, parsed.data.locationId ?? null);
+    }
+
+    return event;
+  });
+
+  app.post("/events/:id/publish", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    await publishEvent(app.db, app.meiliService, params.data.id);
+    return { ok: true };
+  });
+
+  app.post("/events/:id/unpublish", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    await unpublishEvent(app.db, app.meiliService, params.data.id);
+    return { ok: true };
+  });
+
+  app.post("/events/:id/cancel", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    await cancelEvent(app.db, app.meiliService, params.data.id);
+    return { ok: true };
+  });
+};
+
+export default eventRoutes;
