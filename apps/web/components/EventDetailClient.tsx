@@ -34,6 +34,11 @@ export function EventDetailClient({ slug }: { slug: string }) {
   const { locale, t } = useI18n();
   const [data, setData] = useState<EventDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const statusLabel = (value: string) => {
+    const key = `common.status.${value}`;
+    const localized = t(key);
+    return localized === key ? value : localized;
+  };
 
   useEffect(() => {
     fetchJson<EventDetail>(`/events/${slug}`)
@@ -52,7 +57,7 @@ export function EventDetailClient({ slug }: { slug: string }) {
   return (
     <section className="panel cards">
       <h1 className="title-xl">{data.event.title}</h1>
-      <div className="meta">{t("eventDetail.statusLabel", { status: data.event.status })}</div>
+      <div className="meta">{t("eventDetail.statusLabel", { status: statusLabel(data.event.status) })}</div>
       <div className="meta">
         {t("eventDetail.attendanceLabel", {
           attendance: t(`attendanceMode.${data.event.attendance_mode}`),
@@ -80,7 +85,7 @@ export function EventDetailClient({ slug }: { slug: string }) {
       {data.occurrences.upcoming.length === 0 && <div className="muted">{t("eventDetail.noUpcoming")}</div>}
       {data.occurrences.upcoming.map((occurrence) => (
         <div className="card" key={occurrence.id}>
-          {new Date(occurrence.starts_at_utc).toLocaleString(locale)} ({occurrence.status})
+          {new Date(occurrence.starts_at_utc).toLocaleString(locale)} ({statusLabel(occurrence.status)})
         </div>
       ))}
     </section>

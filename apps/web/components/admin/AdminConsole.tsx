@@ -190,7 +190,7 @@ function isoToDatetimeLocal(value: string | null): string {
 }
 
 export function AdminConsole() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const { ready, authenticated, roles, userName, authError, login, logout, getToken } = useKeycloakAuth();
 
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
@@ -263,6 +263,18 @@ export function AdminConsole() {
     () => new Map((taxonomy?.organizerRoles ?? []).map((role) => [role.id, role.label])),
     [taxonomy],
   );
+  const attendanceModeLabel = useMemo(
+    () => (value: string) => t(`attendanceMode.${value}`),
+    [t],
+  );
+  const scheduleKindLabel = useMemo(
+    () => (value: string) => t(`common.scheduleKind.${value}`),
+    [t],
+  );
+  const statusLabel = useMemo(
+    () => (value: string) => t(`common.status.${value}`),
+    [t],
+  );
 
   async function loadMetadata() {
     setLoadingMeta(true);
@@ -282,7 +294,9 @@ export function AdminConsole() {
       }
     } catch (error) {
       setStatus(
-        error instanceof Error ? `Failed to load metadata: ${error.message}` : "Failed to load metadata",
+        error instanceof Error
+          ? t("admin.status.loadMetadataFailedWithReason", { message: error.message })
+          : t("admin.status.loadMetadataFailed"),
       );
     } finally {
       setLoadingMeta(false);
@@ -315,7 +329,7 @@ export function AdminConsole() {
     const token = await getToken();
 
     if (!token) {
-      throw new Error("No auth token available. Log in again.");
+      throw new Error(t("admin.error.noAuthToken"));
     }
 
     const response = await fetch(`${apiBase}${path}`, {
@@ -338,7 +352,7 @@ export function AdminConsole() {
   async function authorizedGet<T>(path: string): Promise<T> {
     const token = await getToken();
     if (!token) {
-      throw new Error("No auth token available. Log in again.");
+      throw new Error(t("admin.error.noAuthToken"));
     }
 
     const response = await fetch(`${apiBase}${path}`, {
@@ -363,7 +377,7 @@ export function AdminConsole() {
   ): Promise<{ stored_path: string; url: string }> {
     const token = await getToken();
     if (!token) {
-      throw new Error("No auth token available. Log in again.");
+      throw new Error(t("admin.error.noAuthToken"));
     }
 
     const formData = new FormData();
@@ -412,26 +426,26 @@ export function AdminConsole() {
       const results = await searchGeocode(createLocationQuery);
       setCreateLocationResults(results);
       if (!results.length) {
-        setStatus("No geocode matches found for event location.");
+        setStatus(t("admin.status.noGeocodeMatches"));
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Location search failed");
+      setStatus(error instanceof Error ? error.message : t("admin.status.locationSearchFailed"));
     } finally {
       setCreateLocationLoading(false);
     }
   }
 
   async function selectCreateLocation(result: GeocodeResult) {
-    setStatus("Saving selected location...");
+    setStatus(t("admin.status.savingSelectedLocation"));
     try {
       const created = await createLocationFromResult(result);
       setSelectedCreateLocationId(created.id);
       setSelectedCreateLocationLabel(created.formatted_address);
       setCreateLocationResults([]);
       setCreateLocationQuery(created.formatted_address);
-      setStatus(`Location attached to draft form: ${created.formatted_address}`);
+      setStatus(t("admin.status.locationAttachedDraft", { address: created.formatted_address }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to save location");
+      setStatus(error instanceof Error ? error.message : t("admin.status.locationSaveFailed"));
     }
   }
 
@@ -448,17 +462,17 @@ export function AdminConsole() {
       const results = await searchGeocode(editLocationQuery);
       setEditLocationResults(results);
       if (!results.length) {
-        setStatus("No geocode matches found for event location.");
+        setStatus(t("admin.status.noGeocodeMatches"));
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Location search failed");
+      setStatus(error instanceof Error ? error.message : t("admin.status.locationSearchFailed"));
     } finally {
       setEditLocationLoading(false);
     }
   }
 
   async function selectEditLocation(result: GeocodeResult) {
-    setStatus("Saving selected location...");
+    setStatus(t("admin.status.savingSelectedLocation"));
     try {
       const created = await createLocationFromResult(result);
       setEventEditor((current) =>
@@ -472,9 +486,9 @@ export function AdminConsole() {
       );
       setEditLocationResults([]);
       setEditLocationQuery(created.formatted_address);
-      setStatus(`Location attached to event: ${created.formatted_address}`);
+      setStatus(t("admin.status.locationAttachedEvent", { address: created.formatted_address }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to save location");
+      setStatus(error instanceof Error ? error.message : t("admin.status.locationSaveFailed"));
     }
   }
 
@@ -509,7 +523,7 @@ export function AdminConsole() {
       setAdminEvents(eventsResult.items);
       setAdminOrganizers(organizersResult.items);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to load admin lists");
+      setStatus(error instanceof Error ? error.message : t("admin.status.loadAdminListsFailed"));
     } finally {
       setLoadingAdminContent(false);
     }
@@ -517,7 +531,7 @@ export function AdminConsole() {
 
   async function createOrganizerSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setStatus("Creating organizer...");
+    setStatus(t("admin.status.creatingOrganizer"));
 
     try {
       const organizer = await authorizedRequest<{ id: string; slug: string; name: string }>(
@@ -542,20 +556,20 @@ export function AdminConsole() {
 
       setOrganizerOptions((prev) => [organizer, ...prev]);
       setSelectedOrganizerId(organizer.id);
-      setStatus(`Organizer created: ${organizer.name} (${organizer.slug})`);
+      setStatus(t("admin.status.organizerCreated", { name: organizer.name, slug: organizer.slug }));
       setOrganizerName("");
       setOrganizerWebsite("");
       setOrganizerTags("");
       setOrganizerAvatarFile(null);
       await loadAdminContent();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Organizer creation failed");
+      setStatus(error instanceof Error ? error.message : t("admin.status.organizerCreateFailed"));
     }
   }
 
   async function createEventSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setStatus("Creating event draft...");
+    setStatus(t("admin.status.creatingEventDraft"));
 
     try {
       const payload: Record<string, unknown> = {
@@ -596,7 +610,7 @@ export function AdminConsole() {
       }
 
       setCreatedEventId(created.id);
-      setStatus(`Event draft created: ${created.title} (${created.slug})`);
+      setStatus(t("admin.status.eventDraftCreated", { title: created.title, slug: created.slug }));
       setEventTitle("");
       setEventTags("");
       setEventCoverFile(null);
@@ -604,13 +618,13 @@ export function AdminConsole() {
       clearCreateLocation();
       await loadAdminContent();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Event creation failed");
+      setStatus(error instanceof Error ? error.message : t("admin.status.eventCreateFailed"));
     }
   }
 
   function addOrganizerRoleToDraft() {
     if (!selectedOrganizerId || !selectedRoleId) {
-      setStatus("Select both organizer and role before adding.");
+      setStatus(t("admin.status.selectOrganizerRoleFirst"));
       return;
     }
 
@@ -622,7 +636,7 @@ export function AdminConsole() {
       );
 
       if (exists) {
-        setStatus("That organizer + role pair is already attached.");
+        setStatus(t("admin.status.organizerRoleDuplicate"));
         return previous;
       }
 
@@ -649,16 +663,18 @@ export function AdminConsole() {
     eventId: string,
     action: "publish" | "unpublish" | "cancel",
   ) {
-    const actionLabel =
-      action === "publish" ? "Publishing" : action === "unpublish" ? "Unpublishing" : "Cancelling";
-    setStatus(`${actionLabel} event...`);
+    setStatus(t("admin.status.eventLifecycleProgress", { action: t(`common.action.${action}`) }));
 
     try {
       await authorizedRequest(`/events/${eventId}/${action}`, "POST", {});
-      setStatus(`Event ${action} complete: ${eventId}`);
+      setStatus(t("admin.status.eventLifecycleComplete", { action: t(`common.action.${action}`), id: eventId }));
       await loadAdminContent();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : `Event ${action} failed`);
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : t("admin.status.eventLifecycleFailed", { action: t(`common.action.${action}`) }),
+      );
     }
   }
 
@@ -666,22 +682,24 @@ export function AdminConsole() {
     organizerId: string,
     nextStatus: "draft" | "published" | "archived",
   ) {
-    setStatus(`Updating organizer status to ${nextStatus}...`);
+    setStatus(t("admin.status.organizerStatusUpdating", { status: statusLabel(nextStatus) }));
 
     try {
       await authorizedRequest(`/organizers/${organizerId}`, "PATCH", {
         status: nextStatus,
       });
       await Promise.all([loadAdminContent(), loadMetadata()]);
-      setStatus(`Organizer status updated: ${organizerId} -> ${nextStatus}`);
+      setStatus(
+        t("admin.status.organizerStatusUpdated", { id: organizerId, status: statusLabel(nextStatus) }),
+      );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Organizer status update failed");
+      setStatus(error instanceof Error ? error.message : t("admin.status.organizerStatusUpdateFailed"));
     }
   }
 
   async function loadEventForEdit(eventId: string) {
     setLoadingEventEditor(true);
-    setStatus("Loading event for edit...");
+    setStatus(t("admin.status.loadingEventEditor"));
 
     try {
       const detail = await authorizedGet<AdminEventDetailResponse>(`/admin/events/${eventId}`);
@@ -708,9 +726,9 @@ export function AdminConsole() {
       });
       setEditLocationQuery(detail.location?.formatted_address ?? "");
       setEditLocationResults([]);
-      setStatus(`Loaded event for edit: ${detail.title} (${detail.slug})`);
+      setStatus(t("admin.status.eventLoadedForEdit", { title: detail.title, slug: detail.slug }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to load event editor");
+      setStatus(error instanceof Error ? error.message : t("admin.status.eventEditorLoadFailed"));
     } finally {
       setLoadingEventEditor(false);
     }
@@ -722,7 +740,7 @@ export function AdminConsole() {
       return;
     }
 
-    setStatus("Saving event changes...");
+    setStatus(t("admin.status.savingEventChanges"));
 
     try {
       const payload: Record<string, unknown> = {
@@ -757,15 +775,15 @@ export function AdminConsole() {
 
       await authorizedRequest(`/events/${eventEditor.id}`, "PATCH", payload);
       await loadAdminContent();
-      setStatus(`Event updated: ${eventEditor.id}`);
+      setStatus(t("admin.status.eventUpdated", { id: eventEditor.id }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to save event changes");
+      setStatus(error instanceof Error ? error.message : t("admin.status.eventSaveFailed"));
     }
   }
 
   async function loadOrganizerForEdit(organizerId: string) {
     setLoadingOrganizerEditor(true);
-    setStatus("Loading organizer for edit...");
+    setStatus(t("admin.status.loadingOrganizerEditor"));
 
     try {
       const detail = await authorizedGet<AdminOrganizerDetailResponse>(`/admin/organizers/${organizerId}`);
@@ -778,9 +796,9 @@ export function AdminConsole() {
         languages: detail.languages.join(", "),
         status: detail.status,
       });
-      setStatus(`Loaded organizer for edit: ${detail.name} (${detail.slug})`);
+      setStatus(t("admin.status.organizerLoadedForEdit", { name: detail.name, slug: detail.slug }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to load organizer editor");
+      setStatus(error instanceof Error ? error.message : t("admin.status.organizerEditorLoadFailed"));
     } finally {
       setLoadingOrganizerEditor(false);
     }
@@ -792,7 +810,7 @@ export function AdminConsole() {
       return;
     }
 
-    setStatus("Saving organizer changes...");
+    setStatus(t("admin.status.savingOrganizerChanges"));
 
     try {
       await authorizedRequest(`/organizers/${organizerEditor.id}`, "PATCH", {
@@ -803,15 +821,15 @@ export function AdminConsole() {
         status: organizerEditor.status,
       });
       await Promise.all([loadAdminContent(), loadMetadata()]);
-      setStatus(`Organizer updated: ${organizerEditor.id}`);
+      setStatus(t("admin.status.organizerUpdated", { id: organizerEditor.id }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to save organizer changes");
+      setStatus(error instanceof Error ? error.message : t("admin.status.organizerSaveFailed"));
     }
   }
 
   async function createPracticeSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setStatus("Creating practice taxonomy item...");
+    setStatus(t("admin.status.creatingPracticeItem"));
 
     try {
       const level = Number(practiceCreateLevel) as 1 | 2;
@@ -828,15 +846,15 @@ export function AdminConsole() {
       setPracticeCreateLabel("");
       await loadMetadata();
       await loadAdminContent();
-      setStatus("Practice taxonomy item created.");
+      setStatus(t("admin.status.practiceItemCreated"));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Practice creation failed");
+      setStatus(error instanceof Error ? error.message : t("admin.status.practiceCreateFailed"));
     }
   }
 
   async function createRoleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setStatus("Creating organizer role...");
+    setStatus(t("admin.status.creatingOrganizerRole"));
 
     try {
       await authorizedRequest("/admin/organizer-roles", "POST", {
@@ -850,9 +868,9 @@ export function AdminConsole() {
       setRoleCreateLabel("");
       await loadMetadata();
       await loadAdminContent();
-      setStatus("Organizer role created.");
+      setStatus(t("admin.status.organizerRoleCreated"));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Role creation failed");
+      setStatus(error instanceof Error ? error.message : t("admin.status.organizerRoleCreateFailed"));
     }
   }
 
@@ -877,62 +895,62 @@ export function AdminConsole() {
     <section className="panel cards">
       <div className="admin-header">
         <div>
-          <h1 className="title-xl">Admin Console</h1>
-          <div className="meta">User: {userName ?? "unknown"}</div>
-          <div className="meta">Roles: {roles.join(", ") || "none"}</div>
+          <h1 className="title-xl">{t("admin.console.title")}</h1>
+          <div className="meta">{t("admin.console.user", { user: userName ?? t("common.unknown") })}</div>
+          <div className="meta">{t("admin.console.roles", { roles: roles.join(", ") || t("common.none") })}</div>
         </div>
         <button className="ghost-btn" type="button" onClick={() => void logout()}>
-          Log Out
+          {t("admin.console.logout")}
         </button>
       </div>
 
       {!hasEditorRole && (
         <div className="admin-warning">
-          Logged in, but this token has no `dr_events_editor` or `dr_events_admin` role.
+          {t("admin.warning.noEditorRole")}
         </div>
       )}
       {!hasAdminRole && (
         <div className="admin-warning">
-          Taxonomy creation requires the `dr_events_admin` role.
+          {t("admin.warning.adminRoleRequired")}
         </div>
       )}
 
-      {loadingMeta && <div className="meta">Loading taxonomy metadata...</div>}
+      {loadingMeta && <div className="meta">{t("admin.loading.taxonomyMetadata")}</div>}
 
       <div className="admin-grid">
         <form className="admin-form" onSubmit={createOrganizerSubmit}>
-          <h3>Create Organizer</h3>
+          <h3>{t("admin.createOrganizer.heading")}</h3>
           <label>
-            Name
+            {t("common.field.name")}
             <input
               required
               value={organizerName}
               onChange={(e) => setOrganizerName(e.target.value)}
-              placeholder="Organizer name"
+              placeholder={t("admin.placeholder.organizerName")}
             />
           </label>
           <label>
-            Website URL
+            {t("common.field.websiteUrl")}
             <input
               value={organizerWebsite}
               onChange={(e) => setOrganizerWebsite(e.target.value)}
-              placeholder="https://example.org"
+              placeholder={t("admin.placeholder.websiteUrl")}
             />
           </label>
           <label>
-            Languages (csv)
+            {t("common.field.languagesCsv")}
             <input
               value={organizerLanguages}
               onChange={(e) => setOrganizerLanguages(e.target.value)}
-              placeholder="en,es"
+              placeholder={t("admin.placeholder.languagesCsv")}
             />
           </label>
           <label>
-            Tags (csv)
+            {t("common.field.tagsCsv")}
             <input value={organizerTags} onChange={(e) => setOrganizerTags(e.target.value)} />
           </label>
           <label>
-            Avatar image (jpg/png/webp)
+            {t("admin.field.avatarImage")}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -940,31 +958,31 @@ export function AdminConsole() {
             />
           </label>
           <button className="primary-btn" type="submit" disabled={!hasEditorRole}>
-            Create Organizer
+            {t("admin.createOrganizer.submit")}
           </button>
         </form>
 
         <form className="admin-form" onSubmit={createEventSubmit}>
-          <h3>Create Event</h3>
+          <h3>{t("admin.createEvent.heading")}</h3>
           <label>
-            Title
+            {t("common.field.title")}
             <input required value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} />
           </label>
 
           <label>
-            Attendance mode
+            {t("common.field.attendanceMode")}
             <select
               value={attendanceMode}
               onChange={(e) => setAttendanceMode(e.target.value as "in_person" | "online" | "hybrid")}
             >
-              <option value="in_person">In person</option>
-              <option value="online">Online</option>
-              <option value="hybrid">Hybrid</option>
+              <option value="in_person">{t("attendanceMode.in_person")}</option>
+              <option value="online">{t("attendanceMode.online")}</option>
+              <option value="hybrid">{t("attendanceMode.hybrid")}</option>
             </select>
           </label>
 
           <label>
-            {taxonomy?.uiLabels.practiceCategory ?? "Practice category"}
+            {taxonomy?.uiLabels.practiceCategory ?? t("admin.field.practiceCategory")}
             <select
               required
               value={practiceCategoryId}
@@ -973,7 +991,7 @@ export function AdminConsole() {
                 setPracticeSubcategoryId("");
               }}
             >
-              <option value="">Select category</option>
+              <option value="">{t("common.option.selectCategory")}</option>
               {taxonomy?.practices.categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.label}
@@ -983,9 +1001,9 @@ export function AdminConsole() {
           </label>
 
           <label>
-            Subcategory (optional)
+            {t("admin.field.subcategoryOptional")}
             <select value={practiceSubcategoryId} onChange={(e) => setPracticeSubcategoryId(e.target.value)}>
-              <option value="">None</option>
+              <option value="">{t("common.none")}</option>
               {selectedCategory?.subcategories.map((subcategory) => (
                 <option key={subcategory.id} value={subcategory.id}>
                   {subcategory.label}
@@ -995,25 +1013,25 @@ export function AdminConsole() {
           </label>
 
           <label>
-            Schedule kind
+            {t("common.field.scheduleKind")}
             <select
               value={scheduleKind}
               onChange={(e) => setScheduleKind(e.target.value as "single" | "recurring")}
             >
-              <option value="single">Single</option>
-              <option value="recurring">Recurring</option>
+              <option value="single">{t("common.scheduleKind.single")}</option>
+              <option value="recurring">{t("common.scheduleKind.recurring")}</option>
             </select>
           </label>
 
           <label>
-            Event timezone
+            {t("admin.field.eventTimezone")}
             <input value={eventTimezone} onChange={(e) => setEventTimezone(e.target.value)} />
           </label>
 
           {scheduleKind === "single" ? (
             <>
               <label>
-                Start
+                {t("common.field.start")}
                 <input
                   required
                   type="datetime-local"
@@ -1022,7 +1040,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                End
+                {t("common.field.end")}
                 <input
                   required
                   type="datetime-local"
@@ -1034,11 +1052,11 @@ export function AdminConsole() {
           ) : (
             <>
               <label>
-                RRULE
+                {t("admin.field.rrule")}
                 <input value={rrule} onChange={(e) => setRrule(e.target.value)} placeholder="FREQ=WEEKLY;INTERVAL=1" />
               </label>
               <label>
-                Recurring start
+                {t("admin.field.recurringStart")}
                 <input
                   required
                   type="datetime-local"
@@ -1047,22 +1065,22 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                Duration minutes
+                {t("admin.field.durationMinutes")}
                 <input
                   value={durationMinutes}
                   onChange={(e) => setDurationMinutes(e.target.value)}
-                  placeholder="90"
+                  placeholder={t("admin.placeholder.durationMinutes")}
                 />
               </label>
             </>
           )}
 
           <label>
-            Event location search
+            {t("admin.field.eventLocationSearch")}
             <input
               value={createLocationQuery}
               onChange={(e) => setCreateLocationQuery(e.target.value)}
-              placeholder="City, venue, or address"
+              placeholder={t("admin.placeholder.locationSearch")}
             />
           </label>
           <div className="admin-card-actions">
@@ -1072,7 +1090,7 @@ export function AdminConsole() {
               disabled={createLocationLoading || createLocationQuery.trim().length < 2}
               onClick={() => void runCreateLocationSearch()}
             >
-              Search Location
+              {t("admin.button.searchLocation")}
             </button>
             {selectedCreateLocationId && (
               <button
@@ -1080,13 +1098,13 @@ export function AdminConsole() {
                 type="button"
                 onClick={clearCreateLocation}
               >
-                Clear Location
+                {t("admin.button.clearLocation")}
               </button>
             )}
           </div>
-          {createLocationLoading && <div className="meta">Searching geocode results...</div>}
+          {createLocationLoading && <div className="meta">{t("admin.loading.geocodeSearch")}</div>}
           {selectedCreateLocationId && (
-            <div className="meta">Selected location: {selectedCreateLocationLabel}</div>
+            <div className="meta">{t("admin.label.selectedLocation", { address: selectedCreateLocationLabel })}</div>
           )}
           {createLocationResults.length > 0 && (
             <div className="admin-inline-list">
@@ -1098,7 +1116,7 @@ export function AdminConsole() {
                     type="button"
                     onClick={() => void selectCreateLocation(result)}
                   >
-                    Use
+                    {t("common.use")}
                   </button>
                 </div>
               ))}
@@ -1106,15 +1124,15 @@ export function AdminConsole() {
           )}
 
           <label>
-            Languages (csv)
+            {t("common.field.languagesCsv")}
             <input value={eventLanguages} onChange={(e) => setEventLanguages(e.target.value)} />
           </label>
           <label>
-            Tags (csv)
+            {t("common.field.tagsCsv")}
             <input value={eventTags} onChange={(e) => setEventTags(e.target.value)} />
           </label>
           <label>
-            Cover image (jpg/png/webp)
+            {t("admin.field.coverImage")}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -1123,9 +1141,9 @@ export function AdminConsole() {
           </label>
 
           <label>
-            Link organizer (optional)
+            {t("admin.field.linkOrganizerOptional")}
             <select value={selectedOrganizerId} onChange={(e) => setSelectedOrganizerId(e.target.value)}>
-              <option value="">None</option>
+              <option value="">{t("common.none")}</option>
               {organizerOptions.map((organizer) => (
                 <option key={organizer.id} value={organizer.id}>
                   {organizer.name}
@@ -1135,9 +1153,9 @@ export function AdminConsole() {
           </label>
 
           <label>
-            Organizer role
+            {t("admin.field.organizerRole")}
             <select value={selectedRoleId} onChange={(e) => setSelectedRoleId(e.target.value)}>
-              <option value="">None</option>
+              <option value="">{t("common.none")}</option>
               {taxonomy?.organizerRoles.map((role) => (
                 <option key={role.id} value={role.id}>
                   {role.label}
@@ -1152,7 +1170,7 @@ export function AdminConsole() {
             disabled={!hasEditorRole || !selectedOrganizerId || !selectedRoleId}
             onClick={addOrganizerRoleToDraft}
           >
-            Add Organizer Role
+            {t("admin.button.addOrganizerRole")}
           </button>
 
           {eventOrganizerRoles.length > 0 && (
@@ -1168,7 +1186,7 @@ export function AdminConsole() {
                     type="button"
                     onClick={() => removeOrganizerRoleFromDraft(index)}
                   >
-                    Remove
+                    {t("common.remove")}
                   </button>
                 </div>
               ))}
@@ -1176,7 +1194,7 @@ export function AdminConsole() {
           )}
 
           <button className="primary-btn" type="submit" disabled={!hasEditorRole}>
-            Create Event Draft
+            {t("admin.createEvent.submit")}
           </button>
 
           <button
@@ -1185,31 +1203,31 @@ export function AdminConsole() {
             disabled={!hasEditorRole || !createdEventId}
             onClick={() => createdEventId && void runEventLifecycleAction(createdEventId, "publish")}
           >
-            Publish Last Created Event
+            {t("admin.button.publishLastCreated")}
           </button>
         </form>
 
         <form className="admin-form" onSubmit={createPracticeSubmit}>
-          <h3>Create Practice Taxonomy</h3>
+          <h3>{t("admin.createPractice.heading")}</h3>
           <label>
-            Level
+            {t("admin.field.level")}
             <select
               value={practiceCreateLevel}
               onChange={(e) => setPracticeCreateLevel(e.target.value as "1" | "2")}
             >
-              <option value="1">Category</option>
-              <option value="2">Subcategory</option>
+              <option value="1">{t("common.category")}</option>
+              <option value="2">{t("common.subcategory")}</option>
             </select>
           </label>
 
           {practiceCreateLevel === "2" && (
             <label>
-              Parent category
+              {t("admin.field.parentCategory")}
               <select
                 value={practiceCreateParentId}
                 onChange={(e) => setPracticeCreateParentId(e.target.value)}
               >
-                <option value="">Select parent category</option>
+                <option value="">{t("admin.option.selectParentCategory")}</option>
                 {taxonomy?.practices.categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.label}
@@ -1220,68 +1238,68 @@ export function AdminConsole() {
           )}
 
           <label>
-            Key
+            {t("common.field.key")}
             <input
               required
               value={practiceCreateKey}
               onChange={(e) => setPracticeCreateKey(e.target.value)}
-              placeholder="contact-improv-jam"
+              placeholder={t("admin.placeholder.practiceKey")}
             />
           </label>
           <label>
-            Label
+            {t("common.field.label")}
             <input
               required
               value={practiceCreateLabel}
               onChange={(e) => setPracticeCreateLabel(e.target.value)}
-              placeholder="Contact Improv Jam"
+              placeholder={t("admin.placeholder.practiceLabel")}
             />
           </label>
           <button className="primary-btn" type="submit" disabled={!hasAdminRole}>
-            Create Practice Item
+            {t("admin.createPractice.submit")}
           </button>
         </form>
 
         <form className="admin-form" onSubmit={createRoleSubmit}>
-          <h3>Create Organizer Role</h3>
+          <h3>{t("admin.createRole.heading")}</h3>
           <label>
-            Key
+            {t("common.field.key")}
             <input
               required
               value={roleCreateKey}
               onChange={(e) => setRoleCreateKey(e.target.value)}
-              placeholder="facilitator"
+              placeholder={t("admin.placeholder.roleKey")}
             />
           </label>
           <label>
-            Label
+            {t("common.field.label")}
             <input
               required
               value={roleCreateLabel}
               onChange={(e) => setRoleCreateLabel(e.target.value)}
-              placeholder="Facilitator"
+              placeholder={t("admin.placeholder.roleLabel")}
             />
           </label>
           <button className="primary-btn" type="submit" disabled={!hasAdminRole}>
-            Create Role
+            {t("admin.createRole.submit")}
           </button>
         </form>
       </div>
 
       <section className="admin-list-grid">
         <div className="admin-form">
-          <h3>Recent Events</h3>
-          {loadingAdminContent && <div className="meta">Loading admin lists...</div>}
+          <h3>{t("admin.recentEvents.heading")}</h3>
+          {loadingAdminContent && <div className="meta">{t("admin.loading.adminLists")}</div>}
           {!loadingAdminContent && adminEvents.length === 0 && (
-            <div className="meta">No events available.</div>
+            <div className="meta">{t("admin.recentEvents.empty")}</div>
           )}
           {adminEvents.map((item) => (
             <div className="card" key={item.id}>
               <div><strong>{item.title}</strong></div>
               <div className="meta">
-                {item.status} | {item.attendance_mode} | {item.schedule_kind}
+                {statusLabel(item.status)} | {attendanceModeLabel(item.attendance_mode)} | {scheduleKindLabel(item.schedule_kind)}
               </div>
-              <div className="meta">Updated: {new Date(item.updated_at).toLocaleString()}</div>
+              <div className="meta">{t("common.updatedAt", { value: new Date(item.updated_at).toLocaleString(locale) })}</div>
               {hasEditorRole && (
                 <div className="admin-card-actions">
                   <button
@@ -1289,7 +1307,7 @@ export function AdminConsole() {
                     type="button"
                     onClick={() => void loadEventForEdit(item.id)}
                   >
-                    Edit
+                    {t("common.edit")}
                   </button>
                   {item.status !== "published" && (
                     <button
@@ -1297,7 +1315,7 @@ export function AdminConsole() {
                       type="button"
                       onClick={() => void runEventLifecycleAction(item.id, "publish")}
                     >
-                      Publish
+                      {t("common.action.publish")}
                     </button>
                   )}
                   {(item.status === "published" || item.status === "cancelled") && (
@@ -1306,7 +1324,7 @@ export function AdminConsole() {
                       type="button"
                       onClick={() => void runEventLifecycleAction(item.id, "unpublish")}
                     >
-                      Unpublish
+                      {t("common.action.unpublish")}
                     </button>
                   )}
                   {item.status === "published" && (
@@ -1315,7 +1333,7 @@ export function AdminConsole() {
                       type="button"
                       onClick={() => void runEventLifecycleAction(item.id, "cancel")}
                     >
-                      Cancel
+                      {t("common.action.cancel")}
                     </button>
                   )}
                 </div>
@@ -1325,16 +1343,16 @@ export function AdminConsole() {
         </div>
 
         <div className="admin-form">
-          <h3>Recent Organizers</h3>
-          {loadingAdminContent && <div className="meta">Loading admin lists...</div>}
+          <h3>{t("admin.recentOrganizers.heading")}</h3>
+          {loadingAdminContent && <div className="meta">{t("admin.loading.adminLists")}</div>}
           {!loadingAdminContent && adminOrganizers.length === 0 && (
-            <div className="meta">No organizers available.</div>
+            <div className="meta">{t("admin.recentOrganizers.empty")}</div>
           )}
           {adminOrganizers.map((item) => (
             <div className="card" key={item.id}>
               <div><strong>{item.name}</strong></div>
-              <div className="meta">{item.status}</div>
-              <div className="meta">Updated: {new Date(item.updated_at).toLocaleString()}</div>
+              <div className="meta">{statusLabel(item.status)}</div>
+              <div className="meta">{t("common.updatedAt", { value: new Date(item.updated_at).toLocaleString(locale) })}</div>
               {hasEditorRole && (
                 <div className="admin-card-actions">
                   <button
@@ -1342,7 +1360,7 @@ export function AdminConsole() {
                     type="button"
                     onClick={() => void loadOrganizerForEdit(item.id)}
                   >
-                    Edit
+                    {t("common.edit")}
                   </button>
                   {item.status !== "published" && (
                     <button
@@ -1350,7 +1368,7 @@ export function AdminConsole() {
                       type="button"
                       onClick={() => void updateOrganizerStatus(item.id, "published")}
                     >
-                      Publish
+                      {t("common.action.publish")}
                     </button>
                   )}
                   {item.status !== "draft" && (
@@ -1359,7 +1377,7 @@ export function AdminConsole() {
                       type="button"
                       onClick={() => void updateOrganizerStatus(item.id, "draft")}
                     >
-                      Unpublish
+                      {t("common.action.unpublish")}
                     </button>
                   )}
                   {hasAdminRole && item.status !== "archived" && (
@@ -1368,7 +1386,7 @@ export function AdminConsole() {
                       type="button"
                       onClick={() => void updateOrganizerStatus(item.id, "archived")}
                     >
-                      Archive
+                      {t("common.action.archive")}
                     </button>
                   )}
                 </div>
@@ -1380,16 +1398,16 @@ export function AdminConsole() {
 
       <section className="admin-list-grid">
         <form className="admin-form" onSubmit={(event) => void saveEventEdits(event)}>
-          <h3>Edit Event</h3>
-          {loadingEventEditor && <div className="meta">Loading event details...</div>}
+          <h3>{t("admin.editEvent.heading")}</h3>
+          {loadingEventEditor && <div className="meta">{t("admin.loading.eventDetails")}</div>}
           {!loadingEventEditor && !eventEditor && (
-            <div className="meta">Select an event from Recent Events to edit.</div>
+            <div className="meta">{t("admin.editEvent.promptSelect")}</div>
           )}
           {eventEditor && (
             <>
-              <div className="meta">Editing: {eventEditor.title} ({eventEditor.slug})</div>
+              <div className="meta">{t("common.editingEntity", { title: eventEditor.title, slug: eventEditor.slug })}</div>
               <label>
-                Title
+                {t("common.field.title")}
                 <input
                   required
                   value={eventEditor.title}
@@ -1399,7 +1417,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                Attendance mode
+                {t("common.field.attendanceMode")}
                 <select
                   value={eventEditor.attendanceMode}
                   onChange={(e) =>
@@ -1410,13 +1428,13 @@ export function AdminConsole() {
                     )
                   }
                 >
-                  <option value="in_person">In person</option>
-                  <option value="online">Online</option>
-                  <option value="hybrid">Hybrid</option>
+                  <option value="in_person">{t("attendanceMode.in_person")}</option>
+                  <option value="online">{t("attendanceMode.online")}</option>
+                  <option value="hybrid">{t("attendanceMode.hybrid")}</option>
                 </select>
               </label>
               <label>
-                Online URL
+                {t("admin.field.onlineUrl")}
                 <input
                   value={eventEditor.onlineUrl}
                   onChange={(e) =>
@@ -1425,7 +1443,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                {taxonomy?.uiLabels.practiceCategory ?? "Practice category"}
+                {taxonomy?.uiLabels.practiceCategory ?? t("admin.field.practiceCategory")}
                 <select
                   value={eventEditor.practiceCategoryId}
                   onChange={(e) =>
@@ -1440,7 +1458,7 @@ export function AdminConsole() {
                     )
                   }
                 >
-                  <option value="">Select category</option>
+                  <option value="">{t("common.option.selectCategory")}</option>
                   {taxonomy?.practices.categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.label}
@@ -1449,7 +1467,7 @@ export function AdminConsole() {
                 </select>
               </label>
               <label>
-                Subcategory (optional)
+                {t("admin.field.subcategoryOptional")}
                 <select
                   value={eventEditor.practiceSubcategoryId}
                   onChange={(e) =>
@@ -1458,7 +1476,7 @@ export function AdminConsole() {
                     )
                   }
                 >
-                  <option value="">None</option>
+                  <option value="">{t("common.none")}</option>
                   {selectedEditCategory?.subcategories.map((subcategory) => (
                     <option key={subcategory.id} value={subcategory.id}>
                       {subcategory.label}
@@ -1467,7 +1485,7 @@ export function AdminConsole() {
                 </select>
               </label>
               <label>
-                Schedule kind
+                {t("common.field.scheduleKind")}
                 <select
                   value={eventEditor.scheduleKind}
                   onChange={(e) =>
@@ -1478,12 +1496,12 @@ export function AdminConsole() {
                     )
                   }
                 >
-                  <option value="single">Single</option>
-                  <option value="recurring">Recurring</option>
+                  <option value="single">{t("common.scheduleKind.single")}</option>
+                  <option value="recurring">{t("common.scheduleKind.recurring")}</option>
                 </select>
               </label>
               <label>
-                Event timezone
+                {t("admin.field.eventTimezone")}
                 <input
                   value={eventEditor.eventTimezone}
                   onChange={(e) =>
@@ -1494,7 +1512,7 @@ export function AdminConsole() {
               {eventEditor.scheduleKind === "single" ? (
                 <>
                   <label>
-                    Start
+                    {t("common.field.start")}
                     <input
                       required
                       type="datetime-local"
@@ -1507,7 +1525,7 @@ export function AdminConsole() {
                     />
                   </label>
                   <label>
-                    End
+                    {t("common.field.end")}
                     <input
                       required
                       type="datetime-local"
@@ -1523,7 +1541,7 @@ export function AdminConsole() {
               ) : (
                 <>
                   <label>
-                    RRULE
+                    {t("admin.field.rrule")}
                     <input
                       value={eventEditor.rrule}
                       onChange={(e) =>
@@ -1533,7 +1551,7 @@ export function AdminConsole() {
                     />
                   </label>
                   <label>
-                    Recurring start
+                    {t("admin.field.recurringStart")}
                     <input
                       required
                       type="datetime-local"
@@ -1546,7 +1564,7 @@ export function AdminConsole() {
                     />
                   </label>
                   <label>
-                    Duration minutes
+                    {t("admin.field.durationMinutes")}
                     <input
                       value={eventEditor.durationMinutes}
                       onChange={(e) =>
@@ -1554,17 +1572,17 @@ export function AdminConsole() {
                           current ? { ...current, durationMinutes: e.target.value } : current,
                         )
                       }
-                      placeholder="90"
+                      placeholder={t("admin.placeholder.durationMinutes")}
                     />
                   </label>
                 </>
               )}
               <label>
-                Event location search
+                {t("admin.field.eventLocationSearch")}
                 <input
                   value={editLocationQuery}
                   onChange={(e) => setEditLocationQuery(e.target.value)}
-                  placeholder="City, venue, or address"
+                  placeholder={t("admin.placeholder.locationSearch")}
                 />
               </label>
               <div className="admin-card-actions">
@@ -1574,7 +1592,7 @@ export function AdminConsole() {
                   disabled={editLocationLoading || editLocationQuery.trim().length < 2}
                   onClick={() => void runEditLocationSearch()}
                 >
-                  Search Location
+                  {t("admin.button.searchLocation")}
                 </button>
                 {eventEditor.locationId && (
                   <button
@@ -1582,13 +1600,13 @@ export function AdminConsole() {
                     type="button"
                     onClick={clearEditLocation}
                   >
-                    Remove Location
+                    {t("admin.button.removeLocation")}
                   </button>
                 )}
               </div>
-              {editLocationLoading && <div className="meta">Searching geocode results...</div>}
+              {editLocationLoading && <div className="meta">{t("admin.loading.geocodeSearch")}</div>}
               {eventEditor.locationId && (
-                <div className="meta">Selected location: {eventEditor.locationLabel}</div>
+                <div className="meta">{t("admin.label.selectedLocation", { address: eventEditor.locationLabel })}</div>
               )}
               {editLocationResults.length > 0 && (
                 <div className="admin-inline-list">
@@ -1600,14 +1618,14 @@ export function AdminConsole() {
                         type="button"
                         onClick={() => void selectEditLocation(result)}
                       >
-                        Use
+                        {t("common.use")}
                       </button>
                     </div>
                   ))}
                 </div>
               )}
               <label>
-                Languages (csv)
+                {t("common.field.languagesCsv")}
                 <input
                   value={eventEditor.languages}
                   onChange={(e) =>
@@ -1616,7 +1634,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                Tags (csv)
+                {t("common.field.tagsCsv")}
                 <input
                   value={eventEditor.tags}
                   onChange={(e) =>
@@ -1625,7 +1643,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                Visibility
+                {t("admin.field.visibility")}
                 <select
                   value={eventEditor.visibility}
                   onChange={(e) =>
@@ -1636,13 +1654,13 @@ export function AdminConsole() {
                     )
                   }
                 >
-                  <option value="public">Public</option>
-                  <option value="unlisted">Unlisted</option>
+                  <option value="public">{t("common.visibility.public")}</option>
+                  <option value="unlisted">{t("common.visibility.unlisted")}</option>
                 </select>
               </label>
               <div className="admin-card-actions">
                 <button className="primary-btn" type="submit" disabled={!hasEditorRole}>
-                  Save Event Changes
+                  {t("admin.editEvent.submit")}
                 </button>
                 <button
                   className="ghost-btn"
@@ -1653,7 +1671,7 @@ export function AdminConsole() {
                     setEditLocationResults([]);
                   }}
                 >
-                  Clear
+                  {t("common.clear")}
                 </button>
               </div>
             </>
@@ -1661,16 +1679,16 @@ export function AdminConsole() {
         </form>
 
         <form className="admin-form" onSubmit={(event) => void saveOrganizerEdits(event)}>
-          <h3>Edit Organizer</h3>
-          {loadingOrganizerEditor && <div className="meta">Loading organizer details...</div>}
+          <h3>{t("admin.editOrganizer.heading")}</h3>
+          {loadingOrganizerEditor && <div className="meta">{t("admin.loading.organizerDetails")}</div>}
           {!loadingOrganizerEditor && !organizerEditor && (
-            <div className="meta">Select an organizer from Recent Organizers to edit.</div>
+            <div className="meta">{t("admin.editOrganizer.promptSelect")}</div>
           )}
           {organizerEditor && (
             <>
-              <div className="meta">Editing: {organizerEditor.name} ({organizerEditor.slug})</div>
+              <div className="meta">{t("common.editingEntity", { title: organizerEditor.name, slug: organizerEditor.slug })}</div>
               <label>
-                Name
+                {t("common.field.name")}
                 <input
                   required
                   value={organizerEditor.name}
@@ -1680,7 +1698,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                Website URL
+                {t("common.field.websiteUrl")}
                 <input
                   value={organizerEditor.websiteUrl}
                   onChange={(e) =>
@@ -1691,7 +1709,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                Languages (csv)
+                {t("common.field.languagesCsv")}
                 <input
                   value={organizerEditor.languages}
                   onChange={(e) =>
@@ -1702,7 +1720,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                Tags (csv)
+                {t("common.field.tagsCsv")}
                 <input
                   value={organizerEditor.tags}
                   onChange={(e) =>
@@ -1711,7 +1729,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                Status
+                {t("common.field.status")}
                 <select
                   value={organizerEditor.status}
                   onChange={(e) =>
@@ -1722,21 +1740,21 @@ export function AdminConsole() {
                     )
                   }
                 >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
+                  <option value="draft">{t("common.status.draft")}</option>
+                  <option value="published">{t("common.status.published")}</option>
+                  <option value="archived">{t("common.status.archived")}</option>
                 </select>
               </label>
               <div className="admin-card-actions">
                 <button className="primary-btn" type="submit" disabled={!hasEditorRole}>
-                  Save Organizer Changes
+                  {t("admin.editOrganizer.submit")}
                 </button>
                 <button
                   className="ghost-btn"
                   type="button"
                   onClick={() => setOrganizerEditor(null)}
                 >
-                  Clear
+                  {t("common.clear")}
                 </button>
               </div>
             </>
@@ -1744,7 +1762,7 @@ export function AdminConsole() {
         </form>
       </section>
 
-      <div className="admin-status">{status || "No actions yet."}</div>
+      <div className="admin-status">{status || t("admin.status.noneYet")}</div>
     </section>
   );
 }

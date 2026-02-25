@@ -6,6 +6,9 @@ import Keycloak from "keycloak-js";
 import type { KeycloakClientConfig } from "../../lib/keycloakConfig";
 import { useI18n } from "../i18n/I18nProvider";
 
+type MessageValues = Record<string, string | number | boolean | null | undefined>;
+type Translate = (key: string, values?: MessageValues) => string;
+
 type AuthContextValue = {
   ready: boolean;
   authenticated: boolean;
@@ -44,7 +47,7 @@ function extractRoles(tokenParsed: unknown, clientId?: string): string[] {
   return Array.from(new Set([...realmRoles, ...resourceRoles]));
 }
 
-function describeInitError(error: unknown): string {
+function describeInitError(error: unknown, t: Translate): string {
   if (error instanceof Error) {
     return error.message;
   }
@@ -73,19 +76,22 @@ function describeInitError(error: unknown): string {
     try {
       return JSON.stringify(payload);
     } catch {
-      return "Unknown error object";
+      return t("auth.error.unknownObject");
     }
   }
 
-  return "Unknown error";
+  return t("auth.error.unknown");
 }
 
-function withKeycloakConfigHint(message: string, clientId?: string): string {
+function withKeycloakConfigHint(message: string, t: Translate, clientId?: string): string {
   if (
     message.includes("invalid_client_credentials") ||
     message.includes("invalid_client")
   ) {
-    return `${message}. Keycloak client '${clientId ?? "events"}' must be public (Client authentication OFF) for SPA login.`;
+    return t("auth.error.invalidClientHint", {
+      message,
+      clientId: clientId ?? "events",
+    });
   }
 
   return message;
@@ -178,7 +184,8 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
       })
       .catch((error: unknown) => {
         const message = withKeycloakConfigHint(
-          describeInitError(error),
+          describeInitError(error, t),
+          t,
           keycloakClientId,
         );
         setAuthError(

@@ -8,20 +8,32 @@ import { resolveRequestLocale } from "../lib/i18n/locale";
 import { getMessages } from "../lib/i18n/messages";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "DanceResource Events",
-  description: "Events discovery and publishing for DanceResource",
-};
+const fallbackTitle = "DanceResource Events";
+const fallbackDescription = "Events discovery and publishing for DanceResource";
+
+function resolveLocale() {
+  return resolveRequestLocale(
+    cookies().get(localeCookieName)?.value,
+    headers().get("accept-language"),
+  );
+}
+
+export function generateMetadata(): Metadata {
+  const locale = resolveLocale();
+  const messages = getMessages(locale);
+
+  return {
+    title: messages["meta.title"] ?? fallbackTitle,
+    description: messages["meta.description"] ?? fallbackDescription,
+  };
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = resolveRequestLocale(
-    cookies().get(localeCookieName)?.value,
-    headers().get("accept-language"),
-  );
+  const locale = resolveLocale();
   const messages = getMessages(locale);
 
   return (
