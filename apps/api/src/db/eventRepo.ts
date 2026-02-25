@@ -19,7 +19,7 @@ type EventSearchInput = {
   hasGeo?: boolean;
   page: number;
   pageSize: number;
-  sort: "startsAtAsc" | "startsAtDesc";
+  sort: "startsAtAsc" | "startsAtDesc" | "publishedAtDesc";
 };
 
 function buildEventFilters(input: Omit<EventSearchInput, "page" | "pageSize" | "sort">): {
@@ -497,7 +497,12 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
   const offset = (page - 1) * pageSize;
 
   const { whereSql, values } = buildEventFilters(input);
-  const orderSql = input.sort === "startsAtDesc" ? "desc" : "asc";
+  const orderSql =
+    input.sort === "publishedAtDesc"
+      ? "published_at desc nulls last, starts_at_utc asc"
+      : input.sort === "startsAtDesc"
+        ? "starts_at_utc desc"
+        : "starts_at_utc asc";
 
   const baseCte = `
     with matched as (
@@ -556,7 +561,7 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
     `${baseCte}
       select *
       from matched
-      order by starts_at_utc ${orderSql}
+      order by ${orderSql}
       limit $${values.length + 1}
       offset $${values.length + 2}
     `,

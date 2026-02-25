@@ -40,6 +40,7 @@ const LeafletClusterMap = dynamic(
 export function EventSearchClient() {
   const { locale, t } = useI18n();
   const [view, setView] = useState<"list" | "map">("list");
+  const [sort, setSort] = useState<"startsAtAsc" | "publishedAtDesc">("startsAtAsc");
   const [q, setQ] = useState("");
   const [language, setLanguage] = useState("");
   const [attendanceMode, setAttendanceMode] = useState("");
@@ -54,10 +55,11 @@ export function EventSearchClient() {
     if (q.trim()) params.set("q", q.trim());
     if (language) params.set("languages", language);
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
+    params.set("sort", sort);
     params.set("page", "1");
     params.set("pageSize", "20");
     return params.toString();
-  }, [q, language, attendanceMode]);
+  }, [q, language, attendanceMode, sort]);
 
   async function runSearch() {
     const currentQuery = queryString;
@@ -102,6 +104,13 @@ export function EventSearchClient() {
           <option value="online">{t("eventSearch.attendance.online")}</option>
           <option value="hybrid">{t("eventSearch.attendance.hybrid")}</option>
         </select>
+        <label>
+          {t("eventSearch.sort.label")}
+          <select value={sort} onChange={(event) => setSort(event.target.value as "startsAtAsc" | "publishedAtDesc")}>
+            <option value="startsAtAsc">{t("eventSearch.sort.soonestUpcoming")}</option>
+            <option value="publishedAtDesc">{t("eventSearch.sort.newestPublished")}</option>
+          </select>
+        </label>
         <button type="button" onClick={runSearch} disabled={loading}>
           {loading ? t("eventSearch.searching") : t("eventSearch.search")}
         </button>

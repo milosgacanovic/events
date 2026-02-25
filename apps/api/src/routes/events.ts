@@ -35,7 +35,7 @@ const searchQuerySchema = z.object({
   hasGeo: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),
-  sort: z.enum(["startsAtAsc", "startsAtDesc"]).default("startsAtAsc"),
+  sort: z.enum(["startsAtAsc", "startsAtDesc", "publishedAtDesc"]).default("startsAtAsc"),
 });
 
 function csvToList(value?: string): string[] {
@@ -129,7 +129,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         hasGeo,
       });
 
-      const sortExpression = parsed.data.sort === "startsAtDesc" ? "starts_at_utc:desc" : "starts_at_utc:asc";
+      const sortExpression =
+        parsed.data.sort === "publishedAtDesc"
+          ? "published_at:desc"
+          : parsed.data.sort === "startsAtDesc"
+            ? "starts_at_utc:desc"
+            : "starts_at_utc:asc";
       const index = app.meiliService.client.index(OCCURRENCES_INDEX);
       const result = await index.search<OccurrenceDoc>(parsed.data.q ?? "", {
         filter: meiliFilters,
