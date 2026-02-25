@@ -43,6 +43,53 @@ function extractRoles(tokenParsed: unknown, clientId?: string): string[] {
   return Array.from(new Set([...realmRoles, ...resourceRoles]));
 }
 
+function describeInitError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error && typeof error === "object") {
+    const payload = error as Record<string, unknown>;
+    const code =
+      typeof payload.error === "string"
+        ? payload.error
+        : typeof payload.errorMessage === "string"
+          ? payload.errorMessage
+          : "";
+    const description =
+      typeof payload.error_description === "string"
+        ? payload.error_description
+        : typeof payload.message === "string"
+          ? payload.message
+          : "";
+
+    if (code || description) {
+      return [code, description].filter(Boolean).join(": ");
+    }
+
+    try {
+      return JSON.stringify(payload);
+    } catch {
+      return "Unknown error object";
+    }
+  }
+
+  return "Unknown error";
+}
+
+function withKeycloakConfigHint(message: string, clientId?: string): string {
+  if (
+    message.includes("invalid_client_credentials") ||
+    message.includes("invalid_client")
+  ) {
+    return `${message}. Keycloak client '${clientId ?? "events"}' must be public (Client authentication OFF) for SPA login.`;
+  }
+
+  return message;
+}
+
 function normalizeValue(value: string | undefined): string | undefined {
   const candidate = (value ?? "").trim();
   return candidate || undefined;
@@ -128,10 +175,12 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
         }, 20_000);
       })
       .catch((error: unknown) => {
+        const message = withKeycloakConfigHint(
+          describeInitError(error),
+          keycloakClientId,
+        );
         setAuthError(
-          error instanceof Error
-            ? `Keycloak init failed: ${error.message}`
-            : "Keycloak init failed",
+          `Keycloak init failed: ${message}`,
         );
       })
       .finally(() => {

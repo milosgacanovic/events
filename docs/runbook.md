@@ -11,6 +11,11 @@
 
 ## Keycloak SSO
 - Web uses Keycloak JS (SPA + PKCE), so the Keycloak client should be configured as `public`.
+- Keycloak client settings must be:
+  - `Client authentication`: `Off` (public client)
+  - `Standard flow`: enabled
+  - `Valid redirect URIs`: include `https://beta.events.danceresource.org/auth/keycloak/callback` and `https://beta.events.danceresource.org/silent-check-sso.html` (or `https://beta.events.danceresource.org/*`)
+  - `Web origins`: `https://beta.events.danceresource.org`
 - Redirect URI used by login: `https://beta.events.danceresource.org/auth/keycloak/callback`
 - Logout redirect URI: `https://beta.events.danceresource.org/admin`
 - Silent SSO page: `https://beta.events.danceresource.org/silent-check-sso.html`
@@ -21,7 +26,7 @@
   - `KEYCLOAK_AUDIENCE=<CLIENT_ID>`
   - `KEYCLOAK_REALM=<REALM>`
   - `KEYCLOAK_CLIENT_ID=<CLIENT_ID>`
-  - Optional: `KEYCLOAK_CLIENT_SECRET` (not used by SPA login flow)
+  - Optional: `KEYCLOAK_CLIENT_SECRET` (not used by SPA login flow; only relevant for confidential-server flows)
 
 ## Cron
 - Daily recurring horizon refresh:
