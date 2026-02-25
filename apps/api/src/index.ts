@@ -82,18 +82,6 @@ async function buildServer() {
     app.log.warn({ error }, "Meilisearch index setup failed; API will use fallback search path");
   });
 
-  await app.register(async (api) => {
-    await api.register(healthRoute);
-    await api.register(metaRoutes);
-    await api.register(adminContentRoutes);
-    await api.register(eventRoutes);
-    await api.register(organizerRoutes);
-    await api.register(mapRoutes);
-    await api.register(geocodeRoutes);
-    await api.register(adminRoutes);
-    await api.register(uploadRoutes);
-  }, { prefix: "/api" });
-
   app.setErrorHandler((error, request, reply) => {
     const err = error instanceof Error ? error : new Error("internal_error");
 
@@ -110,6 +98,18 @@ async function buildServer() {
     const code = (error as { statusCode?: number }).statusCode ?? 500;
     reply.code(code).send({ error: err.message || "internal_error" });
   });
+
+  await app.register(async (api) => {
+    await api.register(healthRoute);
+    await api.register(metaRoutes);
+    await api.register(adminContentRoutes);
+    await api.register(eventRoutes);
+    await api.register(organizerRoutes);
+    await api.register(mapRoutes);
+    await api.register(geocodeRoutes);
+    await api.register(adminRoutes);
+    await api.register(uploadRoutes);
+  }, { prefix: "/api" });
 
   app.addHook("onClose", async () => {
     await pool.end();
