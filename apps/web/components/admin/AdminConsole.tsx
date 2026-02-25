@@ -89,44 +89,50 @@ export function AdminConsole() {
   const [selectedRoleId, setSelectedRoleId] = useState("");
 
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
+  const [practiceCreateLevel, setPracticeCreateLevel] = useState<"1" | "2">("1");
+  const [practiceCreateParentId, setPracticeCreateParentId] = useState("");
+  const [practiceCreateKey, setPracticeCreateKey] = useState("");
+  const [practiceCreateLabel, setPracticeCreateLabel] = useState("");
+  const [roleCreateKey, setRoleCreateKey] = useState("");
+  const [roleCreateLabel, setRoleCreateLabel] = useState("");
 
   const hasEditorRole = useMemo(
     () => roles.includes("dr_events_editor") || roles.includes("dr_events_admin"),
     [roles],
   );
+  const hasAdminRole = useMemo(() => roles.includes("dr_events_admin"), [roles]);
+
+  async function loadMetadata() {
+    setLoadingMeta(true);
+    try {
+      const [taxonomyResult, organizerResult] = await Promise.all([
+        fetchJson<TaxonomyResponse>("/meta/taxonomies"),
+        fetchJson<{ items: OrganizerOption[] }>("/organizers/search?page=1&pageSize=50"),
+      ]);
+
+      setTaxonomy(taxonomyResult);
+      setOrganizerOptions(organizerResult.items);
+
+      setPracticeCategoryId((current) => current || taxonomyResult.practices.categories[0]?.id || "");
+      setSelectedRoleId((current) => current || taxonomyResult.organizerRoles[0]?.id || "");
+      if (practiceCreateLevel === "2" && !practiceCreateParentId && taxonomyResult.practices.categories[0]) {
+        setPracticeCreateParentId(taxonomyResult.practices.categories[0].id);
+      }
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? `Failed to load metadata: ${error.message}` : "Failed to load metadata",
+      );
+    } finally {
+      setLoadingMeta(false);
+    }
+  }
 
   useEffect(() => {
     if (!authenticated) {
       return;
     }
 
-    const run = async () => {
-      setLoadingMeta(true);
-      try {
-        const [taxonomyResult, organizerResult] = await Promise.all([
-          fetchJson<TaxonomyResponse>("/meta/taxonomies"),
-          fetchJson<{ items: OrganizerOption[] }>("/organizers/search?page=1&pageSize=50"),
-        ]);
-
-        setTaxonomy(taxonomyResult);
-        setOrganizerOptions(organizerResult.items);
-
-        if (!practiceCategoryId && taxonomyResult.practices.categories[0]) {
-          setPracticeCategoryId(taxonomyResult.practices.categories[0].id);
-        }
-        if (!selectedRoleId && taxonomyResult.organizerRoles[0]) {
-          setSelectedRoleId(taxonomyResult.organizerRoles[0].id);
-        }
-      } catch (error) {
-        setStatus(
-          error instanceof Error ? `Failed to load metadata: ${error.message}` : "Failed to load metadata",
-        );
-      } finally {
-        setLoadingMeta(false);
-      }
-    };
-
-    void run();
+    void loadMetadata();
   }, [authenticated]);
 
   const selectedCategory = taxonomy?.practices.categories.find((category) => category.id === practiceCategoryId);
@@ -257,6 +263,51 @@ export function AdminConsole() {
     }
   }
 
+  async function createPracticeSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setStatus("Creating practice taxonomy item...");
+
+    try {
+      const level = Number(practiceCreateLevel) as 1 | 2;
+      await authorizedRequest("/admin/practices", "POST", {
+        parentId: level === 2 ? practiceCreateParentId || null : null,
+        level,
+        key: practiceCreateKey,
+        label: practiceCreateLabel,
+        sortOrder: 0,
+        isActive: true,
+      });
+
+      setPracticeCreateKey("");
+      setPracticeCreateLabel("");
+      await loadMetadata();
+      setStatus("Practice taxonomy item created.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Practice creation failed");
+    }
+  }
+
+  async function createRoleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setStatus("Creating organizer role...");
+
+    try {
+      await authorizedRequest("/admin/organizer-roles", "POST", {
+        key: roleCreateKey,
+        label: roleCreateLabel,
+        sortOrder: 0,
+        isActive: true,
+      });
+
+      setRoleCreateKey("");
+      setRoleCreateLabel("");
+      await loadMetadata();
+      setStatus("Organizer role created.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Role creation failed");
+    }
+  }
+
   if (!ready) {
     return <section className="panel">Initializing auth...</section>;
   }
@@ -290,6 +341,11 @@ export function AdminConsole() {
       {!hasEditorRole && (
         <div className="admin-warning">
           Logged in, but this token has no `dr_events_editor` or `dr_events_admin` role.
+        </div>
+      )}
+      {!hasAdminRole && (
+        <div className="admin-warning">
+          Taxonomy creation requires the `dr_events_admin` role.
         </div>
       )}
 
@@ -489,6 +545,84 @@ export function AdminConsole() {
             onClick={() => void publishEvent()}
           >
             Publish Last Created Event
+          </button>
+        </form>
+
+        <form className="admin-form" onSubmit={createPracticeSubmit}>
+          <h3>Create Practice Taxonomy</h3>
+          <label>
+            Level
+            <select
+              value={practiceCreateLevel}
+              onChange={(e) => setPracticeCreateLevel(e.target.value as "1" | "2")}
+            >
+              <option value="1">Category</option>
+              <option value="2">Subcategory</option>
+            </select>
+          </label>
+
+          {practiceCreateLevel === "2" && (
+            <label>
+              Parent category
+              <select
+                value={practiceCreateParentId}
+                onChange={(e) => setPracticeCreateParentId(e.target.value)}
+              >
+                <option value="">Select parent category</option>
+                {taxonomy?.practices.categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <label>
+            Key
+            <input
+              required
+              value={practiceCreateKey}
+              onChange={(e) => setPracticeCreateKey(e.target.value)}
+              placeholder="contact-improv-jam"
+            />
+          </label>
+          <label>
+            Label
+            <input
+              required
+              value={practiceCreateLabel}
+              onChange={(e) => setPracticeCreateLabel(e.target.value)}
+              placeholder="Contact Improv Jam"
+            />
+          </label>
+          <button className="primary-btn" type="submit" disabled={!hasAdminRole}>
+            Create Practice Item
+          </button>
+        </form>
+
+        <form className="admin-form" onSubmit={createRoleSubmit}>
+          <h3>Create Organizer Role</h3>
+          <label>
+            Key
+            <input
+              required
+              value={roleCreateKey}
+              onChange={(e) => setRoleCreateKey(e.target.value)}
+              placeholder="facilitator"
+            />
+          </label>
+          <label>
+            Label
+            <input
+              required
+              value={roleCreateLabel}
+              onChange={(e) => setRoleCreateLabel(e.target.value)}
+              placeholder="Facilitator"
+            />
+          </label>
+          <button className="primary-btn" type="submit" disabled={!hasAdminRole}>
+            Create Role
           </button>
         </form>
       </div>
