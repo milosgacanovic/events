@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -30,6 +31,11 @@ type SearchResponse = {
   };
 };
 
+const LeafletClusterMap = dynamic(
+  () => import("./LeafletClusterMap").then((module) => module.LeafletClusterMap),
+  { ssr: false },
+);
+
 export function EventSearchClient() {
   const [view, setView] = useState<"list" | "map">("list");
   const [q, setQ] = useState("");
@@ -38,6 +44,8 @@ export function EventSearchClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(null);
+  const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -49,34 +57,17 @@ export function EventSearchClient() {
     return params.toString();
   }, [q, language, attendanceMode]);
 
-  const [clusterSummary, setClusterSummary] = useState<string>("");
-
   async function runSearch() {
+    const currentQuery = queryString;
+
     setLoading(true);
     setError(null);
 
     try {
-      const result = await fetchJson<SearchResponse>(`/events/search?${queryString}`);
+      const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`);
       setData(result);
-
-      if (view === "map") {
-        const clusters = await fetchJson<{
-          type: "FeatureCollection";
-          features: Array<{ properties?: { cluster?: boolean; point_count?: number } }>;
-        }>(
-          `/map/clusters?${queryString}&bbox=-180,-85,180,85&zoom=2`,
-        );
-        const clusterCount = clusters.features.filter((feature) => feature.properties?.cluster).length;
-        const pointCount = clusters.features.reduce((sum, feature) => {
-          if (feature.properties?.cluster) {
-            return sum + (feature.properties.point_count ?? 0);
-          }
-          return sum + 1;
-        }, 0);
-        setClusterSummary(`Clusters: ${clusterCount}, represented points: ${pointCount}`);
-      } else {
-        setClusterSummary("");
-      }
+      setActiveQueryString(currentQuery);
+      setRefreshToken((value) => value + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
@@ -88,7 +79,8 @@ export function EventSearchClient() {
     <section className="grid">
       <aside className="panel filters">
         <h2 className="title-xl">Find Events</h2>
-        <select value={view} onChange={(event) => setView(event.target.value as "list" | "map")}>
+        <select value={view} onChange={(event) => setView(event.target.value as "list" | "map")}
+        >
           <option value="list">List view</option>
           <option value="map">Map view</option>
         </select>
@@ -121,8 +113,9 @@ export function EventSearchClient() {
           {data ? `${data.totalHits} results` : "Run a search to load events."}
         </div>
         {error && <div className="muted">{error}</div>}
+
         {view === "map" ? (
-          <div className="mapbox">{clusterSummary || "Run search to load clustered map summary."}</div>
+          <LeafletClusterMap queryString={activeQueryString} refreshToken={refreshToken} />
         ) : (
           data?.hits.map((hit) => (
             <article className="card" key={hit.occurrenceId}>

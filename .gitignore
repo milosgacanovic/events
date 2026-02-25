@@ -9,6 +9,7 @@ coverage/
 apps/*/dist/
 apps/*/.next/
 packages/*/dist/
+*.tsbuildinfo
 data/postgres/
 data/meili/
 data/uploads/

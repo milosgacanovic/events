@@ -1,0 +1,171 @@
+"use client";
+
+import "leaflet/dist/leaflet.css";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Map as LeafletMap } from "leaflet";
+import {
+  CircleMarker,
+  MapContainer,
+  TileLayer,
+  Tooltip,
+  useMapEvents,
+} from "react-leaflet";
+
+type ClusterFeature = {
+  type: "Feature";
+  geometry: {
+    type: "Point";
+    coordinates: [number, number];
+  };
+  properties: {
+    cluster: boolean;
+    point_count?: number;
+    occurrence_id?: string;
+  };
+};
+
+type ClusterResponse = {
+  type: "FeatureCollection";
+  features: ClusterFeature[];
+};
+
+function MapChangeWatcher({ onChange }: { onChange: () => void }) {
+  useMapEvents({
+    moveend: onChange,
+    zoomend: onChange,
+  });
+
+  return null;
+}
+
+function buildClusterUrl(queryString: string, bbox: string, zoom: number): string {
+  const params = new URLSearchParams(queryString);
+  params.set("bbox", bbox);
+  params.set("zoom", String(zoom));
+
+  return `/map/clusters?${params.toString()}`;
+}
+
+export function LeafletClusterMap({
+  queryString,
+  refreshToken,
+}: {
+  queryString: string;
+  refreshToken: number;
+}) {
+  const mapRef = useRef<LeafletMap | null>(null);
+  const requestRef = useRef(0);
+
+  const [features, setFeatures] = useState<ClusterFeature[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+
+  const tileUrl =
+    process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+  const refreshClusters = useCallback(async () => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    const bounds = mapRef.current.getBounds();
+    const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(",");
+    const zoom = Math.round(mapRef.current.getZoom());
+
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
+
+    setStatus("loading");
+
+    try {
+      const response = await fetch(buildClusterUrl(queryString, bbox, zoom), {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Map request failed with ${response.status}`);
+      }
+
+      const data = (await response.json()) as ClusterResponse;
+      if (requestRef.current !== requestId) {
+        return;
+      }
+
+      setFeatures(data.features ?? []);
+      setStatus("idle");
+    } catch {
+      if (requestRef.current !== requestId) {
+        return;
+      }
+      setStatus("error");
+    }
+  }, [queryString]);
+
+  useEffect(() => {
+    void refreshClusters();
+  }, [refreshClusters, refreshToken]);
+
+  const markers = useMemo(
+    () =>
+      features.map((feature, index) => {
+        const [lng, lat] = feature.geometry.coordinates;
+        const pointCount = feature.properties.point_count ?? 1;
+        const isCluster = feature.properties.cluster;
+
+        return (
+          <CircleMarker
+            center={[lat, lng]}
+            key={`${lat}-${lng}-${feature.properties.occurrence_id ?? "cluster"}-${index}`}
+            pathOptions={{
+              color: isCluster ? "#0f7a6a" : "#e07a2f",
+              fillColor: isCluster ? "#0f7a6a" : "#e07a2f",
+              fillOpacity: 0.8,
+              weight: 1,
+            }}
+            radius={isCluster ? Math.min(28, 10 + Math.log(pointCount) * 6) : 7}
+          >
+            <Tooltip>
+              {isCluster
+                ? `${pointCount} events in cluster`
+                : `Occurrence ${feature.properties.occurrence_id ?? "unknown"}`}
+            </Tooltip>
+          </CircleMarker>
+        );
+      }),
+    [features],
+  );
+
+  return (
+    <div className="map-shell">
+      <MapContainer
+        center={[20, 0]}
+        zoom={2}
+        scrollWheelZoom
+        className="leaflet-map"
+        ref={(instance) => {
+          mapRef.current = instance;
+        }}
+        whenReady={() => {
+          void refreshClusters();
+        }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url={tileUrl}
+        />
+        <MapChangeWatcher
+          onChange={() => {
+            void refreshClusters();
+          }}
+        />
+        {markers}
+      </MapContainer>
+
+      <div className="map-status">
+        {status === "loading" ? "Loading clusters..." : null}
+        {status === "error" ? "Failed to load clusters." : null}
+        {status === "idle" ? `${features.length} map features` : null}
+      </div>
+    </div>
+  );
+}

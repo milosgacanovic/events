@@ -153,6 +153,24 @@ main {
   color: #3a4f44;
 }
 
+.map-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.leaflet-map {
+  height: 460px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.map-status {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 @media (max-width: 900px) {
   .grid {
     grid-template-columns: 1fr;
