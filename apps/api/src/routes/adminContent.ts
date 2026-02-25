@@ -1,7 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
-import { listAdminEvents, listAdminOrganizers } from "../db/adminRepo";
+import {
+  getAdminEventById,
+  getAdminOrganizerById,
+  listAdminEvents,
+  listAdminOrganizers,
+} from "../db/adminRepo";
 
 const eventQuerySchema = z.object({
   q: z.string().optional(),
@@ -40,6 +45,42 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     }
 
     return listAdminOrganizers(app.db, parsed.data);
+  });
+
+  app.get("/admin/events/:id", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const item = await getAdminEventById(app.db, params.data.id);
+    if (!item) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    return item;
+  });
+
+  app.get("/admin/organizers/:id", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const item = await getAdminOrganizerById(app.db, params.data.id);
+    if (!item) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    return item;
   });
 };
 

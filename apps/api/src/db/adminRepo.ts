@@ -144,3 +144,140 @@ export async function listAdminOrganizers(
     },
   };
 }
+
+export async function getAdminEventById(pool: Pool, eventId: string) {
+  const eventResult = await pool.query<{
+    id: string;
+    slug: string;
+    title: string;
+    description_json: Record<string, unknown>;
+    cover_image_path: string | null;
+    external_url: string | null;
+    attendance_mode: "in_person" | "online" | "hybrid";
+    online_url: string | null;
+    practice_category_id: string;
+    practice_subcategory_id: string | null;
+    tags: string[];
+    languages: string[];
+    schedule_kind: "single" | "recurring";
+    event_timezone: string;
+    single_start_at: string | null;
+    single_end_at: string | null;
+    rrule: string | null;
+    rrule_dtstart_local: string | null;
+    duration_minutes: number | null;
+    status: "draft" | "published" | "cancelled" | "archived";
+    visibility: "public" | "unlisted";
+    created_at: string;
+    updated_at: string;
+    published_at: string | null;
+  }>(
+    `
+      select
+        e.id,
+        e.slug,
+        e.title,
+        e.description_json,
+        e.cover_image_path,
+        e.external_url,
+        e.attendance_mode,
+        e.online_url,
+        e.practice_category_id,
+        e.practice_subcategory_id,
+        e.tags,
+        e.languages,
+        e.schedule_kind,
+        e.event_timezone,
+        e.single_start_at,
+        e.single_end_at,
+        e.rrule,
+        e.rrule_dtstart_local,
+        e.duration_minutes,
+        e.status,
+        e.visibility,
+        e.created_at,
+        e.updated_at,
+        e.published_at
+      from events e
+      where e.id = $1
+      limit 1
+    `,
+    [eventId],
+  );
+
+  const event = eventResult.rows[0];
+  if (!event) {
+    return null;
+  }
+
+  const [organizerRolesResult, eventLocationResult] = await Promise.all([
+    pool.query<{
+      organizer_id: string;
+      role_id: string;
+      display_order: number;
+    }>(
+      `
+        select
+          rel.organizer_id,
+          rel.role_id,
+          rel.display_order
+        from event_organizers rel
+        where rel.event_id = $1
+        order by rel.display_order asc
+      `,
+      [eventId],
+    ),
+    pool.query<{ location_id: string }>(
+      `
+        select el.location_id
+        from event_locations el
+        where el.event_id = $1
+        limit 1
+      `,
+      [eventId],
+    ),
+  ]);
+
+  return {
+    ...event,
+    organizer_roles: organizerRolesResult.rows,
+    location_id: eventLocationResult.rows[0]?.location_id ?? null,
+  };
+}
+
+export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
+  const result = await pool.query<{
+    id: string;
+    slug: string;
+    name: string;
+    description_json: Record<string, unknown>;
+    website_url: string | null;
+    tags: string[];
+    languages: string[];
+    avatar_path: string | null;
+    status: "draft" | "published" | "archived";
+    created_at: string;
+    updated_at: string;
+  }>(
+    `
+      select
+        o.id,
+        o.slug,
+        o.name,
+        o.description_json,
+        o.website_url,
+        o.tags,
+        o.languages,
+        o.avatar_path,
+        o.status,
+        o.created_at,
+        o.updated_at
+      from organizers o
+      where o.id = $1
+      limit 1
+    `,
+    [organizerId],
+  );
+
+  return result.rows[0] ?? null;
+}
