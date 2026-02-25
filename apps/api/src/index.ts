@@ -13,6 +13,7 @@ import eventRoutes from "./routes/events";
 import geocodeRoutes from "./routes/geocode";
 import healthRoute from "./routes/health";
 import mapRoutes from "./routes/map";
+import metaRoutes from "./routes/meta";
 import organizerRoutes from "./routes/organizers";
 import uploadRoutes from "./routes/uploads";
 import { AuthService } from "./services/authService";
@@ -82,6 +83,7 @@ async function buildServer() {
 
   await app.register(async (api) => {
     await api.register(healthRoute);
+    await api.register(metaRoutes);
     await api.register(eventRoutes);
     await api.register(organizerRoutes);
     await api.register(mapRoutes);

@@ -4,6 +4,7 @@ Base path: `/api`
 
 ## Public
 - `GET /api/health`
+- `GET /api/meta/taxonomies`
 - `GET /api/events/search`
 - `GET /api/events/:slug`
 - `GET /api/organizers/search`
