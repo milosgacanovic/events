@@ -14,6 +14,8 @@ Base path: `/api`
 - `GET /api/uploads/*`
 
 ## Editor/Admin (Bearer token)
+- `GET /api/admin/events`
+- `GET /api/admin/organizers`
 - `POST /api/organizers`
 - `PATCH /api/organizers/:id`
 - `POST /api/events`

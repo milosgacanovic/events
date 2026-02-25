@@ -34,6 +34,25 @@ type OrganizerOption = {
   name: string;
 };
 
+type AdminEvent = {
+  id: string;
+  slug: string;
+  title: string;
+  status: "draft" | "published" | "cancelled" | "archived";
+  attendance_mode: string;
+  schedule_kind: string;
+  updated_at: string;
+  published_at: string | null;
+};
+
+type AdminOrganizer = {
+  id: string;
+  slug: string;
+  name: string;
+  status: "draft" | "published" | "archived";
+  updated_at: string;
+};
+
 function csvToArray(value: string): string[] {
   return value
     .split(",")
@@ -60,6 +79,9 @@ export function AdminConsole() {
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const [organizerOptions, setOrganizerOptions] = useState<OrganizerOption[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(false);
+  const [loadingAdminContent, setLoadingAdminContent] = useState(false);
+  const [adminEvents, setAdminEvents] = useState<AdminEvent[]>([]);
+  const [adminOrganizers, setAdminOrganizers] = useState<AdminOrganizer[]>([]);
 
   const [status, setStatus] = useState<string>("");
 
@@ -134,8 +156,13 @@ export function AdminConsole() {
       return;
     }
 
-    void loadMetadata();
-  }, [authenticated]);
+    const run = async () => {
+      await loadMetadata();
+      await loadAdminContent();
+    };
+
+    void run();
+  }, [authenticated, hasEditorRole]);
 
   const selectedCategory = taxonomy?.practices.categories.find((category) => category.id === practiceCategoryId);
 
@@ -157,6 +184,27 @@ export function AdminConsole() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`HTTP ${response.status}: ${text}`);
+    }
+
+    return (await response.json()) as T;
+  }
+
+  async function authorizedGet<T>(path: string): Promise<T> {
+    const token = await getToken();
+    if (!token) {
+      throw new Error("No auth token available. Log in again.");
+    }
+
+    const response = await fetch(`${apiBase}${path}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
     });
 
     if (!response.ok) {
@@ -198,6 +246,29 @@ export function AdminConsole() {
     return (await response.json()) as { stored_path: string; url: string };
   }
 
+  async function loadAdminContent() {
+    if (!hasEditorRole) {
+      setAdminEvents([]);
+      setAdminOrganizers([]);
+      return;
+    }
+
+    setLoadingAdminContent(true);
+    try {
+      const [eventsResult, organizersResult] = await Promise.all([
+        authorizedGet<{ items: AdminEvent[] }>("/admin/events?page=1&pageSize=20"),
+        authorizedGet<{ items: AdminOrganizer[] }>("/admin/organizers?page=1&pageSize=20"),
+      ]);
+
+      setAdminEvents(eventsResult.items);
+      setAdminOrganizers(organizersResult.items);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to load admin lists");
+    } finally {
+      setLoadingAdminContent(false);
+    }
+  }
+
   async function createOrganizerSubmit(event: React.FormEvent) {
     event.preventDefault();
     setStatus("Creating organizer...");
@@ -230,6 +301,7 @@ export function AdminConsole() {
       setOrganizerWebsite("");
       setOrganizerTags("");
       setOrganizerAvatarFile(null);
+      await loadAdminContent();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Organizer creation failed");
     }
@@ -292,21 +364,24 @@ export function AdminConsole() {
       setEventTitle("");
       setEventTags("");
       setEventCoverFile(null);
+      await loadAdminContent();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Event creation failed");
     }
   }
 
-  async function publishEvent() {
-    if (!createdEventId) {
+  async function publishEvent(eventId?: string) {
+    const targetEventId = eventId ?? createdEventId;
+    if (!targetEventId) {
       return;
     }
 
     setStatus("Publishing event...");
 
     try {
-      await authorizedRequest(`/events/${createdEventId}/publish`, "POST", {});
-      setStatus(`Event published: ${createdEventId}`);
+      await authorizedRequest(`/events/${targetEventId}/publish`, "POST", {});
+      setStatus(`Event published: ${targetEventId}`);
+      await loadAdminContent();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Event publish failed");
     }
@@ -330,6 +405,7 @@ export function AdminConsole() {
       setPracticeCreateKey("");
       setPracticeCreateLabel("");
       await loadMetadata();
+      await loadAdminContent();
       setStatus("Practice taxonomy item created.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Practice creation failed");
@@ -351,6 +427,7 @@ export function AdminConsole() {
       setRoleCreateKey("");
       setRoleCreateLabel("");
       await loadMetadata();
+      await loadAdminContent();
       setStatus("Organizer role created.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Role creation failed");
@@ -607,7 +684,7 @@ export function AdminConsole() {
             className="secondary-btn"
             type="button"
             disabled={!hasEditorRole || !createdEventId}
-            onClick={() => void publishEvent()}
+            onClick={() => void publishEvent(createdEventId ?? undefined)}
           >
             Publish Last Created Event
           </button>
@@ -691,6 +768,49 @@ export function AdminConsole() {
           </button>
         </form>
       </div>
+
+      <section className="admin-list-grid">
+        <div className="admin-form">
+          <h3>Recent Events</h3>
+          {loadingAdminContent && <div className="meta">Loading admin lists...</div>}
+          {!loadingAdminContent && adminEvents.length === 0 && (
+            <div className="meta">No events available.</div>
+          )}
+          {adminEvents.map((item) => (
+            <div className="card" key={item.id}>
+              <div><strong>{item.title}</strong></div>
+              <div className="meta">
+                {item.status} | {item.attendance_mode} | {item.schedule_kind}
+              </div>
+              <div className="meta">Updated: {new Date(item.updated_at).toLocaleString()}</div>
+              {item.status === "draft" && hasEditorRole && (
+                <button
+                  className="secondary-btn"
+                  type="button"
+                  onClick={() => void publishEvent(item.id)}
+                >
+                  Publish
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="admin-form">
+          <h3>Recent Organizers</h3>
+          {loadingAdminContent && <div className="meta">Loading admin lists...</div>}
+          {!loadingAdminContent && adminOrganizers.length === 0 && (
+            <div className="meta">No organizers available.</div>
+          )}
+          {adminOrganizers.map((item) => (
+            <div className="card" key={item.id}>
+              <div><strong>{item.name}</strong></div>
+              <div className="meta">{item.status}</div>
+              <div className="meta">Updated: {new Date(item.updated_at).toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="admin-status">{status || "No actions yet."}</div>
     </section>

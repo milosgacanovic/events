@@ -9,6 +9,7 @@ import { Pool } from "pg";
 
 import { config } from "./config";
 import adminRoutes from "./routes/admin";
+import adminContentRoutes from "./routes/adminContent";
 import eventRoutes from "./routes/events";
 import geocodeRoutes from "./routes/geocode";
 import healthRoute from "./routes/health";
@@ -84,6 +85,7 @@ async function buildServer() {
   await app.register(async (api) => {
     await api.register(healthRoute);
     await api.register(metaRoutes);
+    await api.register(adminContentRoutes);
     await api.register(eventRoutes);
     await api.register(organizerRoutes);
     await api.register(mapRoutes);
