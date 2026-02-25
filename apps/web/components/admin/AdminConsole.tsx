@@ -84,6 +84,14 @@ type AdminEventDetailResponse = {
     display_order: number;
   }>;
   location_id: string | null;
+  location: {
+    id: string;
+    formatted_address: string;
+    city: string | null;
+    country_code: string | null;
+    lat: number;
+    lng: number;
+  } | null;
 };
 
 type AdminOrganizerDetailResponse = {
@@ -114,6 +122,8 @@ type EventEditorState = {
   rruleDtstartLocal: string;
   durationMinutes: string;
   visibility: "public" | "unlisted";
+  locationId: string | null;
+  locationLabel: string;
 };
 
 type OrganizerEditorState = {
@@ -124,6 +134,24 @@ type OrganizerEditorState = {
   tags: string;
   languages: string;
   status: "draft" | "published" | "archived";
+};
+
+type GeocodeResult = {
+  formatted_address: string;
+  lat: number;
+  lng: number;
+  country_code: string | null;
+  city: string | null;
+  raw?: unknown;
+};
+
+type LocationResponse = {
+  id: string;
+  formatted_address: string;
+  city: string | null;
+  country_code: string | null;
+  lat: number;
+  lng: number;
 };
 
 function csvToArray(value: string): string[] {
@@ -193,6 +221,11 @@ export function AdminConsole() {
   const [eventLanguages, setEventLanguages] = useState("en");
   const [eventTags, setEventTags] = useState("");
   const [eventCoverFile, setEventCoverFile] = useState<File | null>(null);
+  const [createLocationQuery, setCreateLocationQuery] = useState("");
+  const [createLocationResults, setCreateLocationResults] = useState<GeocodeResult[]>([]);
+  const [createLocationLoading, setCreateLocationLoading] = useState(false);
+  const [selectedCreateLocationId, setSelectedCreateLocationId] = useState<string | null>(null);
+  const [selectedCreateLocationLabel, setSelectedCreateLocationLabel] = useState("");
 
   const [practiceCategoryId, setPracticeCategoryId] = useState("");
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
@@ -211,6 +244,9 @@ export function AdminConsole() {
   const [organizerEditor, setOrganizerEditor] = useState<OrganizerEditorState | null>(null);
   const [loadingEventEditor, setLoadingEventEditor] = useState(false);
   const [loadingOrganizerEditor, setLoadingOrganizerEditor] = useState(false);
+  const [editLocationQuery, setEditLocationQuery] = useState("");
+  const [editLocationResults, setEditLocationResults] = useState<GeocodeResult[]>([]);
+  const [editLocationLoading, setEditLocationLoading] = useState(false);
 
   const hasEditorRole = useMemo(
     () => roles.includes("dr_events_editor") || roles.includes("dr_events_admin"),
@@ -349,6 +385,111 @@ export function AdminConsole() {
     return (await response.json()) as { stored_path: string; url: string };
   }
 
+  async function searchGeocode(query: string): Promise<GeocodeResult[]> {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      return [];
+    }
+
+    return fetchJson<GeocodeResult[]>(`/geocode/search?q=${encodeURIComponent(trimmed)}&limit=8`);
+  }
+
+  async function createLocationFromResult(result: GeocodeResult): Promise<LocationResponse> {
+    return authorizedRequest<LocationResponse>("/admin/locations", "POST", {
+      formattedAddress: result.formatted_address,
+      countryCode: result.country_code ?? null,
+      city: result.city ?? null,
+      lat: result.lat,
+      lng: result.lng,
+    });
+  }
+
+  async function runCreateLocationSearch() {
+    setCreateLocationLoading(true);
+    try {
+      const results = await searchGeocode(createLocationQuery);
+      setCreateLocationResults(results);
+      if (!results.length) {
+        setStatus("No geocode matches found for event location.");
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Location search failed");
+    } finally {
+      setCreateLocationLoading(false);
+    }
+  }
+
+  async function selectCreateLocation(result: GeocodeResult) {
+    setStatus("Saving selected location...");
+    try {
+      const created = await createLocationFromResult(result);
+      setSelectedCreateLocationId(created.id);
+      setSelectedCreateLocationLabel(created.formatted_address);
+      setCreateLocationResults([]);
+      setCreateLocationQuery(created.formatted_address);
+      setStatus(`Location attached to draft form: ${created.formatted_address}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to save location");
+    }
+  }
+
+  function clearCreateLocation() {
+    setSelectedCreateLocationId(null);
+    setSelectedCreateLocationLabel("");
+    setCreateLocationResults([]);
+    setCreateLocationQuery("");
+  }
+
+  async function runEditLocationSearch() {
+    setEditLocationLoading(true);
+    try {
+      const results = await searchGeocode(editLocationQuery);
+      setEditLocationResults(results);
+      if (!results.length) {
+        setStatus("No geocode matches found for event location.");
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Location search failed");
+    } finally {
+      setEditLocationLoading(false);
+    }
+  }
+
+  async function selectEditLocation(result: GeocodeResult) {
+    setStatus("Saving selected location...");
+    try {
+      const created = await createLocationFromResult(result);
+      setEventEditor((current) =>
+        current
+          ? {
+              ...current,
+              locationId: created.id,
+              locationLabel: created.formatted_address,
+            }
+          : current,
+      );
+      setEditLocationResults([]);
+      setEditLocationQuery(created.formatted_address);
+      setStatus(`Location attached to event: ${created.formatted_address}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to save location");
+    }
+  }
+
+  function clearEditLocation() {
+    setEventEditor((current) =>
+      current
+        ? {
+            ...current,
+            locationId: null,
+            locationLabel: "",
+          }
+        : current,
+    );
+    setEditLocationResults([]);
+    setEditLocationQuery("");
+  }
+
   async function loadAdminContent() {
     if (!hasEditorRole) {
       setAdminEvents([]);
@@ -427,6 +568,7 @@ export function AdminConsole() {
         eventTimezone,
         visibility: "public",
         organizerRoles: eventOrganizerRoles,
+        locationId: selectedCreateLocationId,
       };
 
       if (scheduleKind === "single") {
@@ -457,6 +599,7 @@ export function AdminConsole() {
       setEventTags("");
       setEventCoverFile(null);
       setEventOrganizerRoles([]);
+      clearCreateLocation();
       await loadAdminContent();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Event creation failed");
@@ -558,7 +701,11 @@ export function AdminConsole() {
         rruleDtstartLocal: isoToDatetimeLocal(detail.rrule_dtstart_local),
         durationMinutes: detail.duration_minutes ? String(detail.duration_minutes) : "",
         visibility: detail.visibility,
+        locationId: detail.location_id,
+        locationLabel: detail.location?.formatted_address ?? "",
       });
+      setEditLocationQuery(detail.location?.formatted_address ?? "");
+      setEditLocationResults([]);
       setStatus(`Loaded event for edit: ${detail.title} (${detail.slug})`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to load event editor");
@@ -587,6 +734,7 @@ export function AdminConsole() {
         scheduleKind: eventEditor.scheduleKind,
         eventTimezone: eventEditor.eventTimezone,
         visibility: eventEditor.visibility,
+        locationId: eventEditor.locationId,
       };
 
       if (eventEditor.scheduleKind === "single") {
@@ -905,6 +1053,54 @@ export function AdminConsole() {
                 />
               </label>
             </>
+          )}
+
+          <label>
+            Event location search
+            <input
+              value={createLocationQuery}
+              onChange={(e) => setCreateLocationQuery(e.target.value)}
+              placeholder="City, venue, or address"
+            />
+          </label>
+          <div className="admin-card-actions">
+            <button
+              className="secondary-btn"
+              type="button"
+              disabled={createLocationLoading || createLocationQuery.trim().length < 2}
+              onClick={() => void runCreateLocationSearch()}
+            >
+              Search Location
+            </button>
+            {selectedCreateLocationId && (
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={clearCreateLocation}
+              >
+                Clear Location
+              </button>
+            )}
+          </div>
+          {createLocationLoading && <div className="meta">Searching geocode results...</div>}
+          {selectedCreateLocationId && (
+            <div className="meta">Selected location: {selectedCreateLocationLabel}</div>
+          )}
+          {createLocationResults.length > 0 && (
+            <div className="admin-inline-list">
+              {createLocationResults.map((result, index) => (
+                <div className="admin-inline-list-item" key={`${result.formatted_address}-${index}`}>
+                  <span>{result.formatted_address}</span>
+                  <button
+                    className="secondary-btn"
+                    type="button"
+                    onClick={() => void selectCreateLocation(result)}
+                  >
+                    Use
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
 
           <label>
@@ -1362,6 +1558,53 @@ export function AdminConsole() {
                 </>
               )}
               <label>
+                Event location search
+                <input
+                  value={editLocationQuery}
+                  onChange={(e) => setEditLocationQuery(e.target.value)}
+                  placeholder="City, venue, or address"
+                />
+              </label>
+              <div className="admin-card-actions">
+                <button
+                  className="secondary-btn"
+                  type="button"
+                  disabled={editLocationLoading || editLocationQuery.trim().length < 2}
+                  onClick={() => void runEditLocationSearch()}
+                >
+                  Search Location
+                </button>
+                {eventEditor.locationId && (
+                  <button
+                    className="ghost-btn"
+                    type="button"
+                    onClick={clearEditLocation}
+                  >
+                    Remove Location
+                  </button>
+                )}
+              </div>
+              {editLocationLoading && <div className="meta">Searching geocode results...</div>}
+              {eventEditor.locationId && (
+                <div className="meta">Selected location: {eventEditor.locationLabel}</div>
+              )}
+              {editLocationResults.length > 0 && (
+                <div className="admin-inline-list">
+                  {editLocationResults.map((result, index) => (
+                    <div className="admin-inline-list-item" key={`${result.formatted_address}-${index}`}>
+                      <span>{result.formatted_address}</span>
+                      <button
+                        className="secondary-btn"
+                        type="button"
+                        onClick={() => void selectEditLocation(result)}
+                      >
+                        Use
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label>
                 Languages (csv)
                 <input
                   value={eventEditor.languages}
@@ -1402,7 +1645,11 @@ export function AdminConsole() {
                 <button
                   className="ghost-btn"
                   type="button"
-                  onClick={() => setEventEditor(null)}
+                  onClick={() => {
+                    setEventEditor(null);
+                    setEditLocationQuery("");
+                    setEditLocationResults([]);
+                  }}
                 >
                   Clear
                 </button>

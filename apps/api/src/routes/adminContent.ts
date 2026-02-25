@@ -7,6 +7,7 @@ import {
   listAdminEvents,
   listAdminOrganizers,
 } from "../db/adminRepo";
+import { createLocation } from "../db/locationRepo";
 
 const eventQuerySchema = z.object({
   q: z.string().optional(),
@@ -20,6 +21,15 @@ const organizerQuerySchema = z.object({
   status: z.enum(["draft", "published", "archived"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
+});
+
+const createLocationSchema = z.object({
+  label: z.string().min(1).max(200).optional(),
+  formattedAddress: z.string().min(3),
+  countryCode: z.string().min(2).max(8).optional(),
+  city: z.string().min(1).max(120).optional(),
+  lat: z.number().gte(-90).lte(90),
+  lng: z.number().gte(-180).lte(180),
 });
 
 const adminContentRoutes: FastifyPluginAsync = async (app) => {
@@ -81,6 +91,20 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     }
 
     return item;
+  });
+
+  app.post("/admin/locations", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const parsed = createLocationSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const created = await createLocation(app.db, parsed.data);
+    reply.code(201);
+    return created;
   });
 };
 

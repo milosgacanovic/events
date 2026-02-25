@@ -227,10 +227,24 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
       `,
       [eventId],
     ),
-    pool.query<{ location_id: string }>(
+    pool.query<{
+      location_id: string;
+      formatted_address: string;
+      city: string | null;
+      country_code: string | null;
+      lat: number;
+      lng: number;
+    }>(
       `
-        select el.location_id
+        select
+          el.location_id,
+          l.formatted_address,
+          l.city,
+          l.country_code,
+          st_y(l.geom::geometry) as lat,
+          st_x(l.geom::geometry) as lng
         from event_locations el
+        join locations l on l.id = el.location_id
         where el.event_id = $1
         limit 1
       `,
@@ -242,6 +256,16 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
     ...event,
     organizer_roles: organizerRolesResult.rows,
     location_id: eventLocationResult.rows[0]?.location_id ?? null,
+    location: eventLocationResult.rows[0]
+      ? {
+          id: eventLocationResult.rows[0].location_id,
+          formatted_address: eventLocationResult.rows[0].formatted_address,
+          city: eventLocationResult.rows[0].city,
+          country_code: eventLocationResult.rows[0].country_code,
+          lat: eventLocationResult.rows[0].lat,
+          lng: eventLocationResult.rows[0].lng,
+        }
+      : null,
   };
 }
 
