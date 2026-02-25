@@ -18,6 +18,14 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function normalizePath(value: string | undefined, fallback: string): string {
+  const candidate = (value ?? "").trim();
+  if (!candidate) {
+    return fallback;
+  }
+  return candidate.startsWith("/") ? candidate : `/${candidate}`;
+}
+
 function extractRoles(tokenParsed: unknown, clientId?: string): string[] {
   if (!tokenParsed || typeof tokenParsed !== "object") {
     return [];
@@ -43,6 +51,14 @@ export function KeycloakAuthProvider({ children }: { children: React.ReactNode }
   const [roles, setRoles] = useState<string[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const loginRedirectPath = normalizePath(
+    process.env.NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH,
+    "/auth/keycloak/callback",
+  );
+  const logoutRedirectPath = normalizePath(
+    process.env.NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH,
+    "/admin",
+  );
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_KEYCLOAK_URL;
@@ -133,7 +149,7 @@ export function KeycloakAuthProvider({ children }: { children: React.ReactNode }
         }
 
         await keycloakRef.current.login({
-          redirectUri: `${window.location.origin}/admin`,
+          redirectUri: `${window.location.origin}${loginRedirectPath}`,
         });
       },
       logout: async () => {
@@ -142,7 +158,7 @@ export function KeycloakAuthProvider({ children }: { children: React.ReactNode }
         }
 
         await keycloakRef.current.logout({
-          redirectUri: `${window.location.origin}/admin`,
+          redirectUri: `${window.location.origin}${logoutRedirectPath}`,
         });
       },
       getToken: async () => {
@@ -156,7 +172,7 @@ export function KeycloakAuthProvider({ children }: { children: React.ReactNode }
         return currentToken;
       },
     }),
-    [ready, authenticated, token, roles, userName, authError],
+    [ready, authenticated, token, roles, userName, authError, loginRedirectPath, logoutRedirectPath],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
