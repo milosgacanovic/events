@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { cookies, headers } from "next/headers";
 
+import { I18nProvider } from "../components/i18n/I18nProvider";
+import { AppShell } from "../components/layout/AppShell";
+import { localeCookieName } from "../lib/i18n/config";
+import { resolveRequestLocale } from "../lib/i18n/locale";
+import { getMessages } from "../lib/i18n/messages";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,22 +18,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = resolveRequestLocale(
+    cookies().get(localeCookieName)?.value,
+    headers().get("accept-language"),
+  );
+  const messages = getMessages(locale);
+
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body>
-        <main>
-          <header className="topbar">
-            <Link href="/events" className="brand">
-              DanceResource Events
-            </Link>
-            <nav className="nav">
-              <Link href="/events">Events</Link>
-              <Link href="/organizers">Organizers</Link>
-              <Link href="/admin">Admin</Link>
-            </nav>
-          </header>
-          {children}
-        </main>
+        <I18nProvider locale={locale} messages={messages}>
+          <AppShell>{children}</AppShell>
+        </I18nProvider>
       </body>
     </html>
   );

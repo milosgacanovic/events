@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { useI18n } from "./i18n/I18nProvider";
 
 type OrganizerDetail = {
   organizer: {
@@ -21,21 +22,22 @@ type OrganizerDetail = {
 };
 
 export function OrganizerDetailClient({ slug }: { slug: string }) {
+  const { locale, t } = useI18n();
   const [data, setData] = useState<OrganizerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchJson<OrganizerDetail>(`/organizers/${slug}`)
       .then(setData)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed"));
-  }, [slug]);
+      .catch((err) => setError(err instanceof Error ? err.message : t("organizerDetail.error.fetchFailed")));
+  }, [slug, t]);
 
   if (error) {
     return <div className="panel">{error}</div>;
   }
 
   if (!data) {
-    return <div className="panel">Loading organizer...</div>;
+    return <div className="panel">{t("organizerDetail.loading")}</div>;
   }
 
   return (
@@ -61,12 +63,12 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
         ))}
       </div>
 
-      <h3>Upcoming events</h3>
-      {data.upcomingOccurrences.length === 0 && <div className="muted">No upcoming occurrences.</div>}
+      <h3>{t("organizerDetail.upcomingEvents")}</h3>
+      {data.upcomingOccurrences.length === 0 && <div className="muted">{t("organizerDetail.noUpcoming")}</div>}
       {data.upcomingOccurrences.map((item) => (
         <div className="card" key={item.occurrence_id}>
           <Link href={`/events/${item.event_slug}`}>{item.event_title}</Link>
-          <div className="meta">{new Date(item.starts_at_utc).toLocaleString()}</div>
+          <div className="meta">{new Date(item.starts_at_utc).toLocaleString(locale)}</div>
         </div>
       ))}
     </section>

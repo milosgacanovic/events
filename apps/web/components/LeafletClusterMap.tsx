@@ -12,6 +12,8 @@ import {
   useMapEvents,
 } from "react-leaflet";
 
+import { useI18n } from "./i18n/I18nProvider";
+
 type ClusterFeature = {
   type: "Feature";
   geometry: {
@@ -54,6 +56,7 @@ export function LeafletClusterMap({
   queryString: string;
   refreshToken: number;
 }) {
+  const { t } = useI18n();
   const mapRef = useRef<LeafletMap | null>(null);
   const requestRef = useRef(0);
 
@@ -126,8 +129,10 @@ export function LeafletClusterMap({
           >
             <Tooltip>
               {isCluster
-                ? `${pointCount} events in cluster`
-                : `Occurrence ${feature.properties.occurrence_id ?? "unknown"}`}
+                ? t("map.tooltip.cluster", { count: pointCount })
+                : t("map.tooltip.occurrence", {
+                    id: feature.properties.occurrence_id ?? t("map.tooltip.unknownOccurrence"),
+                  })}
             </Tooltip>
           </CircleMarker>
         );
@@ -162,9 +167,9 @@ export function LeafletClusterMap({
       </MapContainer>
 
       <div className="map-status">
-        {status === "loading" ? "Loading clusters..." : null}
-        {status === "error" ? "Failed to load clusters." : null}
-        {status === "idle" ? `${features.length} map features` : null}
+        {status === "loading" ? t("map.status.loading") : null}
+        {status === "error" ? t("map.status.error") : null}
+        {status === "idle" ? t("map.status.idle", { count: features.length }) : null}
       </div>
     </div>
   );

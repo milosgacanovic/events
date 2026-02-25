@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { useI18n } from "./i18n/I18nProvider";
 
 type OrganizerSearchResponse = {
   items: Array<{
@@ -35,6 +36,7 @@ function topFacetEntries(values: Record<string, number> | undefined, limit = 8):
 }
 
 export function OrganizerSearchClient() {
+  const { t } = useI18n();
   const [q, setQ] = useState("");
   const [roleKey, setRoleKey] = useState("");
   const [tags, setTags] = useState("");
@@ -66,7 +68,7 @@ export function OrganizerSearchClient() {
       const result = await fetchJson<OrganizerSearchResponse>(`/organizers/search?${queryString}`);
       setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
+      setError(err instanceof Error ? err.message : t("organizerSearch.error.searchFailed"));
     } finally {
       setLoading(false);
     }
@@ -75,31 +77,39 @@ export function OrganizerSearchClient() {
   return (
     <section className="grid">
       <aside className="panel filters">
-        <h2 className="title-xl">Organizer Directory</h2>
-        <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search name" />
+        <h2 className="title-xl">{t("organizerSearch.title")}</h2>
+        <input
+          value={q}
+          onChange={(event) => setQ(event.target.value)}
+          placeholder={t("organizerSearch.placeholder.searchName")}
+        />
         <input
           value={roleKey}
           onChange={(event) => setRoleKey(event.target.value)}
-          placeholder="Organizer type / role key (e.g. teacher)"
+          placeholder={t("organizerSearch.placeholder.roleKey")}
         />
         <input
           value={tags}
           onChange={(event) => setTags(event.target.value)}
-          placeholder="Tags csv (e.g. ecstatic,contact-improv)"
+          placeholder={t("organizerSearch.placeholder.tags")}
         />
         <input
           value={languages}
           onChange={(event) => setLanguages(event.target.value)}
-          placeholder="Languages csv (e.g. en,es)"
+          placeholder={t("organizerSearch.placeholder.languages")}
         />
         <input
           value={countryCode}
           onChange={(event) => setCountryCode(event.target.value)}
-          placeholder="Country code (e.g. us)"
+          placeholder={t("organizerSearch.placeholder.country")}
         />
-        <input value={city} onChange={(event) => setCity(event.target.value)} placeholder="City (e.g. Berlin)" />
+        <input
+          value={city}
+          onChange={(event) => setCity(event.target.value)}
+          placeholder={t("organizerSearch.placeholder.city")}
+        />
         <button type="button" onClick={runSearch} disabled={loading}>
-          {loading ? "Searching..." : "Search"}
+          {loading ? t("organizerSearch.searching") : t("organizerSearch.search")}
         </button>
 
         {data?.facets && (
@@ -134,7 +144,11 @@ export function OrganizerSearchClient() {
       </aside>
 
       <div className="panel cards">
-        <div className="meta">{data ? `${data.total} organizers` : "Run a search to load organizers."}</div>
+        <div className="meta">
+          {data
+            ? t("organizerSearch.totalCount", { count: data.total })
+            : t("organizerSearch.promptRun")}
+        </div>
         {error && <div className="muted">{error}</div>}
 
         {data?.items.map((item) => (

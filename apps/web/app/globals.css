@@ -39,6 +39,7 @@ main {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
   margin-bottom: 24px;
 }
 
@@ -59,6 +60,23 @@ main {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel);
+}
+
+.locale-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.locale-switcher select {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 6px 10px;
+  font: inherit;
 }
 
 .panel {

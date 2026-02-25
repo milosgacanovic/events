@@ -58,6 +58,12 @@ Admins can:
 - Configure UI label for “Category” to display as “Dance practices”
 - Basic moderation: unpublish/archive
 
+### 2.3 Internationalization (i18n) requirement
+- All user-facing UI text must be translatable (public pages and admin pages).
+- Use a standards-based i18n approach (BCP 47 locale codes + ICU-style message formatting).
+- No hardcoded user-facing strings in UI components; strings must come from locale message catalogs.
+- MVP must ship with at least two locales, with one default locale.
+
 ## 3) Architecture decisions (MVP)
 
 ### 3.1 Tech stack (recommended for fastest reliable MVP)

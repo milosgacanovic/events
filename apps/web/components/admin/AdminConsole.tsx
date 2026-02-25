@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { apiBase, fetchJson } from "../../lib/api";
+import { useI18n } from "../i18n/I18nProvider";
 import { useKeycloakAuth } from "../auth/KeycloakAuthProvider";
 
 type TaxonomyResponse = {
@@ -189,6 +190,7 @@ function isoToDatetimeLocal(value: string | null): string {
 }
 
 export function AdminConsole() {
+  const { t } = useI18n();
   const { ready, authenticated, roles, userName, authError, login, logout, getToken } = useKeycloakAuth();
 
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
@@ -855,17 +857,17 @@ export function AdminConsole() {
   }
 
   if (!ready) {
-    return <section className="panel">Initializing auth...</section>;
+    return <section className="panel">{t("admin.auth.initializing")}</section>;
   }
 
   if (!authenticated) {
     return (
       <section className="panel cards">
-        <h1 className="title-xl">Admin</h1>
-        <p className="muted">Log in with Keycloak to use editor/admin actions.</p>
+        <h1 className="title-xl">{t("admin.auth.title")}</h1>
+        <p className="muted">{t("admin.auth.prompt")}</p>
         {authError && <p className="muted">{authError}</p>}
         <button className="primary-btn" type="button" onClick={() => void login()}>
-          Log In
+          {t("admin.auth.login")}
         </button>
       </section>
     );

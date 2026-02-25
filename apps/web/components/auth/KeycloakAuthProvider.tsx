@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 
 import Keycloak from "keycloak-js";
 import type { KeycloakClientConfig } from "../../lib/keycloakConfig";
+import { useI18n } from "../i18n/I18nProvider";
 
 type AuthContextValue = {
   ready: boolean;
@@ -101,6 +102,7 @@ type KeycloakAuthProviderProps = {
 };
 
 export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderProps) {
+  const { t } = useI18n();
   const keycloakRef = useRef<any>(null);
 
   const [ready, setReady] = useState(false);
@@ -123,7 +125,7 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
 
   useEffect(() => {
     if (!keycloakUrl || !keycloakRealm || !keycloakClientId) {
-      setAuthError("Keycloak is not configured in environment variables.");
+      setAuthError(t("auth.error.notConfigured"));
       setReady(true);
       return;
     }
@@ -180,7 +182,7 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
           keycloakClientId,
         );
         setAuthError(
-          `Keycloak init failed: ${message}`,
+          t("auth.error.initFailed", { message }),
         );
       })
       .finally(() => {
@@ -192,7 +194,7 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
         clearInterval(refreshTimer);
       }
     };
-  }, [keycloakUrl, keycloakRealm, keycloakClientId]);
+  }, [keycloakUrl, keycloakRealm, keycloakClientId, t]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

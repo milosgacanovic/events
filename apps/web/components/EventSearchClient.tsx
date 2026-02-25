@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { useI18n } from "./i18n/I18nProvider";
 
 type SearchResponse = {
   hits: Array<{
@@ -37,6 +38,7 @@ const LeafletClusterMap = dynamic(
 );
 
 export function EventSearchClient() {
+  const { locale, t } = useI18n();
   const [view, setView] = useState<"list" | "map">("list");
   const [q, setQ] = useState("");
   const [language, setLanguage] = useState("");
@@ -69,7 +71,7 @@ export function EventSearchClient() {
       setActiveQueryString(currentQuery);
       setRefreshToken((value) => value + 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
+      setError(err instanceof Error ? err.message : t("eventSearch.error.searchFailed"));
     } finally {
       setLoading(false);
     }
@@ -78,39 +80,45 @@ export function EventSearchClient() {
   return (
     <section className="grid">
       <aside className="panel filters">
-        <h2 className="title-xl">Find Events</h2>
+        <h2 className="title-xl">{t("eventSearch.title")}</h2>
         <select value={view} onChange={(event) => setView(event.target.value as "list" | "map")}
         >
-          <option value="list">List view</option>
-          <option value="map">Map view</option>
+          <option value="list">{t("eventSearch.view.list")}</option>
+          <option value="map">{t("eventSearch.view.map")}</option>
         </select>
         <input
           value={q}
           onChange={(event) => setQ(event.target.value)}
-          placeholder="Search by title"
+          placeholder={t("eventSearch.placeholder.searchTitle")}
         />
         <input
           value={language}
           onChange={(event) => setLanguage(event.target.value)}
-          placeholder="Language code (e.g. en)"
+          placeholder={t("eventSearch.placeholder.languageCode")}
         />
         <select value={attendanceMode} onChange={(event) => setAttendanceMode(event.target.value)}>
-          <option value="">Any modality</option>
-          <option value="in_person">In person</option>
-          <option value="online">Online</option>
-          <option value="hybrid">Hybrid</option>
+          <option value="">{t("eventSearch.attendance.any")}</option>
+          <option value="in_person">{t("eventSearch.attendance.in_person")}</option>
+          <option value="online">{t("eventSearch.attendance.online")}</option>
+          <option value="hybrid">{t("eventSearch.attendance.hybrid")}</option>
         </select>
         <button type="button" onClick={runSearch} disabled={loading}>
-          {loading ? "Searching..." : "Search"}
+          {loading ? t("eventSearch.searching") : t("eventSearch.search")}
         </button>
         {data?.facets?.languages && (
-          <div className="muted">Languages facet values: {Object.keys(data.facets.languages).join(", ")}</div>
+          <div className="muted">
+            {t("eventSearch.languagesFacet", {
+              values: Object.keys(data.facets.languages).join(", "),
+            })}
+          </div>
         )}
       </aside>
 
       <div className="panel cards">
         <div className="meta">
-          {data ? `${data.totalHits} results` : "Run a search to load events."}
+          {data
+            ? t("eventSearch.resultsCount", { count: data.totalHits })
+            : t("eventSearch.promptRun")}
         </div>
         {error && <div className="muted">{error}</div>}
 
@@ -123,10 +131,10 @@ export function EventSearchClient() {
                 <Link href={`/events/${hit.event.slug}`}>{hit.event.title}</Link>
               </h3>
               <div className="meta">
-                {new Date(hit.startsAtUtc).toLocaleString()} | {hit.event.attendanceMode}
+                {new Date(hit.startsAtUtc).toLocaleString(locale)} | {t(`attendanceMode.${hit.event.attendanceMode}`)}
               </div>
               <div className="meta">
-                {hit.location?.city ?? "Location TBD"}
+                {hit.location?.city ?? t("eventSearch.locationTbd")}
                 {hit.location?.country_code ? `, ${hit.location.country_code.toUpperCase()}` : ""}
               </div>
               <div className="kv">

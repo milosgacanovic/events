@@ -6,6 +6,11 @@
 - API (Fastify)
 - Web (Next.js)
 
+## I18n
+- Web UI uses ICU message catalogs with `intl-messageformat`.
+- Supported locales: `en` (default), `sr-Latn`.
+- Locale selection is stored in cookie `dr_locale` and can also be inferred from `Accept-Language`.
+
 ## Health
 - API: `/api/health`
 
