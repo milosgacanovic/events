@@ -53,6 +53,12 @@ type AdminOrganizer = {
   updated_at: string;
 };
 
+type EventOrganizerRoleDraft = {
+  organizerId: string;
+  roleId: string;
+  displayOrder: number;
+};
+
 function csvToArray(value: string): string[] {
   return value
     .split(",")
@@ -111,6 +117,7 @@ export function AdminConsole() {
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
   const [selectedOrganizerId, setSelectedOrganizerId] = useState("");
   const [selectedRoleId, setSelectedRoleId] = useState("");
+  const [eventOrganizerRoles, setEventOrganizerRoles] = useState<EventOrganizerRoleDraft[]>([]);
 
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [practiceCreateLevel, setPracticeCreateLevel] = useState<"1" | "2">("1");
@@ -125,6 +132,14 @@ export function AdminConsole() {
     [roles],
   );
   const hasAdminRole = useMemo(() => roles.includes("dr_events_admin"), [roles]);
+  const organizerNamesById = useMemo(
+    () => new Map(organizerOptions.map((organizer) => [organizer.id, organizer.name])),
+    [organizerOptions],
+  );
+  const roleLabelsById = useMemo(
+    () => new Map((taxonomy?.organizerRoles ?? []).map((role) => [role.id, role.label])),
+    [taxonomy],
+  );
 
   async function loadMetadata() {
     setLoadingMeta(true);
@@ -312,17 +327,6 @@ export function AdminConsole() {
     setStatus("Creating event draft...");
 
     try {
-      const organizerRoles =
-        selectedOrganizerId && selectedRoleId
-          ? [
-              {
-                organizerId: selectedOrganizerId,
-                roleId: selectedRoleId,
-                displayOrder: 0,
-              },
-            ]
-          : [];
-
       const payload: Record<string, unknown> = {
         title: eventTitle,
         descriptionJson: { time: Date.now(), blocks: [] },
@@ -334,7 +338,7 @@ export function AdminConsole() {
         scheduleKind,
         eventTimezone,
         visibility: "public",
-        organizerRoles,
+        organizerRoles: eventOrganizerRoles,
       };
 
       if (scheduleKind === "single") {
@@ -364,26 +368,81 @@ export function AdminConsole() {
       setEventTitle("");
       setEventTags("");
       setEventCoverFile(null);
+      setEventOrganizerRoles([]);
       await loadAdminContent();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Event creation failed");
     }
   }
 
-  async function publishEvent(eventId?: string) {
-    const targetEventId = eventId ?? createdEventId;
-    if (!targetEventId) {
+  function addOrganizerRoleToDraft() {
+    if (!selectedOrganizerId || !selectedRoleId) {
+      setStatus("Select both organizer and role before adding.");
       return;
     }
 
-    setStatus("Publishing event...");
+    setEventOrganizerRoles((previous) => {
+      const exists = previous.some(
+        (item) =>
+          item.organizerId === selectedOrganizerId &&
+          item.roleId === selectedRoleId,
+      );
+
+      if (exists) {
+        setStatus("That organizer + role pair is already attached.");
+        return previous;
+      }
+
+      return [
+        ...previous,
+        {
+          organizerId: selectedOrganizerId,
+          roleId: selectedRoleId,
+          displayOrder: previous.length,
+        },
+      ];
+    });
+  }
+
+  function removeOrganizerRoleFromDraft(index: number) {
+    setEventOrganizerRoles((previous) =>
+      previous
+        .filter((_, itemIndex) => itemIndex !== index)
+        .map((item, itemIndex) => ({ ...item, displayOrder: itemIndex })),
+    );
+  }
+
+  async function runEventLifecycleAction(
+    eventId: string,
+    action: "publish" | "unpublish" | "cancel",
+  ) {
+    const actionLabel =
+      action === "publish" ? "Publishing" : action === "unpublish" ? "Unpublishing" : "Cancelling";
+    setStatus(`${actionLabel} event...`);
 
     try {
-      await authorizedRequest(`/events/${targetEventId}/publish`, "POST", {});
-      setStatus(`Event published: ${targetEventId}`);
+      await authorizedRequest(`/events/${eventId}/${action}`, "POST", {});
+      setStatus(`Event ${action} complete: ${eventId}`);
       await loadAdminContent();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Event publish failed");
+      setStatus(error instanceof Error ? error.message : `Event ${action} failed`);
+    }
+  }
+
+  async function updateOrganizerStatus(
+    organizerId: string,
+    nextStatus: "draft" | "published" | "archived",
+  ) {
+    setStatus(`Updating organizer status to ${nextStatus}...`);
+
+    try {
+      await authorizedRequest(`/organizers/${organizerId}`, "PATCH", {
+        status: nextStatus,
+      });
+      await Promise.all([loadAdminContent(), loadMetadata()]);
+      setStatus(`Organizer status updated: ${organizerId} -> ${nextStatus}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Organizer status update failed");
     }
   }
 
@@ -676,6 +735,35 @@ export function AdminConsole() {
             </select>
           </label>
 
+          <button
+            className="secondary-btn"
+            type="button"
+            disabled={!hasEditorRole || !selectedOrganizerId || !selectedRoleId}
+            onClick={addOrganizerRoleToDraft}
+          >
+            Add Organizer Role
+          </button>
+
+          {eventOrganizerRoles.length > 0 && (
+            <div className="admin-inline-list">
+              {eventOrganizerRoles.map((item, index) => (
+                <div className="admin-inline-list-item" key={`${item.organizerId}-${item.roleId}-${index}`}>
+                  <span>
+                    #{index + 1} {organizerNamesById.get(item.organizerId) ?? item.organizerId} ·{" "}
+                    {roleLabelsById.get(item.roleId) ?? item.roleId}
+                  </span>
+                  <button
+                    className="ghost-btn"
+                    type="button"
+                    onClick={() => removeOrganizerRoleFromDraft(index)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <button className="primary-btn" type="submit" disabled={!hasEditorRole}>
             Create Event Draft
           </button>
@@ -684,7 +772,7 @@ export function AdminConsole() {
             className="secondary-btn"
             type="button"
             disabled={!hasEditorRole || !createdEventId}
-            onClick={() => void publishEvent(createdEventId ?? undefined)}
+            onClick={() => createdEventId && void runEventLifecycleAction(createdEventId, "publish")}
           >
             Publish Last Created Event
           </button>
@@ -783,14 +871,36 @@ export function AdminConsole() {
                 {item.status} | {item.attendance_mode} | {item.schedule_kind}
               </div>
               <div className="meta">Updated: {new Date(item.updated_at).toLocaleString()}</div>
-              {item.status === "draft" && hasEditorRole && (
-                <button
-                  className="secondary-btn"
-                  type="button"
-                  onClick={() => void publishEvent(item.id)}
-                >
-                  Publish
-                </button>
+              {hasEditorRole && (
+                <div className="admin-card-actions">
+                  {item.status !== "published" && (
+                    <button
+                      className="secondary-btn"
+                      type="button"
+                      onClick={() => void runEventLifecycleAction(item.id, "publish")}
+                    >
+                      Publish
+                    </button>
+                  )}
+                  {(item.status === "published" || item.status === "cancelled") && (
+                    <button
+                      className="secondary-btn"
+                      type="button"
+                      onClick={() => void runEventLifecycleAction(item.id, "unpublish")}
+                    >
+                      Unpublish
+                    </button>
+                  )}
+                  {item.status === "published" && (
+                    <button
+                      className="secondary-btn"
+                      type="button"
+                      onClick={() => void runEventLifecycleAction(item.id, "cancel")}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ))}
@@ -807,6 +917,37 @@ export function AdminConsole() {
               <div><strong>{item.name}</strong></div>
               <div className="meta">{item.status}</div>
               <div className="meta">Updated: {new Date(item.updated_at).toLocaleString()}</div>
+              {hasEditorRole && (
+                <div className="admin-card-actions">
+                  {item.status !== "published" && (
+                    <button
+                      className="secondary-btn"
+                      type="button"
+                      onClick={() => void updateOrganizerStatus(item.id, "published")}
+                    >
+                      Publish
+                    </button>
+                  )}
+                  {item.status !== "draft" && (
+                    <button
+                      className="secondary-btn"
+                      type="button"
+                      onClick={() => void updateOrganizerStatus(item.id, "draft")}
+                    >
+                      Unpublish
+                    </button>
+                  )}
+                  {hasAdminRole && item.status !== "archived" && (
+                    <button
+                      className="secondary-btn"
+                      type="button"
+                      onClick={() => void updateOrganizerStatus(item.id, "archived")}
+                    >
+                      Archive
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
