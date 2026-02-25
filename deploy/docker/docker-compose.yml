@@ -59,6 +59,14 @@ services:
     build:
       context: ../..
       dockerfile: deploy/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+        NEXT_PUBLIC_KEYCLOAK_URL: ${NEXT_PUBLIC_KEYCLOAK_URL:-https://sso.danceresource.org}
+        NEXT_PUBLIC_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-YOUR_REALM}
+        NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-YOUR_CLIENT_ID}
+        NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH:-/auth/keycloak/callback}
+        NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH:-/admin}
+        NEXT_PUBLIC_MAP_TILE_URL: ${NEXT_PUBLIC_MAP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
     container_name: dr_events_web
     environment:
       NODE_ENV: development

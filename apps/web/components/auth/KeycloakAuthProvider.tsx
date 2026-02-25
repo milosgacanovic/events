@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import Keycloak from "keycloak-js";
+import type { KeycloakClientConfig } from "../../lib/keycloakConfig";
 
 type AuthContextValue = {
   ready: boolean;
@@ -42,7 +43,17 @@ function extractRoles(tokenParsed: unknown, clientId?: string): string[] {
   return Array.from(new Set([...realmRoles, ...resourceRoles]));
 }
 
-export function KeycloakAuthProvider({ children }: { children: React.ReactNode }) {
+function normalizeValue(value: string | undefined): string | undefined {
+  const candidate = (value ?? "").trim();
+  return candidate || undefined;
+}
+
+type KeycloakAuthProviderProps = {
+  children: React.ReactNode;
+  config?: KeycloakClientConfig;
+};
+
+export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderProps) {
   const keycloakRef = useRef<any>(null);
 
   const [ready, setReady] = useState(false);
@@ -51,30 +62,29 @@ export function KeycloakAuthProvider({ children }: { children: React.ReactNode }
   const [roles, setRoles] = useState<string[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const keycloakUrl = normalizeValue(config?.url);
+  const keycloakRealm = normalizeValue(config?.realm);
+  const keycloakClientId = normalizeValue(config?.clientId);
   const loginRedirectPath = normalizePath(
-    process.env.NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH,
+    config?.loginRedirectPath,
     "/auth/keycloak/callback",
   );
   const logoutRedirectPath = normalizePath(
-    process.env.NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH,
+    config?.logoutRedirectPath,
     "/admin",
   );
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_KEYCLOAK_URL;
-    const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM;
-    const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
-
-    if (!url || !realm || !clientId || realm === "YOUR_REALM" || clientId === "YOUR_CLIENT_ID") {
+    if (!keycloakUrl || !keycloakRealm || !keycloakClientId) {
       setAuthError("Keycloak is not configured in environment variables.");
       setReady(true);
       return;
     }
 
     const keycloak = new Keycloak({
-      url,
-      realm,
-      clientId,
+      url: keycloakUrl,
+      realm: keycloakRealm,
+      clientId: keycloakClientId,
     });
     keycloakRef.current = keycloak;
 
@@ -90,7 +100,7 @@ export function KeycloakAuthProvider({ children }: { children: React.ReactNode }
       .then(async (isAuthenticated) => {
         setAuthenticated(Boolean(isAuthenticated));
         setToken(keycloak.token ?? null);
-        setRoles(extractRoles(keycloak.tokenParsed, clientId));
+        setRoles(extractRoles(keycloak.tokenParsed, keycloakClientId));
         setUserName(((keycloak.tokenParsed as { preferred_username?: string } | undefined)?.preferred_username ?? null));
 
         if (isAuthenticated) {
@@ -103,7 +113,7 @@ export function KeycloakAuthProvider({ children }: { children: React.ReactNode }
             .then((refreshed: boolean) => {
               if (refreshed || keycloak.authenticated) {
                 setToken(keycloak.token ?? null);
-                setRoles(extractRoles(keycloak.tokenParsed, clientId));
+                setRoles(extractRoles(keycloak.tokenParsed, keycloakClientId));
                 setUserName(
                   ((keycloak.tokenParsed as { preferred_username?: string } | undefined)
                     ?.preferred_username ?? null),
@@ -133,7 +143,7 @@ export function KeycloakAuthProvider({ children }: { children: React.ReactNode }
         clearInterval(refreshTimer);
       }
     };
-  }, []);
+  }, [keycloakUrl, keycloakRealm, keycloakClientId]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

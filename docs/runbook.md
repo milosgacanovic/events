@@ -14,6 +14,7 @@
 - Redirect URI used by login: `https://beta.events.danceresource.org/auth/keycloak/callback`
 - Logout redirect URI: `https://beta.events.danceresource.org/admin`
 - Silent SSO page: `https://beta.events.danceresource.org/silent-check-sso.html`
+- Admin and callback routes inject Keycloak config from server runtime env (`KEYCLOAK_REALM`/`KEYCLOAK_CLIENT_ID` and `NEXT_PUBLIC_KEYCLOAK_*`), so stale client bundles do not lock SSO config.
 - Required env values:
   - `KEYCLOAK_ISSUER=https://sso.danceresource.org/realms/<REALM>`
   - `KEYCLOAK_JWKS_URL=https://sso.danceresource.org/realms/<REALM>/protocol/openid-connect/certs`
