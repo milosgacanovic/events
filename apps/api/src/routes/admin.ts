@@ -7,11 +7,12 @@ import {
   updateOrganizerRole,
   updatePractice,
 } from "../db/taxonomyRepo";
+import { getUiLabels, updateUiLabels } from "../db/uiLabelRepo";
 
 const createPracticeSchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
   level: z.union([z.literal(1), z.literal(2)]),
-  key: z.string().min(1),
+  key: z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   label: z.string().min(1),
   sortOrder: z.number().int().optional(),
   isActive: z.boolean().optional(),
@@ -27,6 +28,10 @@ const createRoleSchema = z.object({
 });
 
 const updateRoleSchema = createRoleSchema.partial();
+const updateUiLabelsSchema = z.object({
+  categorySingular: z.string().min(1).optional(),
+  categoryPlural: z.string().min(1).optional(),
+});
 
 const adminRoutes: FastifyPluginAsync = async (app) => {
   app.post("/admin/practices", async (request, reply) => {
@@ -103,6 +108,45 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     }
 
     return role;
+  });
+
+  app.patch("/admin/ui-labels", async (request, reply) => {
+    await app.requireAdmin(request);
+
+    const parsed = updateUiLabelsSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    if (
+      parsed.data.categorySingular === undefined &&
+      parsed.data.categoryPlural === undefined
+    ) {
+      reply.code(400);
+      return { error: "No label fields provided" };
+    }
+
+    const uiLabels = await updateUiLabels(app.db, parsed.data);
+    return {
+      uiLabels: {
+        categorySingular: uiLabels.categorySingular,
+        categoryPlural: uiLabels.categoryPlural,
+        practiceCategory: uiLabels.categoryPlural,
+      },
+    };
+  });
+
+  app.get("/admin/ui-labels", async (request) => {
+    await app.requireAdmin(request);
+    const uiLabels = await getUiLabels(app.db);
+    return {
+      uiLabels: {
+        categorySingular: uiLabels.categorySingular,
+        categoryPlural: uiLabels.categoryPlural,
+        practiceCategory: uiLabels.categoryPlural,
+      },
+    };
   });
 };
 

@@ -8,9 +8,13 @@ SSO: https://sso.danceresource.org (existing Keycloak)
 ### 1.1 MVP goal
 Build an open-source events discovery and publishing platform optimized for DanceResource:
 - Public discovery: search + facets (with counts) + list (cards) + map (clustered)
-- Structured metadata: practices (category/subcategory), tags, languages, modality, organizers
-- Trusted publishing: editors/admins log in via Keycloak SSO and manage events/organizers
+- Structured metadata: categories (category/subcategory), tags, languages, modality, hosts
+- Trusted publishing: editors/admins log in via Keycloak SSO and manage events/hosts
 - Scales to 10k–100k event occurrences without rendering all markers
+
+Terminology note:
+- Product/UI term is **Host** (not Organizer).
+- Existing DB table names and API paths may remain `organizers` for backward compatibility.
 
 ### 1.2 Explicit non-goals (NOT in MVP)
 - Ticketing/payments
@@ -32,30 +36,33 @@ Build an open-source events discovery and publishing platform optimized for Danc
 
 2) Event detail page:
 - Title, cover image, description
-- Organizer(s) with role(s)
+- Host(s) with role(s)
 - Single or recurring schedule display
 - Location map (if in-person/hybrid)
 - Website/external URL
 - Languages, tags, practice category/subcategory
 
-3) Organizer directory + organizer detail page:
-- Filter organizers by name, type, tags, languages, location
-- Organizer detail shows profile + upcoming/past events
+3) Host directory + host detail page:
+- Filter hosts by name, type, tags, languages, location
+- Host detail shows profile + upcoming/past events
 
 ### 2.2 Editor/Admin features (SSO)
 Editors can:
-- Create/edit events and organizers
+- Create/edit events and hosts
 - Upload images
 - Publish/unpublish
 - Cancel events (keeps URL stable)
-- Attach multiple organizers to an event with roles (teacher/dj/host/etc.)
+- Attach multiple hosts to an event with roles (teacher/dj/host/etc.)
 
 Admins can:
 - Manage taxonomies:
-  - Practice categories + subcategories
-  - Organizer roles/types
+  - Category taxonomy (categories + subcategories)
+  - Host roles/types
   - Optional: suggested tags list
-- Configure UI label for “Category” to display as “Dance practices”
+- Category taxonomy key is auto-generated from label by default; admin may override key manually.
+- Host roles must be taxonomy-driven (DB-managed) and must not be hardcoded in frontend UI.
+- Admin can configure frontend display labels for Category (singular + plural),
+  for example: “Dance Practice” and “Dance Practices”.
 - Basic moderation: unpublish/archive
 
 ### 2.3 Internationalization (i18n) requirement
@@ -319,7 +326,7 @@ Notes:
 - status text not null default 'published'  (published|draft|archived)
 
 #### 8.2.3 organizer_roles (taxonomy)
-Configurable roles/types used when attaching organizers to events
+Configurable roles/types used when attaching hosts to events
 - id uuid pk
 - key text unique not null (e.g., teacher, dj, organizer, host)
 - label text not null
@@ -445,8 +452,11 @@ Unique: (provider, query)
 - Seed required taxonomies:
   - organizer_roles: teacher, dj, organizer, host
   - practices: a minimal initial set (can be edited later)
-- Create admin UI config table (optional) OR store config in env for MVP
-  - At minimum, web must display label “Dance practices” for practice_category_id
+- Create admin UI config table for frontend category labels.
+  - Must support both singular and plural labels.
+  - Defaults should be:
+    - singular: “Dance Practice”
+    - plural: “Dance Practices”
 
 ## 9) Occurrence generation (recurring schedules)
 
@@ -892,7 +902,9 @@ Acceptance:
 
 ### Epic H — Admin taxonomies
 - CRUD for practices and organizer_roles
-- UI label “Dance practices”
+- Category label config (singular/plural)
+- Practice/category key auto-generation with optional manual override
+- Host roles sourced dynamically from taxonomy (not hardcoded in UI)
 
 Acceptance:
 - new category appears in filters and editor
@@ -916,8 +928,8 @@ MVP is done when:
 1) Public search shows events with filters and facet counts
 2) Map view clusters events and respects filters
 3) Editor logs in via Keycloak and can:
-   - create organizer
+   - create host
    - create event (single or recurring)
    - publish and see it publicly
-4) Admin can edit practices taxonomy and organizer roles
+4) Admin can edit category taxonomy, host roles, and category singular/plural labels
 5) All runs fully in docker with host Apache reverse proxy for beta.events.danceresource.org

@@ -36,3 +36,9 @@ select c.id, 2, 'five-rhythms-waves', 'Waves Class', 1
 from categories c
 where c.key = 'five-rhythms'
 on conflict (key) do nothing;
+
+insert into ui_labels (key, value)
+values
+  ('category_singular', 'Dance Practice'),
+  ('category_plural', 'Dance Practices')
+on conflict (key) do nothing;

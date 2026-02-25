@@ -1,8 +1,10 @@
 import type { FastifyPluginAsync } from "fastify";
 
+import { getUiLabels } from "../db/uiLabelRepo";
+
 const metaRoutes: FastifyPluginAsync = async (app) => {
   app.get("/meta/taxonomies", async () => {
-    const [practicesResult, rolesResult] = await Promise.all([
+    const [practicesResult, rolesResult, uiLabels] = await Promise.all([
       app.db.query<{
         id: string;
         parent_id: string | null;
@@ -32,6 +34,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
           order by sort_order asc, label asc
         `,
       ),
+      getUiLabels(app.db),
     ]);
 
     const categories = practicesResult.rows
@@ -51,7 +54,10 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
 
     return {
       uiLabels: {
-        practiceCategory: "Dance practices",
+        categorySingular: uiLabels.categorySingular,
+        categoryPlural: uiLabels.categoryPlural,
+        // Backward-compatibility for existing clients while shifting terminology.
+        practiceCategory: uiLabels.categoryPlural,
       },
       practices: {
         categories,

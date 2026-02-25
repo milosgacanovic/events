@@ -8,7 +8,9 @@ import { useKeycloakAuth } from "../auth/KeycloakAuthProvider";
 
 type TaxonomyResponse = {
   uiLabels: {
-    practiceCategory: string;
+    categorySingular?: string;
+    categoryPlural?: string;
+    practiceCategory?: string;
   };
   practices: {
     categories: Array<{
@@ -189,6 +191,16 @@ function isoToDatetimeLocal(value: string | null): string {
   return local.toISOString().slice(0, 16);
 }
 
+function deriveTaxonomyKey(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 90);
+}
+
 export function AdminConsole() {
   const { locale, t } = useI18n();
   const { ready, authenticated, roles, userName, authError, login, logout, getToken } = useKeycloakAuth();
@@ -239,7 +251,10 @@ export function AdminConsole() {
   const [practiceCreateLevel, setPracticeCreateLevel] = useState<"1" | "2">("1");
   const [practiceCreateParentId, setPracticeCreateParentId] = useState("");
   const [practiceCreateKey, setPracticeCreateKey] = useState("");
+  const [practiceCreateKeyTouched, setPracticeCreateKeyTouched] = useState(false);
   const [practiceCreateLabel, setPracticeCreateLabel] = useState("");
+  const [categoryLabelSingular, setCategoryLabelSingular] = useState("");
+  const [categoryLabelPlural, setCategoryLabelPlural] = useState("");
   const [roleCreateKey, setRoleCreateKey] = useState("");
   const [roleCreateLabel, setRoleCreateLabel] = useState("");
   const [eventEditor, setEventEditor] = useState<EventEditorState | null>(null);
@@ -275,6 +290,14 @@ export function AdminConsole() {
     () => (value: string) => t(`common.status.${value}`),
     [t],
   );
+  const categorySingularLabel =
+    taxonomy?.uiLabels.categorySingular ??
+    taxonomy?.uiLabels.practiceCategory ??
+    t("admin.field.category");
+  const categoryPluralLabel =
+    taxonomy?.uiLabels.categoryPlural ??
+    taxonomy?.uiLabels.practiceCategory ??
+    t("admin.field.categories");
 
   async function loadMetadata() {
     setLoadingMeta(true);
@@ -286,6 +309,12 @@ export function AdminConsole() {
 
       setTaxonomy(taxonomyResult);
       setOrganizerOptions(organizerResult.items);
+      setCategoryLabelSingular(
+        taxonomyResult.uiLabels.categorySingular ?? taxonomyResult.uiLabels.practiceCategory ?? "",
+      );
+      setCategoryLabelPlural(
+        taxonomyResult.uiLabels.categoryPlural ?? taxonomyResult.uiLabels.practiceCategory ?? "",
+      );
 
       setPracticeCategoryId((current) => current || taxonomyResult.practices.categories[0]?.id || "");
       setSelectedRoleId((current) => current || taxonomyResult.organizerRoles[0]?.id || "");
@@ -836,19 +865,55 @@ export function AdminConsole() {
       await authorizedRequest("/admin/practices", "POST", {
         parentId: level === 2 ? practiceCreateParentId || null : null,
         level,
-        key: practiceCreateKey,
+        key: practiceCreateKey || undefined,
         label: practiceCreateLabel,
         sortOrder: 0,
         isActive: true,
       });
 
       setPracticeCreateKey("");
+      setPracticeCreateKeyTouched(false);
       setPracticeCreateLabel("");
       await loadMetadata();
       await loadAdminContent();
       setStatus(t("admin.status.practiceItemCreated"));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.practiceCreateFailed"));
+    }
+  }
+
+  async function saveCategoryLabelsSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setStatus(t("admin.status.savingCategoryLabels"));
+
+    try {
+      const saved = await authorizedRequest<{
+        uiLabels: {
+          categorySingular: string;
+          categoryPlural: string;
+          practiceCategory: string;
+        };
+      }>("/admin/ui-labels", "PATCH", {
+        categorySingular: categoryLabelSingular,
+        categoryPlural: categoryLabelPlural,
+      });
+
+      setTaxonomy((current) =>
+        current
+          ? {
+              ...current,
+              uiLabels: {
+                ...current.uiLabels,
+                categorySingular: saved.uiLabels.categorySingular,
+                categoryPlural: saved.uiLabels.categoryPlural,
+                practiceCategory: saved.uiLabels.practiceCategory,
+              },
+            }
+          : current,
+      );
+      setStatus(t("admin.status.categoryLabelsSaved"));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : t("admin.status.categoryLabelsSaveFailed"));
     }
   }
 
@@ -982,7 +1047,7 @@ export function AdminConsole() {
           </label>
 
           <label>
-            {taxonomy?.uiLabels.practiceCategory ?? t("admin.field.practiceCategory")}
+            {categorySingularLabel}
             <select
               required
               value={practiceCategoryId}
@@ -1238,11 +1303,13 @@ export function AdminConsole() {
           )}
 
           <label>
-            {t("common.field.key")}
+            {t("admin.field.keyOptional")}
             <input
-              required
               value={practiceCreateKey}
-              onChange={(e) => setPracticeCreateKey(e.target.value)}
+              onChange={(e) => {
+                setPracticeCreateKey(e.target.value);
+                setPracticeCreateKeyTouched(true);
+              }}
               placeholder={t("admin.placeholder.practiceKey")}
             />
           </label>
@@ -1251,12 +1318,59 @@ export function AdminConsole() {
             <input
               required
               value={practiceCreateLabel}
-              onChange={(e) => setPracticeCreateLabel(e.target.value)}
+              onChange={(e) => {
+                const nextLabel = e.target.value;
+                setPracticeCreateLabel(nextLabel);
+                if (!practiceCreateKeyTouched) {
+                  setPracticeCreateKey(deriveTaxonomyKey(nextLabel));
+                }
+              }}
               placeholder={t("admin.placeholder.practiceLabel")}
             />
           </label>
+          <button
+            className="ghost-btn"
+            type="button"
+            onClick={() => {
+              setPracticeCreateKey(deriveTaxonomyKey(practiceCreateLabel));
+              setPracticeCreateKeyTouched(false);
+            }}
+          >
+            {t("admin.button.generateKey")}
+          </button>
           <button className="primary-btn" type="submit" disabled={!hasAdminRole}>
             {t("admin.createPractice.submit")}
+          </button>
+        </form>
+
+        <form className="admin-form" onSubmit={saveCategoryLabelsSubmit}>
+          <h3>{t("admin.categoryLabels.heading")}</h3>
+          <label>
+            {t("admin.categoryLabels.categorySingular")}
+            <input
+              required
+              value={categoryLabelSingular}
+              onChange={(e) => setCategoryLabelSingular(e.target.value)}
+              placeholder={t("admin.placeholder.categorySingular")}
+            />
+          </label>
+          <label>
+            {t("admin.categoryLabels.categoryPlural")}
+            <input
+              required
+              value={categoryLabelPlural}
+              onChange={(e) => setCategoryLabelPlural(e.target.value)}
+              placeholder={t("admin.placeholder.categoryPlural")}
+            />
+          </label>
+          <div className="meta">
+            {t("admin.categoryLabels.current", {
+              singular: categorySingularLabel,
+              plural: categoryPluralLabel,
+            })}
+          </div>
+          <button className="primary-btn" type="submit" disabled={!hasAdminRole}>
+            {t("admin.categoryLabels.submit")}
           </button>
         </form>
 
@@ -1443,7 +1557,7 @@ export function AdminConsole() {
                 />
               </label>
               <label>
-                {taxonomy?.uiLabels.practiceCategory ?? t("admin.field.practiceCategory")}
+                {categorySingularLabel}
                 <select
                   value={eventEditor.practiceCategoryId}
                   onChange={(e) =>
