@@ -67,6 +67,7 @@ export function AdminConsole() {
   const [organizerWebsite, setOrganizerWebsite] = useState("");
   const [organizerLanguages, setOrganizerLanguages] = useState("en");
   const [organizerTags, setOrganizerTags] = useState("");
+  const [organizerAvatarFile, setOrganizerAvatarFile] = useState<File | null>(null);
 
   const [eventTitle, setEventTitle] = useState("");
   const [attendanceMode, setAttendanceMode] = useState<"in_person" | "online" | "hybrid">("in_person");
@@ -82,6 +83,7 @@ export function AdminConsole() {
 
   const [eventLanguages, setEventLanguages] = useState("en");
   const [eventTags, setEventTags] = useState("");
+  const [eventCoverFile, setEventCoverFile] = useState<File | null>(null);
 
   const [practiceCategoryId, setPracticeCategoryId] = useState("");
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
@@ -165,6 +167,37 @@ export function AdminConsole() {
     return (await response.json()) as T;
   }
 
+  async function authorizedUpload(
+    kind: "eventCover" | "organizerAvatar",
+    entityId: string,
+    file: File,
+  ): Promise<{ stored_path: string; url: string }> {
+    const token = await getToken();
+    if (!token) {
+      throw new Error("No auth token available. Log in again.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("kind", kind);
+    formData.append("entityId", entityId);
+
+    const response = await fetch(`${apiBase}/uploads`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Upload failed (${response.status}): ${text}`);
+    }
+
+    return (await response.json()) as { stored_path: string; url: string };
+  }
+
   async function createOrganizerSubmit(event: React.FormEvent) {
     event.preventDefault();
     setStatus("Creating organizer...");
@@ -183,12 +216,20 @@ export function AdminConsole() {
         },
       );
 
+      if (organizerAvatarFile) {
+        const uploaded = await authorizedUpload("organizerAvatar", organizer.id, organizerAvatarFile);
+        await authorizedRequest(`/organizers/${organizer.id}`, "PATCH", {
+          avatarPath: uploaded.stored_path,
+        });
+      }
+
       setOrganizerOptions((prev) => [organizer, ...prev]);
       setSelectedOrganizerId(organizer.id);
       setStatus(`Organizer created: ${organizer.name} (${organizer.slug})`);
       setOrganizerName("");
       setOrganizerWebsite("");
       setOrganizerTags("");
+      setOrganizerAvatarFile(null);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Organizer creation failed");
     }
@@ -239,10 +280,18 @@ export function AdminConsole() {
         payload,
       );
 
+      if (eventCoverFile) {
+        const uploaded = await authorizedUpload("eventCover", created.id, eventCoverFile);
+        await authorizedRequest(`/events/${created.id}`, "PATCH", {
+          coverImagePath: uploaded.stored_path,
+        });
+      }
+
       setCreatedEventId(created.id);
       setStatus(`Event draft created: ${created.title} (${created.slug})`);
       setEventTitle("");
       setEventTags("");
+      setEventCoverFile(null);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Event creation failed");
     }
@@ -383,6 +432,14 @@ export function AdminConsole() {
             Tags (csv)
             <input value={organizerTags} onChange={(e) => setOrganizerTags(e.target.value)} />
           </label>
+          <label>
+            Avatar image (jpg/png/webp)
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => setOrganizerAvatarFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
           <button className="primary-btn" type="submit" disabled={!hasEditorRole}>
             Create Organizer
           </button>
@@ -508,6 +565,14 @@ export function AdminConsole() {
           <label>
             Tags (csv)
             <input value={eventTags} onChange={(e) => setEventTags(e.target.value)} />
+          </label>
+          <label>
+            Cover image (jpg/png/webp)
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => setEventCoverFile(e.target.files?.[0] ?? null)}
+            />
           </label>
 
           <label>
