@@ -20,6 +20,7 @@ import { setEventDefaultLocation } from "../db/locationRepo";
 import { findOrCreateUserBySub } from "../db/userRepo";
 import { cancelEvent, publishEvent, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
+import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 
 const searchQuerySchema = z.object({
   q: z.string().optional(),
@@ -37,7 +38,7 @@ const searchQuerySchema = z.object({
   hasGeo: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),
-  sort: z.enum(["startsAtAsc", "startsAtDesc", "publishedAtDesc"]).default("startsAtAsc"),
+  sort: z.enum(["date_asc", "date_desc", "startsAtAsc", "startsAtDesc", "publishedAtDesc"]).default("date_asc"),
 });
 
 function isExternalRefConflict(error: unknown): boolean {
@@ -115,7 +116,14 @@ function buildMeiliFilters(input: {
 }
 
 const eventRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/events/search", async (request, reply) => {
+  app.get("/events/search", {
+    config: {
+      rateLimit: {
+        max: 60,
+        timeWindow: "1 minute",
+      },
+    },
+  }, async (request, reply) => {
     const startedAt = Date.now();
     const parsed = searchQuerySchema.safeParse(request.query);
     if (!parsed.success) {
@@ -134,6 +142,11 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     reply.header("Cache-Control", "public, max-age=30");
     reply.header("Vary", "Authorization");
 
+    const normalizedSort =
+      parsed.data.sort === "date_desc" ? "startsAtDesc"
+        : parsed.data.sort === "date_asc" ? "startsAtAsc"
+          : parsed.data.sort;
+
     try {
       const meiliFilters = buildMeiliFilters({
         from: from ?? now.toISO()!,
@@ -150,9 +163,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       });
 
       const sortExpression =
-        parsed.data.sort === "publishedAtDesc"
+        normalizedSort === "publishedAtDesc"
           ? "published_at:desc"
-          : parsed.data.sort === "startsAtDesc"
+          : normalizedSort === "startsAtDesc"
             ? "starts_at_utc:desc"
             : "starts_at_utc:asc";
       const index = app.meiliService.client.index(OCCURRENCES_INDEX);
@@ -240,14 +253,16 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         hasGeo,
         page: parsed.data.page,
         pageSize: parsed.data.pageSize,
-        sort: parsed.data.sort,
+        sort: normalizedSort,
       });
 
       return fallback;
     } finally {
+      const durationMs = Date.now() - startedAt;
+      recordSearchDuration(durationMs);
       request.log.info(
         {
-          duration_ms: Date.now() - startedAt,
+          duration_ms: durationMs,
           includePast,
           page: parsed.data.page,
           pageSize: parsed.data.pageSize,
@@ -392,6 +407,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       }
       throw error;
     }
+    recordPublish();
     return { ok: true };
   });
 

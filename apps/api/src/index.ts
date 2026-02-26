@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
+import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
@@ -15,6 +16,7 @@ import geocodeRoutes from "./routes/geocode";
 import healthRoute from "./routes/health";
 import mapRoutes from "./routes/map";
 import metaRoutes from "./routes/meta";
+import metricsRoute from "./routes/metrics";
 import organizerRoutes from "./routes/organizers";
 import uploadRoutes from "./routes/uploads";
 import { getEventsExternalRefSchemaStatus } from "./db/startupChecks";
@@ -84,6 +86,9 @@ async function buildServer() {
     origin: true,
     credentials: true,
   });
+  await app.register(rateLimit, {
+    global: false,
+  });
   await app.register(multipart, {
     limits: {
       fileSize: config.MAX_UPLOAD_MB * 1024 * 1024,
@@ -124,6 +129,7 @@ async function buildServer() {
 
   await app.register(async (api) => {
     await api.register(healthRoute);
+    await api.register(metricsRoute);
     await api.register(metaRoutes);
     await api.register(adminContentRoutes);
     await api.register(eventRoutes);

@@ -33,6 +33,8 @@
   "eventSearch.sort.label": "Sort",
   "eventSearch.sort.soonestUpcoming": "Soonest upcoming",
   "eventSearch.sort.newestPublished": "Newest published",
+  "eventSearch.sort.dateAsc": "Date ascending",
+  "eventSearch.sort.dateDesc": "Date descending",
   "eventSearch.search": "Search",
   "eventSearch.searching": "Searching...",
   "eventSearch.clearFilters": "Clear filters",

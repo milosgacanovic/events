@@ -78,7 +78,7 @@ const LeafletClusterMap = dynamic(
 export function EventSearchClient() {
   const { locale, t } = useI18n();
   const [view, setView] = useState<"list" | "map">("list");
-  const [sort, setSort] = useState<"startsAtAsc" | "publishedAtDesc">("startsAtAsc");
+  const [sort, setSort] = useState<"date_asc" | "date_desc">("date_asc");
   const [q, setQ] = useState("");
   const [practiceCategoryId, setPracticeCategoryId] = useState("");
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
@@ -189,7 +189,7 @@ export function EventSearchClient() {
     setCity("");
     setHasGeo("");
     setPage(1);
-    setSort("startsAtAsc");
+    setSort("date_asc");
   }
 
   const currentPage = data?.pagination?.page ?? page;
@@ -281,10 +281,10 @@ export function EventSearchClient() {
           {t("eventSearch.sort.label")}
           <select
             value={sort}
-            onChange={(event) => setSort(event.target.value as "startsAtAsc" | "publishedAtDesc")}
+            onChange={(event) => setSort(event.target.value as "date_asc" | "date_desc")}
           >
-            <option value="startsAtAsc">{t("eventSearch.sort.soonestUpcoming")}</option>
-            <option value="publishedAtDesc">{t("eventSearch.sort.newestPublished")}</option>
+            <option value="date_asc">{t("eventSearch.sort.dateAsc")}</option>
+            <option value="date_desc">{t("eventSearch.sort.dateDesc")}</option>
           </select>
         </label>
 

@@ -33,6 +33,8 @@
   "eventSearch.sort.label": "Sortiranje",
   "eventSearch.sort.soonestUpcoming": "Najskorije predstojeće",
   "eventSearch.sort.newestPublished": "Najnovije objavljeno",
+  "eventSearch.sort.dateAsc": "Datum rastuće",
+  "eventSearch.sort.dateDesc": "Datum opadajuće",
   "eventSearch.search": "Pretraži",
   "eventSearch.searching": "Pretraga...",
   "eventSearch.clearFilters": "Očisti filtere",

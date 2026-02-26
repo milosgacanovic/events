@@ -302,6 +302,38 @@ describe("events idempotency conflict handling", () => {
     await app.close();
   });
 
+  it("maps sort=date_desc to starts_at_utc:desc", async () => {
+    const searchSpy = vi.fn().mockResolvedValue({
+      hits: [],
+      facetDistribution: {},
+      estimatedTotalHits: 0,
+    });
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: searchSpy,
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async () => {});
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/events/search?sort=date_desc&page=1&pageSize=20",
+    });
+
+    expect(response.statusCode).toBe(200);
+    const options = searchSpy.mock.calls[0]?.[1] as { sort?: string[] } | undefined;
+    expect(options?.sort).toEqual(["starts_at_utc:desc"]);
+    await app.close();
+  });
+
   it("logs events.search.timing with includePast/page/pageSize", async () => {
     const searchSpy = vi.fn().mockResolvedValue({
       hits: [],
