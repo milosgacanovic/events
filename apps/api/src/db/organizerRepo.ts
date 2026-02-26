@@ -255,6 +255,7 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
   }>(
     `
       select
+        distinct
         eo.id as occurrence_id,
         eo.starts_at_utc,
         eo.ends_at_utc,
@@ -274,9 +275,68 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
     [organizer.rows[0].id],
   );
 
+  const past = await pool.query<{
+    occurrence_id: string;
+    starts_at_utc: string;
+    ends_at_utc: string;
+    status: string;
+    event_id: string;
+    event_slug: string;
+    event_title: string;
+  }>(
+    `
+      select
+        distinct
+        eo.id as occurrence_id,
+        eo.starts_at_utc,
+        eo.ends_at_utc,
+        eo.status,
+        e.id as event_id,
+        e.slug as event_slug,
+        e.title as event_title
+      from event_organizers rel
+      join events e on e.id = rel.event_id
+      join event_occurrences eo on eo.event_id = e.id
+      where rel.organizer_id = $1
+        and e.status in ('published', 'cancelled')
+        and eo.starts_at_utc < now()
+      order by eo.starts_at_utc desc
+      limit 20
+    `,
+    [organizer.rows[0].id],
+  );
+
+  const locations = await pool.query<{
+    id: string;
+    label: string | null;
+    formatted_address: string | null;
+    country_code: string | null;
+    city: string | null;
+    lat: number | null;
+    lng: number | null;
+  }>(
+    `
+      select
+        ol.id,
+        ol.label,
+        ol.formatted_address,
+        ol.country_code,
+        ol.city,
+        st_y(ol.geom::geometry) as lat,
+        st_x(ol.geom::geometry) as lng
+      from organizer_locations ol
+      where ol.organizer_id = $1
+      order by ol.created_at desc
+      limit 5
+    `,
+    [organizer.rows[0].id],
+  );
+
   return {
     organizer: organizer.rows[0],
+    locations: locations.rows,
     upcomingOccurrences: upcoming.rows,
+    pastOccurrences: past.rows,
   };
 }
 
