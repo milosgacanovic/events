@@ -205,11 +205,15 @@ async function run(): Promise<void> {
     throw new Error(`admin lookup failed: status=${lookup.status}, body=${lookup.raw}`);
   }
 
-  const resolved = lookup.body.items?.[0];
-  if (!resolved?.id) {
-    throw new Error(`admin lookup returned no match for ${EXTERNAL_SOURCE}/${EXTERNAL_ID}`);
+  const items = lookup.body.items ?? [];
+  if (items.length !== 1) {
+    throw new Error(`admin lookup expected exactly 1 match, got ${items.length} for ${EXTERNAL_SOURCE}/${EXTERNAL_ID}`);
   }
 
+  const resolved = items[0];
+  if (!resolved?.id) {
+    throw new Error(`admin lookup match is missing id for ${EXTERNAL_SOURCE}/${EXTERNAL_ID}`);
+  }
   console.log(`[smoke] resolved event id via admin lookup: ${resolved.id}`);
   console.log("[smoke] completed successfully");
 }

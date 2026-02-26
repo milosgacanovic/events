@@ -17,7 +17,7 @@ import mapRoutes from "./routes/map";
 import metaRoutes from "./routes/meta";
 import organizerRoutes from "./routes/organizers";
 import uploadRoutes from "./routes/uploads";
-import { assertEventsExternalRefColumns } from "./db/startupChecks";
+import { getEventsExternalRefSchemaStatus } from "./db/startupChecks";
 import { AuthService } from "./services/authService";
 import { MeilisearchService } from "./services/meiliService";
 import { loggerConfig } from "./utils/logger";
@@ -41,11 +41,23 @@ async function buildServer() {
   app.decorate("db", pool);
   app.decorate("meiliService", meiliService);
 
-  await assertEventsExternalRefColumns(pool);
+  const externalRefSchemaStatus = await getEventsExternalRefSchemaStatus(pool);
   app.log.info(
-    { table: "events", requiredColumns: ["external_source", "external_id"] },
-    "startup_schema_ok",
+    {
+      nodeEnv: config.NODE_ENV,
+      ...externalRefSchemaStatus,
+    },
+    "startup_external_ref_schema_status",
   );
+  const schemaMissing = Object.values(externalRefSchemaStatus).some((value) => !value);
+  if (schemaMissing) {
+    const message = "startup_schema_check_failed: external ref schema objects are missing. " +
+      "Run migrations with `npm run migrate -w @dr-events/api` and ensure migration `003_event_external_ref.sql` is applied.";
+    if (config.NODE_ENV === "production") {
+      throw new Error(message);
+    }
+    app.log.warn({ ...externalRefSchemaStatus }, message);
+  }
 
   app.decorate("authenticate", async (request) => {
     request.auth = await authService.authenticate(request.headers.authorization);

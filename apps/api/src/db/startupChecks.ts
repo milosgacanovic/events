@@ -1,8 +1,15 @@
 import type { Pool } from "pg";
 
 const REQUIRED_EVENT_COLUMNS = ["external_source", "external_id"] as const;
+const REQUIRED_EXTERNAL_REF_INDEX = "events_external_source_external_id_unique_idx";
 
-export async function assertEventsExternalRefColumns(pool: Pool): Promise<void> {
+export type ExternalRefSchemaStatus = {
+  externalSourceColumnExists: boolean;
+  externalIdColumnExists: boolean;
+  externalRefUniqueIndexExists: boolean;
+};
+
+export async function getEventsExternalRefSchemaStatus(pool: Pool): Promise<ExternalRefSchemaStatus> {
   const result = await pool.query<{ column_name: string }>(
     `
       select column_name
@@ -15,12 +22,16 @@ export async function assertEventsExternalRefColumns(pool: Pool): Promise<void> 
   );
 
   const found = new Set(result.rows.map((row) => row.column_name));
-  const missing = REQUIRED_EVENT_COLUMNS.filter((column) => !found.has(column));
+  const indexResult = await pool.query<{ exists: boolean }>(
+    `
+      select to_regclass($1) is not null as exists
+    `,
+    [`public.${REQUIRED_EXTERNAL_REF_INDEX}`],
+  );
 
-  if (missing.length) {
-    throw new Error(
-      `startup_schema_check_failed: missing events columns [${missing.join(", ")}]. ` +
-      "Run migrations with `npm run migrate -w @dr-events/api` and ensure migration `003_event_external_ref.sql` is applied.",
-    );
-  }
+  return {
+    externalSourceColumnExists: found.has("external_source"),
+    externalIdColumnExists: found.has("external_id"),
+    externalRefUniqueIndexExists: indexResult.rows[0]?.exists ?? false,
+  };
 }

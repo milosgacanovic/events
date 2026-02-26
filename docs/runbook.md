@@ -14,6 +14,11 @@
 ## Health
 - API: `/api/health`
 
+## Migrations
+- Apply API migrations on server:
+  - `npm run migrate -w @dr-events/api`
+- Idempotency requires `003_event_external_ref.sql` (external reference columns + unique index).
+
 ## Keycloak SSO
 - Web uses Keycloak JS (SPA + PKCE), so the Keycloak client should be configured as `public`.
 - Keycloak client settings must be:
