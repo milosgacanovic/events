@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@dr-events/shared": "0.1.0",
+    "dompurify": "^3.3.1",
     "intl-messageformat": "^11.1.2",
     "keycloak-js": "^25.0.6",
     "leaflet": "^1.9.4",

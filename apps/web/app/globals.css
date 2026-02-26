@@ -121,6 +121,7 @@ main {
 }
 
 .card {
+  display: block;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -182,6 +183,22 @@ main {
 
 .muted {
   color: var(--muted);
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+  background: #efe4d2;
+}
+
+.skeleton-line.short {
+  width: 60%;
+}
+
+.skeleton-block {
+  height: 180px;
+  border-radius: 12px;
+  background: #efe4d2;
 }
 
 .mapbox {

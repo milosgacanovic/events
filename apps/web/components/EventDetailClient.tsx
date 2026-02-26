@@ -1,5 +1,6 @@
 "use client";
 
+import DOMPurify from "dompurify";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -26,10 +27,13 @@ type TaxonomyResponse = {
 type EventDetail = {
   event: {
     title: string;
-    status: string;
-    attendance_mode: string;
+    single_start_at: string | null;
+    single_end_at: string | null;
+    event_timezone: string;
+    attendance_mode: "in_person" | "online" | "hybrid";
     languages: string[];
-    tags: string[];
+    external_source: string | null;
+    updated_at: string;
     cover_image_path: string | null;
     external_url: string | null;
     description_json: unknown;
@@ -46,58 +50,27 @@ type EventDetail = {
   }>;
   defaultLocation: {
     formatted_address: string;
-    lat: number | null;
-    lng: number | null;
+    city: string | null;
+    country_code: string | null;
   } | null;
-  occurrences: {
-    upcoming: Array<{
-      id: string;
-      starts_at_utc: string;
-      ends_at_utc: string;
-      status: string;
-      city: string | null;
-      country_code: string | null;
-    }>;
-    past: Array<{
-      id: string;
-      starts_at_utc: string;
-      ends_at_utc: string;
-      status: string;
-      city: string | null;
-      country_code: string | null;
-    }>;
-  };
 };
 
-function collectText(value: unknown, output: string[]): void {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed) {
-      output.push(trimmed);
-    }
-    return;
+function getDescriptionHtml(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
   }
 
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      collectText(item, output);
-    }
-    return;
+  const html = (value as Record<string, unknown>).html;
+  if (typeof html !== "string") {
+    return null;
   }
 
-  if (value && typeof value === "object") {
-    for (const nestedValue of Object.values(value as Record<string, unknown>)) {
-      collectText(nestedValue, output);
-    }
-  }
+  const trimmed = html.trim();
+  return trimmed || null;
 }
 
-function getDescriptionText(value: unknown): string | null {
-  const parts: string[] = [];
-  collectText(value, parts);
-
-  const normalized = parts.join(" ").replace(/\s+/g, " ").trim();
-  return normalized || null;
+function stripHtml(input: string): string {
+  return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export function EventDetailClient({ slug }: { slug: string }) {
@@ -105,12 +78,7 @@ export function EventDetailClient({ slug }: { slug: string }) {
   const [data, setData] = useState<EventDetail | null>(null);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const statusLabel = (value: string) => {
-    const key = `common.status.${value}`;
-    const localized = t(key);
-    return localized === key ? value : localized;
-  };
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -124,6 +92,8 @@ export function EventDetailClient({ slug }: { slug: string }) {
           return;
         }
 
+        setNotFound(false);
+        setError(null);
         setData(eventData);
         setTaxonomy(taxonomyData);
       })
@@ -132,7 +102,12 @@ export function EventDetailClient({ slug }: { slug: string }) {
           return;
         }
 
-        setError(err instanceof Error ? err.message : t("eventDetail.error.fetchFailed"));
+        const message = err instanceof Error ? err.message : t("eventDetail.error.fetchFailed");
+        if (message.includes("404")) {
+          setNotFound(true);
+          return;
+        }
+        setError(message);
       });
 
     return () => {
@@ -201,130 +176,151 @@ export function EventDetailClient({ slug }: { slug: string }) {
     return map;
   }, [taxonomy]);
 
+  const rawDescriptionHtml = useMemo(
+    () => getDescriptionHtml(data?.event.description_json),
+    [data?.event.description_json],
+  );
+  const sanitizedDescriptionHtml = useMemo(
+    () => (rawDescriptionHtml ? DOMPurify.sanitize(rawDescriptionHtml) : null),
+    [rawDescriptionHtml],
+  );
+  const descriptionSummary = useMemo(() => {
+    if (!sanitizedDescriptionHtml) {
+      return null;
+    }
+    const stripped = stripHtml(sanitizedDescriptionHtml);
+    if (!stripped) {
+      return null;
+    }
+    return stripped.length > 160 ? `${stripped.slice(0, 160)}...` : stripped;
+  }, [sanitizedDescriptionHtml]);
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+
+    document.title = `${data.event.title} | DanceResource`;
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta && descriptionSummary) {
+      meta.setAttribute("content", descriptionSummary);
+    }
+  }, [data, descriptionSummary]);
+
+  if (notFound) {
+    return (
+      <section className="panel cards">
+        <h1 className="title-xl">{t("eventDetail.notFound.title")}</h1>
+        <p className="muted">{t("eventDetail.notFound.description")}</p>
+        <p>
+          <Link href="/events">{t("eventDetail.notFound.backToEvents")}</Link>
+        </p>
+      </section>
+    );
+  }
+
   if (error) {
     return <div className="panel">{error}</div>;
   }
 
   if (!data) {
-    return <div className="panel">{t("eventDetail.loading")}</div>;
+    return (
+      <section className="panel cards">
+        <h1 className="title-xl">{t("eventDetail.loading")}</h1>
+        <div className="skeleton-line" />
+        <div className="skeleton-line short" />
+        <div className="skeleton-block" />
+      </section>
+    );
   }
 
-  const description = getDescriptionText(data.event.description_json);
   const categoryLabel = categoryById.get(data.event.practice_category_id) ?? data.event.practice_category_id;
-  const subcategoryLabel = data.event.practice_subcategory_id
-    ? subcategoryById.get(data.event.practice_subcategory_id) ?? data.event.practice_subcategory_id
-    : null;
-  const mapHref =
-    data.defaultLocation?.lat !== null &&
-    data.defaultLocation?.lat !== undefined &&
-    data.defaultLocation?.lng !== null &&
-    data.defaultLocation?.lng !== undefined
-      ? `https://www.openstreetmap.org/?mlat=${data.defaultLocation.lat}&mlon=${data.defaultLocation.lng}#map=16/${data.defaultLocation.lat}/${data.defaultLocation.lng}`
-      : null;
+  const start = data.event.single_start_at ? new Date(data.event.single_start_at) : null;
+  const end = data.event.single_end_at ? new Date(data.event.single_end_at) : null;
+
+  const whenLabel = start && end
+    ? `${start.toLocaleString(locale)} - ${end.toLocaleString(locale)} (${data.event.event_timezone})`
+    : t("eventDetail.timeTbd");
+
+  const modalityLabel = t(`attendanceMode.${data.event.attendance_mode}`);
+  const locationLabel = data.defaultLocation?.city
+    ? `${data.defaultLocation.city}${data.defaultLocation.country_code ? `, ${data.defaultLocation.country_code.toUpperCase()}` : ""}`
+    : data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd");
+  const importSource = data.event.external_source || t("common.none");
+  const updatedLabel = data.event.updated_at ? new Date(data.event.updated_at).toLocaleString(locale) : null;
 
   return (
     <section className="panel cards">
       <h1 className="title-xl">{data.event.title}</h1>
+
+      <div className="meta">{whenLabel} | {modalityLabel}</div>
+      <div className="meta">
+        {categorySingularLabel}: {categoryLabel}
+        {data.event.practice_subcategory_id
+          ? ` / ${subcategoryById.get(data.event.practice_subcategory_id) ?? data.event.practice_subcategory_id}`
+          : ""}
+      </div>
+      <div className="meta">
+        {data.event.attendance_mode === "online" ? t("attendanceMode.online") : locationLabel}
+      </div>
+
       {data.event.cover_image_path && (
         <img
           className="event-cover"
           src={data.event.cover_image_path}
           alt={data.event.title}
+          loading="lazy"
         />
       )}
 
-      <div className="meta">{t("eventDetail.statusLabel", { status: statusLabel(data.event.status) })}</div>
-      <div className="meta">
-        {t("eventDetail.attendanceLabel", {
-          attendance: t(`attendanceMode.${data.event.attendance_mode}`),
-        })}
-      </div>
-      <div className="meta">
-        {categorySingularLabel}: {categoryLabel}
-      </div>
-      {subcategoryLabel && (
-        <div className="meta">
-          {t("common.subcategory")}: {subcategoryLabel}
+      {sanitizedDescriptionHtml && (
+        <div>
+          <h3>{t("eventDetail.descriptionLabel")}</h3>
+          <div
+            className="meta"
+            dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }}
+          />
         </div>
       )}
-      <div className="meta">
-        {t("eventDetail.locationLabel", {
-          location: data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd"),
-        })}
-      </div>
-      {mapHref && (
-        <div className="meta">
-          <a href={mapHref} target="_blank" rel="noreferrer">
-            {t("eventDetail.openMap")}
+
+      {hosts.length > 0 && (
+        <>
+          <h3>{t("eventDetail.hosts")}</h3>
+          {hosts.map((host) => (
+            <div className="card" key={host.id}>
+              <div className="event-host-row">
+                {host.avatarPath && <img className="event-host-avatar" src={host.avatarPath} alt={host.name} loading="lazy" />}
+                <div>
+                  <Link href={`/organizers/${host.slug}`}>{host.name}</Link>
+                  {host.roles.length > 0 && <div className="meta">{host.roles.join(", ")}</div>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {data.event.external_url && (
+        <div>
+          <a className="secondary-btn" href={data.event.external_url} target="_blank" rel="noreferrer">
+            {t("eventDetail.externalLink")}
           </a>
         </div>
       )}
-      {data.event.external_url && (
-        <div className="meta">
-          {t("common.field.websiteUrl")}: <a href={data.event.external_url} target="_blank" rel="noreferrer">{data.event.external_url}</a>
-        </div>
-      )}
-      {description && (
-        <div>
-          <h3>{t("eventDetail.descriptionLabel")}</h3>
-          <div className="meta">{description}</div>
-        </div>
-      )}
 
-      <div className="kv">
-        {data.event.languages.map((item) => (
-          <span className="tag" key={item}>
-            {item}
-          </span>
-        ))}
-        {data.event.tags.map((item) => (
-          <span className="tag" key={item}>
-            {item}
-          </span>
-        ))}
-      </div>
-
-      <h3>{t("eventDetail.hosts")}</h3>
-      {hosts.length === 0 && <div className="muted">{t("eventDetail.noHosts")}</div>}
-      {hosts.map((host) => (
-        <div className="card" key={host.id}>
-          <div className="event-host-row">
-            {host.avatarPath && <img className="event-host-avatar" src={host.avatarPath} alt={host.name} />}
-            <div>
-              <Link href={`/organizers/${host.slug}`}>{host.name}</Link>
-              {host.roles.length > 0 && <div className="meta">{host.roles.join(", ")}</div>}
-            </div>
-          </div>
+      <footer className="cards">
+        <div className="meta">{t("eventDetail.metadata.languages")}</div>
+        <div className="kv">
+          {data.event.languages.map((item) => (
+            <span className="tag" key={item}>
+              {item}
+            </span>
+          ))}
+          {data.event.languages.length === 0 && <span className="meta">{t("common.none")}</span>}
         </div>
-      ))}
-
-      <h3>{t("eventDetail.upcoming")}</h3>
-      {data.occurrences.upcoming.length === 0 && <div className="muted">{t("eventDetail.noUpcoming")}</div>}
-      {data.occurrences.upcoming.map((occurrence) => (
-        <div className="card" key={occurrence.id}>
-          {new Date(occurrence.starts_at_utc).toLocaleString(locale)} ({statusLabel(occurrence.status)})
-          {(occurrence.city || occurrence.country_code) && (
-            <div className="meta">
-              {occurrence.city ?? ""}
-              {occurrence.country_code ? `${occurrence.city ? ", " : ""}${occurrence.country_code.toUpperCase()}` : ""}
-            </div>
-          )}
-        </div>
-      ))}
-
-      <h3>{t("eventDetail.past")}</h3>
-      {data.occurrences.past.length === 0 && <div className="muted">{t("eventDetail.noPast")}</div>}
-      {data.occurrences.past.map((occurrence) => (
-        <div className="card" key={occurrence.id}>
-          {new Date(occurrence.starts_at_utc).toLocaleString(locale)} ({statusLabel(occurrence.status)})
-          {(occurrence.city || occurrence.country_code) && (
-            <div className="meta">
-              {occurrence.city ?? ""}
-              {occurrence.country_code ? `${occurrence.city ? ", " : ""}${occurrence.country_code.toUpperCase()}` : ""}
-            </div>
-          )}
-        </div>
-      ))}
+        <div className="meta">{t("eventDetail.metadata.importSource", { value: importSource })}</div>
+        {updatedLabel && <div className="meta">{t("eventDetail.metadata.lastUpdated", { value: updatedLabel })}</div>}
+      </footer>
     </section>
   );
 }

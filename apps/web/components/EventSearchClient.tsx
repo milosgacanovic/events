@@ -398,10 +398,8 @@ export function EventSearchClient() {
           <LeafletClusterMap queryString={activeQueryString} refreshToken={refreshToken} />
         ) : (
           data?.hits.map((hit) => (
-            <article className="card" key={hit.occurrenceId}>
-              <h3>
-                <Link href={`/events/${hit.event.slug}`}>{hit.event.title}</Link>
-              </h3>
+            <Link className="card" key={hit.occurrenceId} href={`/events/${hit.event.slug}`}>
+              <h3>{hit.event.title}</h3>
               <div className="meta">
                 {new Date(hit.startsAtUtc).toLocaleString(locale)} | {t(`attendanceMode.${hit.event.attendanceMode}`)}
               </div>
@@ -427,7 +425,7 @@ export function EventSearchClient() {
                   </span>
                 ))}
               </div>
-            </article>
+            </Link>
           ))
         )}
       </div>
