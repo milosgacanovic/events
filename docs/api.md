@@ -4,7 +4,7 @@ Base path: `/api`
 
 ## Public
 - `GET /api/health`
-- `GET /api/meta/taxonomies`
+- `GET /api/meta/taxonomies` (practices taxonomy is currently canonical flat level-1 list)
 - `GET /api/events/search` (returns `hits`, `facets`, `pagination`)
 - `GET /api/events/:slug`
 - `GET /api/organizers/search` (returns `items`, `facets`, `pagination`)

@@ -1,12 +1,17 @@
-insert into organizer_roles (key, label, sort_order)
-values
-  ('teacher', 'Teacher', 1),
-  ('dj', 'DJ', 2),
-  ('organizer', 'Organizer', 3),
-  ('host', 'Host', 4)
-on conflict (key) do update
-set label = excluded.label,
-    sort_order = excluded.sort_order;
+do $$
+begin
+  if exists (
+    select 1
+    from events e
+    where e.practice_category_id is not null
+       or e.practice_subcategory_id is not null
+  ) then
+    raise exception
+      'Cannot reset practices taxonomy: events reference practices. Clean up/rebind events, then rerun migration 004_practices_canonical_reset.sql.';
+  end if;
+end $$;
+
+delete from practices;
 
 insert into practices (id, parent_id, level, key, label, sort_order, is_active)
 values
@@ -26,16 +31,4 @@ values
   (gen_random_uuid(), null, 1, 'open-floor', 'Open Floor', 14, true),
   (gen_random_uuid(), null, 1, 'somatic-movement', 'Somatic Movement', 15, true),
   (gen_random_uuid(), null, 1, 'soul-motion', 'Soul Motion', 16, true),
-  (gen_random_uuid(), null, 1, 'other', 'Other dance practices', 17, true)
-on conflict (key) do update
-set parent_id = excluded.parent_id,
-    level = excluded.level,
-    label = excluded.label,
-    sort_order = excluded.sort_order,
-    is_active = excluded.is_active;
-
-insert into ui_labels (key, value)
-values
-  ('category_singular', 'Dance Practice'),
-  ('category_plural', 'Dance Practices')
-on conflict (key) do nothing;
+  (gen_random_uuid(), null, 1, 'other', 'Other dance practices', 17, true);
