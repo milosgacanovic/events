@@ -28,6 +28,11 @@ type SearchResponse = {
     } | null;
   }>;
   totalHits: number;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
   facets?: {
     practiceCategoryId?: Record<string, number>;
     practiceSubcategoryId?: Record<string, number>;
@@ -83,6 +88,7 @@ export function EventSearchClient() {
   const [countryCode, setCountryCode] = useState("");
   const [city, setCity] = useState("");
   const [hasGeo, setHasGeo] = useState<"" | "true" | "false">("");
+  const [page, setPage] = useState(1);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +142,7 @@ export function EventSearchClient() {
     [taxonomy, practiceCategoryId],
   );
 
-  const queryString = useMemo(() => {
+  function buildQueryString(nextPage: number) {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (practiceCategoryId) params.set("practiceCategoryId", practiceCategoryId);
@@ -148,24 +154,13 @@ export function EventSearchClient() {
     if (city.trim()) params.set("city", city.trim());
     if (hasGeo) params.set("hasGeo", hasGeo);
     params.set("sort", sort);
-    params.set("page", "1");
+    params.set("page", String(nextPage));
     params.set("pageSize", "20");
     return params.toString();
-  }, [
-    q,
-    practiceCategoryId,
-    practiceSubcategoryId,
-    tags,
-    language,
-    attendanceMode,
-    countryCode,
-    city,
-    hasGeo,
-    sort,
-  ]);
+  }
 
-  async function runSearch() {
-    const currentQuery = queryString;
+  async function runSearch(nextPage = page) {
+    const currentQuery = buildQueryString(nextPage);
 
     setLoading(true);
     setError(null);
@@ -175,6 +170,7 @@ export function EventSearchClient() {
       setData(result);
       setActiveQueryString(currentQuery);
       setRefreshToken((value) => value + 1);
+      setPage(nextPage);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("eventSearch.error.searchFailed"));
     } finally {
@@ -192,8 +188,12 @@ export function EventSearchClient() {
     setCountryCode("");
     setCity("");
     setHasGeo("");
+    setPage(1);
     setSort("startsAtAsc");
   }
+
+  const currentPage = data?.pagination?.page ?? page;
+  const totalPages = data?.pagination?.totalPages ?? 1;
 
   return (
     <section className="grid">
@@ -289,7 +289,7 @@ export function EventSearchClient() {
         </label>
 
         <div className="kv">
-          <button type="button" onClick={runSearch} disabled={loading}>
+          <button type="button" onClick={() => void runSearch(1)} disabled={loading}>
             {loading ? t("eventSearch.searching") : t("eventSearch.search")}
           </button>
           <button
@@ -369,6 +369,30 @@ export function EventSearchClient() {
             : t("eventSearch.promptRun")}
         </div>
         {error && <div className="muted">{error}</div>}
+
+        {data && (
+          <div className="admin-card-actions">
+            <button
+              className="secondary-btn"
+              type="button"
+              onClick={() => void runSearch(currentPage - 1)}
+              disabled={loading || currentPage <= 1}
+            >
+              {t("common.pagination.previous")}
+            </button>
+            <div className="meta">
+              {t("common.pagination.pageOf", { page: currentPage, totalPages })}
+            </div>
+            <button
+              className="secondary-btn"
+              type="button"
+              onClick={() => void runSearch(currentPage + 1)}
+              disabled={loading || currentPage >= totalPages}
+            >
+              {t("common.pagination.next")}
+            </button>
+          </div>
+        )}
 
         {view === "map" ? (
           <LeafletClusterMap queryString={activeQueryString} refreshToken={refreshToken} />

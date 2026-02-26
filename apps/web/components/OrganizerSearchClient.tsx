@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { useI18n } from "./i18n/I18nProvider";
@@ -17,6 +17,11 @@ type OrganizerSearchResponse = {
     country_code: string | null;
   }>;
   total: number;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
   facets?: {
     roleKey?: Record<string, number>;
     languages?: Record<string, number>;
@@ -43,11 +48,12 @@ export function OrganizerSearchClient() {
   const [languages, setLanguages] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [city, setCity] = useState("");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<OrganizerSearchResponse | null>(null);
 
-  const queryString = useMemo(() => {
+  function buildQueryString(nextPage: number) {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (roleKey.trim()) params.set("roleKey", roleKey.trim());
@@ -55,24 +61,28 @@ export function OrganizerSearchClient() {
     if (languages.trim()) params.set("languages", languages.trim());
     if (countryCode.trim()) params.set("countryCode", countryCode.trim());
     if (city.trim()) params.set("city", city.trim());
-    params.set("page", "1");
+    params.set("page", String(nextPage));
     params.set("pageSize", "20");
     return params.toString();
-  }, [q, roleKey, tags, languages, countryCode, city]);
+  }
 
-  async function runSearch() {
+  async function runSearch(nextPage = page) {
     setLoading(true);
     setError(null);
 
     try {
-      const result = await fetchJson<OrganizerSearchResponse>(`/organizers/search?${queryString}`);
+      const result = await fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildQueryString(nextPage)}`);
       setData(result);
+      setPage(nextPage);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("organizerSearch.error.searchFailed"));
     } finally {
       setLoading(false);
     }
   }
+
+  const currentPage = data?.pagination?.page ?? page;
+  const totalPages = data?.pagination?.totalPages ?? 1;
 
   return (
     <section className="grid">
@@ -108,7 +118,7 @@ export function OrganizerSearchClient() {
           onChange={(event) => setCity(event.target.value)}
           placeholder={t("organizerSearch.placeholder.city")}
         />
-        <button type="button" onClick={runSearch} disabled={loading}>
+        <button type="button" onClick={() => void runSearch(1)} disabled={loading}>
           {loading ? t("organizerSearch.searching") : t("organizerSearch.search")}
         </button>
 
@@ -150,6 +160,30 @@ export function OrganizerSearchClient() {
             : t("organizerSearch.promptRun")}
         </div>
         {error && <div className="muted">{error}</div>}
+
+        {data && (
+          <div className="admin-card-actions">
+            <button
+              className="secondary-btn"
+              type="button"
+              onClick={() => void runSearch(currentPage - 1)}
+              disabled={loading || currentPage <= 1}
+            >
+              {t("common.pagination.previous")}
+            </button>
+            <div className="meta">
+              {t("common.pagination.pageOf", { page: currentPage, totalPages })}
+            </div>
+            <button
+              className="secondary-btn"
+              type="button"
+              onClick={() => void runSearch(currentPage + 1)}
+              disabled={loading || currentPage >= totalPages}
+            >
+              {t("common.pagination.next")}
+            </button>
+          </div>
+        )}
 
         {data?.items.map((item) => (
           <article className="card" key={item.id}>
