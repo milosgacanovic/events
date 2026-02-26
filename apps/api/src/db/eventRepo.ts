@@ -684,18 +684,17 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
     values,
   );
 
-  const facetOrganizer =
-    eventIds.length > 0
-      ? await pool.query<{ key: string; count: string }>(
-          `
-            select rel.organizer_id::text as key, count(distinct rel.event_id)::text as count
-            from event_organizers rel
-            where rel.event_id = any($1::uuid[])
-            group by rel.organizer_id
-          `,
-          [eventIds],
-        )
-      : { rows: [] as Array<{ key: string; count: string }> };
+  const facetOrganizer = await pool.query<{ key: string; count: string }>(
+    `${baseCte}
+      select
+        rel.organizer_id::text as key,
+        count(distinct matched.occurrence_id)::text as count
+      from matched
+      join event_organizers rel on rel.event_id = matched.event_id
+      group by rel.organizer_id
+    `,
+    values,
+  );
 
   const totalHits = Number(totalResult.rows[0]?.count ?? "0");
 

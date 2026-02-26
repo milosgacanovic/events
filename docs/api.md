@@ -5,9 +5,9 @@ Base path: `/api`
 ## Public
 - `GET /api/health`
 - `GET /api/meta/taxonomies`
-- `GET /api/events/search`
+- `GET /api/events/search` (returns `hits`, `facets`, `pagination`)
 - `GET /api/events/:slug`
-- `GET /api/organizers/search`
+- `GET /api/organizers/search` (returns `items`, `facets`, `pagination`)
 - `GET /api/organizers/:slug`
 - `GET /api/map/clusters`
 - `GET /api/geocode/search`
@@ -33,5 +33,7 @@ Base path: `/api`
 - `PATCH /api/admin/practices/:id`
 - `POST /api/admin/organizer-roles`
 - `PATCH /api/admin/organizer-roles/:id`
+- `GET /api/admin/ui-labels`
+- `PATCH /api/admin/ui-labels`
 
 See `constitution.md` for complete behavior and field-level requirements.
