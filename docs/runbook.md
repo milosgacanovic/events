@@ -36,3 +36,6 @@
 ## Cron
 - Daily recurring horizon refresh:
   - `docker exec dr_events_api npm run occurrences:refresh`
+
+## Importer smoke check
+- See `docs/import-smoke.md` for the client-credentials single-event import smoke procedure.

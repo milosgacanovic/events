@@ -17,6 +17,7 @@ import mapRoutes from "./routes/map";
 import metaRoutes from "./routes/meta";
 import organizerRoutes from "./routes/organizers";
 import uploadRoutes from "./routes/uploads";
+import { assertEventsExternalRefColumns } from "./db/startupChecks";
 import { AuthService } from "./services/authService";
 import { MeilisearchService } from "./services/meiliService";
 import { loggerConfig } from "./utils/logger";
@@ -39,6 +40,12 @@ async function buildServer() {
 
   app.decorate("db", pool);
   app.decorate("meiliService", meiliService);
+
+  await assertEventsExternalRefColumns(pool);
+  app.log.info(
+    { table: "events", requiredColumns: ["external_source", "external_id"] },
+    "startup_schema_ok",
+  );
 
   app.decorate("authenticate", async (request) => {
     request.auth = await authService.authenticate(request.headers.authorization);
