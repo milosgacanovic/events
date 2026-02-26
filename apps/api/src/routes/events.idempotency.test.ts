@@ -295,8 +295,59 @@ describe("events idempotency conflict handling", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("public, max-age=30");
+    expect(response.headers.vary).toContain("Authorization");
     const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
     expect(options?.filter?.some((item) => item.includes("starts_at_utc >= \"1970-01-01T00:00:00.000Z\""))).toBe(true);
+    await app.close();
+  });
+
+  it("logs events.search.timing with includePast/page/pageSize", async () => {
+    const searchSpy = vi.fn().mockResolvedValue({
+      hits: [],
+      facetDistribution: {},
+      estimatedTotalHits: 0,
+    });
+    const logInfo = vi.fn();
+
+    const app = Fastify({
+      logger: {
+        level: "silent",
+      },
+    });
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: searchSpy,
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async () => {});
+    app.decorate("requireAdmin", async () => {});
+    await app.register(async (instance) => {
+      instance.addHook("onRequest", async (request) => {
+        (request as unknown as { log: { info: typeof logInfo } }).log = { info: logInfo } as never;
+      });
+      await instance.register(eventRoutes);
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/events/search?includePast=true&page=2&pageSize=10",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(logInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        duration_ms: expect.any(Number),
+        includePast: true,
+        page: 2,
+        pageSize: 10,
+      }),
+      "events.search.timing",
+    );
     await app.close();
   });
 });

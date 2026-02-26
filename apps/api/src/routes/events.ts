@@ -116,6 +116,7 @@ function buildMeiliFilters(input: {
 
 const eventRoutes: FastifyPluginAsync = async (app) => {
   app.get("/events/search", async (request, reply) => {
+    const startedAt = Date.now();
     const parsed = searchQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
@@ -129,6 +130,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const tags = csvToList(parsed.data.tags);
     const languages = csvToList(parsed.data.languages);
     const hasGeo = parsed.data.hasGeo ? parsed.data.hasGeo === "true" : undefined;
+
+    reply.header("Cache-Control", "public, max-age=30");
+    reply.header("Vary", "Authorization");
 
     try {
       const meiliFilters = buildMeiliFilters({
@@ -240,6 +244,16 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       });
 
       return fallback;
+    } finally {
+      request.log.info(
+        {
+          duration_ms: Date.now() - startedAt,
+          includePast,
+          page: parsed.data.page,
+          pageSize: parsed.data.pageSize,
+        },
+        "events.search.timing",
+      );
     }
   });
 
