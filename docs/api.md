@@ -51,3 +51,14 @@ See `constitution.md` for complete behavior and field-level requirements.
     - `externalSource`
     - `externalId`
 - `descriptionJson.importMeta` is optional and audit-only, not idempotency enforcement.
+
+## Event Cover Image (Phase 1)
+- Storage field remains `events.cover_image_path` (nullable text).
+- `POST /api/events` and `PATCH /api/events/:id` accept:
+  - `coverImageUrl` (`string|null`, optional): absolute `http/https` URL only, max length `2048`.
+  - `coverImagePath` (`string|null`, optional): legacy/backward-compatible alias.
+- If both `coverImageUrl` and `coverImagePath` are provided and non-null, they must match.
+- Public responses include `coverImageUrl` (nullable):
+  - `GET /api/events/search` at `hits[].event.coverImageUrl`
+  - `GET /api/events/:slug` at `event.coverImageUrl`
+- External image hosts must allow direct cross-origin browser loading.

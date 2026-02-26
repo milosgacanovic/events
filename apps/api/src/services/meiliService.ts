@@ -11,6 +11,7 @@ export type OccurrenceDoc = {
   event_id: string;
   event_slug: string;
   title: string;
+  cover_image_path: string | null;
   description_text: string;
   starts_at_utc: string;
   ends_at_utc: string;
@@ -73,6 +74,7 @@ export class MeilisearchService {
         e.id as event_id,
         e.slug as event_slug,
         e.title,
+        e.cover_image_path,
         e.description_json,
         eo.starts_at_utc,
         eo.ends_at_utc,
@@ -100,6 +102,7 @@ export class MeilisearchService {
       event_id: string;
       event_slug: string;
       title: string;
+      cover_image_path: string | null;
       description_json: unknown;
       starts_at_utc: string;
       ends_at_utc: string;
@@ -126,6 +129,7 @@ export class MeilisearchService {
         event_id: row.event_id,
         event_slug: row.event_slug,
         title: row.title,
+        cover_image_path: row.cover_image_path,
         description_text: extractEditorJsText(row.description_json),
         starts_at_utc: row.starts_at_utc,
         ends_at_utc: row.ends_at_utc,

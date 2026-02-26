@@ -35,6 +35,7 @@ type EventDetail = {
     external_source: string | null;
     updated_at: string;
     cover_image_path: string | null;
+    coverImageUrl?: string | null;
     external_url: string | null;
     description_json: unknown;
     practice_category_id: string;
@@ -248,6 +249,7 @@ export function EventDetailClient({ slug }: { slug: string }) {
     : data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd");
   const importSource = data.event.external_source || t("common.none");
   const updatedLabel = data.event.updated_at ? new Date(data.event.updated_at).toLocaleString(locale) : null;
+  const coverImageUrl = data.event.coverImageUrl ?? data.event.cover_image_path;
 
   return (
     <section className="panel cards">
@@ -264,12 +266,14 @@ export function EventDetailClient({ slug }: { slug: string }) {
         {data.event.attendance_mode === "online" ? t("attendanceMode.online") : locationLabel}
       </div>
 
-      {data.event.cover_image_path && (
+      {coverImageUrl && (
         <img
           className="event-cover"
-          src={data.event.cover_image_path}
+          src={coverImageUrl}
           alt={data.event.title}
           loading="lazy"
+          decoding="async"
+          style={{ maxHeight: 480, objectFit: "cover", width: "100%" }}
         />
       )}
 

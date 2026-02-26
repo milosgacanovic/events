@@ -25,7 +25,13 @@ vi.mock("../services/eventLifecycleService", () => ({
 }));
 
 import { findOrCreateUserBySub } from "../db/userRepo";
-import { createEvent, getEventByExternalRef, searchEventsFallback, updateEvent } from "../db/eventRepo";
+import {
+  createEvent,
+  getEventByExternalRef,
+  getEventBySlug,
+  searchEventsFallback,
+  updateEvent,
+} from "../db/eventRepo";
 import { publishEvent } from "../services/eventLifecycleService";
 import eventRoutes from "./events";
 
@@ -380,6 +386,190 @@ describe("events idempotency conflict handling", () => {
       }),
       "events.search.timing",
     );
+    await app.close();
+  });
+
+  it("accepts create with valid coverImageUrl and maps it to coverImagePath", async () => {
+    vi.mocked(findOrCreateUserBySub).mockResolvedValue("00000000-0000-0000-0000-000000000001");
+    vi.mocked(getEventByExternalRef).mockResolvedValue(null);
+    vi.mocked(createEvent).mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000010",
+      slug: "importer-event",
+    } as never);
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: async () => ({
+            hits: [],
+            facetDistribution: {},
+            estimatedTotalHits: 0,
+          }),
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async (request) => {
+      request.auth = {
+        sub: "importer-test-user",
+        roles: ["dr_events_editor"],
+        isAdmin: false,
+        isEditor: true,
+      };
+    });
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: {
+        ...singleEventPayload(),
+        coverImageUrl: "https://cdn.example.org/events/e1.jpg",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(createEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      "00000000-0000-0000-0000-000000000001",
+      expect.objectContaining({
+        coverImagePath: "https://cdn.example.org/events/e1.jpg",
+        coverImageUrl: "https://cdn.example.org/events/e1.jpg",
+      }),
+    );
+    await app.close();
+  });
+
+  it("rejects create with invalid coverImageUrl scheme", async () => {
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: async () => ({
+            hits: [],
+            facetDistribution: {},
+            estimatedTotalHits: 0,
+          }),
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async (request) => {
+      request.auth = {
+        sub: "importer-test-user",
+        roles: ["dr_events_editor"],
+        isAdmin: false,
+        isEditor: true,
+      };
+    });
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: {
+        ...singleEventPayload(),
+        coverImageUrl: "javascript:alert(1)",
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("returns coverImageUrl in search hits from Meili documents", async () => {
+    const searchSpy = vi.fn().mockResolvedValue({
+      hits: [
+        {
+          occurrence_id: "00000000-0000-0000-0000-000000000101",
+          starts_at_utc: "2026-03-20T19:00:00.000Z",
+          ends_at_utc: "2026-03-20T21:00:00.000Z",
+          event_id: "00000000-0000-0000-0000-000000000010",
+          event_slug: "event-one",
+          title: "Event One",
+          cover_image_path: "https://cdn.example.org/events/e1.jpg",
+          attendance_mode: "in_person",
+          languages: ["en"],
+          tags: [],
+          practice_category_id: "11111111-1111-1111-1111-111111111111",
+          practice_subcategory_id: null,
+          organizer_ids: [],
+          organizer_names: [],
+          geo: null,
+        },
+      ],
+      facetDistribution: {},
+      estimatedTotalHits: 1,
+    });
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: searchSpy,
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async () => {});
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/events/search?page=1&pageSize=20",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().hits[0].event.coverImageUrl).toBe("https://cdn.example.org/events/e1.jpg");
+    await app.close();
+  });
+
+  it("returns coverImageUrl in event detail", async () => {
+    vi.mocked(getEventBySlug).mockResolvedValue({
+      event: {
+        title: "Event One",
+        cover_image_path: "https://cdn.example.org/events/e1.jpg",
+      },
+      organizers: [],
+      defaultLocation: null,
+      occurrences: {
+        upcoming: [],
+        past: [],
+      },
+    } as never);
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: async () => ({
+            hits: [],
+            facetDistribution: {},
+            estimatedTotalHits: 0,
+          }),
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async () => {});
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/events/event-one",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().event.coverImageUrl).toBe("https://cdn.example.org/events/e1.jpg");
     await app.close();
   });
 });

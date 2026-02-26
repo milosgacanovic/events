@@ -6,10 +6,24 @@ import {
   uuidSchema,
 } from "./common";
 
+const coverImageUrlSchema = z
+  .string()
+  .max(2048)
+  .url()
+  .refine((value) => {
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "coverImageUrl must use http or https");
+
 const createEventBaseSchema = z.object({
     title: z.string().min(1).max(250),
     descriptionJson: z.record(z.any()).default({}),
     coverImagePath: z.string().max(500).nullable().optional(),
+    coverImageUrl: coverImageUrlSchema.nullable().optional(),
     externalUrl: z.string().url().nullable().optional(),
     attendanceMode: attendanceModeSchema,
     onlineUrl: z.string().url().nullable().optional(),
@@ -55,6 +69,19 @@ function isExternalPairValid(value: { externalSource?: string | null; externalId
   return Boolean(value.externalSource && value.externalId);
 }
 
+function isCoverImageAliasValid(value: { coverImagePath?: string | null; coverImageUrl?: string | null }) {
+  if (
+    value.coverImagePath !== undefined &&
+    value.coverImagePath !== null &&
+    value.coverImageUrl !== undefined &&
+    value.coverImageUrl !== null
+  ) {
+    return value.coverImagePath === value.coverImageUrl;
+  }
+
+  return true;
+}
+
 export const createEventSchema = createEventBaseSchema
   .refine(
     (value) => {
@@ -76,6 +103,13 @@ export const createEventSchema = createEventBaseSchema
       message: "externalSource and externalId must be provided together",
       path: ["externalSource"],
     },
+  )
+  .refine(
+    (value) => isCoverImageAliasValid(value),
+    {
+      message: "coverImagePath and coverImageUrl must match when both are provided",
+      path: ["coverImageUrl"],
+    },
   );
 
 export const updateEventSchema = createEventBaseSchema
@@ -88,6 +122,13 @@ export const updateEventSchema = createEventBaseSchema
     {
       message: "externalSource and externalId must be provided together",
       path: ["externalSource"],
+    },
+  )
+  .refine(
+    (value) => isCoverImageAliasValid(value),
+    {
+      message: "coverImagePath and coverImageUrl must match when both are provided",
+      path: ["coverImageUrl"],
     },
   );
 

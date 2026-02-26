@@ -16,6 +16,7 @@ type SearchResponse = {
       id: string;
       slug: string;
       title: string;
+      coverImageUrl: string | null;
       attendanceMode: string;
       languages: string[];
       tags: string[];
@@ -399,6 +400,15 @@ export function EventSearchClient() {
         ) : (
           data?.hits.map((hit) => (
             <Link className="card" key={hit.occurrenceId} href={`/events/${hit.event.slug}`}>
+              {hit.event.coverImageUrl && (
+                <img
+                  className="event-card-thumb"
+                  src={hit.event.coverImageUrl}
+                  alt={hit.event.title}
+                  loading="lazy"
+                  decoding="async"
+                />
+              )}
               <h3>{hit.event.title}</h3>
               <div className="meta">
                 {new Date(hit.startsAtUtc).toLocaleString(locale)} | {t(`attendanceMode.${hit.event.attendanceMode}`)}

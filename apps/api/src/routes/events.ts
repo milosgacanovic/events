@@ -62,6 +62,14 @@ function csvToList(value?: string): string[] {
     .filter(Boolean);
 }
 
+function resolveCoverImagePath(input: { coverImagePath?: string | null; coverImageUrl?: string | null }) {
+  if (input.coverImageUrl !== undefined) {
+    return input.coverImageUrl;
+  }
+
+  return input.coverImagePath;
+}
+
 function buildMeiliFilters(input: {
   from: string;
   to: string;
@@ -186,8 +194,8 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       });
       const meiliHits = result.hits as OccurrenceDoc[];
 
-      return {
-        hits: meiliHits.map((doc: OccurrenceDoc) => ({
+        return {
+          hits: meiliHits.map((doc: OccurrenceDoc) => ({
           occurrenceId: doc.occurrence_id,
           startsAtUtc: doc.starts_at_utc,
           endsAtUtc: doc.ends_at_utc,
@@ -195,7 +203,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             id: doc.event_id,
             slug: doc.event_slug,
             title: doc.title,
-            coverImageUrl: null,
+            coverImageUrl: doc.cover_image_path ?? null,
             attendanceMode: doc.attendance_mode,
             languages: doc.languages,
             tags: doc.tags,
@@ -285,7 +293,13 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: "not_found" };
     }
 
-    return event;
+    return {
+      ...event,
+      event: {
+        ...event.event,
+        coverImageUrl: event.event.cover_image_path ?? null,
+      },
+    };
   });
 
   app.post("/events", async (request, reply) => {
@@ -299,44 +313,48 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
     const auth = request.auth!;
     const userId = await findOrCreateUserBySub(app.db, auth.sub);
+    const normalizedInput = {
+      ...parsed.data,
+      coverImagePath: resolveCoverImagePath(parsed.data),
+    };
 
-    if (parsed.data.externalSource && parsed.data.externalId) {
+    if (normalizedInput.externalSource && normalizedInput.externalId) {
       const existing = await getEventByExternalRef(
         app.db,
-        parsed.data.externalSource,
-        parsed.data.externalId,
+        normalizedInput.externalSource,
+        normalizedInput.externalId,
       );
       if (existing) {
         reply.code(409);
         return {
           error: "external_ref_conflict",
-          externalSource: parsed.data.externalSource,
-          externalId: parsed.data.externalId,
+          externalSource: normalizedInput.externalSource,
+          externalId: normalizedInput.externalId,
         };
       }
     }
 
     let event;
     try {
-      event = await createEvent(app.db, userId, parsed.data as CreateEventInput);
+      event = await createEvent(app.db, userId, normalizedInput as CreateEventInput);
     } catch (error) {
       if (isExternalRefConflict(error)) {
         reply.code(409);
         return {
           error: "external_ref_conflict",
-          externalSource: parsed.data.externalSource ?? null,
-          externalId: parsed.data.externalId ?? null,
+          externalSource: normalizedInput.externalSource ?? null,
+          externalId: normalizedInput.externalId ?? null,
         };
       }
       throw error;
     }
 
-    if (parsed.data.organizerRoles.length) {
-      await setEventOrganizers(app.db, event.id, parsed.data.organizerRoles);
+    if (normalizedInput.organizerRoles.length) {
+      await setEventOrganizers(app.db, event.id, normalizedInput.organizerRoles);
     }
 
-    if (parsed.data.locationId !== undefined) {
-      await setEventDefaultLocation(app.db, event.id, parsed.data.locationId ?? null);
+    if (normalizedInput.locationId !== undefined) {
+      await setEventDefaultLocation(app.db, event.id, normalizedInput.locationId ?? null);
     }
 
     reply.code(201);
@@ -358,16 +376,21 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
+    const normalizedInput = {
+      ...parsed.data,
+      coverImagePath: resolveCoverImagePath(parsed.data),
+    };
+
     let event;
     try {
-      event = await updateEvent(app.db, params.data.id, parsed.data as UpdateEventInput);
+      event = await updateEvent(app.db, params.data.id, normalizedInput as UpdateEventInput);
     } catch (error) {
       if (isExternalRefConflict(error)) {
         reply.code(409);
         return {
           error: "external_ref_conflict",
-          externalSource: parsed.data.externalSource ?? null,
-          externalId: parsed.data.externalId ?? null,
+          externalSource: normalizedInput.externalSource ?? null,
+          externalId: normalizedInput.externalId ?? null,
         };
       }
       throw error;
@@ -378,12 +401,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: "not_found" };
     }
 
-    if (parsed.data.organizerRoles) {
-      await setEventOrganizers(app.db, params.data.id, parsed.data.organizerRoles);
+    if (normalizedInput.organizerRoles) {
+      await setEventOrganizers(app.db, params.data.id, normalizedInput.organizerRoles);
     }
 
-    if (parsed.data.locationId !== undefined) {
-      await setEventDefaultLocation(app.db, params.data.id, parsed.data.locationId ?? null);
+    if (normalizedInput.locationId !== undefined) {
+      await setEventDefaultLocation(app.db, params.data.id, normalizedInput.locationId ?? null);
     }
 
     return event;
