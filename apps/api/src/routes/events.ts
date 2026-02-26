@@ -25,6 +25,7 @@ const searchQuerySchema = z.object({
   q: z.string().optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
+  includePast: z.enum(["true", "false"]).optional(),
   practiceCategoryId: z.string().uuid().optional(),
   practiceSubcategoryId: z.string().uuid().optional(),
   tags: z.string().optional(),
@@ -122,7 +123,8 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const now = DateTime.utc();
-    const from = parsed.data.from ?? now.toISO();
+    const includePast = parsed.data.includePast === "true";
+    const from = parsed.data.from ?? (includePast ? "1970-01-01T00:00:00.000Z" : now.toISO());
     const to = parsed.data.to ?? now.plus({ days: 90 }).toISO();
     const tags = csvToList(parsed.data.tags);
     const languages = csvToList(parsed.data.languages);
@@ -367,7 +369,15 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: params.error.flatten() };
     }
 
-    await publishEvent(app.db, app.meiliService, params.data.id);
+    try {
+      await publishEvent(app.db, app.meiliService, params.data.id);
+    } catch (error) {
+      if (error instanceof Error && error.message === "event_expired_for_publish") {
+        reply.code(400);
+        return { error: "event_expired_for_publish" };
+      }
+      throw error;
+    }
     return { ok: true };
   });
 

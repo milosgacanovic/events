@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 
 import {
   deleteOccurrencesForEvent,
+  getEventById,
   getEventByIdWithLocation,
   getRecurringPublishedEvents,
   replaceOccurrencesInWindow,
@@ -45,6 +46,15 @@ export async function publishEvent(
   meiliService: MeilisearchService,
   eventId: string,
 ): Promise<void> {
+  const event = await getEventById(pool, eventId);
+  if (
+    event?.schedule_kind === "single" &&
+    event.single_end_at &&
+    DateTime.fromISO(event.single_end_at, { zone: "utc" }) < DateTime.utc()
+  ) {
+    throw new Error("event_expired_for_publish");
+  }
+
   await setEventStatus(pool, eventId, "published");
   await regenerateEventOccurrences(pool, meiliService, eventId);
 }

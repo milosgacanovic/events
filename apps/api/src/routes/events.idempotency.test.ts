@@ -25,7 +25,8 @@ vi.mock("../services/eventLifecycleService", () => ({
 }));
 
 import { findOrCreateUserBySub } from "../db/userRepo";
-import { createEvent, getEventByExternalRef, updateEvent } from "../db/eventRepo";
+import { createEvent, getEventByExternalRef, searchEventsFallback, updateEvent } from "../db/eventRepo";
+import { publishEvent } from "../services/eventLifecycleService";
 import eventRoutes from "./events";
 
 function singleEventPayload() {
@@ -202,6 +203,100 @@ describe("events idempotency conflict handling", () => {
     });
     expect(createAfterClear.statusCode).toBe(201);
 
+    await app.close();
+  });
+
+  it("returns 400 when publishing an expired single event", async () => {
+    vi.mocked(publishEvent).mockRejectedValue(new Error("event_expired_for_publish"));
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", { client: { index: vi.fn() } } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async (request) => {
+      request.auth = {
+        sub: "importer-test-user",
+        roles: ["dr_events_editor"],
+        isAdmin: false,
+        isEditor: true,
+      };
+    });
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/events/00000000-0000-0000-0000-000000000010/publish",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: "event_expired_for_publish" });
+    await app.close();
+  });
+
+  it("publishes future event successfully", async () => {
+    vi.mocked(publishEvent).mockResolvedValue();
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", { client: { index: vi.fn() } } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async (request) => {
+      request.auth = {
+        sub: "importer-test-user",
+        roles: ["dr_events_editor"],
+        isAdmin: false,
+        isEditor: true,
+      };
+    });
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/events/00000000-0000-0000-0000-000000000010/publish",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ok: true });
+    await app.close();
+  });
+
+  it("includePast=true widens search lower bound", async () => {
+    const searchSpy = vi.fn().mockResolvedValue({
+      hits: [],
+      facetDistribution: {},
+      estimatedTotalHits: 0,
+    });
+    vi.mocked(searchEventsFallback).mockResolvedValue({
+      hits: [],
+      totalHits: 0,
+      facets: {},
+      pagination: { page: 1, pageSize: 20, totalPages: 1 },
+    } as never);
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: searchSpy,
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async () => {});
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/events/search?includePast=true&page=1&pageSize=20",
+    });
+
+    expect(response.statusCode).toBe(200);
+    const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
+    expect(options?.filter?.some((item) => item.includes("starts_at_utc >= \"1970-01-01T00:00:00.000Z\""))).toBe(true);
     await app.close();
   });
 });
