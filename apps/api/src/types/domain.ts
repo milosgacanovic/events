@@ -3,6 +3,8 @@ export type EventSeriesRow = {
   slug: string;
   title: string;
   description_json: Record<string, unknown>;
+  external_source: string | null;
+  external_id: string | null;
   cover_image_path: string | null;
   external_url: string | null;
   attendance_mode: "in_person" | "online" | "hybrid";

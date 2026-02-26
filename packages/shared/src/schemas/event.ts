@@ -35,7 +35,25 @@ const createEventBaseSchema = z.object({
         }),
       )
       .default([]),
+    externalSource: z.string().max(255).nullable().optional(),
+    externalId: z.string().max(255).nullable().optional(),
   });
+
+function hasDefinedExternalPair(value: { externalSource?: string | null; externalId?: string | null }) {
+  return value.externalSource !== undefined || value.externalId !== undefined;
+}
+
+function isExternalPairValid(value: { externalSource?: string | null; externalId?: string | null }) {
+  if (!hasDefinedExternalPair(value)) {
+    return true;
+  }
+
+  if (value.externalSource === null || value.externalId === null) {
+    return value.externalSource === null && value.externalId === null;
+  }
+
+  return Boolean(value.externalSource && value.externalId);
+}
 
 export const createEventSchema = createEventBaseSchema
   .refine(
@@ -51,11 +69,27 @@ export const createEventSchema = createEventBaseSchema
         "single schedules require singleStartAt/singleEndAt, recurring schedules require rrule/rruleDtstartLocal/durationMinutes",
       path: ["scheduleKind"],
     },
+  )
+  .refine(
+    (value) => isExternalPairValid(value),
+    {
+      message: "externalSource and externalId must be provided together",
+      path: ["externalSource"],
+    },
   );
 
-export const updateEventSchema = createEventBaseSchema.partial().extend({
-  status: eventStatusSchema.optional(),
-});
+export const updateEventSchema = createEventBaseSchema
+  .partial()
+  .extend({
+    status: eventStatusSchema.optional(),
+  })
+  .refine(
+    (value) => isExternalPairValid(value),
+    {
+      message: "externalSource and externalId must be provided together",
+      path: ["externalSource"],
+    },
+  );
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;

@@ -8,6 +8,8 @@ const baseEvent = {
   slug: "weekly-dance",
   title: "Weekly Dance",
   description_json: {},
+  external_source: null,
+  external_id: null,
   cover_image_path: null,
   external_url: null,
   attendance_mode: "in_person" as const,
