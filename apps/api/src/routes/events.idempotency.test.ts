@@ -25,7 +25,7 @@ vi.mock("../services/eventLifecycleService", () => ({
 }));
 
 import { findOrCreateUserBySub } from "../db/userRepo";
-import { createEvent, getEventByExternalRef } from "../db/eventRepo";
+import { createEvent, getEventByExternalRef, updateEvent } from "../db/eventRepo";
 import eventRoutes from "./events";
 
 function singleEventPayload() {
@@ -109,6 +109,98 @@ describe("events idempotency conflict handling", () => {
       externalSource: "feed_a",
       externalId: "event_1001",
     });
+
+    await app.close();
+  });
+
+  it("allows reusing externalSource+externalId after patch clear to null", async () => {
+    vi.mocked(findOrCreateUserBySub).mockResolvedValue("00000000-0000-0000-0000-000000000001");
+
+    let externalRefInUse = false;
+    let createdCount = 0;
+    vi.mocked(createEvent).mockImplementation(async () => {
+      createdCount += 1;
+      externalRefInUse = true;
+      return {
+        id: `00000000-0000-0000-0000-00000000001${createdCount}`,
+        slug: `importer-event-${createdCount}`,
+      } as never;
+    });
+
+    vi.mocked(getEventByExternalRef).mockImplementation(async () => (
+      externalRefInUse
+        ? ({
+            id: "00000000-0000-0000-0000-000000000010",
+            slug: "importer-event-1",
+          } as never)
+        : null
+    ));
+
+    vi.mocked(updateEvent).mockImplementation(async (_db, eventId, input) => {
+      if (input.externalSource === null && input.externalId === null) {
+        externalRefInUse = false;
+      }
+      return {
+        id: eventId,
+        slug: "importer-event-1",
+      } as never;
+    });
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: async () => ({
+            hits: [],
+            facetDistribution: {},
+            estimatedTotalHits: 0,
+          }),
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async (request) => {
+      request.auth = {
+        sub: "importer-test-user",
+        roles: ["dr_events_editor"],
+        isAdmin: false,
+        isEditor: true,
+      };
+    });
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const firstCreate = await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: singleEventPayload(),
+    });
+    expect(firstCreate.statusCode).toBe(201);
+
+    const duplicateCreate = await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: singleEventPayload(),
+    });
+    expect(duplicateCreate.statusCode).toBe(409);
+
+    const clear = await app.inject({
+      method: "PATCH",
+      url: "/events/00000000-0000-0000-0000-000000000010",
+      payload: {
+        externalSource: null,
+        externalId: null,
+      },
+    });
+    expect(clear.statusCode).toBe(200);
+
+    const createAfterClear = await app.inject({
+      method: "POST",
+      url: "/events",
+      payload: singleEventPayload(),
+    });
+    expect(createAfterClear.statusCode).toBe(201);
 
     await app.close();
   });
