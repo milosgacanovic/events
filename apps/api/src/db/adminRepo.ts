@@ -43,6 +43,10 @@ export async function listAdminEvents(
       id: string;
       slug: string;
       title: string;
+      external_source: string | null;
+      external_id: string | null;
+      externalSource: string | null;
+      externalId: string | null;
       status: string;
       attendance_mode: string;
       schedule_kind: string;
@@ -54,6 +58,10 @@ export async function listAdminEvents(
           e.id,
           e.slug,
           e.title,
+          e.external_source,
+          e.external_id,
+          e.external_source as "externalSource",
+          e.external_id as "externalId",
           e.status,
           e.attendance_mode,
           e.schedule_kind,
@@ -160,6 +168,10 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
     slug: string;
     title: string;
     description_json: Record<string, unknown>;
+    external_source: string | null;
+    external_id: string | null;
+    externalSource: string | null;
+    externalId: string | null;
     cover_image_path: string | null;
     external_url: string | null;
     attendance_mode: "in_person" | "online" | "hybrid";
@@ -187,6 +199,10 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
         e.slug,
         e.title,
         e.description_json,
+        e.external_source,
+        e.external_id,
+        e.external_source as "externalSource",
+        e.external_id as "externalId",
         e.cover_image_path,
         e.external_url,
         e.attendance_mode,
