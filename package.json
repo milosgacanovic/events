@@ -13,6 +13,7 @@
     "typecheck": "npm run build -w @dr-events/shared && npm run typecheck -w @dr-events/api && npm run typecheck -w @dr-events/web && npm run typecheck -w @dr-events/shared",
     "test": "npm run test -w @dr-events/api",
     "import:smoke": "tsx scripts/import-smoke.ts",
+    "test:live:admin": "tsx scripts/live-admin-verify.ts",
     "migrate": "npm run migrate -w @dr-events/api",
     "seed": "npm run seed -w @dr-events/api",
     "occurrences:refresh": "npm run occurrences:refresh -w @dr-events/api"
