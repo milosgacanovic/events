@@ -12,6 +12,8 @@ import { createLocation } from "../db/locationRepo";
 const eventQuerySchema = z.object({
   q: z.string().optional(),
   status: z.enum(["draft", "published", "cancelled", "archived"]).optional(),
+  externalSource: z.string().trim().min(1).max(255).optional(),
+  externalId: z.string().trim().min(1).max(255).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });
@@ -40,6 +42,14 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       reply.code(400);
       return { error: parsed.error.flatten() };
+    }
+
+    if (
+      (parsed.data.externalSource && !parsed.data.externalId) ||
+      (!parsed.data.externalSource && parsed.data.externalId)
+    ) {
+      reply.code(400);
+      return { error: "externalSource and externalId must be provided together" };
     }
 
     return listAdminEvents(app.db, parsed.data);

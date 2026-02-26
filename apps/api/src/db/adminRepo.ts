@@ -5,6 +5,8 @@ export async function listAdminEvents(
   input: {
     q?: string;
     status?: "draft" | "published" | "cancelled" | "archived";
+    externalSource?: string;
+    externalId?: string;
     page: number;
     pageSize: number;
   },
@@ -25,6 +27,13 @@ export async function listAdminEvents(
   if (input.status) {
     values.push(input.status);
     whereParts.push(`e.status = $${values.length}`);
+  }
+
+  if (input.externalSource && input.externalId) {
+    values.push(input.externalSource);
+    whereParts.push(`e.external_source = $${values.length}`);
+    values.push(input.externalId);
+    whereParts.push(`e.external_id = $${values.length}`);
   }
 
   const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";

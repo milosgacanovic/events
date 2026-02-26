@@ -99,6 +99,8 @@ export async function createEvent(pool: Pool, createdByUserId: string | null, in
         slug,
         title,
         description_json,
+        external_source,
+        external_id,
         cover_image_path,
         external_url,
         attendance_mode,
@@ -120,7 +122,7 @@ export async function createEvent(pool: Pool, createdByUserId: string | null, in
       )
       values (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, 'draft', $19, $20
+        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'draft', $21, $22
       )
       returning *
     `,
@@ -128,6 +130,8 @@ export async function createEvent(pool: Pool, createdByUserId: string | null, in
       slug,
       input.title,
       JSON.stringify(input.descriptionJson ?? {}),
+      input.externalSource ?? null,
+      input.externalId ?? null,
       input.coverImagePath ?? null,
       input.externalUrl ?? null,
       input.attendanceMode,
@@ -155,6 +159,8 @@ export async function updateEvent(pool: Pool, eventId: string, input: UpdateEven
   const fields: Record<string, unknown> = {
     title: input.title,
     description_json: input.descriptionJson ? JSON.stringify(input.descriptionJson) : undefined,
+    external_source: input.externalSource,
+    external_id: input.externalId,
     cover_image_path: input.coverImagePath,
     external_url: input.externalUrl,
     attendance_mode: input.attendanceMode,
@@ -239,6 +245,25 @@ export async function setEventStatus(
 
 export async function getEventById(pool: Pool, eventId: string): Promise<EventSeriesRow | null> {
   const result = await pool.query<EventSeriesRow>("select * from events where id = $1", [eventId]);
+  return result.rows[0] ?? null;
+}
+
+export async function getEventByExternalRef(
+  pool: Pool,
+  externalSource: string,
+  externalId: string,
+): Promise<EventSeriesRow | null> {
+  const result = await pool.query<EventSeriesRow>(
+    `
+      select *
+      from events
+      where external_source = $1
+        and external_id = $2
+      limit 1
+    `,
+    [externalSource, externalId],
+  );
+
   return result.rows[0] ?? null;
 }
 

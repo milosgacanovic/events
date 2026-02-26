@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import {
   createEvent,
+  getEventByExternalRef,
   getEventBySlug,
   searchEventsFallback,
   setEventOrganizers,
@@ -37,6 +38,19 @@ const searchQuerySchema = z.object({
   pageSize: z.coerce.number().int().positive().max(50).default(20),
   sort: z.enum(["startsAtAsc", "startsAtDesc", "publishedAtDesc"]).default("startsAtAsc"),
 });
+
+function isExternalRefConflict(error: unknown): boolean {
+  const value = error as { code?: string; constraint?: string; message?: string } | undefined;
+  if (!value || value.code !== "23505") {
+    return false;
+  }
+
+  if (value.constraint === "events_external_source_external_id_unique_idx") {
+    return true;
+  }
+
+  return Boolean(value.message?.includes("events_external_source_external_id_unique_idx"));
+}
 
 function csvToList(value?: string): string[] {
   if (!value) return [];
@@ -254,7 +268,37 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
     const auth = request.auth!;
     const userId = await findOrCreateUserBySub(app.db, auth.sub);
-    const event = await createEvent(app.db, userId, parsed.data as CreateEventInput);
+
+    if (parsed.data.externalSource && parsed.data.externalId) {
+      const existing = await getEventByExternalRef(
+        app.db,
+        parsed.data.externalSource,
+        parsed.data.externalId,
+      );
+      if (existing) {
+        reply.code(409);
+        return {
+          error: "external_ref_conflict",
+          externalSource: parsed.data.externalSource,
+          externalId: parsed.data.externalId,
+        };
+      }
+    }
+
+    let event;
+    try {
+      event = await createEvent(app.db, userId, parsed.data as CreateEventInput);
+    } catch (error) {
+      if (isExternalRefConflict(error)) {
+        reply.code(409);
+        return {
+          error: "external_ref_conflict",
+          externalSource: parsed.data.externalSource ?? null,
+          externalId: parsed.data.externalId ?? null,
+        };
+      }
+      throw error;
+    }
 
     if (parsed.data.organizerRoles.length) {
       await setEventOrganizers(app.db, event.id, parsed.data.organizerRoles);
@@ -283,7 +327,20 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
-    const event = await updateEvent(app.db, params.data.id, parsed.data as UpdateEventInput);
+    let event;
+    try {
+      event = await updateEvent(app.db, params.data.id, parsed.data as UpdateEventInput);
+    } catch (error) {
+      if (isExternalRefConflict(error)) {
+        reply.code(409);
+        return {
+          error: "external_ref_conflict",
+          externalSource: parsed.data.externalSource ?? null,
+          externalId: parsed.data.externalId ?? null,
+        };
+      }
+      throw error;
+    }
 
     if (!event) {
       reply.code(404);
