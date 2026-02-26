@@ -14,7 +14,7 @@ Base path: `/api`
 - `GET /api/uploads/*`
 
 ## Editor/Admin (Bearer token)
-- `GET /api/admin/events`
+- `GET /api/admin/events` (supports optional `externalSource` + `externalId` pair filter)
 - `GET /api/admin/events/:id`
 - `GET /api/admin/organizers`
 - `GET /api/admin/organizers/:id`
@@ -37,3 +37,17 @@ Base path: `/api`
 - `PATCH /api/admin/ui-labels`
 
 See `constitution.md` for complete behavior and field-level requirements.
+
+## Event Import Idempotency (Single/Recurring Event Create/Patch)
+- `POST /api/events` accepts optional `externalSource` and `externalId` (`string|null`, max 255 each).
+- `PATCH /api/events/:id` accepts optional `externalSource` and `externalId` with same constraints.
+- Pair rule:
+  - if one is provided, both must be provided
+  - patch clear is allowed only with both set to `null`
+- Server-enforced uniqueness:
+  - unique pair `(external_source, external_id)` is enforced when both are non-null
+  - duplicate create/update pair returns `409` with:
+    - `error: "external_ref_conflict"`
+    - `externalSource`
+    - `externalId`
+- `descriptionJson.importMeta` is optional and audit-only, not idempotency enforcement.

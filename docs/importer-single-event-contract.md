@@ -1,100 +1,75 @@
-# Importer Contract: Single Event Create + Publish (Strict Current API)
+# Importer Contract: Single Event Create + Publish (Server-Enforced Idempotency)
 
-This document defines how an external importer must create and publish **single** events against the current API implementation.
+This contract describes how to import and publish **single** events using the current API, with first-class server idempotency.
+
+Base URL: `https://beta.events.danceresource.org/api`
 
 Scope:
 - single events only (`scheduleKind = "single"`)
 - existing endpoints only (no new endpoints)
-- strict to current validation and behavior
+- strict to current API behavior
 
-Base URL: `https://beta.events.danceresource.org/api`
+## 1) Auth and Roles
 
-## 1) Auth and Required Roles
+Required Bearer role for importer operations:
+- `dr_events_editor` or `dr_events_admin`
 
-All write operations below require Bearer JWT.
+Used endpoints:
+- `POST /events`
+- `PATCH /events/:id`
+- `POST /events/:id/publish`
+- `POST /admin/locations`
+- `GET /admin/events` (lookup by external reference)
 
-- Required for importer writes:
-  - `POST /events`
-  - `PATCH /events/:id`
-  - `POST /events/:id/publish`
-  - `POST /admin/locations`
-  - `GET /admin/events` (used for lookup)
-- Accepted role for these endpoints: `dr_events_editor` or `dr_events_admin`
-- Failure modes:
-  - `401` missing/invalid bearer token
-  - `403` token without required role
-  - `400` schema validation failure
-  - `404` entity not found (patch/publish by wrong id)
+Common errors:
+- `401` missing/invalid token
+- `403` missing role
+- `400` validation error
+- `404` event not found on patch/publish
+- `409` external reference conflict
 
-## 2) Idempotency Strategy (`external_source + external_id`)
+## 2) First-Class Idempotency
 
-## 2.1 Current system constraint
+## 2.1 External reference fields
 
-Current events schema/API does **not** expose first-class `external_source` / `external_id` columns or dedicated upsert endpoint.
+Events support two optional fields:
+- `externalSource`
+- `externalId`
 
-Therefore idempotency must be implemented by importer orchestration using existing fields and endpoints.
+Constraints:
+- max length 255 each
+- if one is provided, both must be provided
 
-## 2.2 Canonical importer key
+Database uniqueness:
+- unique on `(external_source, external_id)` when both are non-null
 
-Define a canonical key:
-- `import_key = "<external_source>:<external_id>"`
+## 2.2 Official importer flow
 
-`external_source` and `external_id` are required importer-side inputs.
+1. Importer sends `POST /events` with `externalSource` + `externalId`.
+2. If `201`, importer proceeds.
+3. If `409` (`external_ref_conflict`), importer resolves canonical event via:
+   - `GET /admin/events?externalSource=<...>&externalId=<...>&page=1&pageSize=20`
+4. Importer patches resolved event:
+   - `PATCH /events/:id`
+5. Importer publishes:
+   - `POST /events/:id/publish`
 
-## 2.3 Required importer persistence
+This is the official idempotent create/update contract.
 
-Importer must persist mapping in its own storage:
-- `external_source`
-- `external_id`
-- `event_id` (UUID returned by API)
-- `event_slug` (optional, for diagnostics)
-- last imported checksum/version
+## 2.3 `descriptionJson.importMeta`
 
-This mapping is the primary idempotency anchor.
+`descriptionJson.importMeta` remains optional and audit-only.
+It is not required for idempotency enforcement.
 
-## 2.4 Metadata embedding requirement (for auditability)
+## 3) Location Handling
 
-When creating/updating events, importer must include these values in `descriptionJson`, for example:
+Events attach location by `locationId`.
 
-```json
-{
-  "importMeta": {
-    "external_source": "my_feed",
-    "external_id": "abc-123"
-  }
-}
-```
-
-This does not create server-side uniqueness, but preserves traceability in event payload.
-
-## 2.5 Idempotent flow using existing endpoints
-
-1. Build `import_key`.
-2. Check importer mapping store:
-   - if found `event_id` -> `PATCH /events/:id` (update path).
-   - if not found -> create path.
-3. Create path:
-   - optional: pre-lookup candidate via `GET /admin/events?q=<title fragment>&status=draft` and `GET /admin/events?q=<title fragment>&status=published` to reduce accidental duplicates.
-   - call `POST /events`.
-   - persist returned `event_id` in importer mapping store.
-4. Publish step:
-   - call `POST /events/:id/publish` only after successful create/update.
-5. Retries:
-   - if create succeeded but importer crashed before mapping save, first run admin lookup by title and review candidates manually or with conservative matching rules.
-   - because current list endpoints do not expose `external_source`/`external_id` and there is no importer upsert endpoint, automatic crash-recovery dedupe is best-effort only.
-
-Note: strict idempotency across crashes cannot be guaranteed by server alone in current API.
-
-## 3) Location Handling Contract
-
-Events reference location via `locationId` only.
-
-### 3.1 Create/resolve location
+### 3.1 Create location
 
 Endpoint: `POST /admin/locations`
 
 Request body:
-
 ```json
 {
   "label": "Venue name (optional)",
@@ -107,61 +82,61 @@ Request body:
 ```
 
 Validation:
-- `formattedAddress`: required, min length 3
-- `lat`: required, `-90..90`
-- `lng`: required, `-180..180`
-- `label/countryCode/city`: optional
+- `formattedAddress` required, min length 3
+- `lat` required, `-90..90`
+- `lng` required, `-180..180`
 
-Response: created location object with `id`.
+### 3.2 Attach or clear location on event
 
-### 3.2 Attach location to event
+- On create/patch, set `locationId: "<uuid>"` to attach/update
+- On patch, set `locationId: null` to clear
+- If patch omits `locationId`, existing event location is unchanged
 
-Include `locationId` in `POST /events` or `PATCH /events/:id`.
-
-Rules:
-- `locationId: "<uuid>"` attaches/updates default location
-- `locationId: null` removes default location
-- omitted `locationId` on patch leaves location unchanged
-
-## 4) Create Single Event Contract
+## 4) Create Single Event Payload
 
 Endpoint: `POST /events`
 
-Required fields for single event:
-- `title` (string, 1..250)
+Required fields for `scheduleKind = "single"`:
+- `title`
 - `attendanceMode` (`in_person` | `online` | `hybrid`)
 - `practiceCategoryId` (uuid)
 - `scheduleKind` = `single`
-- `eventTimezone` (string)
-- `singleStartAt` (ISO datetime with timezone, string)
-- `singleEndAt` (ISO datetime with timezone, string)
+- `eventTimezone`
+- `singleStartAt` (ISO datetime)
+- `singleEndAt` (ISO datetime)
 
-Optional fields:
-- `descriptionJson` (object; default `{}`)
-- `coverImagePath` (string|null)
-- `externalUrl` (valid URL|null)
-- `onlineUrl` (valid URL|null)
-- `practiceSubcategoryId` (uuid|null)
-- `tags` (string[])
-- `languages` (string[])
-- `visibility` (`public` | `unlisted`, default `public`)
-- `locationId` (uuid|null)
-- `organizerRoles` (array of `{ organizerId, roleId, displayOrder }`)
+Optional fields (common):
+- `descriptionJson`
+- `coverImagePath`
+- `externalUrl`
+- `onlineUrl`
+- `practiceSubcategoryId`
+- `tags`
+- `languages`
+- `visibility`
+- `locationId`
+- `organizerRoles`
+- `externalSource`
+- `externalId`
 
-Single-schedule constraint (enforced):
-- for `scheduleKind = "single"`:
-  - `singleStartAt` and `singleEndAt` must be provided
-  - recurring fields (`rrule`, `rruleDtstartLocal`, `durationMinutes`) must be absent/null
+Pair rule for idempotency fields:
+- both omitted: allowed
+- both non-null: allowed
+- both null: allowed (primarily for patch clear)
+- only one provided: rejected with `400`
 
-Minimal valid example:
+Single-schedule shape rule:
+- requires `singleStartAt` + `singleEndAt`
+- recurring fields (`rrule`, `rruleDtstartLocal`, `durationMinutes`) must be absent/null
 
+Example:
 ```json
 {
   "title": "Ecstatic Dance Friday",
   "descriptionJson": {
     "importMeta": {
-      "external_source": "partner_feed",
-      "external_id": "evt-1001"
+      "source": "partner_feed",
+      "id": "evt-1001"
     }
   },
   "attendanceMode": "in_person",
@@ -174,45 +149,42 @@ Minimal valid example:
   "locationId": "22222222-2222-2222-2222-222222222222",
   "tags": ["ecstatic"],
   "languages": ["en"],
-  "organizerRoles": []
+  "organizerRoles": [],
+  "externalSource": "partner_feed",
+  "externalId": "evt-1001"
 }
 ```
 
-## 5) Update Contract
+## 5) Conflict Contract (`409`)
 
-Endpoint: `PATCH /events/:id`
+Duplicate external reference on create/update returns:
 
-- Partial payload accepted (same field names as create plus optional `status`)
-- Use this for idempotent re-import updates once mapping has `event_id`
-- Keep `scheduleKind = "single"` data consistent when updating schedule fields
+```json
+{
+  "error": "external_ref_conflict",
+  "externalSource": "partner_feed",
+  "externalId": "evt-1001"
+}
+```
+
+Importer should then lookup and patch existing event as described above.
 
 ## 6) Publish Contract
 
 Endpoint: `POST /events/:id/publish`
 
 Response:
-
 ```json
 { "ok": true }
 ```
 
-Behavior:
-- event status transitions to `published`
-- occurrences are generated for the event
-- search index update is triggered
+Behavior unchanged:
+- event status becomes `published`
+- occurrences are generated
+- search index is updated
 
-## 7) Recommended Import Sequence (Single Event)
+## 7) Explicit Non-Goals
 
-1. Resolve taxonomy/organizer references (category UUID, optional organizer role IDs).
-2. Create location via `POST /admin/locations` (or decide no location).
-3. Build create/update payload with `descriptionJson.importMeta` containing `external_source` + `external_id`.
-4. If mapping exists -> `PATCH /events/:id`; else `POST /events` and persist mapping.
-5. `POST /events/:id/publish`.
-6. Optional verification:
-   - `GET /events/:slug` should return published event.
-
-## 8) Non-Goals / Explicit Limits
-
-- No server-side uniqueness on `external_source + external_id` currently.
-- No dedicated importer endpoint or transactional upsert endpoint.
-- No new endpoints introduced by this contract.
+- No new importer endpoint
+- No organizer endpoint rename
+- No recurrence, search, or map behavior changes in this contract
