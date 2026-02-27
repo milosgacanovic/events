@@ -1,6 +1,7 @@
 import { MeiliSearch } from "meilisearch";
 import { Client } from "pg";
-import { spawn } from "node:child_process";
+
+import { OCCURRENCES_INDEX } from "../apps/api/src/services/meiliService";
 
 function extractEditorJsText(descriptionJson: unknown): string {
   if (!descriptionJson || typeof descriptionJson !== "object") {
@@ -27,8 +28,7 @@ function extractEditorJsText(descriptionJson: unknown): string {
     for (const value of Object.values(data)) {
       if (typeof value === "string") {
         textParts.push(value);
-      }
-      if (Array.isArray(value)) {
+      } else if (Array.isArray(value)) {
         for (const nestedValue of value) {
           if (typeof nestedValue === "string") {
             textParts.push(nestedValue);
@@ -41,42 +41,29 @@ function extractEditorJsText(descriptionJson: unknown): string {
   return textParts.join(" ").replace(/\s+/g, " ").trim();
 }
 
-const indexName = "event_occurrences";
 const batchSize = 500;
 
 const databaseUrl = process.env.DATABASE_URL ?? "postgresql://dr_events:dr_events_password@localhost:15432/dr_events";
 const meiliUrl = process.env.MEILI_URL ?? "http://localhost:17700";
 const meiliMasterKey = process.env.MEILI_MASTER_KEY ?? "change_me";
-const hardReset = process.argv.includes("--hard");
 
 async function main() {
-  if (hardReset) {
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn("tsx", ["scripts/meiliResetAndReindex.ts"], {
-        stdio: "inherit",
-        cwd: process.cwd(),
-        env: process.env,
-      });
-      child.on("exit", (code) => {
-        if (code === 0) {
-          resolve();
-          return;
-        }
-        reject(new Error(`Hard reset reindex failed with exit code ${code ?? -1}`));
-      });
-      child.on("error", reject);
-    });
-    return;
-  }
-
   const db = new Client({ connectionString: databaseUrl });
   const meili = new MeiliSearch({ host: meiliUrl, apiKey: meiliMasterKey });
 
   await db.connect();
 
   try {
-    const index = meili.index(indexName);
-    await meili.createIndex(indexName, { primaryKey: "occurrence_id" }).catch(() => {});
+    const existingIndex = await meili.getIndex(OCCURRENCES_INDEX).catch(() => null);
+    if (existingIndex) {
+      const task = await meili.deleteIndex(OCCURRENCES_INDEX);
+      await meili.waitForTask(task.taskUid);
+    }
+
+    const createTask = await meili.createIndex(OCCURRENCES_INDEX, { primaryKey: "occurrence_id" });
+    await meili.waitForTask(createTask.taskUid);
+
+    const index = meili.index(OCCURRENCES_INDEX);
     const settingsTask = await index.updateSettings({
       filterableAttributes: [
         "starts_at_utc",
@@ -95,7 +82,7 @@ async function main() {
     });
     await meili.waitForTask(settingsTask.taskUid);
 
-    const totalRes = await db.query<{ count: string }>(`select count(*)::text as count from event_occurrences`);
+    const totalRes = await db.query<{ count: string }>("select count(*)::text as count from event_occurrences");
     const totalRows = Number(totalRes.rows[0]?.count ?? "0");
 
     let indexed = 0;
@@ -112,6 +99,7 @@ async function main() {
         attendance_mode: string;
         practice_category_id: string;
         practice_subcategory_id: string | null;
+        event_format_id: string | null;
         tags: string[];
         languages: string[];
         country_code: string | null;
@@ -134,6 +122,7 @@ async function main() {
             e.attendance_mode,
             e.practice_category_id,
             e.practice_subcategory_id,
+            e.event_format_id,
             e.tags,
             e.languages,
             eo.country_code,
@@ -171,6 +160,7 @@ async function main() {
           attendance_mode: row.attendance_mode,
           practice_category_id: row.practice_category_id,
           practice_subcategory_id: row.practice_subcategory_id,
+          event_format_id: row.event_format_id,
           tags: row.tags,
           languages: row.languages,
           organizer_ids: row.organizer_ids,
@@ -192,26 +182,18 @@ async function main() {
 
     const stats = await index.getStats();
 
-    // eslint-disable-next-line no-console
-    console.log(
-      JSON.stringify(
-        {
-          mode: "soft_reindex",
-          db_total_occurrences: totalRows,
-          indexed_docs: indexed,
-          meili_total_docs: stats.numberOfDocuments,
-        },
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify({
+      mode: "hard_reset",
+      db_total_occurrences: totalRows,
+      indexed_docs: indexed,
+      meili_total_docs: stats.numberOfDocuments,
+    }, null, 2));
   } finally {
     await db.end();
   }
 }
 
 main().catch((error) => {
-  // eslint-disable-next-line no-console
   console.error(error);
   process.exit(1);
 });
