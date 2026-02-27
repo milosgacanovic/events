@@ -240,6 +240,46 @@ export async function setEventOrganizers(
   }
 }
 
+export async function setEventOrganizersByRoleKey(
+  pool: Pool,
+  eventId: string,
+  organizerRoles: Array<{ organizerId: string; roleKey: string; displayOrder: number }>,
+): Promise<{ ok: true } | { ok: false; missingRoleKeys: string[] }> {
+  if (organizerRoles.length === 0) {
+    await pool.query("delete from event_organizers where event_id = $1", [eventId]);
+    return { ok: true };
+  }
+
+  const uniqueRoleKeys = Array.from(new Set(organizerRoles.map((row) => row.roleKey)));
+  const roleRows = await pool.query<{ id: string; key: string }>(
+    `
+      select id, key
+      from organizer_roles
+      where key = any($1::text[])
+        and is_active = true
+    `,
+    [uniqueRoleKeys],
+  );
+  const roleIdByKey = new Map(roleRows.rows.map((row) => [row.key, row.id]));
+  const missingRoleKeys = uniqueRoleKeys.filter((key) => !roleIdByKey.has(key));
+  if (missingRoleKeys.length > 0) {
+    return { ok: false, missingRoleKeys };
+  }
+
+  await pool.query("delete from event_organizers where event_id = $1", [eventId]);
+  for (const row of organizerRoles) {
+    await pool.query(
+      `
+        insert into event_organizers (event_id, organizer_id, role_id, display_order)
+        values ($1, $2, $3, $4)
+      `,
+      [eventId, row.organizerId, roleIdByKey.get(row.roleKey), row.displayOrder],
+    );
+  }
+
+  return { ok: true };
+}
+
 export async function setEventStatus(
   pool: Pool,
   eventId: string,

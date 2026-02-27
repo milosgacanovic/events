@@ -7,6 +7,8 @@ type OrganizerRow = {
   id: string;
   slug: string;
   name: string;
+  external_source: string | null;
+  external_id: string | null;
   description_json: Record<string, unknown>;
   website_url: string | null;
   tags: string[];
@@ -348,6 +350,8 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
       insert into organizers (
         slug,
         name,
+        external_source,
+        external_id,
         description_json,
         website_url,
         tags,
@@ -355,12 +359,14 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
         avatar_path,
         status
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       returning *
     `,
     [
       slug,
       input.name,
+      input.externalSource ?? null,
+      input.externalId ?? null,
       JSON.stringify(input.descriptionJson ?? {}),
       input.websiteUrl ?? null,
       input.tags,
@@ -402,6 +408,8 @@ function buildUpdateStatement(
 export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrganizerInput) {
   const fields: Record<string, unknown> = {
     name: input.name,
+    external_source: input.externalSource,
+    external_id: input.externalId,
     description_json: input.descriptionJson ? JSON.stringify(input.descriptionJson) : undefined,
     website_url: input.websiteUrl,
     tags: input.tags,
@@ -416,5 +424,23 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
 
   const { sql, values } = buildUpdateStatement("organizers", id, fields);
   const result = await pool.query<OrganizerRow>(sql, values);
+  return result.rows[0] ?? null;
+}
+
+export async function getOrganizerByExternalRef(
+  pool: Pool,
+  externalSource: string,
+  externalId: string,
+) {
+  const result = await pool.query<OrganizerRow>(
+    `
+      select *
+      from organizers
+      where external_source = $1
+        and external_id = $2
+      limit 1
+    `,
+    [externalSource, externalId],
+  );
   return result.rows[0] ?? null;
 }

@@ -12,8 +12,25 @@ vi.mock("../db/locationRepo", () => ({
   createLocation: vi.fn(),
 }));
 
+vi.mock("../db/organizerRepo", () => ({
+  createOrganizer: vi.fn(),
+  getOrganizerByExternalRef: vi.fn(),
+  updateOrganizer: vi.fn(),
+}));
+
+vi.mock("../db/eventRepo", () => ({
+  getEventById: vi.fn(),
+  setEventOrganizersByRoleKey: vi.fn(),
+}));
+
 import { getAdminEventById, listAdminEvents } from "../db/adminRepo";
+import { getEventById, setEventOrganizersByRoleKey } from "../db/eventRepo";
 import { createLocation } from "../db/locationRepo";
+import {
+  createOrganizer,
+  getOrganizerByExternalRef,
+  updateOrganizer,
+} from "../db/organizerRepo";
 import adminContentRoutes from "./adminContent";
 
 function buildApp() {
@@ -226,6 +243,97 @@ describe("admin content external ref filters", () => {
     });
 
     expect(response.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("upserts organizer by external ref (create path)", async () => {
+    vi.mocked(getOrganizerByExternalRef).mockResolvedValue(null as never);
+    vi.mocked(createOrganizer).mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000211",
+      slug: "host-a",
+    } as never);
+
+    const app = buildApp();
+    await app.register(adminContentRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/organizers/upsert-external",
+      payload: {
+        externalSource: "dr-importer:source",
+        externalId: "host-1",
+        name: "Host A",
+        status: "published",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      id: "00000000-0000-0000-0000-000000000211",
+      slug: "host-a",
+      created: true,
+    });
+
+    await app.close();
+  });
+
+  it("upserts organizer by external ref (update path)", async () => {
+    vi.mocked(getOrganizerByExternalRef).mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000212",
+      slug: "host-b",
+    } as never);
+    vi.mocked(updateOrganizer).mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000212",
+      slug: "host-b-2",
+    } as never);
+
+    const app = buildApp();
+    await app.register(adminContentRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/organizers/upsert-external",
+      payload: {
+        externalSource: "dr-importer:source",
+        externalId: "host-2",
+        name: "Host B",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      id: "00000000-0000-0000-0000-000000000212",
+      slug: "host-b-2",
+      created: false,
+    });
+
+    await app.close();
+  });
+
+  it("replaces event organizers by role key", async () => {
+    vi.mocked(getEventById).mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000213",
+    } as never);
+    vi.mocked(setEventOrganizersByRoleKey).mockResolvedValue({ ok: true });
+
+    const app = buildApp();
+    await app.register(adminContentRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/events/00000000-0000-0000-0000-000000000213/organizers/replace",
+      payload: [
+        {
+          organizerId: "00000000-0000-0000-0000-000000000214",
+          roleKey: "host",
+          displayOrder: 0,
+        },
+      ],
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ok: true });
+
     await app.close();
   });
 });

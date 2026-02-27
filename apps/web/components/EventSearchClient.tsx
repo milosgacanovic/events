@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchJson } from "../lib/api";
 import { useI18n } from "./i18n/I18nProvider";
 
-type SearchResponse = {
+export type SearchResponse = {
   hits: Array<{
     occurrenceId: string;
     startsAtUtc: string;
@@ -46,7 +46,7 @@ type SearchResponse = {
   };
 };
 
-type TaxonomyResponse = {
+export type TaxonomyResponse = {
   uiLabels: {
     categorySingular?: string;
     practiceCategory?: string;
@@ -74,7 +74,13 @@ const LeafletClusterMap = dynamic(
   { ssr: false },
 );
 
-export function EventSearchClient() {
+export function EventSearchClient({
+  initialResults,
+  initialTaxonomy,
+}: {
+  initialResults?: SearchResponse | null;
+  initialTaxonomy?: TaxonomyResponse | null;
+}) {
   const { locale, t } = useI18n();
   const [view, setView] = useState<"list" | "map">("list");
   const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc">("startsAtAsc");
@@ -82,26 +88,34 @@ export function EventSearchClient() {
   const [practiceCategoryId, setPracticeCategoryId] = useState("");
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
   const [eventFormatId, setEventFormatId] = useState("");
-  const [tags, setTags] = useState("");
-  const [language, setLanguage] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagQuery, setTagQuery] = useState("");
+  const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
+  const [languages, setLanguages] = useState<string[]>([]);
   const [attendanceMode, setAttendanceMode] = useState("");
-  const [countryCode, setCountryCode] = useState("");
+  const [countryCodes, setCountryCodes] = useState<string[]>([]);
   const [city, setCity] = useState("");
+  const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
+  const [showMoreCategories, setShowMoreCategories] = useState(false);
   const [page, setPage] = useState(1);
-  const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
+  const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<SearchResponse | null>(null);
+  const [data, setData] = useState<SearchResponse | null>(initialResults ?? null);
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
+    if (initialTaxonomy) {
+      return;
+    }
+
     fetchJson<TaxonomyResponse>("/meta/taxonomies")
       .then(setTaxonomy)
       .catch(() => {
         // Keep search usable even if taxonomy metadata fails.
       });
-  }, []);
+  }, [initialTaxonomy]);
 
   const categorySingularLabel =
     taxonomy?.uiLabels.categorySingular ??
@@ -141,10 +155,10 @@ export function EventSearchClient() {
     if (practiceCategoryId) params.set("practiceCategoryId", practiceCategoryId);
     if (practiceSubcategoryId) params.set("practiceSubcategoryId", practiceSubcategoryId);
     if (eventFormatId) params.set("eventFormatId", eventFormatId);
-    if (tags.trim()) params.set("tags", tags.trim());
-    if (language) params.set("languages", language);
+    if (tags.length) params.set("tags", tags.join(","));
+    if (languages.length) params.set("languages", languages.join(","));
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
-    if (countryCode.trim()) params.set("countryCode", countryCode.trim());
+    if (countryCodes.length) params.set("countryCode", countryCodes[0]);
     if (city.trim()) params.set("city", city.trim());
     params.set("sort", sort);
     params.set("page", String(nextPage));
@@ -156,9 +170,9 @@ export function EventSearchClient() {
     practiceSubcategoryId,
     eventFormatId,
     tags,
-    language,
+    languages,
     attendanceMode,
-    countryCode,
+    countryCodes,
     city,
     sort,
   ]);
@@ -196,10 +210,11 @@ export function EventSearchClient() {
     setPracticeCategoryId("");
     setPracticeSubcategoryId("");
     setEventFormatId("");
-    setTags("");
-    setLanguage("");
+    setTags([]);
+    setTagQuery("");
+    setLanguages([]);
     setAttendanceMode("");
-    setCountryCode("");
+    setCountryCodes([]);
     setCity("");
     setPage(1);
     setSort("startsAtAsc");
@@ -207,6 +222,36 @@ export function EventSearchClient() {
 
   const currentPage = data?.pagination?.page ?? page;
   const totalPages = data?.pagination?.totalPages ?? 1;
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (countryCodes[0]) {
+      params.set("countryCode", countryCodes[0]);
+    }
+    if (city.trim()) {
+      params.set("q", city.trim());
+    }
+    params.set("limit", "20");
+    void fetchJson<{ items: Array<{ city: string; count: number }> }>(`/meta/cities?${params.toString()}`)
+      .then((payload) => setCitySuggestions(payload.items ?? []))
+      .catch(() => setCitySuggestions([]));
+  }, [city, countryCodes]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (tagQuery.trim()) {
+      params.set("q", tagQuery.trim());
+    }
+    params.set("limit", "20");
+    void fetchJson<{ items: Array<{ tag: string; count: number }> }>(`/meta/tags?${params.toString()}`)
+      .then((payload) => setTagSuggestions(payload.items ?? []))
+      .catch(() => setTagSuggestions([]));
+  }, [tagQuery]);
+
+  const visibleCategories = useMemo(() => {
+    const categories = taxonomy?.practices.categories ?? [];
+    return showMoreCategories ? categories : categories.slice(0, 8);
+  }, [showMoreCategories, taxonomy]);
 
   return (
     <section className="grid">
@@ -233,23 +278,38 @@ export function EventSearchClient() {
           onChange={(event) => setQ(event.target.value)}
           placeholder={t("eventSearch.placeholder.searchTitle")}
         />
-        <label>
-          {categorySingularLabel}
-          <select
-            value={practiceCategoryId}
-            onChange={(event) => {
-              setPracticeCategoryId(event.target.value);
-              setPracticeSubcategoryId("");
-            }}
-          >
-            <option value="">{t("common.option.selectCategory")}</option>
-            {(taxonomy?.practices.categories ?? []).map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div>
+          <div className="meta">{categorySingularLabel}</div>
+          <div className="kv">
+            {visibleCategories.map((category) => {
+              const checked = practiceCategoryId === category.id;
+              const count = data?.facets?.practiceCategoryId?.[category.id] ?? 0;
+              return (
+                <label className="meta" key={category.id}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      setPracticeCategoryId((current) => (current === category.id ? "" : category.id));
+                      setPracticeSubcategoryId("");
+                      setPage(1);
+                    }}
+                  />
+                  {category.label} ({count})
+                </label>
+              );
+            })}
+          </div>
+          {(taxonomy?.practices.categories.length ?? 0) > 8 && (
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => setShowMoreCategories((current) => !current)}
+            >
+              {showMoreCategories ? t("eventSearch.showLess") : t("eventSearch.showMore")}
+            </button>
+          )}
+        </div>
         {hasAnySubcategories && (
           <label>
             {t("common.subcategory")}
@@ -269,7 +329,7 @@ export function EventSearchClient() {
         )}
         {(taxonomy?.eventFormats?.length ?? 0) > 0 && (
           <label>
-            Event Format
+            {t("eventSearch.eventFormat")}
             <div className="kv">
               {taxonomy?.eventFormats?.map((format) => {
                 const count = data?.facets?.eventFormatId?.[format.id] ?? 0;
@@ -291,32 +351,112 @@ export function EventSearchClient() {
             </div>
           </label>
         )}
-        <input
-          value={tags}
-          onChange={(event) => setTags(event.target.value)}
-          placeholder={t("eventSearch.placeholder.tagsCsv")}
-        />
-        <input
-          value={language}
-          onChange={(event) => setLanguage(event.target.value)}
-          placeholder={t("eventSearch.placeholder.languageCode")}
-        />
+        <label>
+          {t("eventSearch.eventLanguage")}
+          <div className="kv">
+            {Object.entries(data?.facets?.languages ?? {}).map(([value, count]) => (
+              <label className="meta" key={value}>
+                <input
+                  type="checkbox"
+                  checked={languages.includes(value)}
+                  onChange={() => {
+                    setLanguages((current) => (
+                      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+                    ));
+                    setPage(1);
+                  }}
+                />
+                {value} ({count})
+              </label>
+            ))}
+          </div>
+        </label>
         <select value={attendanceMode} onChange={(event) => setAttendanceMode(event.target.value)}>
-          <option value="">{t("eventSearch.attendance.any")}</option>
+          <option value="">{t("eventSearch.attendance.anyEventType")}</option>
           <option value="in_person">{t("eventSearch.attendance.in_person")}</option>
           <option value="online">{t("eventSearch.attendance.online")}</option>
           <option value="hybrid">{t("eventSearch.attendance.hybrid")}</option>
         </select>
+        <label>
+          {t("eventSearch.country")}
+          <div className="kv">
+            {Object.entries(data?.facets?.countryCode ?? {}).map(([value, count]) => (
+              <label className="meta" key={value}>
+                <input
+                  type="checkbox"
+                  checked={countryCodes.includes(value)}
+                  onChange={() => {
+                    setCountryCodes((current) => (
+                      current.includes(value) ? current.filter((item) => item !== value) : [value]
+                    ));
+                    setPage(1);
+                  }}
+                />
+                {value.toUpperCase()} ({count})
+              </label>
+            ))}
+          </div>
+        </label>
         <input
-          value={countryCode}
-          onChange={(event) => setCountryCode(event.target.value)}
-          placeholder={t("eventSearch.placeholder.countryCode")}
-        />
-        <input
+          list="event-city-suggestions"
           value={city}
           onChange={(event) => setCity(event.target.value)}
           placeholder={t("eventSearch.placeholder.city")}
         />
+        <datalist id="event-city-suggestions">
+          {citySuggestions.map((item) => (
+            <option key={item.city} value={item.city}>
+              {item.city} ({item.count})
+            </option>
+          ))}
+        </datalist>
+        <input
+          list="event-tag-suggestions"
+          value={tagQuery}
+          onFocus={() => setTagQuery("")}
+          onChange={(event) => setTagQuery(event.target.value)}
+          placeholder={t("eventSearch.tags")}
+        />
+        <datalist id="event-tag-suggestions">
+          {tagSuggestions.map((item) => (
+            <option key={item.tag} value={item.tag}>
+              {item.tag} ({item.count})
+            </option>
+          ))}
+        </datalist>
+        {tagQuery.trim() && (
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => {
+              const value = tagQuery.trim().toLowerCase();
+              if (value && !tags.includes(value)) {
+                setTags((current) => [...current, value]);
+              }
+              setTagQuery("");
+              setPage(1);
+            }}
+          >
+            {t("common.action.addTag")}
+          </button>
+        )}
+        {tags.length > 0 && (
+          <div className="kv">
+            {tags.map((item) => (
+              <button
+                className="tag"
+                key={item}
+                type="button"
+                onClick={() => {
+                  setTags((current) => current.filter((tag) => tag !== item));
+                  setPage(1);
+                }}
+              >
+                {item} ×
+              </button>
+            ))}
+          </div>
+        )}
         <div className="kv">
           <span className="meta">{t("eventSearch.sort.label")}</span>
           <button

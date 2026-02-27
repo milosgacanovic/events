@@ -5,6 +5,8 @@ Base path: `/api`
 ## Public
 - `GET /api/health`
 - `GET /api/meta/taxonomies` (practices taxonomy is currently canonical flat level-1 list)
+- `GET /api/meta/cities` (`q`, optional `countryCode`, optional `limit<=20`)
+- `GET /api/meta/tags` (`q`, optional `limit<=20`)
 - `GET /api/events/search` (returns `hits`, `facets`, `pagination`)
 - `GET /api/events/:slug`
 - `GET /api/organizers/search` (returns `items`, `facets`, `pagination`)
@@ -19,6 +21,8 @@ Base path: `/api`
 - `GET /api/admin/organizers`
 - `GET /api/admin/organizers/:id`
 - `POST /api/admin/locations`
+- `POST /api/admin/organizers/upsert-external`
+- `POST /api/admin/events/:id/organizers/replace`
 - `POST /api/organizers`
 - `PATCH /api/organizers/:id`
 - `POST /api/events`
@@ -33,6 +37,9 @@ Base path: `/api`
 - `PATCH /api/admin/practices/:id`
 - `POST /api/admin/organizer-roles`
 - `PATCH /api/admin/organizer-roles/:id`
+- `GET /api/admin/event-formats`
+- `POST /api/admin/event-formats`
+- `PATCH /api/admin/event-formats/:id`
 - `GET /api/admin/ui-labels`
 - `PATCH /api/admin/ui-labels`
 

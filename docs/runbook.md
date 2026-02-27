@@ -20,6 +20,9 @@
 - Idempotency requires `003_event_external_ref.sql` (external reference columns + unique index).
 - Before any deploy, run release gate checks:
   - `npm run release:gate`
+- If release gate fails only on Meili parity drift, run a hard reset reindex:
+  - `npm run occurrences:reindex:all -- --hard`
+  - then re-run `npm run release:gate`
 
 ## Keycloak SSO
 - Web uses Keycloak JS (SPA + PKCE), so the Keycloak client should be configured as `public`.
@@ -46,3 +49,17 @@
 
 ## Importer smoke check
 - See `docs/import-smoke.md` for the client-credentials single-event import smoke procedure.
+
+## SEO Rules
+- Indexable event listing pages:
+  - `/events`
+  - `/events?practiceCategoryId=<id>` (page 1 only)
+  - `/events?eventFormatId=<id>` (page 1 only)
+- Other filtered query combinations should be `noindex,follow`.
+- `/events/[slug]` should expose SSR metadata + JSON-LD.
+
+## Importer Backfills
+- Event format backfill:
+  - `./run.sh worker:once --dr-events-only --dr-events-backfill-format --dr-events-limit=2000`
+- Host linking backfill:
+  - `./run.sh worker:once --dr-events-only --dr-events-backfill-hosts --dr-events-limit=2000`

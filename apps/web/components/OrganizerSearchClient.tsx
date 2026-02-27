@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { useI18n } from "./i18n/I18nProvider";
@@ -81,6 +81,14 @@ export function OrganizerSearchClient() {
     }
   }
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void runSearch(page);
+    }, 250);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, roleKey, tags, languages, countryCode, city, page]);
+
   const currentPage = data?.pagination?.page ?? page;
   const totalPages = data?.pagination?.totalPages ?? 1;
 
@@ -96,7 +104,7 @@ export function OrganizerSearchClient() {
         <input
           value={roleKey}
           onChange={(event) => setRoleKey(event.target.value)}
-          placeholder={t("organizerSearch.placeholder.roleKey")}
+          placeholder={t("organizerSearch.hostType")}
         />
         <input
           value={tags}
@@ -106,7 +114,7 @@ export function OrganizerSearchClient() {
         <input
           value={languages}
           onChange={(event) => setLanguages(event.target.value)}
-          placeholder={t("organizerSearch.placeholder.languages")}
+          placeholder={t("organizerSearch.hostLanguage")}
         />
         <input
           value={countryCode}
@@ -118,10 +126,6 @@ export function OrganizerSearchClient() {
           onChange={(event) => setCity(event.target.value)}
           placeholder={t("organizerSearch.placeholder.city")}
         />
-        <button type="button" onClick={() => void runSearch(1)} disabled={loading}>
-          {loading ? t("organizerSearch.searching") : t("organizerSearch.search")}
-        </button>
-
         {data?.facets && (
           <div className="kv">
             {topFacetEntries(data.facets.roleKey).map(([value, count]) => (

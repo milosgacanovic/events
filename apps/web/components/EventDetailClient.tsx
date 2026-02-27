@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchJson } from "../lib/api";
 import { useI18n } from "./i18n/I18nProvider";
 
-type TaxonomyResponse = {
+export type TaxonomyResponse = {
   uiLabels: {
     categorySingular?: string;
     practiceCategory?: string;
@@ -31,7 +31,7 @@ type TaxonomyResponse = {
   }>;
 };
 
-type EventDetail = {
+export type EventDetail = {
   event: {
     title: string;
     single_start_at: string | null;
@@ -106,15 +106,29 @@ function stripHtml(input: string): string {
   return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export function EventDetailClient({ slug }: { slug: string }) {
+export function EventDetailClient({
+  slug,
+  initialData,
+  initialTaxonomy,
+}: {
+  slug: string;
+  initialData?: EventDetail | null;
+  initialTaxonomy?: TaxonomyResponse | null;
+}) {
   const { locale, t } = useI18n();
-  const [data, setData] = useState<EventDetail | null>(null);
-  const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
+  const [data, setData] = useState<EventDetail | null>(initialData ?? null);
+  const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const [notFound, setNotFound] = useState(initialData === null && initialData !== undefined);
 
   useEffect(() => {
     let active = true;
+
+    if (initialData) {
+      return () => {
+        active = false;
+      };
+    }
 
     Promise.all([
       fetchJson<EventDetail>(`/events/${slug}`),
@@ -146,7 +160,7 @@ export function EventDetailClient({ slug }: { slug: string }) {
     return () => {
       active = false;
     };
-  }, [slug, t]);
+  }, [initialData, slug, t]);
 
   const hosts = useMemo(() => {
     if (!data) {

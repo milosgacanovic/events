@@ -7,7 +7,13 @@ import {
   listAdminEvents,
   listAdminOrganizers,
 } from "../db/adminRepo";
+import { getEventById, setEventOrganizersByRoleKey } from "../db/eventRepo";
 import { createLocation } from "../db/locationRepo";
+import {
+  createOrganizer,
+  getOrganizerByExternalRef,
+  updateOrganizer,
+} from "../db/organizerRepo";
 
 const eventQuerySchema = z.object({
   q: z.string().optional(),
@@ -24,6 +30,23 @@ const organizerQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });
+
+const upsertOrganizerExternalSchema = z.object({
+  externalSource: z.string().trim().min(1).max(255),
+  externalId: z.string().trim().min(1).max(255),
+  name: z.string().trim().min(1).max(200),
+  websiteUrl: z.string().url().nullable().optional(),
+  descriptionJson: z.record(z.any()).optional(),
+  tags: z.array(z.string().min(1)).default([]),
+  languages: z.array(z.string().min(2).max(16)).default([]),
+  status: z.enum(["published", "draft", "archived"]).default("published"),
+});
+
+const replaceEventOrganizersSchema = z.array(z.object({
+  organizerId: z.string().uuid(),
+  roleKey: z.string().trim().min(1),
+  displayOrder: z.number().int().default(0),
+}));
 
 const createLocationBaseSchema = z.object({
   type: z.enum(["physical", "online"]).default("physical"),
@@ -160,6 +183,84 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const created = await createLocation(app.db, parsed.data as never);
     reply.code(201);
     return created;
+  });
+
+  app.post("/admin/organizers/upsert-external", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const parsed = upsertOrganizerExternalSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const existing = await getOrganizerByExternalRef(
+      app.db,
+      parsed.data.externalSource,
+      parsed.data.externalId,
+    );
+    if (existing) {
+      const updated = await updateOrganizer(app.db, existing.id, {
+        name: parsed.data.name,
+        websiteUrl: parsed.data.websiteUrl ?? null,
+        descriptionJson: parsed.data.descriptionJson ?? {},
+        tags: parsed.data.tags,
+        languages: parsed.data.languages,
+        status: parsed.data.status,
+        externalSource: parsed.data.externalSource,
+        externalId: parsed.data.externalId,
+      });
+      return {
+        id: updated?.id ?? existing.id,
+        slug: updated?.slug ?? existing.slug,
+        created: false,
+      };
+    }
+
+    const created = await createOrganizer(app.db, {
+      name: parsed.data.name,
+      websiteUrl: parsed.data.websiteUrl ?? null,
+      descriptionJson: parsed.data.descriptionJson ?? {},
+      tags: parsed.data.tags,
+      languages: parsed.data.languages,
+      status: parsed.data.status,
+      avatarPath: null,
+      externalSource: parsed.data.externalSource,
+      externalId: parsed.data.externalId,
+    });
+    reply.code(201);
+    return { id: created.id, slug: created.slug, created: true };
+  });
+
+  app.post("/admin/events/:id/organizers/replace", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+    const parsed = replaceEventOrganizersSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const event = await getEventById(app.db, params.data.id);
+    if (!event) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    const result = await setEventOrganizersByRoleKey(app.db, event.id, parsed.data);
+    if (!result.ok) {
+      reply.code(400);
+      return {
+        error: "unknown_role_key",
+        missingRoleKeys: result.missingRoleKeys,
+      };
+    }
+    return { ok: true };
   });
 };
 

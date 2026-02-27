@@ -1,8 +1,22 @@
 import type { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
 
+import { listCitySuggestions, listTagSuggestions } from "../db/metaRepo";
 import { getUiLabels } from "../db/uiLabelRepo";
 
 const metaRoutes: FastifyPluginAsync = async (app) => {
+  const cityQuerySchema = z.object({
+    q: z.string().trim().max(80).optional(),
+    countryCode: z.string().trim().max(8).optional(),
+    limit: z.coerce.number().int().positive().max(20).default(20),
+  });
+  const tagsQuerySchema = z.object({
+    q: z.string().trim().max(80).optional(),
+    limit: z.coerce.number().int().positive().max(20).default(20),
+  });
+  const cache = new Map<string, { expiresAt: number; payload: unknown }>();
+  const ttlMs = 30_000;
+
   app.get("/meta/taxonomies", async () => {
     const [practicesResult, rolesResult, eventFormatsResult, uiLabels] = await Promise.all([
       app.db.query<{
@@ -78,6 +92,46 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
       organizerRoles: rolesResult.rows,
       eventFormats: eventFormatsResult.rows,
     };
+  });
+
+  app.get("/meta/cities", async (request, reply) => {
+    const parsed = cityQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const cacheKey = `cities:${parsed.data.countryCode ?? ""}:${parsed.data.q ?? ""}:${parsed.data.limit}`;
+    const now = Date.now();
+    const cached = cache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.payload;
+    }
+
+    const items = await listCitySuggestions(app.db, parsed.data);
+    const payload = { items };
+    cache.set(cacheKey, { expiresAt: now + ttlMs, payload });
+    return payload;
+  });
+
+  app.get("/meta/tags", async (request, reply) => {
+    const parsed = tagsQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const cacheKey = `tags:${parsed.data.q ?? ""}:${parsed.data.limit}`;
+    const now = Date.now();
+    const cached = cache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.payload;
+    }
+
+    const items = await listTagSuggestions(app.db, parsed.data);
+    const payload = { items };
+    cache.set(cacheKey, { expiresAt: now + ttlMs, payload });
+    return payload;
   });
 };
 
