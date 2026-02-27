@@ -10,15 +10,16 @@ import { z } from "zod";
 
 import {
   createEvent,
+  getEventById,
   getEventByExternalRef,
   getEventBySlug,
   searchEventsFallback,
   setEventOrganizers,
   updateEvent,
 } from "../db/eventRepo";
-import { setEventDefaultLocation } from "../db/locationRepo";
+import { getEventDefaultLocation, setEventDefaultLocation } from "../db/locationRepo";
 import { findOrCreateUserBySub } from "../db/userRepo";
-import { cancelEvent, publishEvent, unpublishEvent } from "../services/eventLifecycleService";
+import { cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 
@@ -29,6 +30,7 @@ const searchQuerySchema = z.object({
   includePast: z.enum(["true", "false"]).optional(),
   practiceCategoryId: z.string().uuid().optional(),
   practiceSubcategoryId: z.string().uuid().optional(),
+  eventFormatId: z.string().uuid().optional(),
   tags: z.string().optional(),
   languages: z.string().optional(),
   attendanceMode: z.enum(["in_person", "online", "hybrid"]).optional(),
@@ -75,6 +77,7 @@ function buildMeiliFilters(input: {
   to: string;
   practiceCategoryId?: string;
   practiceSubcategoryId?: string;
+  eventFormatId?: string;
   tags: string[];
   languages: string[];
   attendanceMode?: string;
@@ -93,6 +96,9 @@ function buildMeiliFilters(input: {
   }
   if (input.practiceSubcategoryId) {
     filters.push(`practice_subcategory_id = ${JSON.stringify(input.practiceSubcategoryId)}`);
+  }
+  if (input.eventFormatId) {
+    filters.push(`event_format_id = ${JSON.stringify(input.eventFormatId)}`);
   }
   if (input.tags.length) {
     for (const tag of input.tags) {
@@ -123,6 +129,37 @@ function buildMeiliFilters(input: {
   return filters;
 }
 
+function hasScheduleShapeChanges(
+  previous: {
+    schedule_kind: string;
+    single_start_at: string | null;
+    single_end_at: string | null;
+    rrule: string | null;
+    rrule_dtstart_local: string | null;
+    duration_minutes: number | null;
+    event_timezone: string;
+  },
+  next: {
+    schedule_kind: string;
+    single_start_at: string | null;
+    single_end_at: string | null;
+    rrule: string | null;
+    rrule_dtstart_local: string | null;
+    duration_minutes: number | null;
+    event_timezone: string;
+  },
+): boolean {
+  return (
+    previous.schedule_kind !== next.schedule_kind ||
+    previous.single_start_at !== next.single_start_at ||
+    previous.single_end_at !== next.single_end_at ||
+    previous.rrule !== next.rrule ||
+    previous.rrule_dtstart_local !== next.rrule_dtstart_local ||
+    previous.duration_minutes !== next.duration_minutes ||
+    previous.event_timezone !== next.event_timezone
+  );
+}
+
 const eventRoutes: FastifyPluginAsync = async (app) => {
   app.get("/events/search", {
     config: {
@@ -142,7 +179,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const now = DateTime.utc();
     const includePast = parsed.data.includePast === "true";
     const from = parsed.data.from ?? (includePast ? "1970-01-01T00:00:00.000Z" : now.toISO());
-    const to = parsed.data.to ?? now.plus({ days: 90 }).toISO();
+    const to = parsed.data.to ?? now.plus({ days: 365 }).toISO();
     const tags = csvToList(parsed.data.tags);
     const languages = csvToList(parsed.data.languages);
     const hasGeo = parsed.data.hasGeo ? parsed.data.hasGeo === "true" : undefined;
@@ -158,9 +195,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     try {
       const meiliFilters = buildMeiliFilters({
         from: from ?? now.toISO()!,
-        to: to ?? now.plus({ days: 90 }).toISO()!,
+        to: to ?? now.plus({ days: 365 }).toISO()!,
         practiceCategoryId: parsed.data.practiceCategoryId,
         practiceSubcategoryId: parsed.data.practiceSubcategoryId,
+        eventFormatId: parsed.data.eventFormatId,
         tags,
         languages,
         attendanceMode: parsed.data.attendanceMode,
@@ -182,6 +220,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         facets: [
           "practice_category_id",
           "practice_subcategory_id",
+          "event_format_id",
           "languages",
           "attendance_mode",
           "country_code",
@@ -209,6 +248,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             tags: doc.tags,
             practiceCategoryId: doc.practice_category_id,
             practiceSubcategoryId: doc.practice_subcategory_id,
+            eventFormatId: doc.event_format_id,
           },
           location: doc.geo
             ? {
@@ -230,6 +270,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         facets: {
           practiceCategoryId: result.facetDistribution?.practice_category_id ?? {},
           practiceSubcategoryId: result.facetDistribution?.practice_subcategory_id ?? {},
+          eventFormatId: result.facetDistribution?.event_format_id ?? {},
           languages: result.facetDistribution?.languages ?? {},
           attendanceMode: result.facetDistribution?.attendance_mode ?? {},
           countryCode: result.facetDistribution?.country_code ?? {},
@@ -249,9 +290,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       const fallback = await searchEventsFallback(app.db, {
         q: parsed.data.q,
         from: from ?? now.toISO()!,
-        to: to ?? now.plus({ days: 90 }).toISO()!,
+        to: to ?? now.plus({ days: 365 }).toISO()!,
         practiceCategoryId: parsed.data.practiceCategoryId,
         practiceSubcategoryId: parsed.data.practiceSubcategoryId,
+        eventFormatId: parsed.data.eventFormatId,
         tags,
         languages,
         attendanceMode: parsed.data.attendanceMode,
@@ -298,6 +340,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       event: {
         ...event.event,
         coverImageUrl: event.event.cover_image_path ?? null,
+        eventFormatId: event.event.event_format_id ?? null,
       },
     };
   });
@@ -381,6 +424,11 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       coverImagePath: resolveCoverImagePath(parsed.data),
     };
 
+    const [previousEvent, previousLocation] = await Promise.all([
+      getEventById(app.db, params.data.id),
+      getEventDefaultLocation(app.db, params.data.id),
+    ]);
+
     let event;
     try {
       event = await updateEvent(app.db, params.data.id, normalizedInput as UpdateEventInput);
@@ -407,6 +455,16 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
     if (normalizedInput.locationId !== undefined) {
       await setEventDefaultLocation(app.db, params.data.id, normalizedInput.locationId ?? null);
+    }
+
+    if (previousEvent && event.status === "published") {
+      const scheduleChanged = hasScheduleShapeChanges(previousEvent, event);
+      const locationChanged = normalizedInput.locationId !== undefined &&
+        normalizedInput.locationId !== (previousLocation?.id ?? null);
+
+      if (scheduleChanged || locationChanged) {
+        await regenerateOccurrences(app.db, app.meiliService, params.data.id);
+      }
     }
 
     return event;

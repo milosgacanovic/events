@@ -5,12 +5,15 @@ export type EventSeriesRow = {
   description_json: Record<string, unknown>;
   external_source: string | null;
   external_id: string | null;
+  is_imported: boolean;
+  import_source: string | null;
   cover_image_path: string | null;
   external_url: string | null;
   attendance_mode: "in_person" | "online" | "hybrid";
   online_url: string | null;
   practice_category_id: string;
   practice_subcategory_id: string | null;
+  event_format_id: string | null;
   tags: string[];
   languages: string[];
   schedule_kind: "single" | "recurring";

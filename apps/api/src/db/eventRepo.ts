@@ -10,6 +10,7 @@ type EventSearchInput = {
   to: string;
   practiceCategoryId?: string;
   practiceSubcategoryId?: string;
+  eventFormatId?: string;
   tags?: string[];
   languages?: string[];
   attendanceMode?: "in_person" | "online" | "hybrid";
@@ -48,6 +49,11 @@ function buildEventFilters(input: Omit<EventSearchInput, "page" | "pageSize" | "
   if (input.practiceSubcategoryId) {
     values.push(input.practiceSubcategoryId);
     whereParts.push(`e.practice_subcategory_id = $${values.length}::uuid`);
+  }
+
+  if (input.eventFormatId) {
+    values.push(input.eventFormatId);
+    whereParts.push(`e.event_format_id = $${values.length}::uuid`);
   }
 
   if (input.tags?.length) {
@@ -101,12 +107,15 @@ export async function createEvent(pool: Pool, createdByUserId: string | null, in
         description_json,
         external_source,
         external_id,
+        is_imported,
+        import_source,
         cover_image_path,
         external_url,
         attendance_mode,
         online_url,
         practice_category_id,
         practice_subcategory_id,
+        event_format_id,
         tags,
         languages,
         schedule_kind,
@@ -122,7 +131,7 @@ export async function createEvent(pool: Pool, createdByUserId: string | null, in
       )
       values (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'draft', $21, $22
+        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 'draft', $24, $25
       )
       returning *
     `,
@@ -132,12 +141,15 @@ export async function createEvent(pool: Pool, createdByUserId: string | null, in
       JSON.stringify(input.descriptionJson ?? {}),
       input.externalSource ?? null,
       input.externalId ?? null,
+      input.isImported ?? false,
+      input.importSource ?? null,
       input.coverImagePath ?? null,
       input.externalUrl ?? null,
       input.attendanceMode,
       input.onlineUrl ?? null,
       input.practiceCategoryId,
       input.practiceSubcategoryId ?? null,
+      input.eventFormatId ?? null,
       input.tags,
       input.languages,
       input.scheduleKind,
@@ -161,12 +173,15 @@ export async function updateEvent(pool: Pool, eventId: string, input: UpdateEven
     description_json: input.descriptionJson ? JSON.stringify(input.descriptionJson) : undefined,
     external_source: input.externalSource,
     external_id: input.externalId,
+    is_imported: input.isImported,
+    import_source: input.importSource,
     cover_image_path: input.coverImagePath,
     external_url: input.externalUrl,
     attendance_mode: input.attendanceMode,
     online_url: input.onlineUrl,
     practice_category_id: input.practiceCategoryId,
     practice_subcategory_id: input.practiceSubcategoryId,
+    event_format_id: input.eventFormatId,
     tags: input.tags,
     languages: input.languages,
     schedule_kind: input.scheduleKind,
@@ -301,12 +316,13 @@ export async function getEventByIdWithLocation(
 }
 
 export async function getEventBySlug(pool: Pool, slug: string) {
-  const eventRes = await pool.query<EventSeriesRow>(
+  const eventRes = await pool.query<EventSeriesRow & { event_format_key: string | null; event_format_label: string | null }>(
     `
-      select *
-      from events
-      where slug = $1
-        and status in ('published', 'cancelled')
+      select e.*, ef.key as event_format_key, ef.label as event_format_label
+      from events e
+      left join event_formats ef on ef.id = e.event_format_id
+      where e.slug = $1
+        and e.status in ('published', 'cancelled')
       limit 1
     `,
     [slug],
@@ -446,6 +462,88 @@ export async function replaceOccurrencesInWindow(
   toIso: string,
   occurrences: EventOccurrenceRow[],
 ): Promise<void> {
+  const scheduleResult = await pool.query<{ schedule_kind: "single" | "recurring" }>(
+    `
+      select schedule_kind
+      from events
+      where id = $1
+      limit 1
+    `,
+    [eventId],
+  );
+  const isSingleEvent = scheduleResult.rows[0]?.schedule_kind === "single";
+
+  if (isSingleEvent) {
+    // Single-series events must have at most one occurrence at any time.
+    await pool.query(`delete from event_occurrences where event_id = $1`, [eventId]);
+
+    const single = occurrences[0];
+    if (single) {
+      await pool.query(
+        `
+          insert into event_occurrences (
+            event_id,
+            starts_at_utc,
+            ends_at_utc,
+            status,
+            location_id,
+            country_code,
+            city,
+            geom
+          )
+          values (
+            $1,
+            $2::timestamptz,
+            $3::timestamptz,
+            $4,
+            $5::uuid,
+            $6,
+            $7,
+            case
+              when $8::double precision is not null and $9::double precision is not null
+                then ST_SetSRID(ST_MakePoint($9, $8), 4326)::geography
+              else null
+            end
+          )
+        `,
+        [
+          eventId,
+          single.startsAtUtc,
+          single.endsAtUtc,
+          single.status,
+          single.locationId,
+          single.countryCode,
+          single.city,
+          single.lat,
+          single.lng,
+        ],
+      );
+    }
+
+    // Safety cleanup in case concurrent writes occurred.
+    await pool.query(
+      `
+        delete from event_occurrences o
+        using (
+          select id
+          from (
+            select
+              id,
+              row_number() over (
+                order by updated_at desc, created_at desc, id desc
+              ) as rn
+            from event_occurrences
+            where event_id = $1
+          ) ranked
+          where ranked.rn > 1
+        ) duplicates
+        where o.id = duplicates.id
+      `,
+      [eventId],
+    );
+    return;
+  }
+
   await pool.query(
     `
       delete from event_occurrences
@@ -550,6 +648,7 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
         e.tags,
         e.practice_category_id,
         e.practice_subcategory_id,
+        e.event_format_id,
         e.published_at
       from event_occurrences eo
       join events e on e.id = eo.event_id
@@ -581,6 +680,7 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
     tags: string[];
     practice_category_id: string;
     practice_subcategory_id: string | null;
+    event_format_id: string | null;
     published_at: string | null;
   }>(
     `${baseCte}
@@ -670,6 +770,16 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
     values,
   );
 
+  const facetEventFormat = await pool.query<{ key: string; count: string }>(
+    `${baseCte}
+      select event_format_id::text as key, count(*)::text as count
+      from matched
+      where event_format_id is not null
+      group by event_format_id
+    `,
+    values,
+  );
+
   const facetLanguage = await pool.query<{ key: string; count: string }>(
     `${baseCte}
       select language as key, count(*)::text as count
@@ -738,6 +848,7 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
         tags: row.tags,
         practiceCategoryId: row.practice_category_id,
         practiceSubcategoryId: row.practice_subcategory_id,
+        eventFormatId: row.event_format_id,
       },
       location: row.formatted_address
         ? {
@@ -757,6 +868,9 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
       ),
       practiceSubcategoryId: Object.fromEntries(
         facetSubcategory.rows.map((row) => [row.key, Number(row.count)]),
+      ),
+      eventFormatId: Object.fromEntries(
+        facetEventFormat.rows.map((row) => [row.key, Number(row.count)]),
       ),
       languages: Object.fromEntries(facetLanguage.rows.map((row) => [row.key, Number(row.count)])),
       attendanceMode: Object.fromEntries(

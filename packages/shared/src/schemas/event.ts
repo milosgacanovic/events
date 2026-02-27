@@ -29,6 +29,7 @@ const createEventBaseSchema = z.object({
     onlineUrl: z.string().url().nullable().optional(),
     practiceCategoryId: uuidSchema,
     practiceSubcategoryId: uuidSchema.nullable().optional(),
+    eventFormatId: uuidSchema.nullable().optional(),
     tags: z.array(z.string().min(1)).default([]),
     languages: z.array(z.string().min(2).max(16)).default([]),
     scheduleKind: scheduleKindSchema,
@@ -51,6 +52,8 @@ const createEventBaseSchema = z.object({
       .default([]),
     externalSource: z.string().max(255).nullable().optional(),
     externalId: z.string().max(255).nullable().optional(),
+    isImported: z.boolean().optional(),
+    importSource: z.string().max(255).nullable().optional(),
   });
 
 function hasDefinedExternalPair(value: { externalSource?: string | null; externalId?: string | null }) {

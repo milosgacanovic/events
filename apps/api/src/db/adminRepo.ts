@@ -47,9 +47,14 @@ export async function listAdminEvents(
       external_id: string | null;
       externalSource: string | null;
       externalId: string | null;
+      is_imported: boolean;
+      import_source: string | null;
+      isImported: boolean;
+      importSource: string | null;
       status: string;
       attendance_mode: string;
       schedule_kind: string;
+      event_format_id: string | null;
       updated_at: string;
       published_at: string | null;
     }>(
@@ -62,9 +67,14 @@ export async function listAdminEvents(
           e.external_id,
           e.external_source as "externalSource",
           e.external_id as "externalId",
+          e.is_imported,
+          e.import_source,
+          e.is_imported as "isImported",
+          e.import_source as "importSource",
           e.status,
           e.attendance_mode,
           e.schedule_kind,
+          e.event_format_id,
           e.updated_at,
           e.published_at
         from events e
@@ -172,12 +182,17 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
     external_id: string | null;
     externalSource: string | null;
     externalId: string | null;
+    is_imported: boolean;
+    import_source: string | null;
+    isImported: boolean;
+    importSource: string | null;
     cover_image_path: string | null;
     external_url: string | null;
     attendance_mode: "in_person" | "online" | "hybrid";
     online_url: string | null;
     practice_category_id: string;
     practice_subcategory_id: string | null;
+    event_format_id: string | null;
     tags: string[];
     languages: string[];
     schedule_kind: "single" | "recurring";
@@ -203,12 +218,17 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
         e.external_id,
         e.external_source as "externalSource",
         e.external_id as "externalId",
+        e.is_imported,
+        e.import_source,
+        e.is_imported as "isImported",
+        e.import_source as "importSource",
         e.cover_image_path,
         e.external_url,
         e.attendance_mode,
         e.online_url,
         e.practice_category_id,
         e.practice_subcategory_id,
+        e.event_format_id,
         e.tags,
         e.languages,
         e.schedule_kind,

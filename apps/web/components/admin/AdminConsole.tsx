@@ -29,6 +29,11 @@ type TaxonomyResponse = {
     key: string;
     label: string;
   }>;
+  eventFormats?: Array<{
+    id: string;
+    key: string;
+    label: string;
+  }>;
 };
 
 type OrganizerOption = {
@@ -70,6 +75,7 @@ type AdminEventDetailResponse = {
   online_url: string | null;
   practice_category_id: string;
   practice_subcategory_id: string | null;
+  event_format_id: string | null;
   tags: string[];
   languages: string[];
   schedule_kind: "single" | "recurring";
@@ -115,6 +121,7 @@ type EventEditorState = {
   onlineUrl: string;
   practiceCategoryId: string;
   practiceSubcategoryId: string;
+  eventFormatId: string;
   tags: string;
   languages: string;
   scheduleKind: "single" | "recurring";
@@ -243,6 +250,7 @@ export function AdminConsole() {
 
   const [practiceCategoryId, setPracticeCategoryId] = useState("");
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
+  const [eventFormatId, setEventFormatId] = useState("");
   const [selectedOrganizerId, setSelectedOrganizerId] = useState("");
   const [selectedRoleId, setSelectedRoleId] = useState("");
   const [eventOrganizerRoles, setEventOrganizerRoles] = useState<EventOrganizerRoleDraft[]>([]);
@@ -317,6 +325,7 @@ export function AdminConsole() {
       );
 
       setPracticeCategoryId((current) => current || taxonomyResult.practices.categories[0]?.id || "");
+      setEventFormatId((current) => current || taxonomyResult.eventFormats?.[0]?.id || "");
       setSelectedRoleId((current) => current || taxonomyResult.organizerRoles[0]?.id || "");
       if (practiceCreateLevel === "2" && !practiceCreateParentId && taxonomyResult.practices.categories[0]) {
         setPracticeCreateParentId(taxonomyResult.practices.categories[0].id);
@@ -607,6 +616,7 @@ export function AdminConsole() {
         attendanceMode,
         practiceCategoryId,
         practiceSubcategoryId: practiceSubcategoryId || null,
+        eventFormatId: eventFormatId || null,
         tags: csvToArray(eventTags),
         languages: csvToArray(eventLanguages),
         scheduleKind,
@@ -740,6 +750,7 @@ export function AdminConsole() {
         onlineUrl: detail.online_url ?? "",
         practiceCategoryId: detail.practice_category_id,
         practiceSubcategoryId: detail.practice_subcategory_id ?? "",
+        eventFormatId: detail.event_format_id ?? "",
         tags: detail.tags.join(", "),
         languages: detail.languages.join(", "),
         scheduleKind: detail.schedule_kind,
@@ -778,6 +789,7 @@ export function AdminConsole() {
         onlineUrl: eventEditor.onlineUrl || null,
         practiceCategoryId: eventEditor.practiceCategoryId,
         practiceSubcategoryId: eventEditor.practiceSubcategoryId || null,
+        eventFormatId: eventEditor.eventFormatId || null,
         tags: csvToArray(eventEditor.tags),
         languages: csvToArray(eventEditor.languages),
         scheduleKind: eventEditor.scheduleKind,
@@ -1072,6 +1084,17 @@ export function AdminConsole() {
               {selectedCategory?.subcategories.map((subcategory) => (
                 <option key={subcategory.id} value={subcategory.id}>
                   {subcategory.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Event format
+            <select value={eventFormatId} onChange={(e) => setEventFormatId(e.target.value)}>
+              <option value="">{t("common.none")}</option>
+              {taxonomy?.eventFormats?.map((format) => (
+                <option key={format.id} value={format.id}>
+                  {format.label}
                 </option>
               ))}
             </select>
@@ -1594,6 +1617,24 @@ export function AdminConsole() {
                   {selectedEditCategory?.subcategories.map((subcategory) => (
                     <option key={subcategory.id} value={subcategory.id}>
                       {subcategory.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Event format
+                <select
+                  value={eventEditor.eventFormatId}
+                  onChange={(e) =>
+                    setEventEditor((current) =>
+                      current ? { ...current, eventFormatId: e.target.value } : current,
+                    )
+                  }
+                >
+                  <option value="">{t("common.none")}</option>
+                  {taxonomy?.eventFormats?.map((format) => (
+                    <option key={format.id} value={format.id}>
+                      {format.label}
                     </option>
                   ))}
                 </select>

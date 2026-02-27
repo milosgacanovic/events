@@ -12,7 +12,7 @@ import {
 import { generateOccurrences, defaultOccurrenceHorizon } from "./occurrenceService";
 import type { MeilisearchService } from "./meiliService";
 
-async function regenerateEventOccurrences(
+export async function regenerateOccurrences(
   pool: Pool,
   meiliService: MeilisearchService,
   eventId: string,
@@ -56,7 +56,7 @@ export async function publishEvent(
   }
 
   await setEventStatus(pool, eventId, "published");
-  await regenerateEventOccurrences(pool, meiliService, eventId);
+  await regenerateOccurrences(pool, meiliService, eventId);
 }
 
 export async function unpublishEvent(
@@ -75,7 +75,7 @@ export async function cancelEvent(
   eventId: string,
 ): Promise<void> {
   await setEventStatus(pool, eventId, "cancelled");
-  await regenerateEventOccurrences(pool, meiliService, eventId);
+  await regenerateOccurrences(pool, meiliService, eventId);
 }
 
 export async function refreshRecurringOccurrences(

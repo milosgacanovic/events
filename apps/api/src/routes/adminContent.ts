@@ -25,14 +25,59 @@ const organizerQuerySchema = z.object({
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });
 
-const createLocationSchema = z.object({
+const createLocationBaseSchema = z.object({
+  type: z.enum(["physical", "online"]).default("physical"),
+  name: z.string().min(1).max(200).optional(),
   label: z.string().min(1).max(200).optional(),
-  formattedAddress: z.string().min(3),
+  formattedAddress: z.string().min(1).max(500).optional(),
   countryCode: z.string().min(2).max(8).optional(),
   city: z.string().min(1).max(120).optional(),
-  lat: z.number().gte(-90).lte(90),
-  lng: z.number().gte(-180).lte(180),
+  fingerprint: z.string().min(1).max(500).optional(),
+  lat: z.number().gte(-90).lte(90).nullable().optional(),
+  lng: z.number().gte(-180).lte(180).nullable().optional(),
 });
+
+const createLocationSchema = createLocationBaseSchema
+  .refine(
+    (value) => (
+      (value.lat === undefined && value.lng === undefined)
+      || (value.lat === null && value.lng === null)
+      || (typeof value.lat === "number" && typeof value.lng === "number")
+    ),
+    {
+      message: "lat and lng must be provided together",
+      path: ["lat"],
+    },
+  )
+  .refine(
+    (value) => {
+      if (value.type !== "online") {
+        return true;
+      }
+
+      return (
+        (value.lat === undefined && value.lng === undefined)
+        || (value.lat === null && value.lng === null)
+      );
+    },
+    {
+      message: "online locations cannot include lat/lng",
+      path: ["lat"],
+    },
+  )
+  .refine(
+    (value) => {
+      if (value.type === "online") {
+        return Boolean(value.name || value.label);
+      }
+
+      return Boolean(value.label || value.formattedAddress || value.city || value.countryCode);
+    },
+    {
+      message: "physical requires at least one of label/formattedAddress/city/countryCode; online requires name",
+      path: ["type"],
+    },
+  );
 
 const adminContentRoutes: FastifyPluginAsync = async (app) => {
   app.get("/admin/events", async (request, reply) => {
@@ -112,7 +157,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
-    const created = await createLocation(app.db, parsed.data);
+    const created = await createLocation(app.db, parsed.data as never);
     reply.code(201);
     return created;
   });

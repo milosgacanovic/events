@@ -2,8 +2,11 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
 import {
+  createEventFormat,
   createOrganizerRole,
   createPractice,
+  listEventFormats,
+  updateEventFormat,
   updateOrganizerRole,
   updatePractice,
 } from "../db/taxonomyRepo";
@@ -28,6 +31,13 @@ const createRoleSchema = z.object({
 });
 
 const updateRoleSchema = createRoleSchema.partial();
+const eventFormatSchema = z.object({
+  key: z.string().trim().regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/).min(1),
+  label: z.string().min(1),
+  sortOrder: z.number().int().optional(),
+  isActive: z.boolean().optional(),
+});
+const updateEventFormatSchema = eventFormatSchema.partial();
 const updateUiLabelsSchema = z.object({
   categorySingular: z.string().min(1).optional(),
   categoryPlural: z.string().min(1).optional(),
@@ -108,6 +118,49 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     }
 
     return role;
+  });
+
+  app.get("/admin/event-formats", async (request) => {
+    await app.requireAdmin(request);
+    return listEventFormats(app.db);
+  });
+
+  app.post("/admin/event-formats", async (request, reply) => {
+    await app.requireAdmin(request);
+
+    const parsed = eventFormatSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const created = await createEventFormat(app.db, parsed.data);
+    reply.code(201);
+    return created;
+  });
+
+  app.patch("/admin/event-formats/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const parsed = updateEventFormatSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const updated = await updateEventFormat(app.db, params.data.id, parsed.data);
+    if (!updated) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    return updated;
   });
 
   app.patch("/admin/ui-labels", async (request, reply) => {

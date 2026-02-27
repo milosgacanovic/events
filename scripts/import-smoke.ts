@@ -150,6 +150,8 @@ async function run(): Promise<void> {
     organizerRoles: [],
     externalSource: EXTERNAL_SOURCE,
     externalId: EXTERNAL_ID,
+    isImported: true,
+    importSource: EXTERNAL_SOURCE,
   };
 
   const create = await requestJson<{ id?: string; slug?: string }>(`${baseUrl}/api/events`, {

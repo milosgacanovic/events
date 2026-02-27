@@ -14,6 +14,8 @@
     "test": "npm run test -w @dr-events/api",
     "import:smoke": "tsx scripts/import-smoke.ts",
     "test:live:admin": "tsx scripts/live-admin-verify.ts",
+    "occurrences:dedupe:single": "tsx scripts/cleanup-single-occurrence-duplicates.ts",
+    "occurrences:reindex:all": "tsx scripts/reindexAllOccurrences.ts",
     "migrate": "npm run migrate -w @dr-events/api",
     "seed": "npm run seed -w @dr-events/api",
     "occurrences:refresh": "npm run occurrences:refresh -w @dr-events/api"

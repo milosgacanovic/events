@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { useI18n } from "./i18n/I18nProvider";
@@ -22,6 +22,7 @@ type SearchResponse = {
       tags: string[];
       practiceCategoryId: string;
       practiceSubcategoryId: string | null;
+      eventFormatId: string | null;
     };
     location: {
       city: string | null;
@@ -37,6 +38,7 @@ type SearchResponse = {
   facets?: {
     practiceCategoryId?: Record<string, number>;
     practiceSubcategoryId?: Record<string, number>;
+    eventFormatId?: Record<string, number>;
     tags?: Record<string, number>;
     languages?: Record<string, number>;
     attendanceMode?: Record<string, number>;
@@ -59,17 +61,13 @@ type TaxonomyResponse = {
       }>;
     }>;
   };
+  eventFormats?: Array<{
+    id: string;
+    key: string;
+    label: string;
+    sort_order?: number;
+  }>;
 };
-
-function topFacetEntries(values: Record<string, number> | undefined, limit = 8): Array<[string, number]> {
-  if (!values) {
-    return [];
-  }
-
-  return Object.entries(values)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, limit);
-}
 
 const LeafletClusterMap = dynamic(
   () => import("./LeafletClusterMap").then((module) => module.LeafletClusterMap),
@@ -79,16 +77,16 @@ const LeafletClusterMap = dynamic(
 export function EventSearchClient() {
   const { locale, t } = useI18n();
   const [view, setView] = useState<"list" | "map">("list");
-  const [sort, setSort] = useState<"date_asc" | "date_desc">("date_asc");
+  const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc">("startsAtAsc");
   const [q, setQ] = useState("");
   const [practiceCategoryId, setPracticeCategoryId] = useState("");
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
+  const [eventFormatId, setEventFormatId] = useState("");
   const [tags, setTags] = useState("");
   const [language, setLanguage] = useState("");
   const [attendanceMode, setAttendanceMode] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [city, setCity] = useState("");
-  const [hasGeo, setHasGeo] = useState<"" | "true" | "false">("");
   const [page, setPage] = useState(1);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -128,39 +126,44 @@ export function EventSearchClient() {
     return map;
   }, [taxonomy]);
 
-  const subcategoryParentById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const category of taxonomy?.practices.categories ?? []) {
-      for (const subcategory of category.subcategories) {
-        map.set(subcategory.id, category.id);
-      }
-    }
-    return map;
-  }, [taxonomy]);
-
   const selectedCategory = useMemo(
     () => (taxonomy?.practices.categories ?? []).find((category) => category.id === practiceCategoryId) ?? null,
     [taxonomy, practiceCategoryId],
   );
+  const hasAnySubcategories = useMemo(
+    () => (taxonomy?.practices.categories ?? []).some((category) => category.subcategories.length > 0),
+    [taxonomy],
+  );
 
-  function buildQueryString(nextPage: number) {
+  const buildQueryString = useCallback((nextPage: number) => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (practiceCategoryId) params.set("practiceCategoryId", practiceCategoryId);
     if (practiceSubcategoryId) params.set("practiceSubcategoryId", practiceSubcategoryId);
+    if (eventFormatId) params.set("eventFormatId", eventFormatId);
     if (tags.trim()) params.set("tags", tags.trim());
     if (language) params.set("languages", language);
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
     if (countryCode.trim()) params.set("countryCode", countryCode.trim());
     if (city.trim()) params.set("city", city.trim());
-    if (hasGeo) params.set("hasGeo", hasGeo);
     params.set("sort", sort);
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
     return params.toString();
-  }
+  }, [
+    q,
+    practiceCategoryId,
+    practiceSubcategoryId,
+    eventFormatId,
+    tags,
+    language,
+    attendanceMode,
+    countryCode,
+    city,
+    sort,
+  ]);
 
-  async function runSearch(nextPage = page) {
+  const runSearch = useCallback(async (nextPage = page) => {
     const currentQuery = buildQueryString(nextPage);
 
     setLoading(true);
@@ -171,26 +174,35 @@ export function EventSearchClient() {
       setData(result);
       setActiveQueryString(currentQuery);
       setRefreshToken((value) => value + 1);
-      setPage(nextPage);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("eventSearch.error.searchFailed"));
     } finally {
       setLoading(false);
     }
-  }
+  }, [buildQueryString, page, t]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void runSearch(page);
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [runSearch, page]);
 
   function clearFilters() {
     setQ("");
     setPracticeCategoryId("");
     setPracticeSubcategoryId("");
+    setEventFormatId("");
     setTags("");
     setLanguage("");
     setAttendanceMode("");
     setCountryCode("");
     setCity("");
-    setHasGeo("");
     setPage(1);
-    setSort("date_asc");
+    setSort("startsAtAsc");
   }
 
   const currentPage = data?.pagination?.page ?? page;
@@ -200,13 +212,22 @@ export function EventSearchClient() {
     <section className="grid">
       <aside className="panel filters">
         <h2 className="title-xl">{t("eventSearch.title")}</h2>
-        <select
-          value={view}
-          onChange={(event) => setView(event.target.value as "list" | "map")}
-        >
-          <option value="list">{t("eventSearch.view.list")}</option>
-          <option value="map">{t("eventSearch.view.map")}</option>
-        </select>
+        <div className="kv">
+          <button
+            type="button"
+            className={view === "list" ? "secondary-btn" : "ghost-btn"}
+            onClick={() => setView("list")}
+          >
+            {t("eventSearch.view.list")}
+          </button>
+          <button
+            type="button"
+            className={view === "map" ? "secondary-btn" : "ghost-btn"}
+            onClick={() => setView("map")}
+          >
+            {t("eventSearch.view.map")}
+          </button>
+        </div>
         <input
           value={q}
           onChange={(event) => setQ(event.target.value)}
@@ -229,21 +250,47 @@ export function EventSearchClient() {
             ))}
           </select>
         </label>
-        <label>
-          {t("common.subcategory")}
-          <select
-            value={practiceSubcategoryId}
-            onChange={(event) => setPracticeSubcategoryId(event.target.value)}
-            disabled={!selectedCategory}
-          >
-            <option value="">{t("eventSearch.option.selectSubcategory")}</option>
-            {(selectedCategory?.subcategories ?? []).map((subcategory) => (
-              <option key={subcategory.id} value={subcategory.id}>
-                {subcategory.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {hasAnySubcategories && (
+          <label>
+            {t("common.subcategory")}
+            <select
+              value={practiceSubcategoryId}
+              onChange={(event) => setPracticeSubcategoryId(event.target.value)}
+              disabled={!selectedCategory}
+            >
+              <option value="">{t("eventSearch.option.selectSubcategory")}</option>
+              {(selectedCategory?.subcategories ?? []).map((subcategory) => (
+                <option key={subcategory.id} value={subcategory.id}>
+                  {subcategory.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(taxonomy?.eventFormats?.length ?? 0) > 0 && (
+          <label>
+            Event Format
+            <div className="kv">
+              {taxonomy?.eventFormats?.map((format) => {
+                const count = data?.facets?.eventFormatId?.[format.id] ?? 0;
+                const checked = eventFormatId === format.id;
+                return (
+                  <label className="meta" key={format.id}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        setEventFormatId((current) => (current === format.id ? "" : format.id));
+                        setPage(1);
+                      }}
+                    />
+                    {format.label} ({count})
+                  </label>
+                );
+              })}
+            </div>
+          </label>
+        )}
         <input
           value={tags}
           onChange={(event) => setTags(event.target.value)}
@@ -270,29 +317,31 @@ export function EventSearchClient() {
           onChange={(event) => setCity(event.target.value)}
           placeholder={t("eventSearch.placeholder.city")}
         />
-        <select
-          value={hasGeo}
-          onChange={(event) => setHasGeo(event.target.value as "" | "true" | "false")}
-        >
-          <option value="">{t("eventSearch.hasGeo.any")}</option>
-          <option value="true">{t("eventSearch.hasGeo.with")}</option>
-          <option value="false">{t("eventSearch.hasGeo.without")}</option>
-        </select>
-        <label>
-          {t("eventSearch.sort.label")}
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as "date_asc" | "date_desc")}
+        <div className="kv">
+          <span className="meta">{t("eventSearch.sort.label")}</span>
+          <button
+            type="button"
+            className={sort === "startsAtAsc" ? "secondary-btn" : "ghost-btn"}
+            onClick={() => {
+              setSort("startsAtAsc");
+              setPage(1);
+            }}
           >
-            <option value="date_asc">{t("eventSearch.sort.dateAsc")}</option>
-            <option value="date_desc">{t("eventSearch.sort.dateDesc")}</option>
-          </select>
-        </label>
+            {t("eventSearch.sort.dateAsc")}
+          </button>
+          <button
+            type="button"
+            className={sort === "startsAtDesc" ? "secondary-btn" : "ghost-btn"}
+            onClick={() => {
+              setSort("startsAtDesc");
+              setPage(1);
+            }}
+          >
+            {t("eventSearch.sort.dateDesc")}
+          </button>
+        </div>
 
         <div className="kv">
-          <button type="button" onClick={() => void runSearch(1)} disabled={loading}>
-            {loading ? t("eventSearch.searching") : t("eventSearch.search")}
-          </button>
           <button
             type="button"
             className="secondary-btn"
@@ -302,65 +351,6 @@ export function EventSearchClient() {
             {t("eventSearch.clearFilters")}
           </button>
         </div>
-
-        {data?.facets && (
-          <div className="kv">
-            {topFacetEntries(data.facets.practiceCategoryId).map(([categoryId, count]) => (
-              <button
-                className="tag"
-                type="button"
-                key={`category-${categoryId}`}
-                onClick={() => {
-                  setPracticeCategoryId(categoryId);
-                  setPracticeSubcategoryId("");
-                }}
-              >
-                {categoryLabelById.get(categoryId) ?? categoryId} ({count})
-              </button>
-            ))}
-            {topFacetEntries(data.facets.practiceSubcategoryId).map(([subcategoryId, count]) => (
-              <button
-                className="tag"
-                type="button"
-                key={`subcategory-${subcategoryId}`}
-                onClick={() => {
-                  setPracticeSubcategoryId(subcategoryId);
-                  const parentCategoryId = subcategoryParentById.get(subcategoryId);
-                  if (parentCategoryId) {
-                    setPracticeCategoryId(parentCategoryId);
-                  }
-                }}
-              >
-                {subcategoryLabelById.get(subcategoryId) ?? subcategoryId} ({count})
-              </button>
-            ))}
-            {topFacetEntries(data.facets.languages).map(([value, count]) => (
-              <button className="tag" type="button" key={`lang-${value}`} onClick={() => setLanguage(value)}>
-                {value} ({count})
-              </button>
-            ))}
-            {topFacetEntries(data.facets.attendanceMode).map(([value, count]) => (
-              <button
-                className="tag"
-                type="button"
-                key={`attendance-${value}`}
-                onClick={() => setAttendanceMode(value)}
-              >
-                {t(`attendanceMode.${value}`)} ({count})
-              </button>
-            ))}
-            {topFacetEntries(data.facets.countryCode).map(([value, count]) => (
-              <button className="tag" type="button" key={`country-${value}`} onClick={() => setCountryCode(value)}>
-                {value.toUpperCase()} ({count})
-              </button>
-            ))}
-            {topFacetEntries(data.facets.tags).map(([value, count]) => (
-              <button className="tag" type="button" key={`tag-${value}`} onClick={() => setTags(value)}>
-                {value} ({count})
-              </button>
-            ))}
-          </div>
-        )}
       </aside>
 
       <div className="panel cards">
@@ -376,7 +366,7 @@ export function EventSearchClient() {
             <button
               className="secondary-btn"
               type="button"
-              onClick={() => void runSearch(currentPage - 1)}
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
               disabled={loading || currentPage <= 1}
             >
               {t("common.pagination.previous")}
@@ -387,7 +377,7 @@ export function EventSearchClient() {
             <button
               className="secondary-btn"
               type="button"
-              onClick={() => void runSearch(currentPage + 1)}
+              onClick={() => setPage((prev) => prev + 1)}
               disabled={loading || currentPage >= totalPages}
             >
               {t("common.pagination.next")}
@@ -401,13 +391,15 @@ export function EventSearchClient() {
           data?.hits.map((hit) => (
             <Link className="card" key={hit.occurrenceId} href={`/events/${hit.event.slug}`}>
               {hit.event.coverImageUrl && (
-                <img
-                  className="event-card-thumb"
-                  src={hit.event.coverImageUrl}
-                  alt={hit.event.title}
-                  loading="lazy"
-                  decoding="async"
-                />
+                <div className="event-card-thumb-shell">
+                  <img
+                    className="event-card-thumb"
+                    src={hit.event.coverImageUrl}
+                    alt={hit.event.title}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
               )}
               <h3>{hit.event.title}</h3>
               <div className="meta">

@@ -13,6 +13,7 @@ vi.mock("../db/locationRepo", () => ({
 }));
 
 import { getAdminEventById, listAdminEvents } from "../db/adminRepo";
+import { createLocation } from "../db/locationRepo";
 import adminContentRoutes from "./adminContent";
 
 function buildApp() {
@@ -53,9 +54,14 @@ describe("admin content external ref filters", () => {
           external_id: "evt-1",
           externalSource: "smoke_test",
           externalId: "evt-1",
+          is_imported: true,
+          import_source: "smoke_test",
+          isImported: true,
+          importSource: "smoke_test",
           status: "draft",
           attendance_mode: "in_person",
           schedule_kind: "single",
+          event_format_id: null,
           updated_at: "2026-03-01T00:00:00.000Z",
           published_at: null,
         },
@@ -119,6 +125,107 @@ describe("admin content external ref filters", () => {
       externalId: "evt-1",
     });
 
+    await app.close();
+  });
+
+  it("accepts online location without coords and country", async () => {
+    vi.mocked(createLocation).mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000111",
+      label: "Zoom Room",
+      formatted_address: "Zoom Room",
+      city: null,
+      country_code: null,
+      type: "online",
+      fingerprint: "zoom:room-1",
+      lat: null,
+      lng: null,
+    } as never);
+
+    const app = buildApp();
+    await app.register(adminContentRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/locations",
+      payload: {
+        type: "online",
+        name: "Zoom Room",
+        fingerprint: "zoom:room-1",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(vi.mocked(createLocation)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        type: "online",
+        name: "Zoom Room",
+        fingerprint: "zoom:room-1",
+      }),
+    );
+
+    await app.close();
+  });
+
+  it("accepts physical location without coords when text fields are present", async () => {
+    vi.mocked(createLocation).mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000112",
+      label: "Studio Hall",
+      formatted_address: "Studio Hall",
+      city: "Berlin",
+      country_code: "de",
+      type: "physical",
+      fingerprint: null,
+      lat: null,
+      lng: null,
+    } as never);
+
+    const app = buildApp();
+    await app.register(adminContentRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/locations",
+      payload: {
+        type: "physical",
+        label: "Studio Hall",
+        city: "Berlin",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    await app.close();
+  });
+
+  it("rejects online location without name", async () => {
+    const app = buildApp();
+    await app.register(adminContentRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/locations",
+      payload: {
+        type: "online",
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("rejects physical location without any structured fields", async () => {
+    const app = buildApp();
+    await app.register(adminContentRoutes);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/locations",
+      payload: {
+        type: "physical",
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
     await app.close();
   });
 });

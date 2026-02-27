@@ -1,6 +1,8 @@
 "use client";
 
 import DOMPurify from "dompurify";
+import { DateTime } from "luxon";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -22,6 +24,11 @@ type TaxonomyResponse = {
       }>;
     }>;
   };
+  eventFormats?: Array<{
+    id: string;
+    key: string;
+    label: string;
+  }>;
 };
 
 type EventDetail = {
@@ -34,12 +41,14 @@ type EventDetail = {
     languages: string[];
     external_source: string | null;
     updated_at: string;
+    schedule_kind: "single" | "recurring";
     cover_image_path: string | null;
     coverImageUrl?: string | null;
     external_url: string | null;
     description_json: unknown;
     practice_category_id: string;
     practice_subcategory_id: string | null;
+    event_format_id: string | null;
   };
   organizers: Array<{
     organizer_id: string;
@@ -53,8 +62,31 @@ type EventDetail = {
     formatted_address: string;
     city: string | null;
     country_code: string | null;
+    lat: number | null;
+    lng: number | null;
   } | null;
+  occurrences: {
+    upcoming: Array<{
+      id: string;
+      starts_at_utc: string;
+      ends_at_utc: string;
+      lat: number | null;
+      lng: number | null;
+    }>;
+    past: Array<{
+      id: string;
+      starts_at_utc: string;
+      ends_at_utc: string;
+      lat: number | null;
+      lng: number | null;
+    }>;
+  };
 };
+
+const EventDetailMap = dynamic(
+  () => import("./EventDetailMap").then((module) => module.EventDetailMap),
+  { ssr: false },
+);
 
 function getDescriptionHtml(value: unknown): string | null {
   if (!value || typeof value !== "object") {
@@ -176,6 +208,13 @@ export function EventDetailClient({ slug }: { slug: string }) {
     }
     return map;
   }, [taxonomy]);
+  const eventFormatById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const format of taxonomy?.eventFormats ?? []) {
+      map.set(format.id, format.label);
+    }
+    return map;
+  }, [taxonomy]);
 
   const rawDescriptionHtml = useMemo(
     () => getDescriptionHtml(data?.event.description_json),
@@ -236,6 +275,9 @@ export function EventDetailClient({ slug }: { slug: string }) {
   }
 
   const categoryLabel = categoryById.get(data.event.practice_category_id) ?? data.event.practice_category_id;
+  const eventFormatLabel = data.event.event_format_id
+    ? eventFormatById.get(data.event.event_format_id) ?? data.event.event_format_id
+    : null;
   const start = data.event.single_start_at ? new Date(data.event.single_start_at) : null;
   const end = data.event.single_end_at ? new Date(data.event.single_end_at) : null;
 
@@ -250,10 +292,14 @@ export function EventDetailClient({ slug }: { slug: string }) {
   const importSource = data.event.external_source || t("common.none");
   const updatedLabel = data.event.updated_at ? new Date(data.event.updated_at).toLocaleString(locale) : null;
   const coverImageUrl = data.event.coverImageUrl ?? data.event.cover_image_path;
+  const mapLat = data.defaultLocation?.lat ?? data.occurrences.upcoming[0]?.lat ?? null;
+  const mapLng = data.defaultLocation?.lng ?? data.occurrences.upcoming[0]?.lng ?? null;
+  const hasGeo = mapLat !== null && mapLng !== null;
 
   return (
     <section className="panel cards">
       <h1 className="title-xl">{data.event.title}</h1>
+      {eventFormatLabel && <div className="meta">{eventFormatLabel}</div>}
 
       <div className="meta">{whenLabel} | {modalityLabel}</div>
       <div className="meta">
@@ -284,6 +330,55 @@ export function EventDetailClient({ slug }: { slug: string }) {
             className="meta"
             dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }}
           />
+        </div>
+      )}
+
+      {data.event.schedule_kind === "single" ? (
+        <div>
+          <h3>{t("common.scheduleKind.single")}</h3>
+          <div className="meta">{whenLabel}</div>
+        </div>
+      ) : (
+        <>
+          <div>
+            <h3>{t("eventDetail.upcoming")}</h3>
+            {data.occurrences.upcoming.length === 0 && <div className="meta">{t("eventDetail.noUpcoming")}</div>}
+            {data.occurrences.upcoming.map((item) => {
+              const starts = DateTime.fromISO(item.starts_at_utc).setZone(data.event.event_timezone);
+              const ends = DateTime.fromISO(item.ends_at_utc).setZone(data.event.event_timezone);
+              return (
+                <div className="card" key={item.id}>
+                  <div className="meta">
+                    {starts.toLocaleString(DateTime.DATE_MED)} {starts.toLocaleString(DateTime.TIME_SIMPLE)} -{" "}
+                    {ends.toLocaleString(DateTime.TIME_SIMPLE)} ({data.event.event_timezone})
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div>
+            <h3>{t("eventDetail.past")}</h3>
+            {data.occurrences.past.length === 0 && <div className="meta">{t("eventDetail.noPast")}</div>}
+            {data.occurrences.past.map((item) => {
+              const starts = DateTime.fromISO(item.starts_at_utc).setZone(data.event.event_timezone);
+              const ends = DateTime.fromISO(item.ends_at_utc).setZone(data.event.event_timezone);
+              return (
+                <div className="card" key={item.id}>
+                  <div className="meta">
+                    {starts.toLocaleString(DateTime.DATE_MED)} {starts.toLocaleString(DateTime.TIME_SIMPLE)} -{" "}
+                    {ends.toLocaleString(DateTime.TIME_SIMPLE)} ({data.event.event_timezone})
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {data.event.attendance_mode !== "online" && hasGeo && (
+        <div>
+          <h3>{t("eventDetail.openMap")}</h3>
+          <EventDetailMap lat={mapLat} lng={mapLng} />
         </div>
       )}
 

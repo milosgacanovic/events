@@ -4,7 +4,7 @@ import { getUiLabels } from "../db/uiLabelRepo";
 
 const metaRoutes: FastifyPluginAsync = async (app) => {
   app.get("/meta/taxonomies", async () => {
-    const [practicesResult, rolesResult, uiLabels] = await Promise.all([
+    const [practicesResult, rolesResult, eventFormatsResult, uiLabels] = await Promise.all([
       app.db.query<{
         id: string;
         parent_id: string | null;
@@ -30,6 +30,19 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
         `
           select id, key, label, sort_order
           from organizer_roles
+          where is_active = true
+          order by sort_order asc, label asc
+        `,
+      ),
+      app.db.query<{
+        id: string;
+        key: string;
+        label: string;
+        sort_order: number;
+      }>(
+        `
+          select id, key, label, sort_order
+          from event_formats
           where is_active = true
           order by sort_order asc, label asc
         `,
@@ -63,6 +76,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
         categories,
       },
       organizerRoles: rolesResult.rows,
+      eventFormats: eventFormatsResult.rows,
     };
   });
 };

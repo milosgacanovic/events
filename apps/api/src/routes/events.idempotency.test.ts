@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../db/eventRepo", () => ({
   createEvent: vi.fn(),
+  getEventById: vi.fn(),
   getEventByExternalRef: vi.fn(),
   getEventBySlug: vi.fn(),
   searchEventsFallback: vi.fn(),
@@ -11,6 +12,7 @@ vi.mock("../db/eventRepo", () => ({
 }));
 
 vi.mock("../db/locationRepo", () => ({
+  getEventDefaultLocation: vi.fn(),
   setEventDefaultLocation: vi.fn(),
 }));
 
@@ -22,17 +24,19 @@ vi.mock("../services/eventLifecycleService", () => ({
   publishEvent: vi.fn(),
   unpublishEvent: vi.fn(),
   cancelEvent: vi.fn(),
+  regenerateOccurrences: vi.fn(),
 }));
 
 import { findOrCreateUserBySub } from "../db/userRepo";
 import {
   createEvent,
+  getEventById,
   getEventByExternalRef,
   getEventBySlug,
   searchEventsFallback,
   updateEvent,
 } from "../db/eventRepo";
-import { publishEvent } from "../services/eventLifecycleService";
+import { publishEvent, regenerateOccurrences } from "../services/eventLifecycleService";
 import eventRoutes from "./events";
 
 function singleEventPayload() {
@@ -268,6 +272,63 @@ describe("events idempotency conflict handling", () => {
     await app.close();
   });
 
+  it("regenerates occurrences when a published event schedule changes via patch", async () => {
+    vi.mocked(getEventById).mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000020",
+      status: "published",
+      schedule_kind: "recurring",
+      single_start_at: null,
+      single_end_at: null,
+      rrule: "FREQ=WEEKLY;COUNT=3",
+      rrule_dtstart_local: "2026-03-01T10:00:00.000Z",
+      duration_minutes: 90,
+      event_timezone: "UTC",
+    } as never);
+    vi.mocked(updateEvent).mockResolvedValue({
+      id: "00000000-0000-0000-0000-000000000020",
+      status: "published",
+      schedule_kind: "recurring",
+      single_start_at: null,
+      single_end_at: null,
+      rrule: "FREQ=WEEKLY;COUNT=6",
+      rrule_dtstart_local: "2026-03-01T10:00:00.000Z",
+      duration_minutes: 90,
+      event_timezone: "UTC",
+    } as never);
+    vi.mocked(regenerateOccurrences).mockResolvedValue();
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", { client: { index: vi.fn() } } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async (request) => {
+      request.auth = {
+        sub: "importer-test-user",
+        roles: ["dr_events_editor"],
+        isAdmin: false,
+        isEditor: true,
+      };
+    });
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/events/00000000-0000-0000-0000-000000000020",
+      payload: {
+        rrule: "FREQ=WEEKLY;COUNT=6",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(vi.mocked(regenerateOccurrences)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "00000000-0000-0000-0000-000000000020",
+    );
+    await app.close();
+  });
+
   it("includePast=true widens search lower bound", async () => {
     const searchSpy = vi.fn().mockResolvedValue({
       hits: [],
@@ -305,6 +366,49 @@ describe("events idempotency conflict handling", () => {
     expect(response.headers.vary).toContain("Authorization");
     const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
     expect(options?.filter?.some((item) => item.includes("starts_at_utc >= \"1970-01-01T00:00:00.000Z\""))).toBe(true);
+    await app.close();
+  });
+
+  it("uses now+365 days as default upper bound when to is not provided", async () => {
+    const searchSpy = vi.fn().mockResolvedValue({
+      hits: [],
+      facetDistribution: {},
+      estimatedTotalHits: 0,
+    });
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: searchSpy,
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async () => {});
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/events/search?page=1&pageSize=20",
+    });
+
+    expect(response.statusCode).toBe(200);
+    const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
+    const upperBound = options?.filter?.find((item) => item.startsWith("starts_at_utc <= "));
+    expect(upperBound).toBeDefined();
+
+    const raw = upperBound?.replace("starts_at_utc <= ", "");
+    const toIso = raw ? JSON.parse(raw) as string : null;
+    expect(toIso).toBeTruthy();
+
+    const diffMs = new Date(toIso!).getTime() - Date.now();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    expect(diffDays).toBeGreaterThan(364);
+    expect(diffDays).toBeLessThan(366.5);
+
     await app.close();
   });
 

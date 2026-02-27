@@ -18,6 +18,7 @@ export type OccurrenceDoc = {
   attendance_mode: string;
   practice_category_id: string;
   practice_subcategory_id: string | null;
+  event_format_id: string | null;
   tags: string[];
   languages: string[];
   organizer_ids: string[];
@@ -47,6 +48,7 @@ export class MeilisearchService {
       "starts_at_utc",
       "practice_category_id",
       "practice_subcategory_id",
+      "event_format_id",
       "tags",
       "languages",
       "attendance_mode",
@@ -81,6 +83,7 @@ export class MeilisearchService {
         e.attendance_mode,
         e.practice_category_id,
         e.practice_subcategory_id,
+        e.event_format_id,
         e.tags,
         e.languages,
         eo.country_code,
@@ -109,6 +112,7 @@ export class MeilisearchService {
       attendance_mode: string;
       practice_category_id: string;
       practice_subcategory_id: string | null;
+      event_format_id: string | null;
       tags: string[];
       languages: string[];
       country_code: string | null;
@@ -136,6 +140,7 @@ export class MeilisearchService {
         attendance_mode: row.attendance_mode,
         practice_category_id: row.practice_category_id,
         practice_subcategory_id: row.practice_subcategory_id,
+        event_format_id: row.event_format_id,
         tags: row.tags,
         languages: row.languages,
         organizer_ids: row.organizer_ids,

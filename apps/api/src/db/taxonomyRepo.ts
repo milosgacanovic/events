@@ -163,3 +163,72 @@ export async function updateOrganizerRole(
 
   return result.rows[0] ?? null;
 }
+
+export async function listEventFormats(pool: Pool) {
+  const result = await pool.query(
+    `
+      select id, key, label, sort_order, is_active
+      from event_formats
+      order by sort_order asc, label asc
+    `,
+  );
+  return result.rows;
+}
+
+export async function createEventFormat(
+  pool: Pool,
+  input: {
+    key: string;
+    label: string;
+    sortOrder?: number;
+    isActive?: boolean;
+  },
+) {
+  const result = await pool.query(
+    `
+      insert into event_formats (key, label, sort_order, is_active)
+      values ($1, $2, $3, $4)
+      returning *
+    `,
+    [input.key, input.label, input.sortOrder ?? 0, input.isActive ?? true],
+  );
+
+  return result.rows[0];
+}
+
+export async function updateEventFormat(
+  pool: Pool,
+  id: string,
+  input: {
+    key?: string;
+    label?: string;
+    sortOrder?: number;
+    isActive?: boolean;
+  },
+) {
+  const fields: Record<string, unknown> = {
+    key: input.key,
+    label: input.label,
+    sort_order: input.sortOrder,
+    is_active: input.isActive,
+  };
+
+  const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
+  if (!entries.length) {
+    const result = await pool.query("select * from event_formats where id = $1", [id]);
+    return result.rows[0] ?? null;
+  }
+
+  const values: unknown[] = [id];
+  const setParts = entries.map(([key, value], index) => {
+    values.push(value);
+    return `${key} = $${index + 2}`;
+  });
+
+  const result = await pool.query(
+    `update event_formats set ${setParts.join(", ")} where id = $1 returning *`,
+    values,
+  );
+
+  return result.rows[0] ?? null;
+}
