@@ -23,6 +23,8 @@
 - If release gate fails only on Meili parity drift, run a hard reset reindex:
   - `npm run occurrences:reindex:all -- --hard`
   - then re-run `npm run release:gate`
+- Run weekly Meili snapshot backup before major migrations:
+  - `npm run meili:backup`
 
 ## Keycloak SSO
 - Web uses Keycloak JS (SPA + PKCE), so the Keycloak client should be configured as `public`.

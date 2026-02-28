@@ -22,6 +22,7 @@ import { findOrCreateUserBySub } from "../db/userRepo";
 import { cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
+import { getSearchCache, setSearchCache } from "../services/searchCache";
 
 const searchQuerySchema = z.object({
   q: z.string().optional(),
@@ -161,14 +162,7 @@ function hasScheduleShapeChanges(
 }
 
 const eventRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/events/search", {
-    config: {
-      rateLimit: {
-        max: 60,
-        timeWindow: "1 minute",
-      },
-    },
-  }, async (request, reply) => {
+  app.get("/events/search", async (request, reply) => {
     const startedAt = Date.now();
     const parsed = searchQuerySchema.safeParse(request.query);
     if (!parsed.success) {
@@ -191,6 +185,31 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       parsed.data.sort === "date_desc" ? "startsAtDesc"
         : parsed.data.sort === "date_asc" ? "startsAtAsc"
           : parsed.data.sort;
+
+    const cacheKeyPayload = {
+      q: parsed.data.q ?? "",
+      from: from ?? "",
+      to: to ?? "",
+      practiceCategoryId: parsed.data.practiceCategoryId ?? null,
+      practiceSubcategoryId: parsed.data.practiceSubcategoryId ?? null,
+      eventFormatId: parsed.data.eventFormatId ?? null,
+      tags,
+      languages,
+      attendanceMode: parsed.data.attendanceMode ?? null,
+      organizerId: parsed.data.organizerId ?? null,
+      countryCode: parsed.data.countryCode ?? null,
+      city: parsed.data.city ?? null,
+      hasGeo: hasGeo ?? null,
+      sort: normalizedSort,
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+    };
+    const cached = getSearchCache<Record<string, unknown>>("events_search", cacheKeyPayload);
+    if (cached) {
+      request.log.info({ msg: "search_cache_hit", scope: "events_search" });
+      return cached;
+    }
+    request.log.info({ msg: "search_cache_miss", scope: "events_search" });
 
     try {
       const meiliFilters = buildMeiliFilters({
@@ -233,7 +252,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       });
       const meiliHits = result.hits as OccurrenceDoc[];
 
-        return {
+        const payload = {
           hits: meiliHits.map((doc: OccurrenceDoc) => ({
           occurrenceId: doc.occurrence_id,
           startsAtUtc: doc.starts_at_utc,
@@ -286,6 +305,8 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           ),
         },
       };
+      setSearchCache("events_search", cacheKeyPayload, payload);
+      return payload;
     } catch {
       const fallback = await searchEventsFallback(app.db, {
         q: parsed.data.q,
@@ -306,6 +327,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         sort: normalizedSort,
       });
 
+      setSearchCache("events_search", cacheKeyPayload, fallback);
       return fallback;
     } finally {
       const durationMs = Date.now() - startedAt;

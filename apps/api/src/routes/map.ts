@@ -3,6 +3,7 @@ import { DateTime } from "luxon";
 import { z } from "zod";
 
 import { buildClusters } from "../services/mapClusterService";
+import { getSearchCache, setSearchCache } from "../services/searchCache";
 
 const mapQuerySchema = z.object({
   from: z.string().datetime().optional(),
@@ -49,13 +50,37 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
     const from = parsed.data.from ?? now.toISO()!;
     const to = parsed.data.to ?? now.plus({ days: 90 }).toISO()!;
 
+    const tags = parseCsv(parsed.data.tags);
+    const languages = parseCsv(parsed.data.languages);
+    const cacheKeyPayload = {
+      from,
+      to,
+      practiceCategoryId: parsed.data.practiceCategoryId ?? null,
+      practiceSubcategoryId: parsed.data.practiceSubcategoryId ?? null,
+      tags,
+      languages,
+      attendanceMode: parsed.data.attendanceMode ?? null,
+      organizerId: parsed.data.organizerId ?? null,
+      countryCode: parsed.data.countryCode ?? null,
+      city: parsed.data.city ?? null,
+      hasGeo: parsed.data.hasGeo ?? null,
+      bbox: parsed.data.bbox,
+      zoom: parsed.data.zoom,
+    };
+    const cached = getSearchCache<Record<string, unknown>>("map_clusters", cacheKeyPayload);
+    if (cached) {
+      request.log.info({ msg: "search_cache_hit", scope: "map_clusters" });
+      return cached;
+    }
+    request.log.info({ msg: "search_cache_miss", scope: "map_clusters" });
+
     const clusters = await buildClusters(app.db, {
       from,
       to,
       practiceCategoryId: parsed.data.practiceCategoryId,
       practiceSubcategoryId: parsed.data.practiceSubcategoryId,
-      tags: parseCsv(parsed.data.tags),
-      languages: parseCsv(parsed.data.languages),
+      tags,
+      languages,
       attendanceMode: parsed.data.attendanceMode,
       organizerId: parsed.data.organizerId,
       countryCode: parsed.data.countryCode,
@@ -69,6 +94,7 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       },
       zoom: parsed.data.zoom,
     });
+    setSearchCache("map_clusters", cacheKeyPayload, clusters);
 
     return clusters;
   });

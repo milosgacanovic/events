@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
-import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
@@ -20,6 +19,7 @@ import metricsRoute from "./routes/metrics";
 import organizerRoutes from "./routes/organizers";
 import uploadRoutes from "./routes/uploads";
 import { getEventsExternalRefSchemaStatus } from "./db/startupChecks";
+import { checkRateLimit, resolvePublicRateLimit } from "./middleware/rateLimit";
 import { AuthService } from "./services/authService";
 import { MeilisearchService } from "./services/meiliService";
 import { loggerConfig } from "./utils/logger";
@@ -86,9 +86,6 @@ async function buildServer() {
     origin: true,
     credentials: true,
   });
-  await app.register(rateLimit, {
-    global: false,
-  });
   await app.register(multipart, {
     limits: {
       fileSize: config.MAX_UPLOAD_MB * 1024 * 1024,
@@ -125,6 +122,37 @@ async function buildServer() {
     request.log.error({ err }, "Request failed");
     const code = (error as { statusCode?: number }).statusCode ?? 500;
     reply.code(code).send({ error: err.message || "internal_error" });
+  });
+
+  app.addHook("onRequest", async (request, reply) => {
+    if (!config.RATE_LIMIT_ENABLED) {
+      return;
+    }
+
+    const path = request.url.split("?")[0] ?? request.url;
+    const limit = resolvePublicRateLimit(path, config.RATE_LIMIT_MAX);
+    if (!limit) {
+      return;
+    }
+
+    const clientIp = request.ip || request.headers["x-forwarded-for"] || "unknown";
+    const result = checkRateLimit({
+      key: `${clientIp}:${path}`,
+      now: Date.now(),
+      windowMs: config.RATE_LIMIT_WINDOW_MS,
+      maxRequests: limit,
+    });
+    if (!result.allowed) {
+      reply.header("Retry-After", String(result.retryAfterSeconds));
+      reply.code(429).send({ error: "rate_limit_exceeded" });
+    }
+  });
+
+  app.addHook("onSend", async (_request, reply) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
+    reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   });
 
   await app.register(async (api) => {

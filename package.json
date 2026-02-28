@@ -15,6 +15,7 @@
     "import:smoke": "tsx scripts/import-smoke.ts",
     "test:live:admin": "tsx scripts/live-admin-verify.ts",
     "release:gate": "ts-node scripts/releaseGate.ts",
+    "meili:backup": "ts-node scripts/meiliBackup.ts",
     "occurrences:dedupe:single": "tsx scripts/cleanup-single-occurrence-duplicates.ts",
     "occurrences:reindex:all": "tsx scripts/reindexAllOccurrences.ts",
     "migrate": "npm run migrate -w @dr-events/api",

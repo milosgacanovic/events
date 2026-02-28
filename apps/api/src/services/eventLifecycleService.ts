@@ -11,6 +11,7 @@ import {
 } from "../db/eventRepo";
 import { generateOccurrences, defaultOccurrenceHorizon } from "./occurrenceService";
 import type { MeilisearchService } from "./meiliService";
+import { clearSearchCache } from "./searchCache";
 
 export async function regenerateOccurrences(
   pool: Pool,
@@ -39,6 +40,7 @@ export async function regenerateOccurrences(
   );
 
   await meiliService.upsertOccurrencesForEvent(pool, eventId).catch(() => {});
+  clearSearchCache();
 }
 
 export async function publishEvent(
@@ -67,6 +69,7 @@ export async function unpublishEvent(
   await setEventStatus(pool, eventId, "draft");
   await deleteOccurrencesForEvent(pool, eventId);
   await meiliService.deleteOccurrencesByEventId(eventId).catch(() => {});
+  clearSearchCache();
 }
 
 export async function cancelEvent(
@@ -112,4 +115,5 @@ export async function refreshRecurringOccurrences(
   await pool.query(`delete from event_occurrences where starts_at_utc < $1::timestamptz`, [
     cleanupBefore.toISO(),
   ]);
+  clearSearchCache();
 }

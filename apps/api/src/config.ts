@@ -18,6 +18,9 @@ const configSchema = z.object({
   KEYCLOAK_AUDIENCE: z.string().optional(),
   KEYCLOAK_CLIENT_ID: z.string().optional(),
   MAX_UPLOAD_MB: z.coerce.number().default(5),
+  RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
 });
 
 export const config = configSchema.parse(process.env);
