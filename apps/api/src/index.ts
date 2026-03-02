@@ -17,9 +17,10 @@ import mapRoutes from "./routes/map";
 import metaRoutes from "./routes/meta";
 import metricsRoute from "./routes/metrics";
 import organizerRoutes from "./routes/organizers";
+import profileRoutes from "./routes/profile";
 import uploadRoutes from "./routes/uploads";
 import { getEventsExternalRefSchemaStatus } from "./db/startupChecks";
-import { checkRateLimit, resolvePublicRateLimit } from "./middleware/rateLimit";
+import { checkRateLimit, resolveAdminRateLimit, resolvePublicRateLimit } from "./middleware/rateLimit";
 import { AuthService } from "./services/authService";
 import { MeilisearchService } from "./services/meiliService";
 import { loggerConfig } from "./utils/logger";
@@ -130,14 +131,17 @@ async function buildServer() {
     }
 
     const path = request.url.split("?")[0] ?? request.url;
-    const limit = resolvePublicRateLimit(path, config.RATE_LIMIT_MAX);
-    if (!limit) {
+    const adminLimit = resolveAdminRateLimit(path);
+    const publicLimit = resolvePublicRateLimit(path, config.RATE_LIMIT_MAX);
+    const scope = adminLimit ? "admin" : publicLimit ? "public" : null;
+    const limit = adminLimit ?? publicLimit;
+    if (!scope || !limit) {
       return;
     }
 
     const clientIp = request.ip || request.headers["x-forwarded-for"] || "unknown";
     const result = checkRateLimit({
-      key: `${clientIp}:${path}`,
+      key: `${scope}:${clientIp}:${path}`,
       now: Date.now(),
       windowMs: config.RATE_LIMIT_WINDOW_MS,
       maxRequests: limit,
@@ -162,6 +166,7 @@ async function buildServer() {
     await api.register(adminContentRoutes);
     await api.register(eventRoutes);
     await api.register(organizerRoutes);
+    await api.register(profileRoutes);
     await api.register(mapRoutes);
     await api.register(geocodeRoutes);
     await api.register(adminRoutes);

@@ -17,10 +17,14 @@ function sanitize(value: string | undefined): string | undefined {
 }
 
 export function getKeycloakClientConfig(): KeycloakClientConfig {
+  const url = sanitize(process.env.NEXT_PUBLIC_KEYCLOAK_URL) ?? "https://sso.danceresource.org";
+  const realm = sanitize(process.env.NEXT_PUBLIC_KEYCLOAK_REALM) ?? sanitize(process.env.KEYCLOAK_REALM);
+  const clientId = sanitize(process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID) ?? sanitize(process.env.KEYCLOAK_CLIENT_ID);
+
   return {
-    url: sanitize(process.env.NEXT_PUBLIC_KEYCLOAK_URL) ?? "https://sso.danceresource.org",
-    realm: sanitize(process.env.NEXT_PUBLIC_KEYCLOAK_REALM) ?? sanitize(process.env.KEYCLOAK_REALM),
-    clientId: sanitize(process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID) ?? sanitize(process.env.KEYCLOAK_CLIENT_ID),
+    url,
+    realm,
+    clientId,
     loginRedirectPath: sanitize(process.env.NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH) ?? "/auth/keycloak/callback",
     logoutRedirectPath: sanitize(process.env.NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH) ?? "/admin",
   };

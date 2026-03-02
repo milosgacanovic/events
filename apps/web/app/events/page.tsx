@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import {
   EventSearchClient,
+  type EventSearchInitialQuery,
   type SearchResponse,
   type TaxonomyResponse,
 } from "../../components/EventSearchClient";
@@ -81,34 +82,49 @@ export default async function EventsPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const viewParam = getSingle(searchParams, "view");
+  const sortParam = getSingle(searchParams, "sort");
+  const pageNumber = Number(getSingle(searchParams, "page") ?? "1");
+  const initialQuery: EventSearchInitialQuery = {
+    q: getSingle(searchParams, "q") ?? undefined,
+    practiceCategoryId: getSingle(searchParams, "practiceCategoryId") ?? undefined,
+    practiceSubcategoryId: getSingle(searchParams, "practiceSubcategoryId") ?? undefined,
+    eventFormatId: getSingle(searchParams, "eventFormatId") ?? undefined,
+    tags: (getSingle(searchParams, "tags") ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+    languages: (getSingle(searchParams, "languages") ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+    attendanceMode: getSingle(searchParams, "attendanceMode") ?? undefined,
+    countryCodes: (() => {
+      const value = getSingle(searchParams, "countryCode");
+      return value ? [value] : [];
+    })(),
+    city: getSingle(searchParams, "city") ?? undefined,
+    sort: sortParam === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc",
+    view: viewParam === "map" ? "map" : "list",
+    page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
+  };
+
   const params = new URLSearchParams();
   const nowIso = new Date().toISOString();
   const oneYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-  const q = getSingle(searchParams, "q");
-  const practiceCategoryId = getSingle(searchParams, "practiceCategoryId");
-  const practiceSubcategoryId = getSingle(searchParams, "practiceSubcategoryId");
-  const eventFormatId = getSingle(searchParams, "eventFormatId");
-  const tags = getSingle(searchParams, "tags");
-  const languages = getSingle(searchParams, "languages");
-  const attendanceMode = getSingle(searchParams, "attendanceMode");
-  const countryCode = getSingle(searchParams, "countryCode");
-  const city = getSingle(searchParams, "city");
-  const sort = getSingle(searchParams, "sort") ?? "startsAtAsc";
-  const page = getSingle(searchParams, "page") ?? "1";
-
-  if (q) params.set("q", q);
-  if (practiceCategoryId) params.set("practiceCategoryId", practiceCategoryId);
-  if (practiceSubcategoryId) params.set("practiceSubcategoryId", practiceSubcategoryId);
-  if (eventFormatId) params.set("eventFormatId", eventFormatId);
-  if (tags) params.set("tags", tags);
-  if (languages) params.set("languages", languages);
-  if (attendanceMode) params.set("attendanceMode", attendanceMode);
-  if (countryCode) params.set("countryCode", countryCode);
-  if (city) params.set("city", city);
-  params.set("sort", sort);
+  if (initialQuery.q) params.set("q", initialQuery.q);
+  if (initialQuery.practiceCategoryId) params.set("practiceCategoryId", initialQuery.practiceCategoryId);
+  if (initialQuery.practiceSubcategoryId) params.set("practiceSubcategoryId", initialQuery.practiceSubcategoryId);
+  if (initialQuery.eventFormatId) params.set("eventFormatId", initialQuery.eventFormatId);
+  if (initialQuery.tags?.length) params.set("tags", initialQuery.tags.join(","));
+  if (initialQuery.languages?.length) params.set("languages", initialQuery.languages.join(","));
+  if (initialQuery.attendanceMode) params.set("attendanceMode", initialQuery.attendanceMode);
+  if (initialQuery.countryCodes?.[0]) params.set("countryCode", initialQuery.countryCodes[0]);
+  if (initialQuery.city) params.set("city", initialQuery.city);
+  params.set("sort", initialQuery.sort ?? "startsAtAsc");
   params.set("from", nowIso);
   params.set("to", oneYear);
-  params.set("page", page);
+  params.set("page", String(initialQuery.page ?? 1));
   params.set("pageSize", "20");
 
   const [initialResults, initialTaxonomy] = await Promise.all([
@@ -116,5 +132,11 @@ export default async function EventsPage({
     fetchServerJson<TaxonomyResponse>("/meta/taxonomies"),
   ]);
 
-  return <EventSearchClient initialResults={initialResults} initialTaxonomy={initialTaxonomy} />;
+  return (
+    <EventSearchClient
+      initialResults={initialResults}
+      initialTaxonomy={initialTaxonomy}
+      initialQuery={initialQuery}
+    />
+  );
 }

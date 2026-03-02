@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
 type OrganizerDetail = {
   organizer: {
+    id: string;
     name: string;
     website_url: string | null;
     tags: string[];
@@ -70,6 +72,7 @@ function getDescriptionText(value: unknown): string | null {
 
 export function OrganizerDetailClient({ slug }: { slug: string }) {
   const { locale, t } = useI18n();
+  const auth = useKeycloakAuth();
   const [data, setData] = useState<OrganizerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,10 +91,24 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   }
 
   const description = getDescriptionText(data.organizer.description_json);
+  const hasEditorRole = auth.roles.some((role) =>
+    role === "dr_events_admin" || role === "dr_events_editor" || role === "admin" || role === "editor"
+  );
+  const canEdit = auth.ready && auth.authenticated && hasEditorRole;
 
   return (
     <section className="panel cards">
       <h1 className="title-xl">{data.organizer.name}</h1>
+      {canEdit && (
+        <div>
+          <Link
+            className="secondary-btn"
+            href={`/admin?section=organizers&id=${encodeURIComponent(data.organizer.id)}`}
+          >
+            {t("organizerDetail.editHost")}
+          </Link>
+        </div>
+      )}
       {data.organizer.avatar_path && (
         <div className="event-host-row">
           <img className="event-host-avatar" src={data.organizer.avatar_path} alt={data.organizer.name} />

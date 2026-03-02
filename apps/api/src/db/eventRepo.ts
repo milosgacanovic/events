@@ -683,6 +683,10 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
         e.slug as event_slug,
         e.title,
         e.cover_image_path,
+        e.is_imported,
+        e.import_source,
+        e.external_url,
+        e.updated_at,
         e.attendance_mode,
         e.languages,
         e.tags,
@@ -715,6 +719,10 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
     event_slug: string;
     title: string;
     cover_image_path: string | null;
+    is_imported: boolean;
+    import_source: string | null;
+    external_url: string | null;
+    updated_at: string;
     attendance_mode: string;
     languages: string[];
     tags: string[];
@@ -889,6 +897,10 @@ export async function searchEventsFallback(pool: Pool, input: EventSearchInput) 
         practiceCategoryId: row.practice_category_id,
         practiceSubcategoryId: row.practice_subcategory_id,
         eventFormatId: row.event_format_id,
+        isImported: row.is_imported,
+        importSource: row.import_source,
+        externalUrl: row.external_url,
+        lastSyncedAt: row.updated_at,
       },
       location: row.formatted_address
         ? {

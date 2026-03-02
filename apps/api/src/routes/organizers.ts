@@ -43,7 +43,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       q: parsed.data.q,
       tags: csvToList(parsed.data.tags),
       languages: csvToList(parsed.data.languages),
-      roleKey: parsed.data.roleKey,
+      roleKeys: csvToList(parsed.data.roleKey),
       countryCode: parsed.data.countryCode,
       city: parsed.data.city,
       page: parsed.data.page,

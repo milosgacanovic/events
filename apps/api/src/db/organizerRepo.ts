@@ -23,7 +23,7 @@ export type OrganizerSearchInput = {
   q?: string;
   tags?: string[];
   languages?: string[];
-  roleKey?: string;
+  roleKeys?: string[];
   countryCode?: string;
   city?: string;
   page: number;
@@ -53,15 +53,15 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
     whereParts.push(`o.languages && $${values.length}::text[]`);
   }
 
-  if (filters.roleKey) {
-    values.push(filters.roleKey);
+  if (filters.roleKeys?.length) {
+    values.push(filters.roleKeys);
     whereParts.push(`
       exists (
         select 1
         from event_organizers eo
         join organizer_roles r on r.id = eo.role_id
         where eo.organizer_id = o.id
-          and r.key = $${values.length}
+          and r.key = any($${values.length}::text[])
       )
     `);
   }

@@ -1,6 +1,8 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useRef } from "react";
 
 import { apiBase, fetchJson } from "../../lib/api";
 import { useI18n } from "../i18n/I18nProvider";
@@ -146,6 +148,8 @@ type OrganizerEditorState = {
   status: "draft" | "published" | "archived";
 };
 
+type AdminSection = "events" | "organizers" | "taxonomies" | "users";
+
 type GeocodeResult = {
   formatted_address: string;
   lat: number;
@@ -211,6 +215,9 @@ function deriveTaxonomyKey(value: string): string {
 export function AdminConsole() {
   const { locale, t } = useI18n();
   const { ready, authenticated, roles, userName, authError, login, logout, getToken } = useKeycloakAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const [organizerOptions, setOrganizerOptions] = useState<OrganizerOption[]>([]);
@@ -272,6 +279,8 @@ export function AdminConsole() {
   const [editLocationQuery, setEditLocationQuery] = useState("");
   const [editLocationResults, setEditLocationResults] = useState<GeocodeResult[]>([]);
   const [editLocationLoading, setEditLocationLoading] = useState(false);
+  const [activeSection, setActiveSection] = useState<AdminSection>("events");
+  const loadedEditorTargetRef = useRef<string | null>(null);
 
   const hasEditorRole = useMemo(
     () => roles.includes("dr_events_editor") || roles.includes("dr_events_admin"),
@@ -306,6 +315,51 @@ export function AdminConsole() {
     taxonomy?.uiLabels.categoryPlural ??
     taxonomy?.uiLabels.practiceCategory ??
     t("admin.field.categories");
+
+  useEffect(() => {
+    const section = searchParams.get("section");
+    if (
+      section === "events" ||
+      section === "organizers" ||
+      section === "taxonomies" ||
+      section === "users"
+    ) {
+      setActiveSection(section);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!authenticated || !hasEditorRole) {
+      return;
+    }
+
+    const section = searchParams.get("section");
+    const id = searchParams.get("id");
+    if (!id || !section) {
+      return;
+    }
+
+    const target = `${section}:${id}`;
+    if (loadedEditorTargetRef.current === target) {
+      return;
+    }
+    loadedEditorTargetRef.current = target;
+
+    if (section === "events") {
+      void loadEventForEdit(id);
+    } else if (section === "organizers") {
+      void loadOrganizerForEdit(id);
+    }
+  }, [authenticated, hasEditorRole, searchParams]);
+
+  function selectSection(section: AdminSection) {
+    setActiveSection(section);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("section", section);
+    params.delete("id");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
 
   async function loadMetadata() {
     setLoadingMeta(true);
@@ -994,8 +1048,44 @@ export function AdminConsole() {
 
       {loadingMeta && <div className="meta">{t("admin.loading.taxonomyMetadata")}</div>}
 
+      <div className="admin-shell">
+        <aside className="panel filters">
+          <h3>{t("admin.sections.title")}</h3>
+          <div className="kv">
+            <button
+              type="button"
+              className={activeSection === "events" ? "secondary-btn" : "ghost-btn"}
+              onClick={() => selectSection("events")}
+            >
+              {t("admin.sections.events")}
+            </button>
+            <button
+              type="button"
+              className={activeSection === "organizers" ? "secondary-btn" : "ghost-btn"}
+              onClick={() => selectSection("organizers")}
+            >
+              {t("admin.sections.organizers")}
+            </button>
+            <button
+              type="button"
+              className={activeSection === "taxonomies" ? "secondary-btn" : "ghost-btn"}
+              onClick={() => selectSection("taxonomies")}
+            >
+              {t("admin.sections.taxonomies")}
+            </button>
+            <button
+              type="button"
+              className={activeSection === "users" ? "secondary-btn" : "ghost-btn"}
+              onClick={() => selectSection("users")}
+            >
+              {t("admin.sections.users")}
+            </button>
+          </div>
+        </aside>
+
+        <div className="cards">
       <div className="admin-grid">
-        <form className="admin-form" onSubmit={createOrganizerSubmit}>
+        <form className="admin-form" onSubmit={createOrganizerSubmit} style={{ display: activeSection === "organizers" ? undefined : "none" }}>
           <h3>{t("admin.createOrganizer.heading")}</h3>
           <label>
             {t("common.field.name")}
@@ -1039,7 +1129,7 @@ export function AdminConsole() {
           </button>
         </form>
 
-        <form className="admin-form" onSubmit={createEventSubmit}>
+        <form className="admin-form" onSubmit={createEventSubmit} style={{ display: activeSection === "events" ? undefined : "none" }}>
           <h3>{t("admin.createEvent.heading")}</h3>
           <label>
             {t("common.field.title")}
@@ -1295,7 +1385,7 @@ export function AdminConsole() {
           </button>
         </form>
 
-        <form className="admin-form" onSubmit={createPracticeSubmit}>
+        <form className="admin-form" onSubmit={createPracticeSubmit} style={{ display: activeSection === "taxonomies" ? undefined : "none" }}>
           <h3>{t("admin.createPractice.heading")}</h3>
           <label>
             {t("admin.field.level")}
@@ -1366,7 +1456,7 @@ export function AdminConsole() {
           </button>
         </form>
 
-        <form className="admin-form" onSubmit={saveCategoryLabelsSubmit}>
+        <form className="admin-form" onSubmit={saveCategoryLabelsSubmit} style={{ display: activeSection === "taxonomies" ? undefined : "none" }}>
           <h3>{t("admin.categoryLabels.heading")}</h3>
           <label>
             {t("admin.categoryLabels.categorySingular")}
@@ -1397,7 +1487,7 @@ export function AdminConsole() {
           </button>
         </form>
 
-        <form className="admin-form" onSubmit={createRoleSubmit}>
+        <form className="admin-form" onSubmit={createRoleSubmit} style={{ display: activeSection === "taxonomies" ? undefined : "none" }}>
           <h3>{t("admin.createRole.heading")}</h3>
           <label>
             {t("common.field.key")}
@@ -1424,7 +1514,7 @@ export function AdminConsole() {
       </div>
 
       <section className="admin-list-grid">
-        <div className="admin-form">
+        <div className="admin-form" style={{ display: activeSection === "events" ? undefined : "none" }}>
           <h3>{t("admin.recentEvents.heading")}</h3>
           {loadingAdminContent && <div className="meta">{t("admin.loading.adminLists")}</div>}
           {!loadingAdminContent && adminEvents.length === 0 && (
@@ -1479,7 +1569,7 @@ export function AdminConsole() {
           ))}
         </div>
 
-        <div className="admin-form">
+        <div className="admin-form" style={{ display: activeSection === "organizers" ? undefined : "none" }}>
           <h3>{t("admin.recentOrganizers.heading")}</h3>
           {loadingAdminContent && <div className="meta">{t("admin.loading.adminLists")}</div>}
           {!loadingAdminContent && adminOrganizers.length === 0 && (
@@ -1534,7 +1624,7 @@ export function AdminConsole() {
       </section>
 
       <section className="admin-list-grid">
-        <form className="admin-form" onSubmit={(event) => void saveEventEdits(event)}>
+        <form className="admin-form" onSubmit={(event) => void saveEventEdits(event)} style={{ display: activeSection === "events" ? undefined : "none" }}>
           <h3>{t("admin.editEvent.heading")}</h3>
           {loadingEventEditor && <div className="meta">{t("admin.loading.eventDetails")}</div>}
           {!loadingEventEditor && !eventEditor && (
@@ -1833,7 +1923,7 @@ export function AdminConsole() {
           )}
         </form>
 
-        <form className="admin-form" onSubmit={(event) => void saveOrganizerEdits(event)}>
+        <form className="admin-form" onSubmit={(event) => void saveOrganizerEdits(event)} style={{ display: activeSection === "organizers" ? undefined : "none" }}>
           <h3>{t("admin.editOrganizer.heading")}</h3>
           {loadingOrganizerEditor && <div className="meta">{t("admin.loading.organizerDetails")}</div>}
           {!loadingOrganizerEditor && !organizerEditor && (
@@ -1917,7 +2007,19 @@ export function AdminConsole() {
         </form>
       </section>
 
+      {activeSection === "users" && (
+        <section className="admin-list-grid">
+          <div className="admin-form">
+            <h3>{t("admin.sections.users")}</h3>
+            <div className="meta">{t("admin.console.user", { user: userName ?? t("common.unknown") })}</div>
+            <div className="meta">{t("admin.console.roles", { roles: roles.join(", ") || t("common.none") })}</div>
+          </div>
+        </section>
+      )}
+
       <div className="admin-status">{status || t("admin.status.noneYet")}</div>
+        </div>
+      </div>
     </section>
   );
 }

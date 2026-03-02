@@ -2,9 +2,11 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { formatDateTimeRange } from "../lib/datetime";
 import { useI18n } from "./i18n/I18nProvider";
 
 export type SearchResponse = {
@@ -18,6 +20,7 @@ export type SearchResponse = {
       title: string;
       coverImageUrl: string | null;
       attendanceMode: string;
+      eventTimezone?: string;
       languages: string[];
       tags: string[];
       practiceCategoryId: string;
@@ -69,6 +72,21 @@ export type TaxonomyResponse = {
   }>;
 };
 
+export type EventSearchInitialQuery = {
+  q?: string;
+  practiceCategoryId?: string;
+  practiceSubcategoryId?: string;
+  eventFormatId?: string;
+  tags?: string[];
+  languages?: string[];
+  attendanceMode?: string;
+  countryCodes?: string[];
+  city?: string;
+  sort?: "startsAtAsc" | "startsAtDesc";
+  view?: "list" | "map";
+  page?: number;
+};
+
 const LeafletClusterMap = dynamic(
   () => import("./LeafletClusterMap").then((module) => module.LeafletClusterMap),
   { ssr: false },
@@ -77,33 +95,38 @@ const LeafletClusterMap = dynamic(
 export function EventSearchClient({
   initialResults,
   initialTaxonomy,
+  initialQuery,
 }: {
   initialResults?: SearchResponse | null;
   initialTaxonomy?: TaxonomyResponse | null;
+  initialQuery?: EventSearchInitialQuery;
 }) {
   const { locale, t } = useI18n();
-  const [view, setView] = useState<"list" | "map">("list");
-  const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc">("startsAtAsc");
-  const [q, setQ] = useState("");
-  const [practiceCategoryId, setPracticeCategoryId] = useState("");
-  const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
-  const [eventFormatId, setEventFormatId] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [view, setView] = useState<"list" | "map">(initialQuery?.view ?? "list");
+  const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc">(initialQuery?.sort ?? "startsAtAsc");
+  const [q, setQ] = useState(initialQuery?.q ?? "");
+  const [practiceCategoryId, setPracticeCategoryId] = useState(initialQuery?.practiceCategoryId ?? "");
+  const [practiceSubcategoryId, setPracticeSubcategoryId] = useState(initialQuery?.practiceSubcategoryId ?? "");
+  const [eventFormatId, setEventFormatId] = useState(initialQuery?.eventFormatId ?? "");
+  const [tags, setTags] = useState<string[]>(initialQuery?.tags ?? []);
   const [tagQuery, setTagQuery] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
-  const [languages, setLanguages] = useState<string[]>([]);
-  const [attendanceMode, setAttendanceMode] = useState("");
-  const [countryCodes, setCountryCodes] = useState<string[]>([]);
-  const [city, setCity] = useState("");
+  const [languages, setLanguages] = useState<string[]>(initialQuery?.languages ?? []);
+  const [attendanceMode, setAttendanceMode] = useState(initialQuery?.attendanceMode ?? "");
+  const [countryCodes, setCountryCodes] = useState<string[]>(initialQuery?.countryCodes ?? []);
+  const [city, setCity] = useState(initialQuery?.city ?? "");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [showMoreCategories, setShowMoreCategories] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(initialResults ?? null);
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
+  const restoredKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (initialTaxonomy) {
@@ -148,6 +171,30 @@ export function EventSearchClient({
     () => (taxonomy?.practices.categories ?? []).some((category) => category.subcategories.length > 0),
     [taxonomy],
   );
+  const languageNames = useMemo(() => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "language" });
+    } catch {
+      return null;
+    }
+  }, [locale]);
+  const regionNames = useMemo(() => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "region" });
+    } catch {
+      return null;
+    }
+  }, [locale]);
+  const getLanguageLabel = useCallback((value: string) => {
+    const normalized = value.trim().toLowerCase();
+    const localized = languageNames?.of(normalized);
+    return localized && localized !== normalized ? localized : value;
+  }, [languageNames]);
+  const getCountryLabel = useCallback((value: string) => {
+    const normalized = value.trim().toUpperCase();
+    const localized = regionNames?.of(normalized);
+    return localized && localized !== normalized ? localized : normalized;
+  }, [regionNames]);
 
   const buildQueryString = useCallback((nextPage: number) => {
     const params = new URLSearchParams();
@@ -177,6 +224,55 @@ export function EventSearchClient({
     sort,
   ]);
 
+  const buildUiQueryString = useCallback(() => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (practiceCategoryId) params.set("practiceCategoryId", practiceCategoryId);
+    if (practiceSubcategoryId) params.set("practiceSubcategoryId", practiceSubcategoryId);
+    if (eventFormatId) params.set("eventFormatId", eventFormatId);
+    if (tags.length) params.set("tags", tags.join(","));
+    if (languages.length) params.set("languages", languages.join(","));
+    if (attendanceMode) params.set("attendanceMode", attendanceMode);
+    if (countryCodes.length) params.set("countryCode", countryCodes[0]);
+    if (city.trim()) params.set("city", city.trim());
+    if (sort !== "startsAtAsc") params.set("sort", sort);
+    if (view !== "list") params.set("view", view);
+    if (page > 1) params.set("page", String(page));
+    return params.toString();
+  }, [
+    q,
+    practiceCategoryId,
+    practiceSubcategoryId,
+    eventFormatId,
+    tags,
+    languages,
+    attendanceMode,
+    countryCodes,
+    city,
+    sort,
+    view,
+    page,
+  ]);
+
+  const scrollStorageKey = useMemo(() => {
+    const query = buildUiQueryString();
+    return `search-scroll:${pathname}${query ? `?${query}` : ""}`;
+  }, [buildUiQueryString, pathname]);
+
+  const persistScroll = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    sessionStorage.setItem(
+      scrollStorageKey,
+      JSON.stringify({
+        y: window.scrollY,
+        ts: Date.now(),
+      }),
+    );
+  }, [scrollStorageKey]);
+
   const runSearch = useCallback(async (nextPage = page) => {
     const currentQuery = buildQueryString(nextPage);
 
@@ -204,6 +300,57 @@ export function EventSearchClient({
       clearTimeout(timer);
     };
   }, [runSearch, page]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const queryString = buildUiQueryString();
+      router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [buildUiQueryString, pathname, router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (restoredKeyRef.current === scrollStorageKey) {
+      return;
+    }
+    restoredKeyRef.current = scrollStorageKey;
+
+    const raw = sessionStorage.getItem(scrollStorageKey);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as { y?: number; ts?: number };
+      if (typeof parsed.y !== "number" || typeof parsed.ts !== "number") {
+        return;
+      }
+      if (Date.now() - parsed.ts > 30 * 60 * 1000) {
+        return;
+      }
+      const { y } = parsed;
+      window.setTimeout(() => window.scrollTo(0, y), 0);
+    } catch {
+      // ignore invalid persisted scroll data
+    }
+  }, [scrollStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const onBeforeUnload = () => persistScroll();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      persistScroll();
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+  }, [persistScroll]);
 
   function clearFilters() {
     setQ("");
@@ -366,7 +513,7 @@ export function EventSearchClient({
                     setPage(1);
                   }}
                 />
-                {value} ({count})
+                {getLanguageLabel(value)} ({count})
               </label>
             ))}
           </div>
@@ -377,8 +524,8 @@ export function EventSearchClient({
           <option value="online">{t("eventSearch.attendance.online")}</option>
           <option value="hybrid">{t("eventSearch.attendance.hybrid")}</option>
         </select>
-        <label>
-          {t("eventSearch.country")}
+        <details open>
+          <summary>{t("eventSearch.country")}</summary>
           <div className="kv">
             {Object.entries(data?.facets?.countryCode ?? {}).map(([value, count]) => (
               <label className="meta" key={value}>
@@ -392,11 +539,11 @@ export function EventSearchClient({
                     setPage(1);
                   }}
                 />
-                {value.toUpperCase()} ({count})
+                {getCountryLabel(value)} ({count})
               </label>
             ))}
           </div>
-        </label>
+        </details>
         <input
           list="event-city-suggestions"
           value={city}
@@ -528,47 +675,61 @@ export function EventSearchClient({
         {view === "map" ? (
           <LeafletClusterMap queryString={activeQueryString} refreshToken={refreshToken} />
         ) : (
-          data?.hits.map((hit) => (
-            <Link className="card" key={hit.occurrenceId} href={`/events/${hit.event.slug}`}>
-              {hit.event.coverImageUrl && (
-                <div className="event-card-thumb-shell">
-                  <img
-                    className="event-card-thumb"
-                    src={hit.event.coverImageUrl}
-                    alt={hit.event.title}
-                    loading="lazy"
-                    decoding="async"
-                  />
+          data?.hits.map((hit) => {
+            const formatted = formatDateTimeRange(
+              hit.startsAtUtc,
+              hit.endsAtUtc,
+              hit.event.eventTimezone ?? "UTC",
+            );
+
+            return (
+              <Link
+                className="card"
+                key={hit.occurrenceId}
+                href={`/events/${hit.event.slug}`}
+                onClick={persistScroll}
+              >
+                {hit.event.coverImageUrl && (
+                  <div className="event-card-thumb-shell">
+                    <img
+                      className="event-card-thumb"
+                      src={hit.event.coverImageUrl}
+                      alt={hit.event.title}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                )}
+                <h3>{hit.event.title}</h3>
+                <div className="meta">
+                  {formatted.primary} | {t(`attendanceMode.${hit.event.attendanceMode}`)}
                 </div>
-              )}
-              <h3>{hit.event.title}</h3>
-              <div className="meta">
-                {new Date(hit.startsAtUtc).toLocaleString(locale)} | {t(`attendanceMode.${hit.event.attendanceMode}`)}
-              </div>
-              <div className="meta">
-                {hit.location?.city ?? t("eventSearch.locationTbd")}
-                {hit.location?.country_code ? `, ${hit.location.country_code.toUpperCase()}` : ""}
-              </div>
-              <div className="meta">
-                {categorySingularLabel}: {categoryLabelById.get(hit.event.practiceCategoryId) ?? hit.event.practiceCategoryId}
-                {hit.event.practiceSubcategoryId
-                  ? ` / ${subcategoryLabelById.get(hit.event.practiceSubcategoryId) ?? hit.event.practiceSubcategoryId}`
-                  : ""}
-              </div>
-              <div className="kv">
-                {hit.event.languages.map((item) => (
-                  <span className="tag" key={item}>
-                    {item}
-                  </span>
-                ))}
-                {hit.event.tags.map((item) => (
-                  <span className="tag" key={item}>
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </Link>
-          ))
+                {formatted.secondary && <div className="meta">{formatted.secondary}</div>}
+                <div className="meta">
+                  {hit.location?.city ?? t("eventSearch.locationTbd")}
+                  {hit.location?.country_code ? `, ${hit.location.country_code.toUpperCase()}` : ""}
+                </div>
+                <div className="meta">
+                  {categorySingularLabel}: {categoryLabelById.get(hit.event.practiceCategoryId) ?? hit.event.practiceCategoryId}
+                  {hit.event.practiceSubcategoryId
+                    ? ` / ${subcategoryLabelById.get(hit.event.practiceSubcategoryId) ?? hit.event.practiceSubcategoryId}`
+                    : ""}
+                </div>
+                <div className="kv">
+                  {hit.event.languages.map((item) => (
+                    <span className="tag" key={item}>
+                      {item}
+                    </span>
+                  ))}
+                  {hit.event.tags.map((item) => (
+                    <span className="tag" key={item}>
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </Link>
+            );
+          })
         )}
       </div>
     </section>

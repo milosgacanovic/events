@@ -39,12 +39,25 @@ export function resetRateLimitBuckets(): void {
   buckets.clear();
 }
 
-export function resolvePublicRateLimit(path: string, baseLimit: number): number | null {
-  if (path === "/api/events/search" || path === "/api/map/clusters") {
-    return baseLimit;
+export function resolveAdminRateLimit(path: string): number | null {
+  if (path.startsWith("/api/admin/")) {
+    return 300;
+  }
+  return null;
+}
+
+export function resolvePublicRateLimit(path: string, _baseLimit: number): number | null {
+  if (path === "/api/events/search") {
+    return 120;
+  }
+  if (path === "/api/organizers/search") {
+    return 120;
+  }
+  if (path === "/api/map/clusters") {
+    return 60;
   }
   if (path.startsWith("/api/meta/")) {
-    return baseLimit * 2;
+    return 240;
   }
   return null;
 }

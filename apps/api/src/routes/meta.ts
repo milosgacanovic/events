@@ -1,7 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
-import { listCitySuggestions, listTagSuggestions } from "../db/metaRepo";
+import {
+  listCitySuggestions,
+  listOrganizerCitySuggestions,
+  listOrganizerTagSuggestions,
+  listTagSuggestions,
+} from "../db/metaRepo";
 import { getUiLabels } from "../db/uiLabelRepo";
 
 const metaRoutes: FastifyPluginAsync = async (app) => {
@@ -129,6 +134,46 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const items = await listTagSuggestions(app.db, parsed.data);
+    const payload = { items };
+    cache.set(cacheKey, { expiresAt: now + ttlMs, payload });
+    return payload;
+  });
+
+  app.get("/meta/organizer-cities", async (request, reply) => {
+    const parsed = cityQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const cacheKey = `organizer-cities:${parsed.data.countryCode ?? ""}:${parsed.data.q ?? ""}:${parsed.data.limit}`;
+    const now = Date.now();
+    const cached = cache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.payload;
+    }
+
+    const items = await listOrganizerCitySuggestions(app.db, parsed.data);
+    const payload = { items };
+    cache.set(cacheKey, { expiresAt: now + ttlMs, payload });
+    return payload;
+  });
+
+  app.get("/meta/organizer-tags", async (request, reply) => {
+    const parsed = tagsQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const cacheKey = `organizer-tags:${parsed.data.q ?? ""}:${parsed.data.limit}`;
+    const now = Date.now();
+    const cached = cache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.payload;
+    }
+
+    const items = await listOrganizerTagSuggestions(app.db, parsed.data);
     const payload = { items };
     cache.set(cacheKey, { expiresAt: now + ttlMs, payload });
     return payload;

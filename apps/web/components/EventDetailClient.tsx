@@ -1,12 +1,13 @@
 "use client";
 
 import DOMPurify from "dompurify";
-import { DateTime } from "luxon";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { formatDateTimeRange } from "../lib/datetime";
+import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
 export type TaxonomyResponse = {
@@ -33,6 +34,7 @@ export type TaxonomyResponse = {
 
 export type EventDetail = {
   event: {
+    id: string;
     title: string;
     single_start_at: string | null;
     single_end_at: string | null;
@@ -40,11 +42,15 @@ export type EventDetail = {
     attendance_mode: "in_person" | "online" | "hybrid";
     languages: string[];
     external_source: string | null;
+    is_imported: boolean;
+    import_source: string | null;
     updated_at: string;
+    lastSyncedAt?: string;
     schedule_kind: "single" | "recurring";
     cover_image_path: string | null;
     coverImageUrl?: string | null;
     external_url: string | null;
+    externalUrl?: string | null;
     description_json: unknown;
     practice_category_id: string;
     practice_subcategory_id: string | null;
@@ -116,6 +122,7 @@ export function EventDetailClient({
   initialTaxonomy?: TaxonomyResponse | null;
 }) {
   const { locale, t } = useI18n();
+  const auth = useKeycloakAuth();
   const [data, setData] = useState<EventDetail | null>(initialData ?? null);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [error, setError] = useState<string | null>(null);
@@ -292,12 +299,10 @@ export function EventDetailClient({
   const eventFormatLabel = data.event.event_format_id
     ? eventFormatById.get(data.event.event_format_id) ?? data.event.event_format_id
     : null;
-  const start = data.event.single_start_at ? new Date(data.event.single_start_at) : null;
-  const end = data.event.single_end_at ? new Date(data.event.single_end_at) : null;
-
-  const whenLabel = start && end
-    ? `${start.toLocaleString(locale)} - ${end.toLocaleString(locale)} (${data.event.event_timezone})`
-    : t("eventDetail.timeTbd");
+  const whenFormatted = data.event.single_start_at && data.event.single_end_at
+    ? formatDateTimeRange(data.event.single_start_at, data.event.single_end_at, data.event.event_timezone)
+    : null;
+  const whenLabel = whenFormatted?.primary ?? t("eventDetail.timeTbd");
 
   const modalityLabel = t(`attendanceMode.${data.event.attendance_mode}`);
   const locationLabel = data.defaultLocation?.city
@@ -306,6 +311,23 @@ export function EventDetailClient({
   const importSource = data.event.external_source || t("common.none");
   const updatedLabel = data.event.updated_at ? new Date(data.event.updated_at).toLocaleString(locale) : null;
   const coverImageUrl = data.event.coverImageUrl ?? data.event.cover_image_path;
+  const externalUrl = data.event.externalUrl ?? data.event.external_url;
+  const isImported = data.event.is_imported;
+  const transparencySource = data.event.import_source ?? data.event.external_source ?? t("common.none");
+  const hasEditorRole = auth.roles.some((role) =>
+    role === "dr_events_admin" || role === "dr_events_editor" || role === "admin" || role === "editor"
+  );
+  const canEdit = auth.ready && auth.authenticated && hasEditorRole;
+  const lastSyncedRaw = data.event.lastSyncedAt ?? data.event.updated_at;
+  const lastSyncedUtc = new Date(lastSyncedRaw).toLocaleString(locale, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+  });
   const mapLat = data.defaultLocation?.lat ?? data.occurrences.upcoming[0]?.lat ?? null;
   const mapLng = data.defaultLocation?.lng ?? data.occurrences.upcoming[0]?.lng ?? null;
   const hasGeo = mapLat !== null && mapLng !== null;
@@ -314,6 +336,13 @@ export function EventDetailClient({
     <section className="panel cards">
       <h1 className="title-xl">{data.event.title}</h1>
       {eventFormatLabel && <div className="meta">{eventFormatLabel}</div>}
+      {canEdit && (
+        <div>
+          <Link className="secondary-btn" href={`/admin?section=events&id=${encodeURIComponent(data.event.id)}`}>
+            {t("eventDetail.editEvent")}
+          </Link>
+        </div>
+      )}
 
       <div className="meta">{whenLabel} | {modalityLabel}</div>
       <div className="meta">
@@ -327,14 +356,24 @@ export function EventDetailClient({
       </div>
 
       {coverImageUrl && (
-        <img
-          className="event-cover"
-          src={coverImageUrl}
-          alt={data.event.title}
-          loading="lazy"
-          decoding="async"
-          style={{ maxHeight: 480, objectFit: "cover", width: "100%" }}
-        />
+        <div className="event-cover-shell">
+          <img
+            className="event-cover"
+            src={coverImageUrl}
+            alt={data.event.title}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      )}
+
+      {isImported && externalUrl && (
+        <div className="import-disclaimer import-disclaimer-top">
+          {t("eventDetail.import.officialBooking")}{" "}
+          <a href={externalUrl} target="_blank" rel="noreferrer">
+            {externalUrl}
+          </a>
+        </div>
       )}
 
       {sanitizedDescriptionHtml && (
@@ -347,10 +386,26 @@ export function EventDetailClient({
         </div>
       )}
 
+      {isImported && externalUrl && (
+        <div className="import-disclaimer">
+          <div>{t("eventDetail.import.sharedWithCare")}</div>
+          <div>{t("eventDetail.import.sourceLine", { source: transparencySource })}</div>
+          <div>
+            {t("eventDetail.import.officialLink")}{" "}
+            <a href={externalUrl} target="_blank" rel="noreferrer">
+              {externalUrl}
+            </a>
+          </div>
+          <div>{t("eventDetail.import.lastSynced", { value: `${lastSyncedUtc} UTC` })}</div>
+          <div>{t("eventDetail.import.contact")}</div>
+        </div>
+      )}
+
       {data.event.schedule_kind === "single" ? (
         <div>
           <h3>{t("common.scheduleKind.single")}</h3>
           <div className="meta">{whenLabel}</div>
+          {whenFormatted?.secondary && <div className="meta">{whenFormatted.secondary}</div>}
         </div>
       ) : (
         <>
@@ -358,14 +413,15 @@ export function EventDetailClient({
             <h3>{t("eventDetail.upcoming")}</h3>
             {data.occurrences.upcoming.length === 0 && <div className="meta">{t("eventDetail.noUpcoming")}</div>}
             {data.occurrences.upcoming.map((item) => {
-              const starts = DateTime.fromISO(item.starts_at_utc).setZone(data.event.event_timezone);
-              const ends = DateTime.fromISO(item.ends_at_utc).setZone(data.event.event_timezone);
+              const formatted = formatDateTimeRange(
+                item.starts_at_utc,
+                item.ends_at_utc,
+                data.event.event_timezone,
+              );
               return (
                 <div className="card" key={item.id}>
-                  <div className="meta">
-                    {starts.toLocaleString(DateTime.DATE_MED)} {starts.toLocaleString(DateTime.TIME_SIMPLE)} -{" "}
-                    {ends.toLocaleString(DateTime.TIME_SIMPLE)} ({data.event.event_timezone})
-                  </div>
+                  <div className="meta">{formatted.primary}</div>
+                  {formatted.secondary && <div className="meta">{formatted.secondary}</div>}
                 </div>
               );
             })}
@@ -374,14 +430,15 @@ export function EventDetailClient({
             <h3>{t("eventDetail.past")}</h3>
             {data.occurrences.past.length === 0 && <div className="meta">{t("eventDetail.noPast")}</div>}
             {data.occurrences.past.map((item) => {
-              const starts = DateTime.fromISO(item.starts_at_utc).setZone(data.event.event_timezone);
-              const ends = DateTime.fromISO(item.ends_at_utc).setZone(data.event.event_timezone);
+              const formatted = formatDateTimeRange(
+                item.starts_at_utc,
+                item.ends_at_utc,
+                data.event.event_timezone,
+              );
               return (
                 <div className="card" key={item.id}>
-                  <div className="meta">
-                    {starts.toLocaleString(DateTime.DATE_MED)} {starts.toLocaleString(DateTime.TIME_SIMPLE)} -{" "}
-                    {ends.toLocaleString(DateTime.TIME_SIMPLE)} ({data.event.event_timezone})
-                  </div>
+                  <div className="meta">{formatted.primary}</div>
+                  {formatted.secondary && <div className="meta">{formatted.secondary}</div>}
                 </div>
               );
             })}

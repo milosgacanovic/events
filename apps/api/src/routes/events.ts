@@ -263,11 +263,16 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             title: doc.title,
             coverImageUrl: doc.cover_image_path ?? null,
             attendanceMode: doc.attendance_mode,
+            eventTimezone: doc.event_timezone,
             languages: doc.languages,
             tags: doc.tags,
             practiceCategoryId: doc.practice_category_id,
             practiceSubcategoryId: doc.practice_subcategory_id,
             eventFormatId: doc.event_format_id,
+            isImported: Boolean(doc.is_imported),
+            importSource: doc.import_source ?? null,
+            externalUrl: doc.external_url ?? null,
+            lastSyncedAt: doc.updated_at ?? null,
           },
           location: doc.geo
             ? {
@@ -359,10 +364,24 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
     return {
       ...event,
+      organizers: event.organizers.map((row) => ({
+        ...row,
+        id: row.organizer_id,
+        slug: row.organizer_slug,
+        name: row.organizer_name,
+        avatarPath: row.organizer_avatar_path,
+        roleId: row.role_id,
+        roleKey: row.role_key,
+        roleLabel: row.role_label,
+      })),
       event: {
         ...event.event,
         coverImageUrl: event.event.cover_image_path ?? null,
         eventFormatId: event.event.event_format_id ?? null,
+        isImported: event.event.is_imported,
+        importSource: event.event.import_source,
+        externalUrl: event.event.external_url,
+        lastSyncedAt: event.event.updated_at,
       },
     };
   });

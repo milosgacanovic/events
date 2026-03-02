@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 
 import type { LocationRow } from "../types/domain";
+import { inferCountryCode } from "../utils/countryCode";
 
 export async function getLocationById(pool: Pool, id: string): Promise<LocationRow | null> {
   const result = await pool.query<LocationRow>(
@@ -55,6 +56,8 @@ export async function createLocation(
     lng: number;
   },
 ): Promise<LocationRow> {
+  const resolvedCountryCode = inferCountryCode(input.countryCode ?? null, input.formattedAddress);
+
   const result = await pool.query<LocationRow>(
     `
       insert into locations (label, formatted_address, country_code, city, geom)
@@ -71,7 +74,7 @@ export async function createLocation(
     [
       input.label ?? null,
       input.formattedAddress,
-      input.countryCode ?? null,
+      resolvedCountryCode,
       input.city ?? null,
       input.lng,
       input.lat,
