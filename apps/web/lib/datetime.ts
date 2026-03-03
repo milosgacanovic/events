@@ -21,6 +21,7 @@ export function formatDateTimeRange(
   startsAtIso: string,
   endsAtIso: string,
   eventTimezone: string,
+  showEventTimezone = false,
 ): FormattedDateTime {
   const startUtc = DateTime.fromISO(startsAtIso, { zone: "utc" });
   const endUtc = DateTime.fromISO(endsAtIso, { zone: "utc" });
@@ -32,7 +33,7 @@ export function formatDateTimeRange(
 
   const primary = formatRange(userStart, userEnd);
   const sameZone = userStart.zoneName === eventStart.zoneName;
-  const secondary = sameZone
+  const secondary = !showEventTimezone || sameZone
     ? null
     : `Event time: ${formatRange(eventStart, eventEnd)} (${eventTimezone})`;
 

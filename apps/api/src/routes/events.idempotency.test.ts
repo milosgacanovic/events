@@ -444,6 +444,38 @@ describe("events idempotency conflict handling", () => {
     await app.close();
   });
 
+  it("supports countryCode CSV filtering with OR semantics", async () => {
+    const searchSpy = vi.fn().mockResolvedValue({
+      hits: [],
+      facetDistribution: {},
+      estimatedTotalHits: 0,
+    });
+
+    const app = Fastify();
+    app.decorate("db", {} as never);
+    app.decorate("meiliService", {
+      client: {
+        index: () => ({
+          search: searchSpy,
+        }),
+      },
+    } as never);
+    app.decorate("authenticate", async () => {});
+    app.decorate("requireEditor", async () => {});
+    app.decorate("requireAdmin", async () => {});
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/events/search?countryCode=rs,de&page=1&pageSize=20",
+    });
+
+    expect(response.statusCode).toBe(200);
+    const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
+    expect(options?.filter).toContain("(country_code = \"rs\" OR country_code = \"de\")");
+    await app.close();
+  });
+
   it("logs events.search.timing with includePast/page/pageSize", async () => {
     const searchSpy = vi.fn().mockResolvedValue({
       hits: [],

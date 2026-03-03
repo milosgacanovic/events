@@ -21,6 +21,16 @@ function getSingle(searchParams: SearchParams, key: string): string | null {
   return null;
 }
 
+function csvToList(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function buildCanonical(searchParams: SearchParams): { canonical: string; noindex: boolean } {
   const page = getSingle(searchParams, "page");
   const practiceCategoryId = getSingle(searchParams, "practiceCategoryId");
@@ -99,10 +109,7 @@ export default async function EventsPage({
       .map((item) => item.trim())
       .filter(Boolean),
     attendanceMode: getSingle(searchParams, "attendanceMode") ?? undefined,
-    countryCodes: (() => {
-      const value = getSingle(searchParams, "countryCode");
-      return value ? [value] : [];
-    })(),
+    countryCodes: csvToList(getSingle(searchParams, "countryCode")),
     city: getSingle(searchParams, "city") ?? undefined,
     sort: sortParam === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc",
     view: viewParam === "map" ? "map" : "list",
@@ -119,7 +126,7 @@ export default async function EventsPage({
   if (initialQuery.tags?.length) params.set("tags", initialQuery.tags.join(","));
   if (initialQuery.languages?.length) params.set("languages", initialQuery.languages.join(","));
   if (initialQuery.attendanceMode) params.set("attendanceMode", initialQuery.attendanceMode);
-  if (initialQuery.countryCodes?.[0]) params.set("countryCode", initialQuery.countryCodes[0]);
+  if (initialQuery.countryCodes?.length) params.set("countryCode", initialQuery.countryCodes.join(","));
   if (initialQuery.city) params.set("city", initialQuery.city);
   params.set("sort", initialQuery.sort ?? "startsAtAsc");
   params.set("from", nowIso);

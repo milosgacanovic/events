@@ -31,6 +31,50 @@ function csvToList(value?: string): string[] {
     .filter(Boolean);
 }
 
+function mapOrganizerSearchItem(item: Record<string, unknown>) {
+  const roleKeys = Array.isArray(item.role_keys)
+    ? item.role_keys.filter((value): value is string => typeof value === "string")
+    : [];
+  const imageUrl =
+    (typeof item.image_url === "string" ? item.image_url : null)
+    ?? (typeof item.avatar_path === "string" ? item.avatar_path : null);
+
+  return {
+    ...item,
+    imageUrl,
+    websiteUrl: typeof item.website_url === "string" ? item.website_url : null,
+    externalUrl: typeof item.external_url === "string" ? item.external_url : null,
+    city: typeof item.city === "string" ? item.city : null,
+    countryCode: typeof item.country_code === "string" ? item.country_code : null,
+    languages: Array.isArray(item.languages) ? item.languages : [],
+    tags: Array.isArray(item.tags) ? item.tags : [],
+    roleKeys,
+    roleKey: roleKeys[0] ?? null,
+  };
+}
+
+function mapOrganizerDetail(result: Record<string, unknown>) {
+  const organizer = (result.organizer ?? {}) as Record<string, unknown>;
+  const imageUrl =
+    (typeof organizer.image_url === "string" ? organizer.image_url : null)
+    ?? (typeof organizer.avatar_path === "string" ? organizer.avatar_path : null);
+
+  return {
+    ...result,
+    organizer: {
+      ...organizer,
+      imageUrl,
+      descriptionJson: organizer.description_json ?? {},
+      websiteUrl: typeof organizer.website_url === "string" ? organizer.website_url : null,
+      externalUrl: typeof organizer.external_url === "string" ? organizer.external_url : null,
+      city: typeof organizer.city === "string" ? organizer.city : null,
+      countryCode: typeof organizer.country_code === "string" ? organizer.country_code : null,
+      languages: Array.isArray(organizer.languages) ? organizer.languages : [],
+      tags: Array.isArray(organizer.tags) ? organizer.tags : [],
+    },
+  };
+}
+
 const organizerRoutes: FastifyPluginAsync = async (app) => {
   app.get("/organizers/search", async (request, reply) => {
     const parsed = querySchema.safeParse(request.query);
@@ -50,7 +94,10 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       pageSize: parsed.data.pageSize,
     });
 
-    return response;
+    return {
+      ...response,
+      items: response.items.map((item) => mapOrganizerSearchItem(item as unknown as Record<string, unknown>)),
+    };
   });
 
   app.get("/organizers/:slug", async (request, reply) => {
@@ -66,7 +113,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: "not_found" };
     }
 
-    return result;
+    return mapOrganizerDetail(result as unknown as Record<string, unknown>);
   });
 
   app.post("/organizers", async (request, reply) => {

@@ -12,10 +12,17 @@ type OrganizerSearchResponse = {
     id: string;
     slug: string;
     name: string;
+    imageUrl?: string | null;
+    avatar_path?: string | null;
+    websiteUrl?: string | null;
+    website_url?: string | null;
     tags: string[];
     languages: string[];
+    roleKey?: string | null;
+    roleKeys?: string[];
     city: string | null;
     country_code: string | null;
+    countryCode?: string | null;
   }>;
   total: number;
   pagination?: {
@@ -423,13 +430,38 @@ export function OrganizerSearchClient({
 
         {data?.items.map((item) => (
           <article className="card" key={item.id}>
+            <div className="organizer-thumb-shell">
+              {(item.imageUrl ?? item.avatar_path) ? (
+                <img
+                  className="organizer-thumb"
+                  src={(item.imageUrl ?? item.avatar_path) as string}
+                  alt={item.name}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <span className="organizer-thumb-placeholder" aria-hidden>
+                  {item.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
             <h3>
               <Link href={`/organizers/${item.slug}`} onClick={persistScroll}>{item.name}</Link>
             </h3>
             <div className="meta">
               {item.city ?? ""}
-              {item.country_code ? ` ${item.country_code.toUpperCase()}` : ""}
+              {(item.countryCode ?? item.country_code)
+                ? ` ${getCountryLabel((item.countryCode ?? item.country_code) as string)}`
+                : ""}
             </div>
+            {item.roleKey && <div className="meta">{item.roleKey}</div>}
+            {(item.websiteUrl ?? item.website_url) && (
+              <div className="meta">
+                <a href={(item.websiteUrl ?? item.website_url) as string} target="_blank" rel="noreferrer">
+                  {(item.websiteUrl ?? item.website_url) as string}
+                </a>
+              </div>
+            )}
             <div className="kv">
               {item.languages.map((language) => (
                 <span className="tag" key={language}>

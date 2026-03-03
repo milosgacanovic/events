@@ -11,8 +11,12 @@ type OrganizerRow = {
   external_id: string | null;
   description_json: Record<string, unknown>;
   website_url: string | null;
+  external_url: string | null;
   tags: string[];
   languages: string[];
+  city: string | null;
+  country_code: string | null;
+  image_url: string | null;
   avatar_path: string | null;
   status: "published" | "draft" | "archived";
   created_at: string;
@@ -68,26 +72,12 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
 
   if (filters.countryCode) {
     values.push(filters.countryCode.toLowerCase());
-    whereParts.push(`
-      exists (
-        select 1
-        from organizer_locations ol
-        where ol.organizer_id = o.id
-          and lower(ol.country_code) = $${values.length}
-      )
-    `);
+    whereParts.push(`lower(o.country_code) = $${values.length}`);
   }
 
   if (filters.city) {
     values.push(filters.city.toLowerCase());
-    whereParts.push(`
-      exists (
-        select 1
-        from organizer_locations ol
-        where ol.organizer_id = o.id
-          and lower(ol.city) = $${values.length}
-      )
-    `);
+    whereParts.push(`lower(o.city) = $${values.length}`);
   }
 
   return {
@@ -105,23 +95,20 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
 
   const rows = await pool.query<
     OrganizerRow & {
-      city: string | null;
-      country_code: string | null;
+      role_keys: string[];
     }
   >(
     `
       select
         o.*,
-        loc.city,
-        loc.country_code
+        coalesce(role_meta.role_keys, '{}'::text[]) as role_keys
       from organizers o
       left join lateral (
-        select ol.city, ol.country_code
-        from organizer_locations ol
-        where ol.organizer_id = o.id
-        order by ol.created_at desc
-        limit 1
-      ) loc on true
+        select array_agg(distinct r.key order by r.key) as role_keys
+        from event_organizers eo
+        join organizer_roles r on r.id = eo.role_id
+        where eo.organizer_id = o.id
+      ) role_meta on true
       where ${whereSql}
       order by o.name asc
       limit $${values.length + 1}
@@ -173,11 +160,11 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
         from organizers o
         where ${whereSql}
       )
-      select lower(ol.country_code) as country_code, count(distinct f.id)::text as count
+      select lower(o.country_code) as country_code, count(distinct f.id)::text as count
       from filtered f
-      join organizer_locations ol on ol.organizer_id = f.id
-      where ol.country_code is not null
-      group by lower(ol.country_code)
+      join organizers o on o.id = f.id
+      where o.country_code is not null
+      group by lower(o.country_code)
     `,
     values,
   );
@@ -189,12 +176,12 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
         from organizers o
         where ${whereSql}
       )
-      select lower(ol.city) as city, count(distinct f.id)::text as count
+      select lower(o.city) as city, count(distinct f.id)::text as count
       from filtered f
-      join organizer_locations ol on ol.organizer_id = f.id
-      where ol.city is not null
-        and ol.city <> ''
-      group by lower(ol.city)
+      join organizers o on o.id = f.id
+      where o.city is not null
+        and o.city <> ''
+      group by lower(o.city)
     `,
     values,
   );
@@ -344,6 +331,7 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
 
 export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
   const slug = await generateUniqueSlug(pool, "organizers", input.name);
+  const imageUrl = input.imageUrl ?? input.avatarPath ?? null;
 
   const result = await pool.query<OrganizerRow>(
     `
@@ -354,12 +342,16 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
         external_id,
         description_json,
         website_url,
+        external_url,
         tags,
         languages,
+        city,
+        country_code,
+        image_url,
         avatar_path,
         status
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       returning *
     `,
     [
@@ -369,9 +361,13 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
       input.externalId ?? null,
       JSON.stringify(input.descriptionJson ?? {}),
       input.websiteUrl ?? null,
+      input.externalUrl ?? null,
       input.tags,
       input.languages,
-      input.avatarPath ?? null,
+      input.city ?? null,
+      input.countryCode?.toLowerCase() ?? null,
+      imageUrl,
+      input.avatarPath ?? imageUrl,
       input.status,
     ],
   );
@@ -406,15 +402,20 @@ function buildUpdateStatement(
 }
 
 export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrganizerInput) {
+  const imageUrl = input.imageUrl ?? input.avatarPath;
   const fields: Record<string, unknown> = {
     name: input.name,
     external_source: input.externalSource,
     external_id: input.externalId,
     description_json: input.descriptionJson ? JSON.stringify(input.descriptionJson) : undefined,
     website_url: input.websiteUrl,
+    external_url: input.externalUrl,
     tags: input.tags,
     languages: input.languages,
-    avatar_path: input.avatarPath,
+    city: input.city,
+    country_code: input.countryCode?.toLowerCase(),
+    image_url: imageUrl,
+    avatar_path: input.avatarPath ?? imageUrl,
     status: input.status,
   };
 

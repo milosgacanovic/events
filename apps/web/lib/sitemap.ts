@@ -1,0 +1,129 @@
+import { unstable_cache } from "next/cache";
+
+import { apiBase } from "./api";
+
+const siteBase = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://beta.events.danceresource.org";
+
+const EVENT_QUERY_TO = "2100-01-01T00:00:00.000Z";
+const API_PAGE_SIZE = 50;
+export const EVENT_SITEMAP_CHUNK_SIZE = 1000;
+
+type EventSearchResponse = {
+  hits: Array<{
+    event: {
+      slug: string;
+      lastSyncedAt?: string | null;
+    };
+  }>;
+  pagination?: {
+    page: number;
+    totalPages: number;
+  };
+};
+
+export type EventSitemapItem = {
+  slug: string;
+  lastmod?: string;
+};
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function normalizeIsoDate(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+  return date.toISOString();
+}
+
+async function fetchEventPage(page: number): Promise<EventSearchResponse | null> {
+  const params = new URLSearchParams({
+    includePast: "true",
+    to: EVENT_QUERY_TO,
+    sort: "publishedAtDesc",
+    page: String(page),
+    pageSize: String(API_PAGE_SIZE),
+  });
+  const response = await fetch(`${apiBase}/events/search?${params.toString()}`, {
+    next: { revalidate: 600 },
+  }).catch(() => null);
+
+  if (!response || !response.ok) {
+    return null;
+  }
+
+  return response.json() as Promise<EventSearchResponse>;
+}
+
+const getAllEventSitemapItemsCached = unstable_cache(async (): Promise<EventSitemapItem[]> => {
+  const itemsBySlug = new Map<string, string | undefined>();
+  const firstPage = await fetchEventPage(1);
+  const totalPages = Math.max(firstPage?.pagination?.totalPages ?? 1, 1);
+
+  for (const hit of firstPage?.hits ?? []) {
+    const slug = hit.event.slug?.trim();
+    if (!slug) {
+      continue;
+    }
+    const lastmod = normalizeIsoDate(hit.event.lastSyncedAt ?? undefined);
+    const existing = itemsBySlug.get(slug);
+    itemsBySlug.set(slug, existing && lastmod ? (existing > lastmod ? existing : lastmod) : existing ?? lastmod);
+  }
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const payload = await fetchEventPage(page);
+    for (const hit of payload?.hits ?? []) {
+      const slug = hit.event.slug?.trim();
+      if (!slug) {
+        continue;
+      }
+      const lastmod = normalizeIsoDate(hit.event.lastSyncedAt ?? undefined);
+      const existing = itemsBySlug.get(slug);
+      itemsBySlug.set(slug, existing && lastmod ? (existing > lastmod ? existing : lastmod) : existing ?? lastmod);
+    }
+  }
+
+  return Array.from(itemsBySlug.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([slug, lastmod]) => ({ slug, lastmod }));
+}, ["events-sitemap-items"], { revalidate: 600 });
+
+export async function getEventSitemapItems(): Promise<EventSitemapItem[]> {
+  return getAllEventSitemapItemsCached();
+}
+
+export function getSiteBase(): string {
+  return siteBase;
+}
+
+export function toUrlSetXml(
+  entries: Array<{ loc: string; lastmod?: string }>,
+): string {
+  const body = entries
+    .map((entry) => {
+      const loc = `<loc>${escapeXml(entry.loc)}</loc>`;
+      const lastmod = entry.lastmod ? `<lastmod>${escapeXml(entry.lastmod)}</lastmod>` : "";
+      return `<url>${loc}${lastmod}</url>`;
+    })
+    .join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`;
+}
+
+export function toSitemapIndexXml(locations: string[]): string {
+  const body = locations
+    .map((loc) => `<sitemap><loc>${escapeXml(loc)}</loc></sitemap>`)
+    .join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</sitemapindex>`;
+}

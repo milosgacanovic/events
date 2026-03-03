@@ -9,6 +9,8 @@ import { fetchJson } from "../lib/api";
 import { formatDateTimeRange } from "../lib/datetime";
 import { useI18n } from "./i18n/I18nProvider";
 
+const SHOW_EVENT_TIMEZONE_STORAGE_KEY = "dr-events-show-event-timezone";
+
 export type SearchResponse = {
   hits: Array<{
     occurrenceId: string;
@@ -115,7 +117,9 @@ export function EventSearchClient({
   const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
   const [languages, setLanguages] = useState<string[]>(initialQuery?.languages ?? []);
   const [attendanceMode, setAttendanceMode] = useState(initialQuery?.attendanceMode ?? "");
-  const [countryCodes, setCountryCodes] = useState<string[]>(initialQuery?.countryCodes ?? []);
+  const [countryCodes, setCountryCodes] = useState<string[]>(
+    (initialQuery?.countryCodes ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean),
+  );
   const [city, setCity] = useState(initialQuery?.city ?? "");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [showMoreCategories, setShowMoreCategories] = useState(false);
@@ -126,6 +130,7 @@ export function EventSearchClient({
   const [data, setData] = useState<SearchResponse | null>(initialResults ?? null);
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
+  const [showEventTimezone, setShowEventTimezone] = useState(false);
   const restoredKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -195,6 +200,30 @@ export function EventSearchClient({
     const localized = regionNames?.of(normalized);
     return localized && localized !== normalized ? localized : normalized;
   }, [regionNames]);
+  const visibleCountryFacets = useMemo(() => {
+    const selectedSet = new Set(countryCodes.map((value) => value.trim().toLowerCase()));
+    const merged = new Map<string, number>();
+
+    for (const [key, value] of Object.entries(data?.facets?.countryCode ?? {})) {
+      const normalized = key.trim().toLowerCase();
+      if (!normalized) {
+        continue;
+      }
+      if (value > 0 || selectedSet.has(normalized)) {
+        merged.set(normalized, value);
+      }
+    }
+
+    for (const selected of selectedSet) {
+      if (!merged.has(selected)) {
+        merged.set(selected, 0);
+      }
+    }
+
+    return Array.from(merged.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([value, count]) => ({ value, count }));
+  }, [countryCodes, data?.facets?.countryCode]);
 
   const buildQueryString = useCallback((nextPage: number) => {
     const params = new URLSearchParams();
@@ -205,7 +234,7 @@ export function EventSearchClient({
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
-    if (countryCodes.length) params.set("countryCode", countryCodes[0]);
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (city.trim()) params.set("city", city.trim());
     params.set("sort", sort);
     params.set("page", String(nextPage));
@@ -233,7 +262,7 @@ export function EventSearchClient({
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
-    if (countryCodes.length) params.set("countryCode", countryCodes[0]);
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (city.trim()) params.set("city", city.trim());
     if (sort !== "startsAtAsc") params.set("sort", sort);
     if (view !== "list") params.set("view", view);
@@ -351,6 +380,23 @@ export function EventSearchClient({
       window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, [persistScroll]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const saved = window.localStorage.getItem(SHOW_EVENT_TIMEZONE_STORAGE_KEY);
+    if (saved === "1") {
+      setShowEventTimezone(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(SHOW_EVENT_TIMEZONE_STORAGE_KEY, showEventTimezone ? "1" : "0");
+  }, [showEventTimezone]);
 
   function clearFilters() {
     setQ("");
@@ -527,14 +573,16 @@ export function EventSearchClient({
         <details open>
           <summary>{t("eventSearch.country")}</summary>
           <div className="kv">
-            {Object.entries(data?.facets?.countryCode ?? {}).map(([value, count]) => (
+            {visibleCountryFacets.map(({ value, count }) => (
               <label className="meta" key={value}>
                 <input
                   type="checkbox"
                   checked={countryCodes.includes(value)}
                   onChange={() => {
                     setCountryCodes((current) => (
-                      current.includes(value) ? current.filter((item) => item !== value) : [value]
+                      current.includes(value)
+                        ? current.filter((item) => item !== value)
+                        : [...current, value]
                     ));
                     setPage(1);
                   }}
@@ -604,6 +652,16 @@ export function EventSearchClient({
             ))}
           </div>
         )}
+        <div className="kv">
+          <label className="meta">
+            <input
+              type="checkbox"
+              checked={showEventTimezone}
+              onChange={(event) => setShowEventTimezone(event.target.checked)}
+            />{" "}
+            {t("eventSearch.showEventTimezone")}
+          </label>
+        </div>
         <div className="kv">
           <span className="meta">{t("eventSearch.sort.label")}</span>
           <button
@@ -680,6 +738,7 @@ export function EventSearchClient({
               hit.startsAtUtc,
               hit.endsAtUtc,
               hit.event.eventTimezone ?? "UTC",
+              showEventTimezone,
             );
 
             return (
@@ -707,7 +766,7 @@ export function EventSearchClient({
                 {formatted.secondary && <div className="meta">{formatted.secondary}</div>}
                 <div className="meta">
                   {hit.location?.city ?? t("eventSearch.locationTbd")}
-                  {hit.location?.country_code ? `, ${hit.location.country_code.toUpperCase()}` : ""}
+                  {hit.location?.country_code ? `, ${getCountryLabel(hit.location.country_code)}` : ""}
                 </div>
                 <div className="meta">
                   {categorySingularLabel}: {categoryLabelById.get(hit.event.practiceCategoryId) ?? hit.event.practiceCategoryId}
@@ -718,7 +777,7 @@ export function EventSearchClient({
                 <div className="kv">
                   {hit.event.languages.map((item) => (
                     <span className="tag" key={item}>
-                      {item}
+                      {getLanguageLabel(item)}
                     </span>
                   ))}
                   {hit.event.tags.map((item) => (

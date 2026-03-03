@@ -83,7 +83,7 @@ function buildMeiliFilters(input: {
   languages: string[];
   attendanceMode?: string;
   organizerId?: string;
-  countryCode?: string;
+  countryCodes?: string[];
   city?: string;
   hasGeo?: boolean;
 }) {
@@ -117,8 +117,15 @@ function buildMeiliFilters(input: {
   if (input.organizerId) {
     filters.push(`organizer_ids = ${JSON.stringify(input.organizerId)}`);
   }
-  if (input.countryCode) {
-    filters.push(`country_code = ${JSON.stringify(input.countryCode.toLowerCase())}`);
+  if (input.countryCodes?.length) {
+    const normalized = input.countryCodes
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    if (normalized.length === 1) {
+      filters.push(`country_code = ${JSON.stringify(normalized[0])}`);
+    } else if (normalized.length > 1) {
+      filters.push(`(${normalized.map((value) => `country_code = ${JSON.stringify(value)}`).join(" OR ")})`);
+    }
   }
   if (input.city) {
     filters.push(`city = ${JSON.stringify(input.city)}`);
@@ -176,6 +183,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const to = parsed.data.to ?? now.plus({ days: 365 }).toISO();
     const tags = csvToList(parsed.data.tags);
     const languages = csvToList(parsed.data.languages);
+    const countryCodes = csvToList(parsed.data.countryCode).map((value) => value.toLowerCase());
     const hasGeo = parsed.data.hasGeo ? parsed.data.hasGeo === "true" : undefined;
 
     reply.header("Cache-Control", "public, max-age=30");
@@ -197,7 +205,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       languages,
       attendanceMode: parsed.data.attendanceMode ?? null,
       organizerId: parsed.data.organizerId ?? null,
-      countryCode: parsed.data.countryCode ?? null,
+      countryCode: countryCodes.join(",") || null,
       city: parsed.data.city ?? null,
       hasGeo: hasGeo ?? null,
       sort: normalizedSort,
@@ -222,7 +230,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         languages,
         attendanceMode: parsed.data.attendanceMode,
         organizerId: parsed.data.organizerId,
-        countryCode: parsed.data.countryCode,
+        countryCodes,
         city: parsed.data.city,
         hasGeo,
       });
@@ -324,7 +332,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         languages,
         attendanceMode: parsed.data.attendanceMode,
         organizerId: parsed.data.organizerId,
-        countryCode: parsed.data.countryCode,
+        countryCodes,
         city: parsed.data.city,
         hasGeo,
         page: parsed.data.page,

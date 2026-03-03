@@ -11,11 +11,19 @@ type OrganizerDetail = {
   organizer: {
     id: string;
     name: string;
+    imageUrl?: string | null;
+    avatar_path?: string | null;
     website_url: string | null;
+    websiteUrl?: string | null;
+    external_url?: string | null;
+    externalUrl?: string | null;
     tags: string[];
     languages: string[];
-    avatar_path: string | null;
+    city?: string | null;
+    country_code?: string | null;
+    countryCode?: string | null;
     description_json: unknown;
+    descriptionJson?: unknown;
   };
   locations: Array<{
     id: string;
@@ -90,41 +98,71 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
     return <div className="panel">{t("organizerDetail.loading")}</div>;
   }
 
-  const description = getDescriptionText(data.organizer.description_json);
+  const description = getDescriptionText(data.organizer.descriptionJson ?? data.organizer.description_json);
   const hasEditorRole = auth.roles.some((role) =>
     role === "dr_events_admin" || role === "dr_events_editor" || role === "admin" || role === "editor"
   );
   const canEdit = auth.ready && auth.authenticated && hasEditorRole;
 
+  const organizerImage = data.organizer.imageUrl ?? data.organizer.avatar_path ?? null;
+  const websiteUrl = data.organizer.websiteUrl ?? data.organizer.website_url ?? null;
+  const externalUrl = data.organizer.externalUrl ?? data.organizer.external_url ?? null;
+  const regionNames = (() => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "region" });
+    } catch {
+      return null;
+    }
+  })();
+  const countryValue = data.organizer.countryCode ?? data.organizer.country_code ?? null;
+  const countryLabel = countryValue
+    ? (regionNames?.of(countryValue.toUpperCase()) ?? countryValue.toUpperCase())
+    : null;
+
   return (
     <section className="panel cards">
-      <h1 className="title-xl">{data.organizer.name}</h1>
-      {canEdit && (
-        <div>
-          <Link
-            className="secondary-btn"
-            href={`/admin?section=organizers&id=${encodeURIComponent(data.organizer.id)}`}
-          >
-            {t("organizerDetail.editHost")}
-          </Link>
+      <div className="organizer-profile-header">
+        <div className="organizer-avatar-shell" aria-hidden={!organizerImage}>
+          {organizerImage ? (
+            <img src={organizerImage} alt={data.organizer.name} loading="lazy" decoding="async" />
+          ) : (
+            <span className="organizer-thumb-placeholder">{data.organizer.name.charAt(0).toUpperCase()}</span>
+          )}
         </div>
-      )}
-      {data.organizer.avatar_path && (
-        <div className="event-host-row">
-          <img className="event-host-avatar" src={data.organizer.avatar_path} alt={data.organizer.name} />
+        <div className="cards">
+          <h1 className="title-xl">{data.organizer.name}</h1>
+          {(data.organizer.city || countryLabel) && (
+            <div className="meta">
+              {data.organizer.city ?? ""}
+              {countryLabel ? `${data.organizer.city ? ", " : ""}${countryLabel}` : ""}
+            </div>
+          )}
+          <div className="organizer-profile-actions">
+            {websiteUrl && (
+              <a className="secondary-btn" href={websiteUrl} target="_blank" rel="noreferrer">
+                {t("organizerDetail.website")}
+              </a>
+            )}
+            {externalUrl && (
+              <a className="secondary-btn" href={externalUrl} target="_blank" rel="noreferrer">
+                {t("organizerDetail.officialPage")}
+              </a>
+            )}
+            {canEdit && (
+              <Link
+                className="secondary-btn"
+                href={`/admin?section=organizers&id=${encodeURIComponent(data.organizer.id)}`}
+              >
+                {t("organizerDetail.editHost")}
+              </Link>
+            )}
+          </div>
         </div>
-      )}
-      {data.organizer.website_url && (
-        <div className="meta">
-          <a href={data.organizer.website_url} target="_blank" rel="noreferrer">
-            {data.organizer.website_url}
-          </a>
-        </div>
-      )}
+      </div>
       {description && (
         <div>
           <h3>{t("organizerDetail.descriptionLabel")}</h3>
-          <div className="meta">{description}</div>
+          <div className="meta organizer-description">{description}</div>
         </div>
       )}
       <div className="kv">

@@ -3,12 +3,14 @@
 import DOMPurify from "dompurify";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { formatDateTimeRange } from "../lib/datetime";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
+
+const SHOW_EVENT_TIMEZONE_STORAGE_KEY = "dr-events-show-event-timezone";
 
 export type TaxonomyResponse = {
   uiLabels: {
@@ -127,6 +129,7 @@ export function EventDetailClient({
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(initialData === null && initialData !== undefined);
+  const [showEventTimezone, setShowEventTimezone] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -236,6 +239,30 @@ export function EventDetailClient({
     }
     return map;
   }, [taxonomy]);
+  const languageNames = useMemo(() => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "language" });
+    } catch {
+      return null;
+    }
+  }, [locale]);
+  const regionNames = useMemo(() => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "region" });
+    } catch {
+      return null;
+    }
+  }, [locale]);
+  const getLanguageLabel = useCallback((value: string) => {
+    const normalized = value.trim().toLowerCase();
+    const localized = languageNames?.of(normalized);
+    return localized && localized !== normalized ? localized : value;
+  }, [languageNames]);
+  const getCountryLabel = useCallback((value: string) => {
+    const normalized = value.trim().toUpperCase();
+    const localized = regionNames?.of(normalized);
+    return localized && localized !== normalized ? localized : normalized;
+  }, [regionNames]);
 
   const rawDescriptionHtml = useMemo(
     () => getDescriptionHtml(data?.event.description_json),
@@ -267,6 +294,23 @@ export function EventDetailClient({
       meta.setAttribute("content", descriptionSummary);
     }
   }, [data, descriptionSummary]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const saved = window.localStorage.getItem(SHOW_EVENT_TIMEZONE_STORAGE_KEY);
+    if (saved === "1") {
+      setShowEventTimezone(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(SHOW_EVENT_TIMEZONE_STORAGE_KEY, showEventTimezone ? "1" : "0");
+  }, [showEventTimezone]);
 
   if (notFound) {
     return (
@@ -300,13 +344,18 @@ export function EventDetailClient({
     ? eventFormatById.get(data.event.event_format_id) ?? data.event.event_format_id
     : null;
   const whenFormatted = data.event.single_start_at && data.event.single_end_at
-    ? formatDateTimeRange(data.event.single_start_at, data.event.single_end_at, data.event.event_timezone)
+    ? formatDateTimeRange(
+        data.event.single_start_at,
+        data.event.single_end_at,
+        data.event.event_timezone,
+        showEventTimezone,
+      )
     : null;
   const whenLabel = whenFormatted?.primary ?? t("eventDetail.timeTbd");
 
   const modalityLabel = t(`attendanceMode.${data.event.attendance_mode}`);
   const locationLabel = data.defaultLocation?.city
-    ? `${data.defaultLocation.city}${data.defaultLocation.country_code ? `, ${data.defaultLocation.country_code.toUpperCase()}` : ""}`
+    ? `${data.defaultLocation.city}${data.defaultLocation.country_code ? `, ${getCountryLabel(data.defaultLocation.country_code)}` : ""}`
     : data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd");
   const importSource = data.event.external_source || t("common.none");
   const updatedLabel = data.event.updated_at ? new Date(data.event.updated_at).toLocaleString(locale) : null;
@@ -345,6 +394,14 @@ export function EventDetailClient({
       )}
 
       <div className="meta">{whenLabel} | {modalityLabel}</div>
+      <label className="meta">
+        <input
+          type="checkbox"
+          checked={showEventTimezone}
+          onChange={(event) => setShowEventTimezone(event.target.checked)}
+        />{" "}
+        {t("eventDetail.showEventTimezone")}
+      </label>
       <div className="meta">
         {categorySingularLabel}: {categoryLabel}
         {data.event.practice_subcategory_id
@@ -417,6 +474,7 @@ export function EventDetailClient({
                 item.starts_at_utc,
                 item.ends_at_utc,
                 data.event.event_timezone,
+                showEventTimezone,
               );
               return (
                 <div className="card" key={item.id}>
@@ -434,6 +492,7 @@ export function EventDetailClient({
                 item.starts_at_utc,
                 item.ends_at_utc,
                 data.event.event_timezone,
+                showEventTimezone,
               );
               return (
                 <div className="card" key={item.id}>
@@ -453,26 +512,34 @@ export function EventDetailClient({
         </div>
       )}
 
-      {hosts.length > 0 && (
+      {(hosts.length > 0 || externalUrl) && (
         <>
           <h3>{t("eventDetail.hosts")}</h3>
-          {hosts.map((host) => (
-            <div className="card" key={host.id}>
-              <div className="event-host-row">
-                {host.avatarPath && <img className="event-host-avatar" src={host.avatarPath} alt={host.name} loading="lazy" />}
-                <div>
-                  <Link href={`/organizers/${host.slug}`}>{host.name}</Link>
-                  {host.roles.length > 0 && <div className="meta">{host.roles.join(", ")}</div>}
+          {hosts.length > 0 ? (
+            hosts.map((host) => (
+              <div className="card" key={host.id}>
+                <div className="event-host-row">
+                  {host.avatarPath && <img className="event-host-avatar" src={host.avatarPath} alt={host.name} loading="lazy" />}
+                  <div>
+                    <Link href={`/organizers/${host.slug}`}>{host.name}</Link>
+                    {host.roles.length > 0 && <div className="meta">{host.roles.join(", ")}</div>}
+                  </div>
                 </div>
               </div>
+            ))
+          ) : externalUrl ? (
+            <div className="card">
+              <a className="secondary-btn" href={externalUrl} target="_blank" rel="noreferrer">
+                {t("eventDetail.externalLink")}
+              </a>
             </div>
-          ))}
+          ) : null}
         </>
       )}
 
-      {data.event.external_url && (
+      {externalUrl && hosts.length > 0 && (
         <div>
-          <a className="secondary-btn" href={data.event.external_url} target="_blank" rel="noreferrer">
+          <a className="secondary-btn" href={externalUrl} target="_blank" rel="noreferrer">
             {t("eventDetail.externalLink")}
           </a>
         </div>
@@ -483,7 +550,7 @@ export function EventDetailClient({
         <div className="kv">
           {data.event.languages.map((item) => (
             <span className="tag" key={item}>
-              {item}
+              {getLanguageLabel(item)}
             </span>
           ))}
           {data.event.languages.length === 0 && <span className="meta">{t("common.none")}</span>}

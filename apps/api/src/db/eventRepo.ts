@@ -16,6 +16,7 @@ type EventSearchInput = {
   attendanceMode?: "in_person" | "online" | "hybrid";
   organizerId?: string;
   countryCode?: string;
+  countryCodes?: string[];
   city?: string;
   hasGeo?: boolean;
   page: number;
@@ -76,9 +77,17 @@ function buildEventFilters(input: Omit<EventSearchInput, "page" | "pageSize" | "
     whereParts.push(`exists (select 1 from event_organizers rel where rel.event_id = e.id and rel.organizer_id = $${values.length}::uuid)`);
   }
 
-  if (input.countryCode) {
-    values.push(input.countryCode.toLowerCase());
+  const normalizedCountryCodes = (
+    input.countryCodes?.length ? input.countryCodes : input.countryCode ? [input.countryCode] : []
+  )
+    .map((value) => value.toLowerCase())
+    .filter(Boolean);
+  if (normalizedCountryCodes.length === 1) {
+    values.push(normalizedCountryCodes[0]);
     whereParts.push(`lower(eo.country_code) = $${values.length}`);
+  } else if (normalizedCountryCodes.length > 1) {
+    values.push(normalizedCountryCodes);
+    whereParts.push(`lower(eo.country_code) = any($${values.length}::text[])`);
   }
 
   if (input.city) {
