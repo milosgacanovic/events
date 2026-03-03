@@ -100,16 +100,12 @@ const LeafletClusterMap = dynamic(
   { ssr: false },
 );
 
-function mergeFacetRecord(
-  current: Record<string, number> | undefined,
-  incoming: Record<string, number> | undefined,
-): Record<string, number> {
-  const merged: Record<string, number> = { ...(current ?? {}) };
-  for (const [key, count] of Object.entries(incoming ?? {})) {
-    merged[key] = Math.max(merged[key] ?? 0, count);
-  }
-  return merged;
-}
+type DisjunctiveFacetState = {
+  practiceCategoryId: Record<string, number>;
+  eventFormatId: Record<string, number>;
+  languages: Record<string, number>;
+  countryCode: Record<string, number>;
+};
 
 export function EventSearchClient({
   initialResults,
@@ -146,14 +142,17 @@ export function EventSearchClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(initialResults ?? null);
-  const [practiceFacetCounts, setPracticeFacetCounts] = useState<Record<string, number>>(
-    initialResults?.facets?.practiceCategoryId ?? {},
-  );
-  const [facetBaseline, setFacetBaseline] = useState<NonNullable<SearchResponse["facets"]>>(initialResults?.facets ?? {});
+  const [disjunctiveFacets, setDisjunctiveFacets] = useState<DisjunctiveFacetState>({
+    practiceCategoryId: initialResults?.facets?.practiceCategoryId ?? {},
+    eventFormatId: initialResults?.facets?.eventFormatId ?? {},
+    languages: initialResults?.facets?.languages ?? {},
+    countryCode: initialResults?.facets?.countryCode ?? {},
+  });
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
   const restoredKeyRef = useRef<string | null>(null);
+  const facetRequestRef = useRef(0);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
   useEffect(() => {
@@ -242,18 +241,7 @@ export function EventSearchClient({
   const visibleCountryFacets = useMemo(() => {
     const selectedSet = new Set(countryCodes.map((value) => value.trim().toLowerCase()));
     const merged = new Map<string, number>();
-
-    for (const [key, value] of Object.entries(facetBaseline.countryCode ?? {})) {
-      const normalized = key.trim().toLowerCase();
-      if (!normalized) {
-        continue;
-      }
-      if (value > 0 || selectedSet.has(normalized)) {
-        merged.set(normalized, value);
-      }
-    }
-
-    for (const [key, value] of Object.entries(data?.facets?.countryCode ?? {})) {
+    for (const [key, value] of Object.entries(disjunctiveFacets.countryCode ?? {})) {
       const normalized = key.trim().toLowerCase();
       if (!normalized) {
         continue;
@@ -272,7 +260,7 @@ export function EventSearchClient({
     return Array.from(merged.entries())
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([value, count]) => ({ value, count }));
-  }, [countryCodes, data?.facets?.countryCode, facetBaseline.countryCode]);
+  }, [countryCodes, disjunctiveFacets.countryCode]);
 
   const buildQueryString = useCallback((nextPage: number) => {
     const params = new URLSearchParams();
@@ -340,28 +328,32 @@ export function EventSearchClient({
     eventFormatKeyById,
   ]);
 
-  const buildPracticeFacetQueryString = useCallback(() => {
+  const buildFacetQueryString = useCallback((exclude: "practice" | "eventFormat" | "languages" | "country") => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
-    if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
+    if (exclude !== "practice") {
+      if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+      if (practiceSubcategoryId) params.set("practiceSubcategoryId", practiceSubcategoryId);
+    }
+    if (exclude !== "eventFormat" && eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
     if (tags.length) params.set("tags", tags.join(","));
-    if (languages.length) params.set("languages", languages.join(","));
+    if (exclude !== "languages" && languages.length) params.set("languages", languages.join(","));
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
-    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+    if (exclude !== "country" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
-    params.set("sort", sort);
     params.set("page", "1");
     params.set("pageSize", "1");
     return params.toString();
   }, [
     q,
+    practiceCategoryIds,
+    practiceSubcategoryId,
     eventFormatIds,
     tags,
     languages,
     attendanceMode,
     countryCodes,
     cities,
-    sort,
   ]);
 
   const scrollStorageKey = useMemo(() => {
@@ -413,13 +405,38 @@ export function EventSearchClient({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const query = buildPracticeFacetQueryString();
-      void fetchJson<SearchResponse>(`/events/search?${query}`)
-        .then((result) => setPracticeFacetCounts(result.facets?.practiceCategoryId ?? {}))
-        .catch(() => setPracticeFacetCounts({}));
+      const requestId = facetRequestRef.current + 1;
+      facetRequestRef.current = requestId;
+
+      void Promise.all([
+        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("practice")}`),
+        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("eventFormat")}`),
+        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("languages")}`),
+        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("country")}`),
+      ]).then(([practiceResult, eventFormatResult, languageResult, countryResult]) => {
+        if (requestId !== facetRequestRef.current) {
+          return;
+        }
+        setDisjunctiveFacets({
+          practiceCategoryId: practiceResult?.facets?.practiceCategoryId ?? {},
+          eventFormatId: eventFormatResult?.facets?.eventFormatId ?? {},
+          languages: languageResult?.facets?.languages ?? {},
+          countryCode: countryResult?.facets?.countryCode ?? {},
+        });
+      }).catch(() => {
+        if (requestId !== facetRequestRef.current) {
+          return;
+        }
+        setDisjunctiveFacets({
+          practiceCategoryId: {},
+          eventFormatId: {},
+          languages: {},
+          countryCode: {},
+        });
+      });
     }, 250);
     return () => clearTimeout(timer);
-  }, [buildPracticeFacetQueryString]);
+  }, [buildFacetQueryString]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -480,21 +497,6 @@ export function EventSearchClient({
     writeTimeDisplayMode(timeDisplayMode);
   }, [timeDisplayMode]);
 
-  useEffect(() => {
-    if (!data?.facets) {
-      return;
-    }
-    setFacetBaseline((current) => ({
-      practiceCategoryId: mergeFacetRecord(current.practiceCategoryId, data.facets?.practiceCategoryId),
-      practiceSubcategoryId: mergeFacetRecord(current.practiceSubcategoryId, data.facets?.practiceSubcategoryId),
-      eventFormatId: mergeFacetRecord(current.eventFormatId, data.facets?.eventFormatId),
-      tags: mergeFacetRecord(current.tags, data.facets?.tags),
-      languages: mergeFacetRecord(current.languages, data.facets?.languages),
-      attendanceMode: mergeFacetRecord(current.attendanceMode, data.facets?.attendanceMode),
-      countryCode: mergeFacetRecord(current.countryCode, data.facets?.countryCode),
-    }));
-  }, [data?.facets]);
-
   function clearFilters() {
     setQ("");
     setPracticeCategoryIds([]);
@@ -548,20 +550,15 @@ export function EventSearchClient({
     const categories = taxonomy?.practices.categories ?? [];
     const selectedSet = new Set(practiceCategoryIds);
     const filtered = categories.filter((category) => {
-      const count = practiceFacetCounts[category.id] ?? 0;
+      const count = disjunctiveFacets.practiceCategoryId[category.id] ?? 0;
       return count > 0 || selectedSet.has(category.id);
     });
     return showMoreCategories ? filtered : filtered.slice(0, 8);
-  }, [practiceFacetCounts, practiceCategoryIds, showMoreCategories, taxonomy]);
+  }, [disjunctiveFacets.practiceCategoryId, practiceCategoryIds, showMoreCategories, taxonomy]);
   const visibleEventLanguageFacets = useMemo(() => {
     const selectedSet = new Set(languages);
     const merged = new Map<string, number>();
-    for (const [key, value] of Object.entries(facetBaseline.languages ?? {})) {
-      if (value > 0 || selectedSet.has(key)) {
-        merged.set(key, value);
-      }
-    }
-    for (const [key, value] of Object.entries(data?.facets?.languages ?? {})) {
+    for (const [key, value] of Object.entries(disjunctiveFacets.languages ?? {})) {
       if (value > 0 || selectedSet.has(key)) {
         merged.set(key, value);
       }
@@ -572,7 +569,7 @@ export function EventSearchClient({
       }
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.languages, facetBaseline.languages, languages]);
+  }, [disjunctiveFacets.languages, languages]);
   const selectedFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
 
@@ -703,7 +700,7 @@ export function EventSearchClient({
           <div className="kv">
             {visibleCategories.map((category) => {
               const checked = practiceCategoryIds.includes(category.id);
-              const count = practiceFacetCounts[category.id] ?? 0;
+              const count = disjunctiveFacets.practiceCategoryId[category.id] ?? 0;
               return (
                 <label className="meta" key={category.id}>
                   <input
@@ -760,10 +757,11 @@ export function EventSearchClient({
             {t("eventSearch.eventFormat")}
             <div className="kv">
               {taxonomy?.eventFormats?.map((format) => {
-                const count = data?.facets?.eventFormatId?.[format.id] ??
-                  facetBaseline.eventFormatId?.[format.id] ??
-                  0;
                 const checked = eventFormatIds.includes(format.id);
+                const count = disjunctiveFacets.eventFormatId[format.id] ?? 0;
+                if (count <= 0 && !checked) {
+                  return null;
+                }
                 return (
                   <label className="meta" key={format.id}>
                     <input
