@@ -889,15 +889,19 @@ export function EventSearchClient({
           </div>
         )}
         <div className="kv">
-          <label className="meta">
+          <label className="toggle-control">
             <input
+              className="toggle-control-input"
               type="checkbox"
               checked={timeDisplayMode === "event"}
               onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
-            />{" "}
-            {timeDisplayMode === "event"
-              ? t("eventSearch.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
-              : t("eventSearch.timeMode.userWithZone", { zone: userTimeZone })}
+            />
+            <span className="toggle-control-track" aria-hidden />
+            <span className="meta">
+              {timeDisplayMode === "event"
+                ? t("eventSearch.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
+                : t("eventSearch.timeMode.userWithZone", { zone: userTimeZone })}
+            </span>
           </label>
         </div>
         <div className="kv">

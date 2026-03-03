@@ -156,8 +156,9 @@ export default function ProfilePage() {
       <div className="meta">
         {t("profile.username")} {profile?.email ?? auth.userName ?? t("common.none")}
       </div>
-      <label className="meta">
+      <label className="toggle-control">
         <input
+          className="toggle-control-input"
           type="checkbox"
           checked={timeDisplayMode === "event"}
           onChange={(event) => {
@@ -165,10 +166,13 @@ export default function ProfilePage() {
             setTimeDisplayMode(nextMode);
             writeTimeDisplayMode(nextMode);
           }}
-        />{" "}
-        {timeDisplayMode === "event"
-          ? t("profile.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
-          : t("profile.timeMode.userWithZone", { zone: userTimeZone })}
+        />
+        <span className="toggle-control-track" aria-hidden />
+        <span className="meta">
+          {timeDisplayMode === "event"
+            ? t("profile.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
+            : t("profile.timeMode.userWithZone", { zone: userTimeZone })}
+        </span>
       </label>
       <button className="secondary-btn" type="button" onClick={() => void saveProfile()} disabled={saving}>
         {saving ? t("profile.saving") : t("profile.save")}

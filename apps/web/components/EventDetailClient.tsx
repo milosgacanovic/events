@@ -388,15 +388,19 @@ export function EventDetailClient({
       <div className="meta">
         {whenLabel} ({whenFormatted?.suffixLabel === "event" ? t("common.eventTimezone") : t("common.yourTimezone")}) | {modalityLabel}
       </div>
-      <label className="meta">
+      <label className="toggle-control">
         <input
+          className="toggle-control-input"
           type="checkbox"
           checked={timeDisplayMode === "event"}
           onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
-        />{" "}
-        {timeDisplayMode === "event"
-          ? t("eventDetail.timeMode.eventWithZone", { zone: data.event.event_timezone || "UTC" })
-          : t("eventDetail.timeMode.userWithZone", { zone: userTimeZone })}
+        />
+        <span className="toggle-control-track" aria-hidden />
+        <span className="meta">
+          {timeDisplayMode === "event"
+            ? t("eventDetail.timeMode.eventWithZone", { zone: data.event.event_timezone || "UTC" })
+            : t("eventDetail.timeMode.userWithZone", { zone: userTimeZone })}
+        </span>
       </label>
       <div className="meta">
         {categorySingularLabel}: {categoryLabel}
