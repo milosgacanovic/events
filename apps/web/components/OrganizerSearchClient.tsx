@@ -54,6 +54,10 @@ export type OrganizerSearchInitialQuery = {
 };
 
 type TaxonomyResponse = {
+  uiLabels?: {
+    categorySingular?: string;
+    practiceCategory?: string;
+  };
   practices: {
     categories: Array<{
       id: string;
@@ -88,8 +92,10 @@ export function OrganizerSearchClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<OrganizerSearchResponse | null>(null);
+  const [practiceFacetCounts, setPracticeFacetCounts] = useState<Record<string, number>>({});
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const restoredKeyRef = useRef<string | null>(null);
+  const practiceFacetRequestRef = useRef(0);
   const practiceLabelById = useMemo(() => {
     const map = new Map<string, string>();
     for (const category of taxonomy?.practices.categories ?? []) {
@@ -126,6 +132,19 @@ export function OrganizerSearchClient({
     params.set("pageSize", "20");
     return params.toString();
   }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
+
+  const buildPracticeFacetQueryString = useCallback(() => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
+    if (tags.length) params.set("tags", tags.join(","));
+    if (languages.length) params.set("languages", languages.join(","));
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+    if (cities.length) params.set("city", cities.join(","));
+    params.set("page", "1");
+    params.set("pageSize", "1");
+    return params.toString();
+  }, [q, roleKeys, tags, languages, countryCodes, cities]);
 
   const buildUiQueryString = useCallback(() => {
     const params = new URLSearchParams();
@@ -182,6 +201,27 @@ export function OrganizerSearchClient({
     }, 250);
     return () => clearTimeout(timer);
   }, [runSearch, page]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const requestId = practiceFacetRequestRef.current + 1;
+      practiceFacetRequestRef.current = requestId;
+      void fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildPracticeFacetQueryString()}`)
+        .then((response) => {
+          if (requestId !== practiceFacetRequestRef.current) {
+            return;
+          }
+          setPracticeFacetCounts(response.facets?.practiceCategoryId ?? {});
+        })
+        .catch(() => {
+          if (requestId !== practiceFacetRequestRef.current) {
+            return;
+          }
+          setPracticeFacetCounts({});
+        });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [buildPracticeFacetQueryString]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -293,6 +333,10 @@ export function OrganizerSearchClient({
     const localized = regionNames?.of(normalized);
     return localized && localized !== normalized ? localized : normalized;
   }, [regionNames]);
+  const categorySingularLabel =
+    taxonomy?.uiLabels?.categorySingular ??
+    taxonomy?.uiLabels?.practiceCategory ??
+    t("common.category");
   const visibleRoleFacets = useMemo(() => {
     const selectedSet = new Set(roleKeys);
     const merged = new Map<string, number>();
@@ -335,7 +379,7 @@ export function OrganizerSearchClient({
   }, [data?.facets?.countryCode, countryCodes]);
   const practiceCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const [practiceId, count] of Object.entries(data?.facets?.practiceCategoryId ?? {})) {
+    for (const [practiceId, count] of Object.entries(practiceFacetCounts ?? {})) {
       counts.set(practiceId, count);
     }
     for (const selectedId of practiceCategoryIds) {
@@ -344,7 +388,7 @@ export function OrganizerSearchClient({
       }
     }
     return counts;
-  }, [data?.facets?.practiceCategoryId, practiceCategoryIds]);
+  }, [practiceFacetCounts, practiceCategoryIds]);
   const selectedChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
     for (const role of roleKeys) {
@@ -360,7 +404,7 @@ export function OrganizerSearchClient({
     for (const practiceId of practiceCategoryIds) {
       chips.push({
         key: `practice:${practiceId}`,
-        label: `${t("common.category")}: ${practiceLabelById.get(practiceId) ?? practiceId}`,
+        label: `${categorySingularLabel}: ${practiceLabelById.get(practiceId) ?? practiceId}`,
         onRemove: () => {
           setPracticeCategoryIds((current) => current.filter((item) => item !== practiceId));
           setPage(1);
@@ -408,7 +452,7 @@ export function OrganizerSearchClient({
       });
     }
     return chips;
-  }, [cities, countryCodes, getCountryLabel, getLanguageLabel, languages, practiceCategoryIds, practiceLabelById, roleKeys, t, tags]);
+  }, [categorySingularLabel, cities, countryCodes, getCountryLabel, getLanguageLabel, languages, practiceCategoryIds, practiceLabelById, roleKeys, t, tags]);
 
   function addTagFromInput(rawValue: string) {
     const value = rawValue.trim().toLowerCase();
@@ -466,7 +510,7 @@ export function OrganizerSearchClient({
 
         {(taxonomy?.practices.categories.length ?? 0) > 0 && (
           <details open>
-            <summary>{t("common.category")}</summary>
+            <summary>{categorySingularLabel}</summary>
             <div className="kv">
               {taxonomy?.practices.categories
                 .filter((category) => {
@@ -675,7 +719,7 @@ export function OrganizerSearchClient({
             </div>
             {(item.practiceCategoryIds?.length ?? 0) > 0 && (
               <div className="meta">
-                {t("common.category")}: {item.practiceCategoryIds
+                {categorySingularLabel}: {item.practiceCategoryIds
                   ?.map((id) => practiceLabelById.get(id) ?? id)
                   .join(", ")}
               </div>
