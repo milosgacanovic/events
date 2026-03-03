@@ -146,6 +146,9 @@ export function EventSearchClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(initialResults ?? null);
+  const [practiceFacetCounts, setPracticeFacetCounts] = useState<Record<string, number>>(
+    initialResults?.facets?.practiceCategoryId ?? {},
+  );
   const [facetBaseline, setFacetBaseline] = useState<NonNullable<SearchResponse["facets"]>>(initialResults?.facets ?? {});
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
@@ -337,6 +340,30 @@ export function EventSearchClient({
     eventFormatKeyById,
   ]);
 
+  const buildPracticeFacetQueryString = useCallback(() => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
+    if (tags.length) params.set("tags", tags.join(","));
+    if (languages.length) params.set("languages", languages.join(","));
+    if (attendanceMode) params.set("attendanceMode", attendanceMode);
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+    if (cities.length) params.set("city", cities.join(","));
+    params.set("sort", sort);
+    params.set("page", "1");
+    params.set("pageSize", "1");
+    return params.toString();
+  }, [
+    q,
+    eventFormatIds,
+    tags,
+    languages,
+    attendanceMode,
+    countryCodes,
+    cities,
+    sort,
+  ]);
+
   const scrollStorageKey = useMemo(() => {
     const query = buildUiQueryString();
     return `search-scroll:${pathname}${query ? `?${query}` : ""}`;
@@ -383,6 +410,16 @@ export function EventSearchClient({
       clearTimeout(timer);
     };
   }, [runSearch, page]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const query = buildPracticeFacetQueryString();
+      void fetchJson<SearchResponse>(`/events/search?${query}`)
+        .then((result) => setPracticeFacetCounts(result.facets?.practiceCategoryId ?? {}))
+        .catch(() => setPracticeFacetCounts({}));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [buildPracticeFacetQueryString]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -511,11 +548,11 @@ export function EventSearchClient({
     const categories = taxonomy?.practices.categories ?? [];
     const selectedSet = new Set(practiceCategoryIds);
     const filtered = categories.filter((category) => {
-      const count = data?.facets?.practiceCategoryId?.[category.id] ?? 0;
+      const count = practiceFacetCounts[category.id] ?? 0;
       return count > 0 || selectedSet.has(category.id);
     });
     return showMoreCategories ? filtered : filtered.slice(0, 8);
-  }, [data?.facets?.practiceCategoryId, practiceCategoryIds, showMoreCategories, taxonomy]);
+  }, [practiceFacetCounts, practiceCategoryIds, showMoreCategories, taxonomy]);
   const visibleEventLanguageFacets = useMemo(() => {
     const selectedSet = new Set(languages);
     const merged = new Map<string, number>();
@@ -666,7 +703,7 @@ export function EventSearchClient({
           <div className="kv">
             {visibleCategories.map((category) => {
               const checked = practiceCategoryIds.includes(category.id);
-              const count = data?.facets?.practiceCategoryId?.[category.id] ?? 0;
+              const count = practiceFacetCounts[category.id] ?? 0;
               return (
                 <label className="meta" key={category.id}>
                   <input
