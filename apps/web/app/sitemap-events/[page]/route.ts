@@ -21,7 +21,7 @@ export async function GET(
   const end = start + EVENT_SITEMAP_CHUNK_SIZE;
   const chunk = items.slice(start, end);
 
-  if (chunk.length === 0) {
+  if (chunk.length === 0 && pageNumber !== 1) {
     return new Response("Not Found", { status: 404 });
   }
 
