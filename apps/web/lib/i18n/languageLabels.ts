@@ -9,7 +9,8 @@ export function labelForLanguageCode(
   displayNames: Intl.DisplayNames | null,
 ): string {
   const normalized = code.trim().toLowerCase();
-  const override = languageLabelOverrides[normalized];
+  const baseCode = normalized.split("-")[0];
+  const override = languageLabelOverrides[normalized] ?? languageLabelOverrides[baseCode];
   if (override) {
     return override;
   }
