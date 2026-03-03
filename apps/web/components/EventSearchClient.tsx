@@ -511,13 +511,11 @@ export function EventSearchClient({
     const categories = taxonomy?.practices.categories ?? [];
     const selectedSet = new Set(practiceCategoryIds);
     const filtered = categories.filter((category) => {
-      const count = data?.facets?.practiceCategoryId?.[category.id] ??
-        facetBaseline.practiceCategoryId?.[category.id] ??
-        0;
+      const count = data?.facets?.practiceCategoryId?.[category.id] ?? 0;
       return count > 0 || selectedSet.has(category.id);
     });
     return showMoreCategories ? filtered : filtered.slice(0, 8);
-  }, [data?.facets?.practiceCategoryId, facetBaseline.practiceCategoryId, practiceCategoryIds, showMoreCategories, taxonomy]);
+  }, [data?.facets?.practiceCategoryId, practiceCategoryIds, showMoreCategories, taxonomy]);
   const visibleEventLanguageFacets = useMemo(() => {
     const selectedSet = new Set(languages);
     const merged = new Map<string, number>();
@@ -668,9 +666,7 @@ export function EventSearchClient({
           <div className="kv">
             {visibleCategories.map((category) => {
               const checked = practiceCategoryIds.includes(category.id);
-              const count = data?.facets?.practiceCategoryId?.[category.id] ??
-                facetBaseline.practiceCategoryId?.[category.id] ??
-                0;
+              const count = data?.facets?.practiceCategoryId?.[category.id] ?? 0;
               return (
                 <label className="meta" key={category.id}>
                   <input
