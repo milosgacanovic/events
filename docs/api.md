@@ -63,6 +63,29 @@ See `constitution.md` for complete behavior and field-level requirements.
   - `Cache-Control: public, max-age=30`
   - `Vary: Authorization`
 
+## Map Clusters Contract
+- `GET /api/map/clusters` query params:
+  - `bbox` (required): `west,south,east,north`
+  - `zoom` (required): integer `0..20`
+  - `from` (optional, ISO datetime, default now)
+  - `to` (optional, ISO datetime, default now+90d)
+  - `q` (optional text query against event title/slug)
+  - filter parity with search:
+    - `practiceCategoryId`, `practiceSubcategoryId`, `tags`, `languages`,
+      `attendanceMode`, `organizerId`, `countryCode`, `city`, `hasGeo`
+- Response is GeoJSON `FeatureCollection` with additive `truncated` flag:
+  - cluster feature properties: `cluster: true`, `point_count`
+  - leaf feature properties: `cluster: false`, `occurrence_id`, `event_slug`
+  - `truncated: boolean` indicates server cap was hit before clustering.
+- Server constraints:
+  - only `published` occurrences
+  - only rows with `geom`
+  - server-side bbox filter
+  - hard cap of `5000` rows before clustering
+- Caching:
+  - in-memory LRU TTL `30s`
+  - key includes normalized filters + rounded bbox + zoom + date window
+
 ## Event Search and Detail Payload Additions
 - Public event payloads include importer transparency fields:
   - `isImported` (boolean)

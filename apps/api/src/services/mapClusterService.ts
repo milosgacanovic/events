@@ -4,13 +4,13 @@ import type { Feature, FeatureCollection, Point } from "geojson";
 
 import { fetchMapPoints, type MapFilterInput } from "../db/mapRepo";
 
-type PointProps = { occurrence_id: string };
+type PointProps = { occurrence_id: string; event_slug: string };
 
 export async function buildClusters(
   pool: Pool,
   input: MapFilterInput & { zoom: number },
-): Promise<FeatureCollection> {
-  const points = await fetchMapPoints(pool, input);
+): Promise<{ collection: FeatureCollection; truncated: boolean }> {
+  const { points, truncated } = await fetchMapPoints(pool, input);
   const features: Feature<Point, PointProps>[] = points.map((point) => ({
     type: "Feature",
     geometry: {
@@ -19,6 +19,7 @@ export async function buildClusters(
     },
     properties: {
       occurrence_id: point.occurrence_id,
+      event_slug: point.event_slug,
     },
   }));
 
@@ -55,10 +56,14 @@ export async function buildClusters(
         properties: {
           cluster: false,
           occurrence_id: props.occurrence_id,
+          event_slug: props.event_slug,
         },
       };
     }),
   };
 
-  return collection;
+  return {
+    collection,
+    truncated,
+  };
 }

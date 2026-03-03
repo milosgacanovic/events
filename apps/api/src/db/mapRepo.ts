@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 
 export type MapFilterInput = {
+  q?: string;
   from: string;
   to: string;
   practiceCategoryId?: string;
@@ -18,6 +19,7 @@ export type MapFilterInput = {
     east: number;
     north: number;
   };
+  limit: number;
 };
 
 function buildWhere(input: Omit<MapFilterInput, "bbox">): { whereSql: string; values: unknown[] } {
@@ -66,6 +68,10 @@ function buildWhere(input: Omit<MapFilterInput, "bbox">): { whereSql: string; va
   if (typeof input.hasGeo === "boolean") {
     where.push(input.hasGeo ? "eo.geom is not null" : "eo.geom is null");
   }
+  if (input.q) {
+    values.push(`%${input.q.toLowerCase()}%`);
+    where.push(`(lower(e.title) like $${values.length} or lower(e.slug) like $${values.length})`);
+  }
 
   return {
     whereSql: where.join(" and "),
@@ -76,15 +82,23 @@ function buildWhere(input: Omit<MapFilterInput, "bbox">): { whereSql: string; va
 export async function fetchMapPoints(pool: Pool, input: MapFilterInput) {
   const { whereSql, values } = buildWhere(input);
   values.push(input.bbox.west, input.bbox.south, input.bbox.east, input.bbox.north);
+  const westIndex = values.length - 3;
+  const southIndex = values.length - 2;
+  const eastIndex = values.length - 1;
+  const northIndex = values.length;
+  values.push(input.limit + 1);
+  const limitIndex = values.length;
 
   const result = await pool.query<{
     occurrence_id: string;
+    event_slug: string;
     lat: number;
     lng: number;
   }>(
     `
       select
         eo.id as occurrence_id,
+        e.slug as event_slug,
         st_y(eo.geom::geometry) as lat,
         st_x(eo.geom::geometry) as lng
       from event_occurrences eo
@@ -93,11 +107,16 @@ export async function fetchMapPoints(pool: Pool, input: MapFilterInput) {
         and eo.geom is not null
         and st_intersects(
           eo.geom::geometry,
-          ST_MakeEnvelope($${values.length - 3}, $${values.length - 2}, $${values.length - 1}, $${values.length}, 4326)
+          ST_MakeEnvelope($${westIndex}, $${southIndex}, $${eastIndex}, $${northIndex}, 4326)
         )
+      order by eo.starts_at_utc asc
+      limit $${limitIndex}
     `,
     values,
   );
 
-  return result.rows;
+  return {
+    points: result.rows.slice(0, input.limit),
+    truncated: result.rows.length > input.limit,
+  };
 }

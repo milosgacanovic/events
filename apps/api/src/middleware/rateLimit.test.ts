@@ -77,4 +77,8 @@ describe("public rate limiter", () => {
 
     expect(lastStatus).toBe(429);
   });
+
+  it("allows higher public rate limit for /api/map/clusters", () => {
+    expect(resolvePublicRateLimit("/api/map/clusters", 60)).toBe(120);
+  });
 });

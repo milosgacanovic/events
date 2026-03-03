@@ -79,6 +79,17 @@
   - `/api/meta/organizer-cities`
   - `/api/meta/organizer-tags`
 
+## Map Clusters
+- Public endpoint: `GET /api/map/clusters`
+- Required params: `bbox`, `zoom`
+- Default window: `from=now`, `to=now+90d`
+- Map endpoint is geo-only (occurrences without coordinates are excluded).
+- Server applies row cap (`5000`) before clustering; response includes `truncated=true` when cap is hit.
+- Cache:
+  - In-memory LRU
+  - TTL `30s`
+  - key includes normalized filters, rounded bbox, zoom, and date window
+
 ## User Alerts Skeleton (No delivery worker yet)
 - Profile endpoints:
   - `GET /api/profile/alerts`

@@ -3,6 +3,7 @@
 import "leaflet/dist/leaflet.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Map as LeafletMap } from "leaflet";
 import {
   CircleMarker,
@@ -24,12 +25,14 @@ type ClusterFeature = {
     cluster: boolean;
     point_count?: number;
     occurrence_id?: string;
+    event_slug?: string;
   };
 };
 
 type ClusterResponse = {
   type: "FeatureCollection";
   features: ClusterFeature[];
+  truncated?: boolean;
 };
 
 function MapChangeWatcher({ onChange }: { onChange: () => void }) {
@@ -46,7 +49,7 @@ function buildClusterUrl(queryString: string, bbox: string, zoom: number): strin
   params.set("bbox", bbox);
   params.set("zoom", String(zoom));
 
-  return `/map/clusters?${params.toString()}`;
+  return `/api/map/clusters?${params.toString()}`;
 }
 
 export function LeafletClusterMap({
@@ -57,10 +60,13 @@ export function LeafletClusterMap({
   refreshToken: number;
 }) {
   const { t } = useI18n();
+  const router = useRouter();
   const mapRef = useRef<LeafletMap | null>(null);
   const requestRef = useRef(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [features, setFeatures] = useState<ClusterFeature[]>([]);
+  const [truncated, setTruncated] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const tileUrl =
@@ -95,18 +101,35 @@ export function LeafletClusterMap({
       }
 
       setFeatures(data.features ?? []);
+      setTruncated(Boolean(data.truncated));
       setStatus("idle");
     } catch {
       if (requestRef.current !== requestId) {
         return;
       }
+      setTruncated(false);
       setStatus("error");
     }
   }, [queryString]);
 
+  const scheduleRefresh = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      void refreshClusters();
+    }, 250);
+  }, [refreshClusters]);
+
   useEffect(() => {
     void refreshClusters();
   }, [refreshClusters, refreshToken]);
+
+  useEffect(() => () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+  }, []);
 
   const markers = useMemo(
     () =>
@@ -119,6 +142,21 @@ export function LeafletClusterMap({
           <CircleMarker
             center={[lat, lng]}
             key={`${lat}-${lng}-${feature.properties.occurrence_id ?? "cluster"}-${index}`}
+            eventHandlers={{
+              click: () => {
+                if (isCluster) {
+                  if (!mapRef.current) {
+                    return;
+                  }
+                  mapRef.current.setView([lat, lng], Math.min(mapRef.current.getZoom() + 2, 20));
+                  scheduleRefresh();
+                  return;
+                }
+                if (feature.properties.event_slug) {
+                  router.push(`/events/${feature.properties.event_slug}`);
+                }
+              },
+            }}
             pathOptions={{
               color: isCluster ? "#0f7a6a" : "#e07a2f",
               fillColor: isCluster ? "#0f7a6a" : "#e07a2f",
@@ -160,16 +198,19 @@ export function LeafletClusterMap({
         />
         <MapChangeWatcher
           onChange={() => {
-            void refreshClusters();
+            scheduleRefresh();
           }}
         />
         {markers}
       </MapContainer>
 
       <div className="map-status">
+        <div>{t("map.note.geoOnly")}</div>
         {status === "loading" ? t("map.status.loading") : null}
         {status === "error" ? t("map.status.error") : null}
         {status === "idle" ? t("map.status.idle", { count: features.length }) : null}
+        {status === "idle" && features.length === 0 ? <div>{t("map.status.empty")}</div> : null}
+        {status === "idle" && truncated ? <div>{t("map.status.truncated")}</div> : null}
       </div>
     </div>
   );
