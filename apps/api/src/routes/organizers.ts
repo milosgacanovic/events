@@ -8,6 +8,7 @@ import {
   searchOrganizers,
   updateOrganizer,
 } from "../db/organizerRepo";
+import { getSearchCache, setSearchCache } from "../services/searchCache";
 
 const querySchema = z.object({
   q: z.string().optional(),
@@ -135,7 +136,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       )
       : { rows: [] as Array<{ id: string }> };
 
-    const response = await searchOrganizers(app.db, {
+    const searchInput = {
       q: parsed.data.q,
       practiceCategoryIds: Array.from(new Set([...(practiceCategoryIds ?? []), ...practiceRows.rows.map((row) => row.id)])),
       tags: csvToList(parsed.data.tags),
@@ -145,12 +146,23 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       city: parsed.data.city,
       page: parsed.data.page,
       pageSize: parsed.data.pageSize,
-    });
+    };
 
-    return {
+    const cached = getSearchCache<Record<string, unknown>>("organizers_search", searchInput);
+    if (cached) {
+      request.log.info({ msg: "search_cache_hit", scope: "organizers_search" });
+      return cached;
+    }
+    request.log.info({ msg: "search_cache_miss", scope: "organizers_search" });
+
+    const response = await searchOrganizers(app.db, searchInput);
+
+    const payload = {
       ...response,
       items: response.items.map((item) => mapOrganizerSearchItem(item as unknown as Record<string, unknown>)),
     };
+    setSearchCache("organizers_search", searchInput, payload);
+    return payload;
   });
 
   app.get("/organizers/:slug", async (request, reply) => {

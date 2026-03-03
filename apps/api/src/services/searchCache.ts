@@ -9,13 +9,15 @@ const cache = new LRUCache<string, CacheValue>({
   ttl: 30_000,
 });
 
-function keyFor(namespace: "events_search" | "map_clusters", payload: unknown): string {
+type SearchCacheNamespace = "events_search" | "organizers_search" | "map_clusters";
+
+function keyFor(namespace: SearchCacheNamespace, payload: unknown): string {
   const digest = createHash("sha1").update(JSON.stringify(payload)).digest("hex");
   return `${namespace}:${digest}`;
 }
 
 export function getSearchCache<T extends object>(
-  namespace: "events_search" | "map_clusters",
+  namespace: SearchCacheNamespace,
   payload: unknown,
 ): T | null {
   const value = cache.get(keyFor(namespace, payload));
@@ -26,7 +28,7 @@ export function getSearchCache<T extends object>(
 }
 
 export function setSearchCache(
-  namespace: "events_search" | "map_clusters",
+  namespace: SearchCacheNamespace,
   payload: unknown,
   value: object,
 ): void {
