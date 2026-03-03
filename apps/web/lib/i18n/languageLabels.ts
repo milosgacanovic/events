@@ -1,7 +1,7 @@
 const languageLabelOverrides: Record<string, string> = {
-  ami: "Amis",
+  ais: "Nanti",
   ol: "Orukaiva",
-  mul: "Multiple language",
+  mul: "Multiple languages",
 };
 
 export function labelForLanguageCode(
