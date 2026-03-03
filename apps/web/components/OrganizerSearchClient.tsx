@@ -81,6 +81,7 @@ export function OrganizerSearchClient({
   const [tags, setTags] = useState<string[]>(initialQuery?.tags ?? []);
   const [tagQuery, setTagQuery] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
+  const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false);
   const [languages, setLanguages] = useState<string[]>(initialQuery?.languages ?? []);
   const [countryCodes, setCountryCodes] = useState(
     (initialQuery?.countryCodes ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean),
@@ -88,6 +89,7 @@ export function OrganizerSearchClient({
   const [cities, setCities] = useState<string[]>(initialQuery?.cities ?? []);
   const [cityQuery, setCityQuery] = useState("");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
+  const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -454,6 +456,15 @@ export function OrganizerSearchClient({
     return chips;
   }, [categorySingularLabel, cities, countryCodes, getCountryLabel, getLanguageLabel, languages, practiceCategoryIds, practiceLabelById, roleKeys, t, tags]);
 
+  const visibleTagSuggestions = useMemo(
+    () => tagSuggestions.filter((item) => !tags.includes(item.tag)),
+    [tagSuggestions, tags],
+  );
+  const visibleCitySuggestions = useMemo(
+    () => citySuggestions.filter((item) => !cities.some((city) => city.toLowerCase() === item.city.toLowerCase())),
+    [citySuggestions, cities],
+  );
+
   function addTagFromInput(rawValue: string) {
     const value = rawValue.trim().toLowerCase();
     if (!value) {
@@ -583,33 +594,45 @@ export function OrganizerSearchClient({
           </div>
         </details>
 
-        <input
-          list="organizer-city-suggestions"
-          value={cityQuery}
-          onChange={(event) => {
-            const nextValue = event.target.value;
-            const match = citySuggestions.find((item) => item.city.toLowerCase() === nextValue.trim().toLowerCase());
-            if (match) {
-              addCityFromInput(match.city);
-              return;
-            }
-            setCityQuery(nextValue);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              addCityFromInput(cityQuery);
-            }
-          }}
-          placeholder={t("organizerSearch.placeholder.city")}
-        />
-        <datalist id="organizer-city-suggestions">
-          {citySuggestions.map((item) => (
-            <option key={item.city} value={item.city}>
-              {item.city} ({item.count})
-            </option>
-          ))}
-        </datalist>
+        <div className="autocomplete-wrap">
+          <input
+            value={cityQuery}
+            onFocus={() => setCitySuggestionsOpen(true)}
+            onBlur={() => window.setTimeout(() => setCitySuggestionsOpen(false), 120)}
+            onChange={(event) => setCityQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                const query = cityQuery.trim();
+                if (!query) {
+                  return;
+                }
+                const exact = visibleCitySuggestions.find((item) => item.city.toLowerCase() === query.toLowerCase());
+                addCityFromInput(exact?.city ?? query);
+                setCitySuggestionsOpen(false);
+              }
+            }}
+            placeholder={t("organizerSearch.placeholder.city")}
+          />
+          {citySuggestionsOpen && visibleCitySuggestions.length > 0 && (
+            <div className="autocomplete-menu">
+              {visibleCitySuggestions.slice(0, 10).map((item) => (
+                <button
+                  type="button"
+                  className="autocomplete-option"
+                  key={item.city}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    addCityFromInput(item.city);
+                    setCitySuggestionsOpen(false);
+                  }}
+                >
+                  {item.city} ({item.count})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {cities.length > 0 && (
           <div className="kv">
             {cities.map((item) => (
@@ -628,34 +651,45 @@ export function OrganizerSearchClient({
           </div>
         )}
 
-        <input
-          list="organizer-tag-suggestions"
-          value={tagQuery}
-          onFocus={() => setTagQuery("")}
-          onChange={(event) => {
-            const nextValue = event.target.value;
-            const match = tagSuggestions.find((item) => item.tag.toLowerCase() === nextValue.trim().toLowerCase());
-            if (match) {
-              addTagFromInput(match.tag);
-              return;
-            }
-            setTagQuery(nextValue);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              addTagFromInput(tagQuery);
-            }
-          }}
-          placeholder={t("organizerSearch.tags")}
-        />
-        <datalist id="organizer-tag-suggestions">
-          {tagSuggestions.map((item) => (
-            <option key={item.tag} value={item.tag}>
-              {item.count}
-            </option>
-          ))}
-        </datalist>
+        <div className="autocomplete-wrap">
+          <input
+            value={tagQuery}
+            onFocus={() => setTagSuggestionsOpen(true)}
+            onBlur={() => window.setTimeout(() => setTagSuggestionsOpen(false), 120)}
+            onChange={(event) => setTagQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                const query = tagQuery.trim().toLowerCase();
+                if (!query) {
+                  return;
+                }
+                const exact = visibleTagSuggestions.find((item) => item.tag.toLowerCase() === query);
+                addTagFromInput(exact?.tag ?? query);
+                setTagSuggestionsOpen(false);
+              }
+            }}
+            placeholder={t("organizerSearch.tags")}
+          />
+          {tagSuggestionsOpen && visibleTagSuggestions.length > 0 && (
+            <div className="autocomplete-menu">
+              {visibleTagSuggestions.slice(0, 10).map((item) => (
+                <button
+                  type="button"
+                  className="autocomplete-option"
+                  key={item.tag}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    addTagFromInput(item.tag);
+                    setTagSuggestionsOpen(false);
+                  }}
+                >
+                  {item.tag} ({item.count})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {tags.length > 0 && (
           <div className="kv">
             {tags.map((item) => (
@@ -694,7 +728,7 @@ export function OrganizerSearchClient({
         )}
 
         {data?.items.map((item) => (
-          <Link className="card" key={item.id} href={`/organizers/${item.slug}`} onClick={persistScroll}>
+          <Link className="card" key={item.id} href={`/hosts/${item.slug}`} onClick={persistScroll}>
             <div className="organizer-thumb-shell">
               {(item.imageUrl ?? item.avatar_path) ? (
                 <img

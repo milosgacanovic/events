@@ -138,7 +138,6 @@ export function EventSearchClient({
   const [cityQuery, setCityQuery] = useState("");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
-  const [showMoreCategories, setShowMoreCategories] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [loading, setLoading] = useState(false);
@@ -555,8 +554,8 @@ export function EventSearchClient({
       const count = disjunctiveFacets.practiceCategoryId[category.id] ?? 0;
       return count > 0 || selectedSet.has(category.id);
     });
-    return showMoreCategories ? filtered : filtered.slice(0, 8);
-  }, [disjunctiveFacets.practiceCategoryId, practiceCategoryIds, showMoreCategories, taxonomy]);
+    return filtered;
+  }, [disjunctiveFacets.practiceCategoryId, practiceCategoryIds, taxonomy]);
   const visibleEventLanguageFacets = useMemo(() => {
     const selectedSet = new Set(languages);
     const merged = new Map<string, number>();
@@ -736,15 +735,6 @@ export function EventSearchClient({
               );
             })}
           </div>
-          {(taxonomy?.practices.categories.length ?? 0) > 8 && (
-            <button
-              type="button"
-              className="ghost-btn"
-              onClick={() => setShowMoreCategories((current) => !current)}
-            >
-              {showMoreCategories ? t("eventSearch.showLess") : t("eventSearch.showMore")}
-            </button>
-          )}
         </div>
         {hasAnySubcategories && (
           <label>

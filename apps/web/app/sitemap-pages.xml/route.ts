@@ -6,7 +6,7 @@ export async function GET() {
   const siteBase = getSiteBase();
   const xml = toUrlSetXml([
     { loc: `${siteBase}/events` },
-    { loc: `${siteBase}/organizers` },
+    { loc: `${siteBase}/hosts` },
   ]);
 
   return new Response(xml, {

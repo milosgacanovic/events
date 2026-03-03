@@ -526,7 +526,7 @@ export function EventDetailClient({
                 <div className="event-host-row">
                   {host.avatarPath && <img className="event-host-avatar" src={host.avatarPath} alt={host.name} loading="lazy" />}
                   <div>
-                    <Link href={`/organizers/${host.slug}`}>{host.name}</Link>
+                    <Link href={`/hosts/${host.slug}`}>{host.name}</Link>
                     {host.roles.length > 0 && <div className="meta">{host.roles.join(", ")}</div>}
                   </div>
                 </div>

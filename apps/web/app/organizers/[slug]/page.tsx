@@ -1,9 +1,9 @@
-import { OrganizerDetailClient } from "../../../components/OrganizerDetailClient";
+import { redirect } from "next/navigation";
 
-export default function OrganizerDetailPage({
+export default function OrganizerDetailRedirectPage({
   params,
 }: {
   params: { slug: string };
 }) {
-  return <OrganizerDetailClient slug={params.slug} />;
+  redirect(`/hosts/${params.slug}`);
 }

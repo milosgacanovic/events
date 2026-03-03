@@ -35,6 +35,7 @@ function csvToList(value?: string): string[] {
 }
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const languageTagPattern = /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i;
 
 function parseUuidCsv(value?: string): string[] | null {
   const items = csvToList(value);
@@ -46,6 +47,19 @@ function parseUuidCsv(value?: string): string[] | null {
   return items;
 }
 
+function sanitizeLanguageCodes(values: unknown): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim().toLowerCase())
+    .filter((value) => value.length > 0)
+    .filter((value) => !uuidPattern.test(value))
+    .filter((value) => languageTagPattern.test(value));
+}
+
 function mapOrganizerSearchItem(item: Record<string, unknown>) {
   const roleKeys = Array.isArray(item.role_keys)
     ? item.role_keys.filter((value): value is string => typeof value === "string")
@@ -54,10 +68,8 @@ function mapOrganizerSearchItem(item: Record<string, unknown>) {
     (typeof item.image_url === "string" ? item.image_url : null)
     ?? (typeof item.avatar_path === "string" ? item.avatar_path : null);
 
-  const organizerLanguages = Array.isArray(item.languages) ? item.languages.filter((value): value is string => typeof value === "string") : [];
-  const derivedLanguages = Array.isArray(item.derived_languages)
-    ? item.derived_languages.filter((value): value is string => typeof value === "string")
-    : [];
+  const organizerLanguages = sanitizeLanguageCodes(item.languages);
+  const derivedLanguages = sanitizeLanguageCodes(item.derived_languages);
   const effectiveLanguages = organizerLanguages.length > 0 ? organizerLanguages : derivedLanguages;
 
   return {
@@ -83,12 +95,8 @@ function mapOrganizerDetail(result: Record<string, unknown>) {
     (typeof organizer.image_url === "string" ? organizer.image_url : null)
     ?? (typeof organizer.avatar_path === "string" ? organizer.avatar_path : null);
 
-  const organizerLanguages = Array.isArray(organizer.languages)
-    ? organizer.languages.filter((value): value is string => typeof value === "string")
-    : [];
-  const derivedLanguages = Array.isArray(result.derivedLanguages)
-    ? result.derivedLanguages.filter((value): value is string => typeof value === "string")
-    : [];
+  const organizerLanguages = sanitizeLanguageCodes(organizer.languages);
+  const derivedLanguages = sanitizeLanguageCodes(result.derivedLanguages);
   const effectiveLanguages = organizerLanguages.length > 0 ? organizerLanguages : derivedLanguages;
 
   return {

@@ -1,41 +1,22 @@
-import { OrganizerSearchClient, type OrganizerSearchInitialQuery } from "../../components/OrganizerSearchClient";
-
-type SearchParams = Record<string, string | string[] | undefined>;
-
-function getSingle(searchParams: SearchParams, key: string): string | null {
-  const value = searchParams[key];
-  if (typeof value === "string") {
-    return value;
-  }
-  if (Array.isArray(value) && typeof value[0] === "string") {
-    return value[0];
-  }
-  return null;
-}
-
-function csvToList(value: string | null): string[] | undefined {
-  if (!value) {
-    return undefined;
-  }
-  const items = value.split(",").map((item) => item.trim()).filter(Boolean);
-  return items.length ? items : undefined;
-}
+import { redirect } from "next/navigation";
 
 export default function OrganizersPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Record<string, string | string[] | undefined>;
 }) {
-  const pageNumber = Number(getSingle(searchParams, "page") ?? "1");
-  const initialQuery: OrganizerSearchInitialQuery = {
-    q: getSingle(searchParams, "q") ?? undefined,
-    roleKeys: csvToList(getSingle(searchParams, "roleKey")),
-    tags: csvToList(getSingle(searchParams, "tags")),
-    languages: csvToList(getSingle(searchParams, "languages")),
-    countryCodes: csvToList(getSingle(searchParams, "countryCode")),
-    cities: csvToList(getSingle(searchParams, "city")),
-    page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
-  };
-
-  return <OrganizerSearchClient initialQuery={initialQuery} />;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item) {
+          params.append(key, item);
+        }
+      }
+    } else if (value) {
+      params.set(key, value);
+    }
+  }
+  const query = params.toString();
+  redirect(query ? `/hosts?${query}` : "/hosts");
 }
