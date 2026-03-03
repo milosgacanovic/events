@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -50,6 +51,7 @@ export type OrganizerSearchInitialQuery = {
   languages?: string[];
   countryCodes?: string[];
   cities?: string[];
+  view?: "list" | "map";
   page?: number;
 };
 
@@ -75,6 +77,7 @@ export function OrganizerSearchClient({
   const { locale, t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
+  const [view, setView] = useState<"list" | "map">(initialQuery?.view ?? "list");
   const [q, setQ] = useState(initialQuery?.q ?? "");
   const [roleKeys, setRoleKeys] = useState<string[]>(initialQuery?.roleKeys ?? []);
   const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>(initialQuery?.practiceCategoryIds ?? []);
@@ -95,6 +98,8 @@ export function OrganizerSearchClient({
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<OrganizerSearchResponse | null>(null);
   const [practiceFacetCounts, setPracticeFacetCounts] = useState<Record<string, number>>({});
+  const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
+  const [mapRefreshToken, setMapRefreshToken] = useState(0);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const restoredKeyRef = useRef<string | null>(null);
   const practiceFacetRequestRef = useRef(0);
@@ -112,6 +117,14 @@ export function OrganizerSearchClient({
     }
     return map;
   }, [taxonomy]);
+  const HostLeafletClusterMap = useMemo(
+    () =>
+      dynamic(
+        () => import("./HostLeafletClusterMap").then((module) => module.HostLeafletClusterMap),
+        { ssr: false },
+      ),
+    [],
+  );
 
   useEffect(() => {
     fetchJson<TaxonomyResponse>("/meta/taxonomies")
@@ -160,9 +173,22 @@ export function OrganizerSearchClient({
     if (languages.length) params.set("languages", languages.join(","));
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
+    if (view !== "list") params.set("view", view);
     if (page > 1) params.set("page", String(page));
     return params.toString();
-  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, page, practiceKeyById]);
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, view, page, practiceKeyById]);
+
+  const buildMapQueryString = useCallback(() => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
+    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+    if (tags.length) params.set("tags", tags.join(","));
+    if (languages.length) params.set("languages", languages.join(","));
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+    if (cities.length) params.set("city", cities.join(","));
+    return params.toString();
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
 
   const scrollStorageKey = useMemo(() => {
     const query = buildUiQueryString();
@@ -203,6 +229,12 @@ export function OrganizerSearchClient({
     }, 250);
     return () => clearTimeout(timer);
   }, [runSearch, page]);
+
+  useEffect(() => {
+    const query = buildMapQueryString();
+    setActiveQueryString(query);
+    setMapRefreshToken((current) => current + 1);
+  }, [buildMapQueryString]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -489,6 +521,22 @@ export function OrganizerSearchClient({
     <section className="grid">
       <aside className="panel filters">
         <h2 className="title-xl">{t("organizerSearch.title")}</h2>
+        <div className="kv">
+          <button
+            type="button"
+            className={view === "list" ? "secondary-btn" : "ghost-btn"}
+            onClick={() => setView("list")}
+          >
+            {t("eventSearch.view.list")}
+          </button>
+          <button
+            type="button"
+            className={view === "map" ? "secondary-btn" : "ghost-btn"}
+            onClick={() => setView("map")}
+          >
+            {t("eventSearch.view.map")}
+          </button>
+        </div>
         <input
           value={q}
           onChange={(event) => {
@@ -727,7 +775,11 @@ export function OrganizerSearchClient({
           </div>
         )}
 
-        {data?.items.map((item) => (
+        {view === "map" ? (
+          <HostLeafletClusterMap queryString={activeQueryString} refreshToken={mapRefreshToken} />
+        ) : null}
+
+        {view === "list" && data?.items.map((item) => (
           <Link className="card" key={item.id} href={`/hosts/${item.slug}`} onClick={persistScroll}>
             <div className="organizer-thumb-shell">
               {(item.imageUrl ?? item.avatar_path) ? (
@@ -778,7 +830,7 @@ export function OrganizerSearchClient({
             </div>
           </Link>
         ))}
-        {data && (
+        {view === "list" && data && (
           <div className="admin-card-actions">
             <button
               className="secondary-btn"

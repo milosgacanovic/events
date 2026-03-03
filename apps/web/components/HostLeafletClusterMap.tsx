@@ -13,7 +13,6 @@ import {
   useMapEvents,
 } from "react-leaflet";
 
-import { formatPointDateTime, type TimeDisplayMode } from "../lib/datetime";
 import { useI18n } from "./i18n/I18nProvider";
 
 type ClusterFeature = {
@@ -25,11 +24,8 @@ type ClusterFeature = {
   properties: {
     cluster: boolean;
     point_count?: number;
-    occurrence_id?: string;
-    event_slug?: string;
-    event_title?: string;
-    starts_at_utc?: string;
-    event_timezone?: string | null;
+    organizer_id?: string;
+    organizer_slug?: string;
   };
 };
 
@@ -53,7 +49,7 @@ function buildClusterUrl(queryString: string, bbox: string, zoom: number): strin
   params.set("bbox", bbox);
   params.set("zoom", String(zoom));
 
-  return `/api/map/clusters?${params.toString()}`;
+  return `/api/map/organizer-clusters?${params.toString()}`;
 }
 
 type MarkerDescriptor = {
@@ -90,10 +86,9 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
     }
     const centerLat = markers[0].lat;
     const cosLat = Math.max(Math.cos((centerLat * Math.PI) / 180), 0.2);
-    const baseMeters = 40;
     for (let i = 0; i < markers.length; i += 1) {
       const ring = Math.floor(i / 8);
-      const radiusMeters = baseMeters + ring * 24;
+      const radiusMeters = 40 + ring * 24;
       const angle = (2 * Math.PI * i) / Math.max(markers.length, 1);
       const latOffset = (radiusMeters / 111_320) * Math.sin(angle);
       const lngOffset = (radiusMeters / (111_320 * cosLat)) * Math.cos(angle);
@@ -105,14 +100,12 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
   return base;
 }
 
-export function LeafletClusterMap({
+export function HostLeafletClusterMap({
   queryString,
   refreshToken,
-  timeDisplayMode,
 }: {
   queryString: string;
   refreshToken: number;
-  timeDisplayMode: TimeDisplayMode;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -194,22 +187,11 @@ export function LeafletClusterMap({
         const { feature, lat, lng } = marker;
         const pointCount = feature.properties.point_count ?? 1;
         const isCluster = feature.properties.cluster;
-        const title = feature.properties.event_title?.trim() || feature.properties.event_slug || t("common.unknown");
-        const dateLabel = feature.properties.starts_at_utc
-          ? formatPointDateTime(
-            feature.properties.starts_at_utc,
-            feature.properties.event_timezone ?? "UTC",
-            timeDisplayMode,
-          ).primary
-          : "";
-        const tooltipLabel = isCluster
-          ? t("map.tooltip.cluster", { count: pointCount })
-          : t("map.tooltip.eventWithDate", { title, date: dateLabel || t("common.unknown") });
 
         return (
           <CircleMarker
             center={[lat, lng]}
-            key={`${lat}-${lng}-${feature.properties.occurrence_id ?? "cluster"}-${index}`}
+            key={`${lat}-${lng}-${feature.properties.organizer_id ?? "cluster"}-${index}`}
             eventHandlers={{
               click: () => {
                 if (isCluster) {
@@ -220,8 +202,8 @@ export function LeafletClusterMap({
                   scheduleRefresh();
                   return;
                 }
-                if (feature.properties.event_slug) {
-                  router.push(`/events/${feature.properties.event_slug}`);
+                if (feature.properties.organizer_slug) {
+                  router.push(`/hosts/${feature.properties.organizer_slug}`);
                 }
               },
             }}
@@ -233,11 +215,15 @@ export function LeafletClusterMap({
             }}
             radius={isCluster ? Math.min(28, 10 + Math.log(pointCount) * 6) : 7}
           >
-            <Tooltip>{tooltipLabel}</Tooltip>
+            <Tooltip>
+              {isCluster
+                ? t("map.tooltip.cluster", { count: pointCount })
+                : feature.properties.organizer_slug ?? t("common.unknown")}
+            </Tooltip>
           </CircleMarker>
         );
       }),
-    [currentZoom, features, router, scheduleRefresh, t, timeDisplayMode],
+    [currentZoom, features, router, scheduleRefresh, t],
   );
 
   return (

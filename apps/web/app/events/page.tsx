@@ -31,6 +31,16 @@ function csvToList(value: string | null): string[] {
     .filter(Boolean);
 }
 
+const eventDateAllowed = new Set([
+  "today",
+  "tomorrow",
+  "this_weekend",
+  "this_week",
+  "next_week",
+  "this_month",
+  "next_month",
+]);
+
 function buildCanonical(searchParams: SearchParams): { canonical: string; noindex: boolean } {
   const page = getSingle(searchParams, "page");
   const practiceKey = getSingle(searchParams, "practice");
@@ -111,6 +121,9 @@ export default async function EventsPage({
     attendanceMode: getSingle(searchParams, "attendanceMode") ?? undefined,
     countryCodes: csvToList(getSingle(searchParams, "countryCode")),
     cities: csvToList(getSingle(searchParams, "city")),
+    eventDates: csvToList(getSingle(searchParams, "eventDate"))
+      .map((item) => item.toLowerCase())
+      .filter((item): item is NonNullable<EventSearchInitialQuery["eventDates"]>[number] => eventDateAllowed.has(item)),
     sort: sortParam === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc",
     view: viewParam === "map" ? "map" : "list",
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
@@ -148,6 +161,9 @@ export default async function EventsPage({
   if (initialQuery.attendanceMode) params.set("attendanceMode", initialQuery.attendanceMode);
   if (initialQuery.countryCodes?.length) params.set("countryCode", initialQuery.countryCodes.join(","));
   if (initialQuery.cities?.length) params.set("city", initialQuery.cities.join(","));
+  if (initialQuery.eventDates?.length) params.set("eventDate", initialQuery.eventDates.join(","));
+  const tzParam = getSingle(searchParams, "tz");
+  if (tzParam) params.set("tz", tzParam);
   params.set("sort", initialQuery.sort ?? "startsAtAsc");
   params.set("from", nowIso);
   params.set("to", oneYear);

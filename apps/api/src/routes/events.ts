@@ -23,6 +23,13 @@ import { cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 import { getSearchCache, setSearchCache } from "../services/searchCache";
+import {
+  buildEventDateRangeMap,
+  EVENT_DATE_PRESETS,
+  parseEventDatePresets,
+  type EventDatePreset,
+  resolveSafeTimeZone,
+} from "../utils/eventDatePresets";
 
 const searchQuerySchema = z.object({
   q: z.string().optional(),
@@ -41,6 +48,9 @@ const searchQuerySchema = z.object({
   countryCode: z.string().optional(),
   city: z.string().optional(),
   hasGeo: z.enum(["true", "false"]).optional(),
+  eventDate: z.string().optional(),
+  tz: z.string().optional(),
+  skipEventDateFacet: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),
   sort: z.enum(["date_asc", "date_desc", "startsAtAsc", "startsAtDesc", "publishedAtDesc"]).default("date_asc"),
@@ -192,6 +202,10 @@ function buildMeiliFilters(input: {
   return filters;
 }
 
+function buildEventDateClause(input: { fromUtc: string; toUtc: string }): string {
+  return `(starts_at_utc >= ${JSON.stringify(input.fromUtc)} AND starts_at_utc < ${JSON.stringify(input.toUtc)})`;
+}
+
 function hasScheduleShapeChanges(
   previous: {
     schedule_kind: string;
@@ -236,6 +250,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const includePast = parsed.data.includePast === "true";
     const from = parsed.data.from ?? (includePast ? "1970-01-01T00:00:00.000Z" : now.toISO());
     const to = parsed.data.to ?? now.plus({ days: 365 }).toISO();
+    const eventDatePresets = parseEventDatePresets(parsed.data.eventDate);
+    const timezone = resolveSafeTimeZone(parsed.data.tz);
+    const eventDateRangeMap = buildEventDateRangeMap(timezone, now);
+    const selectedEventDateRanges = eventDatePresets.map((preset) => eventDateRangeMap[preset]);
     const tags = csvToList(parsed.data.tags);
     const languages = csvToList(parsed.data.languages);
     const practiceCategoryUuids = parseUuidCsv(parsed.data.practiceCategoryId);
@@ -286,6 +304,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       countryCode: countryCodes.join(",") || null,
       city: cityFilters.join(",") || null,
       hasGeo: hasGeo ?? null,
+      eventDate: eventDatePresets,
+      tz: timezone,
+      skipEventDateFacet: parsed.data.skipEventDateFacet === "true",
       sort: normalizedSort,
       page: parsed.data.page,
       pageSize: parsed.data.pageSize,
@@ -298,7 +319,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     request.log.info({ msg: "search_cache_miss", scope: "events_search" });
 
     try {
-      const meiliFilters = buildMeiliFilters({
+      const baseMeiliFilters = buildMeiliFilters({
         from: from ?? now.toISO()!,
         to: to ?? now.plus({ days: 365 }).toISO()!,
         practiceCategoryIds,
@@ -312,6 +333,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         cities: cityFilters,
         hasGeo,
       });
+      const eventDateFilterClauses = selectedEventDateRanges.map((range) => buildEventDateClause(range));
+      const meiliFilters = eventDateFilterClauses.length > 0
+        ? [...baseMeiliFilters, `(${eventDateFilterClauses.join(" OR ")})`]
+        : baseMeiliFilters;
 
       const sortExpression =
         normalizedSort === "publishedAtDesc"
@@ -337,6 +362,34 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         offset: (parsed.data.page - 1) * parsed.data.pageSize,
       });
       const meiliHits = result.hits as OccurrenceDoc[];
+
+      let eventDateFacet: Record<string, number> = {};
+      if (parsed.data.skipEventDateFacet !== "true") {
+        try {
+          const dateFacetQueries = EVENT_DATE_PRESETS.map((preset) => {
+            const presetRange = eventDateRangeMap[preset];
+            return {
+              indexUid: OCCURRENCES_INDEX,
+              q: parsed.data.q ?? "",
+              filter: [...baseMeiliFilters, buildEventDateClause(presetRange)],
+              limit: 0,
+            };
+          });
+          const multiResult = await app.meiliService.client.multiSearch({
+            queries: dateFacetQueries,
+          }) as { results?: Array<{ estimatedTotalHits?: number; hits?: unknown[] }> };
+          const results = multiResult.results ?? [];
+          eventDateFacet = Object.fromEntries(
+            EVENT_DATE_PRESETS.map((preset: EventDatePreset, index2) => {
+              const row = results[index2];
+              const count = row?.estimatedTotalHits ?? row?.hits?.length ?? 0;
+              return [preset, count];
+            }),
+          );
+        } catch {
+          eventDateFacet = {};
+        }
+      }
 
         const payload = {
           hits: meiliHits.map((doc: OccurrenceDoc) => ({
@@ -386,6 +439,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           countryCode: result.facetDistribution?.country_code ?? {},
           tags: result.facetDistribution?.tags ?? {},
           organizerId: result.facetDistribution?.organizer_ids ?? {},
+          eventDate: eventDateFacet,
         },
         pagination: {
           page: parsed.data.page,
@@ -417,9 +471,15 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         pageSize: parsed.data.pageSize,
         sort: normalizedSort,
       });
-
-      setSearchCache("events_search", cacheKeyPayload, fallback);
-      return fallback;
+      const payload = {
+        ...fallback,
+        facets: {
+          ...fallback.facets,
+          eventDate: {},
+        },
+      };
+      setSearchCache("events_search", cacheKeyPayload, payload);
+      return payload;
     } finally {
       const durationMs = Date.now() - startedAt;
       recordSearchDuration(durationMs);

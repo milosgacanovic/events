@@ -50,6 +50,19 @@ type OrganizerDetail = {
   practiceCategoryIds?: string[];
 };
 
+type TaxonomyResponse = {
+  uiLabels?: {
+    categorySingular?: string;
+    practiceCategory?: string;
+  };
+  practices: {
+    categories: Array<{
+      id: string;
+      label: string;
+    }>;
+  };
+};
+
 function collectText(value: unknown, output: string[]): void {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -90,12 +103,21 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const [alertCountryCode, setAlertCountryCode] = useState("");
   const [alertStatus, setAlertStatus] = useState<string | null>(null);
   const [savingAlert, setSavingAlert] = useState(false);
+  const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
 
   useEffect(() => {
     fetchJson<OrganizerDetail>(`/organizers/${slug}`)
       .then(setData)
       .catch((err) => setError(err instanceof Error ? err.message : t("organizerDetail.error.fetchFailed")));
   }, [slug, t]);
+
+  useEffect(() => {
+    fetchJson<TaxonomyResponse>("/meta/taxonomies")
+      .then(setTaxonomy)
+      .catch(() => {
+        // Keep host detail usable if taxonomy metadata fails.
+      });
+  }, []);
 
   if (error) {
     return <div className="panel">{error}</div>;
@@ -132,6 +154,20 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const countryLabel = countryValue
     ? (regionNames?.of(countryValue.toUpperCase()) ?? countryValue.toUpperCase())
     : null;
+  const practiceLabelById = (() => {
+    const map = new Map<string, string>();
+    for (const category of taxonomy?.practices.categories ?? []) {
+      map.set(category.id, category.label);
+    }
+    return map;
+  })();
+  const categorySingularLabel =
+    taxonomy?.uiLabels?.categorySingular ??
+    taxonomy?.uiLabels?.practiceCategory ??
+    t("common.category");
+  const practiceLabels = (data.practiceCategoryIds ?? [])
+    .map((item) => practiceLabelById.get(item))
+    .filter((item): item is string => Boolean(item));
 
   async function createAlert() {
     const organizerId = data?.organizer.id;
@@ -230,9 +266,9 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
             {item}
           </span>
         ))}
-        {(data.practiceCategoryIds ?? []).map((item) => (
+        {practiceLabels.map((item) => (
           <span className="tag" key={`practice-${item}`}>
-            {item}
+            {`${categorySingularLabel}: ${item}`}
           </span>
         ))}
       </div>

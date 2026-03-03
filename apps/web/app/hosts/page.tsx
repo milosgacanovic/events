@@ -34,6 +34,7 @@ export default function HostsPage({
     languages: csvToList(getSingle(searchParams, "languages")),
     countryCodes: csvToList(getSingle(searchParams, "countryCode")),
     cities: csvToList(getSingle(searchParams, "city")),
+    view: getSingle(searchParams, "view") === "map" ? "map" : "list",
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
   };
 

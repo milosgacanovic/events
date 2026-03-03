@@ -56,6 +56,9 @@ export function resolvePublicRateLimit(path: string, _baseLimit: number): number
   if (path === "/api/map/clusters") {
     return 120;
   }
+  if (path === "/api/map/organizer-clusters") {
+    return 120;
+  }
   if (path.startsWith("/api/meta/")) {
     return 240;
   }

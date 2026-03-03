@@ -37,3 +37,18 @@ export function formatDateTimeRange(
     suffixLabel: useEventZone ? "event" : "user",
   };
 }
+
+export function formatPointDateTime(
+  startsAtIso: string,
+  eventTimezone: string,
+  mode: TimeDisplayMode = "user",
+): FormattedDateTime {
+  const startUtc = DateTime.fromISO(startsAtIso, { zone: "utc" });
+  const useEventZone = mode === "event";
+  const start = useEventZone ? startUtc.setZone(eventTimezone) : startUtc.toLocal();
+
+  return {
+    primary: `${start.toFormat("dd LLL yyyy")} · ${start.toFormat("HH:mm")}`,
+    suffixLabel: useEventZone ? "event" : "user",
+  };
+}

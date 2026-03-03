@@ -9,7 +9,7 @@ const cache = new LRUCache<string, CacheValue>({
   ttl: 30_000,
 });
 
-type SearchCacheNamespace = "events_search" | "organizers_search" | "map_clusters";
+type SearchCacheNamespace = "events_search" | "organizers_search" | "map_clusters" | "organizers_map_clusters";
 
 function keyFor(namespace: SearchCacheNamespace, payload: unknown): string {
   const digest = createHash("sha1").update(JSON.stringify(payload)).digest("hex");

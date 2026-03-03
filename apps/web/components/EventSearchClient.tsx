@@ -53,6 +53,7 @@ export type SearchResponse = {
     languages?: Record<string, number>;
     attendanceMode?: Record<string, number>;
     countryCode?: Record<string, number>;
+    eventDate?: Record<string, number>;
   };
 };
 
@@ -90,10 +91,30 @@ export type EventSearchInitialQuery = {
   attendanceMode?: string;
   countryCodes?: string[];
   cities?: string[];
+  eventDates?: EventDatePreset[];
   sort?: "startsAtAsc" | "startsAtDesc";
   view?: "list" | "map";
   page?: number;
 };
+
+type EventDatePreset =
+  | "today"
+  | "tomorrow"
+  | "this_weekend"
+  | "this_week"
+  | "next_week"
+  | "this_month"
+  | "next_month";
+
+const EVENT_DATE_PRESETS: EventDatePreset[] = [
+  "today",
+  "tomorrow",
+  "this_weekend",
+  "this_week",
+  "next_week",
+  "this_month",
+  "next_month",
+];
 
 const LeafletClusterMap = dynamic(
   () => import("./LeafletClusterMap").then((module) => module.LeafletClusterMap),
@@ -105,6 +126,7 @@ type DisjunctiveFacetState = {
   eventFormatId: Record<string, number>;
   languages: Record<string, number>;
   countryCode: Record<string, number>;
+  eventDate: Record<string, number>;
 };
 
 export function EventSearchClient({
@@ -135,6 +157,7 @@ export function EventSearchClient({
     (initialQuery?.countryCodes ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean),
   );
   const [cities, setCities] = useState<string[]>(initialQuery?.cities ?? []);
+  const [eventDates, setEventDates] = useState<EventDatePreset[]>(initialQuery?.eventDates ?? []);
   const [cityQuery, setCityQuery] = useState("");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
@@ -148,6 +171,7 @@ export function EventSearchClient({
     eventFormatId: initialResults?.facets?.eventFormatId ?? {},
     languages: initialResults?.facets?.languages ?? {},
     countryCode: initialResults?.facets?.countryCode ?? {},
+    eventDate: initialResults?.facets?.eventDate ?? {},
   });
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
@@ -274,6 +298,8 @@ export function EventSearchClient({
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
+    if (eventDates.length) params.set("eventDate", eventDates.join(","));
+    params.set("tz", userTimeZone);
     params.set("sort", sort);
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
@@ -288,6 +314,8 @@ export function EventSearchClient({
     attendanceMode,
     countryCodes,
     cities,
+    eventDates,
+    userTimeZone,
     sort,
   ]);
 
@@ -308,6 +336,7 @@ export function EventSearchClient({
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
+    if (eventDates.length) params.set("eventDate", eventDates.join(","));
     if (sort !== "startsAtAsc") params.set("sort", sort);
     if (view !== "list") params.set("view", view);
     if (page > 1) params.set("page", String(page));
@@ -322,6 +351,7 @@ export function EventSearchClient({
     attendanceMode,
     countryCodes,
     cities,
+    eventDates,
     sort,
     view,
     page,
@@ -342,6 +372,9 @@ export function EventSearchClient({
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
     if (exclude !== "country" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
+    if (eventDates.length) params.set("eventDate", eventDates.join(","));
+    params.set("tz", userTimeZone);
+    params.set("skipEventDateFacet", "true");
     params.set("page", "1");
     params.set("pageSize", "1");
     return params.toString();
@@ -355,6 +388,8 @@ export function EventSearchClient({
     attendanceMode,
     countryCodes,
     cities,
+    eventDates,
+    userTimeZone,
   ]);
 
   const scrollStorageKey = useMemo(() => {
@@ -385,6 +420,10 @@ export function EventSearchClient({
     try {
       const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`);
       setData(result);
+      setDisjunctiveFacets((current) => ({
+        ...current,
+        eventDate: result.facets?.eventDate ?? {},
+      }));
       setActiveQueryString(currentQuery);
       setRefreshToken((value) => value + 1);
     } catch (err) {
@@ -423,6 +462,7 @@ export function EventSearchClient({
           eventFormatId: eventFormatResult?.facets?.eventFormatId ?? {},
           languages: languageResult?.facets?.languages ?? {},
           countryCode: countryResult?.facets?.countryCode ?? {},
+          eventDate: data?.facets?.eventDate ?? {},
         });
       }).catch(() => {
         if (requestId !== facetRequestRef.current) {
@@ -433,11 +473,12 @@ export function EventSearchClient({
           eventFormatId: {},
           languages: {},
           countryCode: {},
+          eventDate: data?.facets?.eventDate ?? {},
         });
       });
     }, 250);
     return () => clearTimeout(timer);
-  }, [buildFacetQueryString]);
+  }, [buildFacetQueryString, data?.facets?.eventDate]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -510,6 +551,7 @@ export function EventSearchClient({
     setCountryCodes([]);
     setCities([]);
     setCityQuery("");
+    setEventDates([]);
     setPage(1);
     setSort("startsAtAsc");
   }
@@ -571,6 +613,14 @@ export function EventSearchClient({
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [disjunctiveFacets.languages, languages]);
+  const visibleEventDateFacets = useMemo(() => {
+    const counts = disjunctiveFacets.eventDate ?? {};
+    return EVENT_DATE_PRESETS.map((preset) => ({
+      key: preset,
+      count: counts[preset] ?? 0,
+      checked: eventDates.includes(preset),
+    }));
+  }, [disjunctiveFacets.eventDate, eventDates]);
   const selectedFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
 
@@ -635,6 +685,16 @@ export function EventSearchClient({
         },
       });
     }
+    for (const eventDate of eventDates) {
+      chips.push({
+        key: `date:${eventDate}`,
+        label: `${t("eventSearch.eventDate")}: ${t(`eventSearch.eventDateOption.${eventDate}`)}`,
+        onRemove: () => {
+          setEventDates((current) => current.filter((item) => item !== eventDate));
+          setPage(1);
+        },
+      });
+    }
     return chips;
   }, [
     categoryLabelById,
@@ -648,6 +708,7 @@ export function EventSearchClient({
     t,
     tags,
     cities,
+    eventDates,
     taxonomy?.eventFormats,
   ]);
 
@@ -804,6 +865,28 @@ export function EventSearchClient({
             ))}
           </div>
         </label>
+        <details open>
+          <summary>{t("eventSearch.eventDate")}</summary>
+          <div className="kv">
+            {visibleEventDateFacets.map((item) => (
+              <label className="meta" key={item.key}>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => {
+                    setEventDates((current) => (
+                      current.includes(item.key)
+                        ? current.filter((value) => value !== item.key)
+                        : [...current, item.key]
+                    ));
+                    setPage(1);
+                  }}
+                />
+                {t(`eventSearch.eventDateOption.${item.key}`)} ({item.count})
+              </label>
+            ))}
+          </div>
+        </details>
         <details open>
           <summary>{t("eventSearch.attendance.anyEventType")}</summary>
           <div className="kv">
@@ -1033,7 +1116,11 @@ export function EventSearchClient({
         )}
 
         {view === "map" ? (
-          <LeafletClusterMap queryString={activeQueryString} refreshToken={refreshToken} />
+          <LeafletClusterMap
+            queryString={activeQueryString}
+            refreshToken={refreshToken}
+            timeDisplayMode={timeDisplayMode}
+          />
         ) : (
           data?.hits.map((hit) => {
             const formatted = formatDateTimeRange(

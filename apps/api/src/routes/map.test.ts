@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../services/mapClusterService", () => ({
   buildClusters: vi.fn(),
+  buildOrganizerClusters: vi.fn(),
 }));
 
 import { buildClusters } from "../services/mapClusterService";
