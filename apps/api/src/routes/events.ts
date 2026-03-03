@@ -27,7 +27,6 @@ import {
   buildEventDateRangeMap,
   EVENT_DATE_PRESETS,
   parseEventDatePresets,
-  type EventDatePreset,
   resolveSafeTimeZone,
 } from "../utils/eventDatePresets";
 
@@ -75,6 +74,64 @@ function csvToList(value?: string): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+async function loadEventOrganizers(
+  db: Parameters<typeof getEventById>[0],
+  eventIds: string[],
+): Promise<Map<string, Array<{ id: string; name: string; avatarUrl: string | null; roles: string[] }>>> {
+  if (eventIds.length === 0) {
+    return new Map();
+  }
+
+  const result = await db.query<{
+    event_id: string;
+    organizer_id: string;
+    organizer_name: string;
+    role_key: string | null;
+  }>(
+    `
+      select
+        eo.event_id::text as event_id,
+        o.id::text as organizer_id,
+        o.name as organizer_name,
+        r.key as role_key
+      from event_organizers eo
+      join organizers o on o.id = eo.organizer_id
+      left join organizer_roles r on r.id = eo.role_id
+      where eo.event_id = any($1::uuid[])
+      order by eo.event_id, eo.display_order asc nulls last, o.name asc
+    `,
+    [eventIds],
+  );
+
+  const byEvent = new Map<string, Map<string, { id: string; name: string; roles: Set<string> }>>();
+
+  for (const row of result.rows) {
+    const eventBucket = byEvent.get(row.event_id) ?? new Map<string, { id: string; name: string; roles: Set<string> }>();
+    const organizer = eventBucket.get(row.organizer_id) ?? {
+      id: row.organizer_id,
+      name: row.organizer_name,
+      roles: new Set<string>(),
+    };
+    if (row.role_key) {
+      organizer.roles.add(row.role_key);
+    }
+    eventBucket.set(row.organizer_id, organizer);
+    byEvent.set(row.event_id, eventBucket);
+  }
+
+  return new Map(
+    Array.from(byEvent.entries()).map(([eventId, organizers]) => [
+      eventId,
+      Array.from(organizers.values()).map((organizer) => ({
+        id: organizer.id,
+        name: organizer.name,
+        avatarUrl: null,
+        roles: Array.from(organizer.roles),
+      })),
+    ]),
+  );
 }
 
 async function resolveTaxonomyIdsFromKeys(
@@ -133,8 +190,8 @@ function resolveCoverImagePath(input: { coverImagePath?: string | null; coverIma
 }
 
 function buildMeiliFilters(input: {
-  from: string;
-  to: string;
+  fromTs: number;
+  toTs: number;
   practiceCategoryIds?: string[];
   practiceSubcategoryId?: string;
   eventFormatIds?: string[];
@@ -147,8 +204,8 @@ function buildMeiliFilters(input: {
   hasGeo?: boolean;
 }) {
   const filters: string[] = [
-    `starts_at_utc >= ${JSON.stringify(input.from)}`,
-    `starts_at_utc <= ${JSON.stringify(input.to)}`,
+    `starts_at_ts >= ${input.fromTs}`,
+    `starts_at_ts <= ${input.toTs}`,
   ];
 
   if (input.practiceCategoryIds?.length === 1) {
@@ -203,7 +260,7 @@ function buildMeiliFilters(input: {
 }
 
 function buildEventDateClause(input: { fromUtc: string; toUtc: string }): string {
-  return `(starts_at_utc >= ${JSON.stringify(input.fromUtc)} AND starts_at_utc < ${JSON.stringify(input.toUtc)})`;
+  return `(starts_at_ts >= ${Date.parse(input.fromUtc)} AND starts_at_ts < ${Date.parse(input.toUtc)})`;
 }
 
 function hasScheduleShapeChanges(
@@ -250,6 +307,8 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const includePast = parsed.data.includePast === "true";
     const from = parsed.data.from ?? (includePast ? "1970-01-01T00:00:00.000Z" : now.toISO());
     const to = parsed.data.to ?? now.plus({ days: 365 }).toISO();
+    const fromTs = Date.parse(from ?? now.toISO()!);
+    const toTs = Date.parse(to ?? now.plus({ days: 365 }).toISO()!);
     const eventDatePresets = parseEventDatePresets(parsed.data.eventDate);
     const timezone = resolveSafeTimeZone(parsed.data.tz);
     const eventDateRangeMap = buildEventDateRangeMap(timezone, now);
@@ -320,8 +379,8 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
     try {
       const baseMeiliFilters = buildMeiliFilters({
-        from: from ?? now.toISO()!,
-        to: to ?? now.plus({ days: 365 }).toISO()!,
+        fromTs,
+        toTs,
         practiceCategoryIds,
         practiceSubcategoryId: parsed.data.practiceSubcategoryId,
         eventFormatIds,
@@ -340,10 +399,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
       const sortExpression =
         normalizedSort === "publishedAtDesc"
-          ? "published_at:desc"
+          ? "published_at_ts:desc"
           : normalizedSort === "startsAtDesc"
-            ? "starts_at_utc:desc"
-            : "starts_at_utc:asc";
+            ? "starts_at_ts:desc"
+            : "starts_at_ts:asc";
       const index = app.meiliService.client.index(OCCURRENCES_INDEX);
       const result = await index.search<OccurrenceDoc>(parsed.data.q ?? "", {
         filter: meiliFilters,
@@ -362,31 +421,29 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         offset: (parsed.data.page - 1) * parsed.data.pageSize,
       });
       const meiliHits = result.hits as OccurrenceDoc[];
+      const organizerMap = await loadEventOrganizers(
+        app.db,
+        Array.from(new Set(meiliHits.map((hit) => hit.event_id).filter(Boolean))),
+      );
 
       let eventDateFacet: Record<string, number> = {};
       if (parsed.data.skipEventDateFacet !== "true") {
         try {
-          const dateFacetQueries = EVENT_DATE_PRESETS.map((preset) => {
+          const dateFacetQueries = EVENT_DATE_PRESETS.map(async (preset) => {
             const presetRange = eventDateRangeMap[preset];
-            return {
-              indexUid: OCCURRENCES_INDEX,
-              q: parsed.data.q ?? "",
+            const countResult = await index.search<OccurrenceDoc>(parsed.data.q ?? "", {
               filter: [...baseMeiliFilters, buildEventDateClause(presetRange)],
               limit: 0,
+            });
+            return {
+              preset,
+              count: countResult.estimatedTotalHits ?? countResult.hits.length,
             };
           });
-          const multiResult = await app.meiliService.client.multiSearch({
-            queries: dateFacetQueries,
-          }) as { results?: Array<{ estimatedTotalHits?: number; hits?: unknown[] }> };
-          const results = multiResult.results ?? [];
-          eventDateFacet = Object.fromEntries(
-            EVENT_DATE_PRESETS.map((preset: EventDatePreset, index2) => {
-              const row = results[index2];
-              const count = row?.estimatedTotalHits ?? row?.hits?.length ?? 0;
-              return [preset, count];
-            }),
-          );
-        } catch {
+          const counts = await Promise.all(dateFacetQueries);
+          eventDateFacet = Object.fromEntries(counts.map((item) => [item.preset, item.count]));
+        } catch (error) {
+          request.log.warn({ err: error, msg: "events.search.event_date_facet_failed" });
           eventDateFacet = {};
         }
       }
@@ -422,7 +479,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
                 lng: doc.geo.lng,
               }
             : null,
-          organizers: doc.organizer_ids.map((id: string, index2: number) => ({
+          organizers: organizerMap.get(doc.event_id) ?? doc.organizer_ids.map((id: string, index2: number) => ({
             id,
             name: doc.organizer_names[index2] ?? "",
             avatarUrl: null,
@@ -452,7 +509,8 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       };
       setSearchCache("events_search", cacheKeyPayload, payload);
       return payload;
-    } catch {
+    } catch (error) {
+      request.log.warn({ err: error, msg: "events.search.meili_failed_using_fallback" });
       const fallback = await searchEventsFallback(app.db, {
         q: parsed.data.q,
         from: from ?? now.toISO()!,

@@ -18,7 +18,9 @@ export type OccurrenceDoc = {
   updated_at: string;
   description_text: string;
   starts_at_utc: string;
+  starts_at_ts: number;
   ends_at_utc: string;
+  ends_at_ts: number;
   attendance_mode: string;
   event_timezone: string;
   practice_category_id: string;
@@ -33,6 +35,7 @@ export type OccurrenceDoc = {
   has_geo: boolean;
   geo: { lat: number; lng: number } | null;
   published_at: string | null;
+  published_at_ts: number | null;
 };
 
 export class MeilisearchService {
@@ -51,6 +54,7 @@ export class MeilisearchService {
     const index = this.client.index(OCCURRENCES_INDEX);
     await index.updateFilterableAttributes([
       "starts_at_utc",
+      "starts_at_ts",
       "practice_category_id",
       "practice_subcategory_id",
       "event_format_id",
@@ -62,7 +66,8 @@ export class MeilisearchService {
       "city",
       "has_geo",
     ]);
-    await index.updateSortableAttributes(["starts_at_utc", "published_at"]);
+    await index.updateSortableAttributes(["starts_at_utc", "starts_at_ts", "published_at", "published_at_ts"]);
+    await index.updatePagination({ maxTotalHits: 50000 });
   }
 
   async healthcheck(): Promise<boolean> {
@@ -155,7 +160,9 @@ export class MeilisearchService {
         updated_at: row.updated_at,
         description_text: extractEditorJsText(row.description_json),
         starts_at_utc: row.starts_at_utc,
+        starts_at_ts: Date.parse(row.starts_at_utc),
         ends_at_utc: row.ends_at_utc,
+        ends_at_ts: Date.parse(row.ends_at_utc),
         attendance_mode: row.attendance_mode,
         event_timezone: row.event_timezone,
         practice_category_id: row.practice_category_id,
@@ -170,6 +177,7 @@ export class MeilisearchService {
         has_geo: Boolean(lat !== null && lng !== null),
         geo: lat !== null && lng !== null ? { lat, lng } : null,
         published_at: row.published_at,
+        published_at_ts: row.published_at ? Date.parse(row.published_at) : null,
       };
     });
   }

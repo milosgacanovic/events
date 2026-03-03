@@ -80,6 +80,7 @@ async function main() {
     const settingsTask = await index.updateSettings({
       filterableAttributes: [
         "starts_at_utc",
+        "starts_at_ts",
         "practice_category_id",
         "practice_subcategory_id",
         "event_format_id",
@@ -91,7 +92,8 @@ async function main() {
         "city",
         "has_geo",
       ],
-      sortableAttributes: ["starts_at_utc", "published_at"],
+      sortableAttributes: ["starts_at_utc", "starts_at_ts", "published_at", "published_at_ts"],
+      pagination: { maxTotalHits: 50000 },
     });
     await meili.waitForTask(settingsTask.taskUid);
 
@@ -106,12 +108,18 @@ async function main() {
         event_slug: string;
         title: string;
         cover_image_path: string | null;
+        is_imported: boolean;
+        import_source: string | null;
+        external_url: string | null;
+        updated_at: string;
         description_json: unknown;
         starts_at_utc: string;
         ends_at_utc: string;
         attendance_mode: string;
+        event_timezone: string;
         practice_category_id: string;
         practice_subcategory_id: string | null;
+        event_format_id: string | null;
         tags: string[];
         languages: string[];
         country_code: string | null;
@@ -128,12 +136,18 @@ async function main() {
             e.slug as event_slug,
             e.title,
             e.cover_image_path,
+            e.is_imported,
+            e.import_source,
+            e.external_url,
+            e.updated_at,
             e.description_json,
             eo.starts_at_utc,
             eo.ends_at_utc,
             e.attendance_mode,
+            e.event_timezone,
             e.practice_category_id,
             e.practice_subcategory_id,
+            e.event_format_id,
             e.tags,
             e.languages,
             eo.country_code,
@@ -165,12 +179,20 @@ async function main() {
           event_slug: row.event_slug,
           title: row.title,
           cover_image_path: row.cover_image_path,
+          is_imported: row.is_imported,
+          import_source: row.import_source,
+          external_url: row.external_url,
+          updated_at: row.updated_at,
           description_text: extractEditorJsText(row.description_json),
           starts_at_utc: row.starts_at_utc,
+          starts_at_ts: Date.parse(row.starts_at_utc),
           ends_at_utc: row.ends_at_utc,
+          ends_at_ts: Date.parse(row.ends_at_utc),
           attendance_mode: row.attendance_mode,
+          event_timezone: row.event_timezone,
           practice_category_id: row.practice_category_id,
           practice_subcategory_id: row.practice_subcategory_id,
+          event_format_id: row.event_format_id,
           tags: row.tags,
           languages: row.languages,
           organizer_ids: row.organizer_ids,
@@ -180,6 +202,7 @@ async function main() {
           has_geo: Boolean(lat !== null && lng !== null),
           geo: lat !== null && lng !== null ? { lat, lng } : null,
           published_at: row.published_at,
+          published_at_ts: row.published_at ? Date.parse(row.published_at) : null,
         };
       });
 

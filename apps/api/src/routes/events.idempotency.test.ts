@@ -78,7 +78,9 @@ describe("events idempotency conflict handling", () => {
       } as never);
 
     const app = Fastify();
-    app.decorate("db", {} as never);
+    app.decorate("db", {
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+    } as never);
     app.decorate("meiliService", {
       client: {
         index: () => ({
@@ -365,7 +367,7 @@ describe("events idempotency conflict handling", () => {
     expect(response.headers["cache-control"]).toBe("public, max-age=30");
     expect(response.headers.vary).toContain("Authorization");
     const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
-    expect(options?.filter?.some((item) => item.includes("starts_at_utc >= \"1970-01-01T00:00:00.000Z\""))).toBe(true);
+    expect(options?.filter?.some((item) => item === "starts_at_ts >= 0")).toBe(true);
     await app.close();
   });
 
@@ -397,14 +399,14 @@ describe("events idempotency conflict handling", () => {
 
     expect(response.statusCode).toBe(200);
     const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
-    const upperBound = options?.filter?.find((item) => item.startsWith("starts_at_utc <= "));
+    const upperBound = options?.filter?.find((item) => item.startsWith("starts_at_ts <= "));
     expect(upperBound).toBeDefined();
 
-    const raw = upperBound?.replace("starts_at_utc <= ", "");
-    const toIso = raw ? JSON.parse(raw) as string : null;
-    expect(toIso).toBeTruthy();
+    const raw = upperBound?.replace("starts_at_ts <= ", "");
+    const toTs = raw ? Number(raw) : null;
+    expect(Number.isFinite(toTs)).toBe(true);
 
-    const diffMs = new Date(toIso!).getTime() - Date.now();
+    const diffMs = toTs! - Date.now();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
     expect(diffDays).toBeGreaterThan(364);
     expect(diffDays).toBeLessThan(366.5);
@@ -412,7 +414,7 @@ describe("events idempotency conflict handling", () => {
     await app.close();
   });
 
-  it("maps sort=date_desc to starts_at_utc:desc", async () => {
+  it("maps sort=date_desc to starts_at_ts:desc", async () => {
     const searchSpy = vi.fn().mockResolvedValue({
       hits: [],
       facetDistribution: {},
@@ -440,7 +442,7 @@ describe("events idempotency conflict handling", () => {
 
     expect(response.statusCode).toBe(200);
     const options = searchSpy.mock.calls[0]?.[1] as { sort?: string[] } | undefined;
-    expect(options?.sort).toEqual(["starts_at_utc:desc"]);
+    expect(options?.sort).toEqual(["starts_at_ts:desc"]);
     await app.close();
   });
 
@@ -642,6 +644,37 @@ describe("events idempotency conflict handling", () => {
       facetDistribution: {},
       estimatedTotalHits: 1,
     });
+    vi.mocked(searchEventsFallback).mockResolvedValue({
+      hits: [
+        {
+          occurrenceId: "00000000-0000-0000-0000-000000000101",
+          startsAtUtc: "2026-03-20T19:00:00.000Z",
+          endsAtUtc: "2026-03-20T21:00:00.000Z",
+          event: {
+            id: "00000000-0000-0000-0000-000000000010",
+            slug: "event-one",
+            title: "Event One",
+            coverImageUrl: "https://cdn.example.org/events/e1.jpg",
+            attendanceMode: "in_person",
+            eventTimezone: "UTC",
+            languages: ["en"],
+            tags: [],
+            practiceCategoryId: "11111111-1111-1111-1111-111111111111",
+            practiceSubcategoryId: null,
+            eventFormatId: null,
+            isImported: false,
+            importSource: null,
+            externalUrl: null,
+            lastSyncedAt: null,
+          },
+          location: null,
+          organizers: [],
+        },
+      ],
+      totalHits: 1,
+      facets: {},
+      pagination: { page: 1, pageSize: 20, totalPages: 1 },
+    } as never);
 
     const app = Fastify();
     app.decorate("db", {} as never);
