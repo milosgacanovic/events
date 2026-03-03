@@ -46,6 +46,7 @@
   "eventSearch.timeMode.eventWithZone": "Event local time ({zone})",
   "eventSearch.teacherPrefix": "Teacher:",
   "eventSearch.organizerPrefix": "Organizer:",
+  "eventSearch.hostPrefix": "Host:",
   "eventSearch.showMore": "Show more",
   "eventSearch.showLess": "Show less",
   "eventSearch.eventFormat": "Event format",

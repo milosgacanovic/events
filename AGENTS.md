@@ -32,3 +32,4 @@
 - No direct SQL in controllers; use DB repository modules.
 - Validate request and response contracts with Zod.
 - Keep API contracts in `docs/api.md` stable.
+- Never hardcode taxonomy semantics or entity classification (roles, categories, formats, host/event typing) in UI or API logic. Always source from database taxonomy/config and API payloads so the project stays fully customizable.

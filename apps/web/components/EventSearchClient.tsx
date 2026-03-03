@@ -36,6 +36,7 @@ export type SearchResponse = {
     organizers?: Array<{
       id: string;
       name: string;
+      roles?: string[];
     }>;
   }>;
   totalHits: number;
@@ -1005,15 +1006,37 @@ export function EventSearchClient({
                 {(hit.organizers?.length ?? 0) > 0 && (
                   <div className="meta">
                     {(() => {
-                      const names = (hit.organizers ?? []).map((item) => item.name);
-                      const organizers = names.filter((name) => /ecstatic\s*dance/i.test(name));
-                      const teachers = names.filter((name) => !/ecstatic\s*dance/i.test(name));
-                      const parts: string[] = [];
-                      if (teachers.length > 0) {
-                        parts.push(`${t("eventSearch.teacherPrefix")} ${teachers.join(", ")}`);
+                      const roleBuckets = new Map<string, string[]>();
+                      for (const organizer of hit.organizers ?? []) {
+                        const roles = organizer.roles?.filter(Boolean) ?? [];
+                        if (roles.length === 0) {
+                          const bucket = roleBuckets.get("host") ?? [];
+                          bucket.push(organizer.name);
+                          roleBuckets.set("host", bucket);
+                          continue;
+                        }
+                        for (const role of roles) {
+                          const bucket = roleBuckets.get(role) ?? [];
+                          bucket.push(organizer.name);
+                          roleBuckets.set(role, bucket);
+                        }
                       }
-                      if (organizers.length > 0) {
-                        parts.push(`${t("eventSearch.organizerPrefix")} ${organizers.join(", ")}`);
+                      const parts: string[] = [];
+
+                      for (const [role, names] of roleBuckets.entries()) {
+                        const uniqueNames = Array.from(new Set(names));
+                        if (uniqueNames.length === 0) {
+                          continue;
+                        }
+                        let prefix = `${role}:`;
+                        if (role === "teacher") {
+                          prefix = t("eventSearch.teacherPrefix");
+                        } else if (role === "organizer") {
+                          prefix = t("eventSearch.organizerPrefix");
+                        } else if (role === "host") {
+                          prefix = t("eventSearch.hostPrefix");
+                        }
+                        parts.push(`${prefix} ${uniqueNames.join(", ")}`);
                       }
                       return parts.join(" | ");
                     })()}

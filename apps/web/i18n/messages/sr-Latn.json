@@ -46,6 +46,7 @@
   "eventSearch.timeMode.eventWithZone": "Lokalno vreme događaja ({zone})",
   "eventSearch.teacherPrefix": "Učitelj:",
   "eventSearch.organizerPrefix": "Organizator:",
+  "eventSearch.hostPrefix": "Domaćin:",
   "eventSearch.showMore": "Prikaži više",
   "eventSearch.showLess": "Prikaži manje",
   "eventSearch.eventFormat": "Format događaja",
