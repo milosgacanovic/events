@@ -11,6 +11,8 @@ import {
 
 const querySchema = z.object({
   q: z.string().optional(),
+  practice: z.string().optional(),
+  practiceCategoryId: z.string().optional(),
   tags: z.string().optional(),
   languages: z.string().optional(),
   roleKey: z.string().optional(),
@@ -31,6 +33,18 @@ function csvToList(value?: string): string[] {
     .filter(Boolean);
 }
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parseUuidCsv(value?: string): string[] | null {
+  const items = csvToList(value);
+  for (const item of items) {
+    if (!uuidPattern.test(item)) {
+      return null;
+    }
+  }
+  return items;
+}
+
 function mapOrganizerSearchItem(item: Record<string, unknown>) {
   const roleKeys = Array.isArray(item.role_keys)
     ? item.role_keys.filter((value): value is string => typeof value === "string")
@@ -39,6 +53,12 @@ function mapOrganizerSearchItem(item: Record<string, unknown>) {
     (typeof item.image_url === "string" ? item.image_url : null)
     ?? (typeof item.avatar_path === "string" ? item.avatar_path : null);
 
+  const organizerLanguages = Array.isArray(item.languages) ? item.languages.filter((value): value is string => typeof value === "string") : [];
+  const derivedLanguages = Array.isArray(item.derived_languages)
+    ? item.derived_languages.filter((value): value is string => typeof value === "string")
+    : [];
+  const effectiveLanguages = organizerLanguages.length > 0 ? organizerLanguages : derivedLanguages;
+
   return {
     ...item,
     imageUrl,
@@ -46,8 +66,11 @@ function mapOrganizerSearchItem(item: Record<string, unknown>) {
     externalUrl: typeof item.external_url === "string" ? item.external_url : null,
     city: typeof item.city === "string" ? item.city : null,
     countryCode: typeof item.country_code === "string" ? item.country_code : null,
-    languages: Array.isArray(item.languages) ? item.languages : [],
+    languages: effectiveLanguages,
     tags: Array.isArray(item.tags) ? item.tags : [],
+    practiceCategoryIds: Array.isArray(item.practice_category_ids)
+      ? item.practice_category_ids.filter((value): value is string => typeof value === "string")
+      : [],
     roleKeys,
     roleKey: roleKeys[0] ?? null,
   };
@@ -59,6 +82,14 @@ function mapOrganizerDetail(result: Record<string, unknown>) {
     (typeof organizer.image_url === "string" ? organizer.image_url : null)
     ?? (typeof organizer.avatar_path === "string" ? organizer.avatar_path : null);
 
+  const organizerLanguages = Array.isArray(organizer.languages)
+    ? organizer.languages.filter((value): value is string => typeof value === "string")
+    : [];
+  const derivedLanguages = Array.isArray(result.derivedLanguages)
+    ? result.derivedLanguages.filter((value): value is string => typeof value === "string")
+    : [];
+  const effectiveLanguages = organizerLanguages.length > 0 ? organizerLanguages : derivedLanguages;
+
   return {
     ...result,
     organizer: {
@@ -69,9 +100,12 @@ function mapOrganizerDetail(result: Record<string, unknown>) {
       externalUrl: typeof organizer.external_url === "string" ? organizer.external_url : null,
       city: typeof organizer.city === "string" ? organizer.city : null,
       countryCode: typeof organizer.country_code === "string" ? organizer.country_code : null,
-      languages: Array.isArray(organizer.languages) ? organizer.languages : [],
+      languages: effectiveLanguages,
       tags: Array.isArray(organizer.tags) ? organizer.tags : [],
     },
+    practiceCategoryIds: Array.isArray(result.practiceCategoryIds)
+      ? result.practiceCategoryIds.filter((value): value is string => typeof value === "string")
+      : [],
   };
 }
 
@@ -83,8 +117,27 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
+    const practiceCategoryIds = parseUuidCsv(parsed.data.practiceCategoryId);
+    if (!practiceCategoryIds) {
+      reply.code(400);
+      return { error: "invalid_uuid_list" };
+    }
+    const practiceKeys = csvToList(parsed.data.practice);
+    const practiceRows = practiceKeys.length
+      ? await app.db.query<{ id: string }>(
+        `
+          select id
+          from practices
+          where key = any($1::text[])
+            and is_active = true
+        `,
+        [practiceKeys],
+      )
+      : { rows: [] as Array<{ id: string }> };
+
     const response = await searchOrganizers(app.db, {
       q: parsed.data.q,
+      practiceCategoryIds: Array.from(new Set([...(practiceCategoryIds ?? []), ...practiceRows.rows.map((row) => row.id)])),
       tags: csvToList(parsed.data.tags),
       languages: csvToList(parsed.data.languages),
       roleKeys: csvToList(parsed.data.roleKey),
@@ -113,7 +166,25 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: "not_found" };
     }
 
-    return mapOrganizerDetail(result as unknown as Record<string, unknown>);
+    const derivedLanguages = result.upcomingOccurrences.length > 0
+      ? await app.db.query<{ language: string }>(
+        `
+          select distinct lower(ev.language) as language
+          from event_organizers rel
+          join events e on e.id = rel.event_id
+          left join lateral unnest(e.languages) as ev(language) on true
+          where rel.organizer_id = $1
+            and e.status = 'published'
+            and ev.language is not null
+        `,
+        [result.organizer.id],
+      ).then((queryResult) => queryResult.rows.map((row) => row.language))
+      : [];
+
+    return mapOrganizerDetail({
+      ...(result as unknown as Record<string, unknown>),
+      derivedLanguages,
+    });
   });
 
   app.post("/organizers", async (request, reply) => {

@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 
 import { useKeycloakAuth } from "../../components/auth/KeycloakAuthProvider";
+import { LocaleSwitcher } from "../../components/i18n/LocaleSwitcher";
 import { useI18n } from "../../components/i18n/I18nProvider";
 import { apiBase } from "../../lib/api";
+import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../../lib/timeDisplay";
 
 type ProfilePayload = {
   id: string;
@@ -22,6 +24,13 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [displayName, setDisplayName] = useState("");
+  const [timeDisplayMode, setTimeDisplayMode] = useState<"event" | "user">("user");
+  const [userTimeZone, setUserTimeZone] = useState("UTC");
+
+  useEffect(() => {
+    setTimeDisplayMode(readTimeDisplayMode());
+    setUserTimeZone(getUserTimeZone());
+  }, []);
 
   useEffect(() => {
     if (!auth.ready) {
@@ -138,14 +147,29 @@ export default function ProfilePage() {
   return (
     <section className="panel cards">
       <h1 className="title-xl">{t("profile.title")}</h1>
+      <LocaleSwitcher />
       {error && <div className="muted">{error}</div>}
       <label>
         {t("profile.displayName")}
         <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
       </label>
       <div className="meta">
-        {t("profile.email")} {profile?.email ?? auth.userName ?? t("common.none")}
+        {t("profile.username")} {profile?.email ?? auth.userName ?? t("common.none")}
       </div>
+      <label className="meta">
+        <input
+          type="checkbox"
+          checked={timeDisplayMode === "event"}
+          onChange={(event) => {
+            const nextMode = event.target.checked ? "event" : "user";
+            setTimeDisplayMode(nextMode);
+            writeTimeDisplayMode(nextMode);
+          }}
+        />{" "}
+        {timeDisplayMode === "event"
+          ? t("profile.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
+          : t("profile.timeMode.userWithZone", { zone: userTimeZone })}
+      </label>
       <button className="secondary-btn" type="button" onClick={() => void saveProfile()} disabled={saving}>
         {saving ? t("profile.saving") : t("profile.save")}
       </button>

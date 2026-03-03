@@ -13,6 +13,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
   const cityQuerySchema = z.object({
     q: z.string().trim().max(80).optional(),
     countryCode: z.string().trim().max(8).optional(),
+    exclude: z.string().trim().max(500).optional(),
     limit: z.coerce.number().int().positive().max(20).default(20),
   });
   const tagsQuerySchema = z.object({
@@ -21,6 +22,16 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
   });
   const cache = new Map<string, { expiresAt: number; payload: unknown }>();
   const ttlMs = 30_000;
+
+  function csvToList(value?: string): string[] {
+    if (!value) {
+      return [];
+    }
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
 
   app.get("/meta/taxonomies", async () => {
     const [practicesResult, rolesResult, eventFormatsResult, uiLabels] = await Promise.all([
@@ -106,14 +117,17 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
-    const cacheKey = `cities:${parsed.data.countryCode ?? ""}:${parsed.data.q ?? ""}:${parsed.data.limit}`;
+    const cacheKey = `cities:${parsed.data.countryCode ?? ""}:${parsed.data.q ?? ""}:${parsed.data.exclude ?? ""}:${parsed.data.limit}`;
     const now = Date.now();
     const cached = cache.get(cacheKey);
     if (cached && cached.expiresAt > now) {
       return cached.payload;
     }
 
-    const items = await listCitySuggestions(app.db, parsed.data);
+    const items = await listCitySuggestions(app.db, {
+      ...parsed.data,
+      exclude: csvToList(parsed.data.exclude),
+    });
     const payload = { items };
     cache.set(cacheKey, { expiresAt: now + ttlMs, payload });
     return payload;
@@ -146,14 +160,17 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
-    const cacheKey = `organizer-cities:${parsed.data.countryCode ?? ""}:${parsed.data.q ?? ""}:${parsed.data.limit}`;
+    const cacheKey = `organizer-cities:${parsed.data.countryCode ?? ""}:${parsed.data.q ?? ""}:${parsed.data.exclude ?? ""}:${parsed.data.limit}`;
     const now = Date.now();
     const cached = cache.get(cacheKey);
     if (cached && cached.expiresAt > now) {
       return cached.payload;
     }
 
-    const items = await listOrganizerCitySuggestions(app.db, parsed.data);
+    const items = await listOrganizerCitySuggestions(app.db, {
+      ...parsed.data,
+      exclude: csvToList(parsed.data.exclude),
+    });
     const payload = { items };
     cache.set(cacheKey, { expiresAt: now + ttlMs, payload });
     return payload;

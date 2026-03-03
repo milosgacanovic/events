@@ -30,8 +30,10 @@ const searchQuerySchema = z.object({
   to: z.string().datetime().optional(),
   includePast: z.enum(["true", "false"]).optional(),
   practiceCategoryId: z.string().optional(),
+  practice: z.string().optional(),
   practiceSubcategoryId: z.string().uuid().optional(),
   eventFormatId: z.string().optional(),
+  format: z.string().optional(),
   tags: z.string().optional(),
   languages: z.string().optional(),
   attendanceMode: z.enum(["in_person", "online", "hybrid"]).optional(),
@@ -65,6 +67,41 @@ function csvToList(value?: string): string[] {
     .filter(Boolean);
 }
 
+async function resolveTaxonomyIdsFromKeys(
+  db: Parameters<typeof getEventById>[0],
+  input: { practiceKeys: string[]; formatKeys: string[] },
+): Promise<{ practiceCategoryIds: string[]; eventFormatIds: string[] }> {
+  const [practiceRows, eventFormatRows] = await Promise.all([
+    input.practiceKeys.length
+      ? db.query<{ id: string }>(
+        `
+          select id
+          from practices
+          where key = any($1::text[])
+            and is_active = true
+        `,
+        [input.practiceKeys],
+      )
+      : Promise.resolve({ rows: [] } as { rows: Array<{ id: string }> }),
+    input.formatKeys.length
+      ? db.query<{ id: string }>(
+        `
+          select id
+          from event_formats
+          where key = any($1::text[])
+            and is_active = true
+        `,
+        [input.formatKeys],
+      )
+      : Promise.resolve({ rows: [] } as { rows: Array<{ id: string }> }),
+  ]);
+
+  return {
+    practiceCategoryIds: practiceRows.rows.map((row) => row.id),
+    eventFormatIds: eventFormatRows.rows.map((row) => row.id),
+  };
+}
+
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function parseUuidCsv(value?: string): string[] | null {
@@ -96,7 +133,7 @@ function buildMeiliFilters(input: {
   attendanceMode?: string;
   organizerId?: string;
   countryCodes?: string[];
-  city?: string;
+  cities?: string[];
   hasGeo?: boolean;
 }) {
   const filters: string[] = [
@@ -143,8 +180,10 @@ function buildMeiliFilters(input: {
       filters.push(`(${normalized.map((value) => `country_code = ${JSON.stringify(value)}`).join(" OR ")})`);
     }
   }
-  if (input.city) {
-    filters.push(`city = ${JSON.stringify(input.city)}`);
+  if (input.cities?.length === 1) {
+    filters.push(`city = ${JSON.stringify(input.cities[0])}`);
+  } else if (input.cities && input.cities.length > 1) {
+    filters.push(`(${input.cities.map((value) => `city = ${JSON.stringify(value)}`).join(" OR ")})`);
   }
   if (typeof input.hasGeo === "boolean") {
     filters.push(`has_geo = ${input.hasGeo}`);
@@ -199,15 +238,30 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const to = parsed.data.to ?? now.plus({ days: 365 }).toISO();
     const tags = csvToList(parsed.data.tags);
     const languages = csvToList(parsed.data.languages);
-    const practiceCategoryIds = parseUuidCsv(parsed.data.practiceCategoryId);
-    const eventFormatIds = parseUuidCsv(parsed.data.eventFormatId);
-    if (!practiceCategoryIds || !eventFormatIds) {
+    const practiceCategoryUuids = parseUuidCsv(parsed.data.practiceCategoryId);
+    const eventFormatUuids = parseUuidCsv(parsed.data.eventFormatId);
+    const practiceKeys = csvToList(parsed.data.practice);
+    const formatKeys = csvToList(parsed.data.format);
+    const resolvedFromKeys = await resolveTaxonomyIdsFromKeys(app.db, {
+      practiceKeys,
+      formatKeys,
+    });
+    const practiceCategoryIds = [
+      ...(practiceCategoryUuids ?? []),
+      ...resolvedFromKeys.practiceCategoryIds,
+    ];
+    const eventFormatIds = [
+      ...(eventFormatUuids ?? []),
+      ...resolvedFromKeys.eventFormatIds,
+    ];
+    if (!practiceCategoryUuids || !eventFormatUuids) {
       reply.code(400);
       return {
         error: "invalid_uuid_list",
       };
     }
     const countryCodes = csvToList(parsed.data.countryCode).map((value) => value.toLowerCase());
+    const cityFilters = csvToList(parsed.data.city);
     const hasGeo = parsed.data.hasGeo ? parsed.data.hasGeo === "true" : undefined;
 
     reply.header("Cache-Control", "public, max-age=30");
@@ -230,7 +284,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       attendanceMode: parsed.data.attendanceMode ?? null,
       organizerId: parsed.data.organizerId ?? null,
       countryCode: countryCodes.join(",") || null,
-      city: parsed.data.city ?? null,
+      city: cityFilters.join(",") || null,
       hasGeo: hasGeo ?? null,
       sort: normalizedSort,
       page: parsed.data.page,
@@ -255,7 +309,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         attendanceMode: parsed.data.attendanceMode,
         organizerId: parsed.data.organizerId,
         countryCodes,
-        city: parsed.data.city,
+        cities: cityFilters,
         hasGeo,
       });
 
@@ -357,7 +411,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         attendanceMode: parsed.data.attendanceMode,
         organizerId: parsed.data.organizerId,
         countryCodes,
-        city: parsed.data.city,
+        city: cityFilters.join(","),
         hasGeo,
         page: parsed.data.page,
         pageSize: parsed.data.pageSize,

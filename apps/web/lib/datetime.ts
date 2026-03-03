@@ -2,8 +2,10 @@ import { DateTime } from "luxon";
 
 export type FormattedDateTime = {
   primary: string;
-  secondary: string | null;
+  suffixLabel: "event" | "user";
 };
+
+export type TimeDisplayMode = "event" | "user";
 
 function sameDay(start: DateTime, end: DateTime): boolean {
   return start.year === end.year && start.month === end.month && start.day === end.day;
@@ -21,24 +23,17 @@ export function formatDateTimeRange(
   startsAtIso: string,
   endsAtIso: string,
   eventTimezone: string,
-  showEventTimezone = false,
+  mode: TimeDisplayMode = "user",
 ): FormattedDateTime {
   const startUtc = DateTime.fromISO(startsAtIso, { zone: "utc" });
   const endUtc = DateTime.fromISO(endsAtIso, { zone: "utc" });
-
-  const userStart = startUtc.toLocal();
-  const userEnd = endUtc.toLocal();
-  const eventStart = startUtc.setZone(eventTimezone);
-  const eventEnd = endUtc.setZone(eventTimezone);
-
-  const primary = formatRange(userStart, userEnd);
-  const sameZone = userStart.zoneName === eventStart.zoneName;
-  const secondary = !showEventTimezone || sameZone
-    ? null
-    : `Event time: ${formatRange(eventStart, eventEnd)} (${eventTimezone})`;
+  const useEventZone = mode === "event";
+  const start = useEventZone ? startUtc.setZone(eventTimezone) : startUtc.toLocal();
+  const end = useEventZone ? endUtc.setZone(eventTimezone) : endUtc.toLocal();
+  const primary = formatRange(start, end);
 
   return {
     primary,
-    secondary,
+    suffixLabel: useEventZone ? "event" : "user",
   };
 }

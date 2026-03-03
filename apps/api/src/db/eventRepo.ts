@@ -112,9 +112,16 @@ function buildEventFilters(input: Omit<EventSearchInput, "page" | "pageSize" | "
     whereParts.push(`lower(eo.country_code) = any($${values.length}::text[])`);
   }
 
-  if (input.city) {
-    values.push(input.city.toLowerCase());
+  const normalizedCities = (input.city ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  if (normalizedCities.length === 1) {
+    values.push(normalizedCities[0]);
     whereParts.push(`lower(eo.city) = $${values.length}`);
+  } else if (normalizedCities.length > 1) {
+    values.push(normalizedCities);
+    whereParts.push(`lower(eo.city) = any($${values.length}::text[])`);
   }
 
   if (typeof input.hasGeo === "boolean") {

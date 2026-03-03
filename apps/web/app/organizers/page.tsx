@@ -33,7 +33,7 @@ export default function OrganizersPage({
     tags: csvToList(getSingle(searchParams, "tags")),
     languages: csvToList(getSingle(searchParams, "languages")),
     countryCodes: csvToList(getSingle(searchParams, "countryCode")),
-    city: getSingle(searchParams, "city") ?? undefined,
+    cities: csvToList(getSingle(searchParams, "city")),
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
   };
 

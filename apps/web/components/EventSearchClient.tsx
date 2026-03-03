@@ -6,10 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
-import { formatDateTimeRange } from "../lib/datetime";
+import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
+import { labelForLanguageCode } from "../lib/i18n/languageLabels";
+import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useI18n } from "./i18n/I18nProvider";
-
-const SHOW_EVENT_TIMEZONE_STORAGE_KEY = "dr-events-show-event-timezone";
 
 export type SearchResponse = {
   hits: Array<{
@@ -63,6 +63,7 @@ export type TaxonomyResponse = {
   practices: {
     categories: Array<{
       id: string;
+      key?: string;
       label: string;
       subcategories: Array<{
         id: string;
@@ -87,7 +88,7 @@ export type EventSearchInitialQuery = {
   languages?: string[];
   attendanceMode?: string;
   countryCodes?: string[];
-  city?: string;
+  cities?: string[];
   sort?: "startsAtAsc" | "startsAtDesc";
   view?: "list" | "map";
   page?: number;
@@ -97,6 +98,17 @@ const LeafletClusterMap = dynamic(
   () => import("./LeafletClusterMap").then((module) => module.LeafletClusterMap),
   { ssr: false },
 );
+
+function mergeFacetRecord(
+  current: Record<string, number> | undefined,
+  incoming: Record<string, number> | undefined,
+): Record<string, number> {
+  const merged: Record<string, number> = { ...(current ?? {}) };
+  for (const [key, count] of Object.entries(incoming ?? {})) {
+    merged[key] = Math.max(merged[key] ?? 0, count);
+  }
+  return merged;
+}
 
 export function EventSearchClient({
   initialResults,
@@ -124,7 +136,8 @@ export function EventSearchClient({
   const [countryCodes, setCountryCodes] = useState<string[]>(
     (initialQuery?.countryCodes ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean),
   );
-  const [city, setCity] = useState(initialQuery?.city ?? "");
+  const [cities, setCities] = useState<string[]>(initialQuery?.cities ?? []);
+  const [cityQuery, setCityQuery] = useState("");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [showMoreCategories, setShowMoreCategories] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
@@ -132,10 +145,12 @@ export function EventSearchClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(initialResults ?? null);
+  const [facetBaseline, setFacetBaseline] = useState<NonNullable<SearchResponse["facets"]>>(initialResults?.facets ?? {});
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
-  const [showEventTimezone, setShowEventTimezone] = useState(false);
+  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
   const restoredKeyRef = useRef<string | null>(null);
+  const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
   useEffect(() => {
     if (initialTaxonomy) {
@@ -161,6 +176,13 @@ export function EventSearchClient({
     }
     return map;
   }, [taxonomy]);
+  const categoryKeyById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const category of taxonomy?.practices.categories ?? []) {
+      map.set(category.id, category.key ?? category.id);
+    }
+    return map;
+  }, [taxonomy]);
 
   const subcategoryLabelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -168,6 +190,13 @@ export function EventSearchClient({
       for (const subcategory of category.subcategories) {
         map.set(subcategory.id, subcategory.label);
       }
+    }
+    return map;
+  }, [taxonomy]);
+  const eventFormatKeyById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const format of taxonomy?.eventFormats ?? []) {
+      map.set(format.id, format.key);
     }
     return map;
   }, [taxonomy]);
@@ -197,11 +226,10 @@ export function EventSearchClient({
       return null;
     }
   }, [locale]);
-  const getLanguageLabel = useCallback((value: string) => {
-    const normalized = value.trim().toLowerCase();
-    const localized = languageNames?.of(normalized);
-    return localized && localized !== normalized ? localized : value;
-  }, [languageNames]);
+  const getLanguageLabel = useCallback(
+    (value: string) => labelForLanguageCode(value, languageNames),
+    [languageNames],
+  );
   const getCountryLabel = useCallback((value: string) => {
     const normalized = value.trim().toUpperCase();
     const localized = regionNames?.of(normalized);
@@ -210,6 +238,16 @@ export function EventSearchClient({
   const visibleCountryFacets = useMemo(() => {
     const selectedSet = new Set(countryCodes.map((value) => value.trim().toLowerCase()));
     const merged = new Map<string, number>();
+
+    for (const [key, value] of Object.entries(facetBaseline.countryCode ?? {})) {
+      const normalized = key.trim().toLowerCase();
+      if (!normalized) {
+        continue;
+      }
+      if (value > 0 || selectedSet.has(normalized)) {
+        merged.set(normalized, value);
+      }
+    }
 
     for (const [key, value] of Object.entries(data?.facets?.countryCode ?? {})) {
       const normalized = key.trim().toLowerCase();
@@ -230,7 +268,7 @@ export function EventSearchClient({
     return Array.from(merged.entries())
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([value, count]) => ({ value, count }));
-  }, [countryCodes, data?.facets?.countryCode]);
+  }, [countryCodes, data?.facets?.countryCode, facetBaseline.countryCode]);
 
   const buildQueryString = useCallback((nextPage: number) => {
     const params = new URLSearchParams();
@@ -242,7 +280,7 @@ export function EventSearchClient({
     if (languages.length) params.set("languages", languages.join(","));
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (city.trim()) params.set("city", city.trim());
+    if (cities.length) params.set("city", cities.join(","));
     params.set("sort", sort);
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
@@ -256,21 +294,27 @@ export function EventSearchClient({
     languages,
     attendanceMode,
     countryCodes,
-    city,
+    cities,
     sort,
   ]);
 
   const buildUiQueryString = useCallback(() => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
-    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+    if (practiceCategoryIds.length) {
+      const practiceKeys = practiceCategoryIds.map((id) => categoryKeyById.get(id) ?? id);
+      params.set("practice", practiceKeys.join(","));
+    }
     if (practiceSubcategoryId) params.set("practiceSubcategoryId", practiceSubcategoryId);
-    if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
+    if (eventFormatIds.length) {
+      const formatKeys = eventFormatIds.map((id) => eventFormatKeyById.get(id) ?? id);
+      params.set("format", formatKeys.join(","));
+    }
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (city.trim()) params.set("city", city.trim());
+    if (cities.length) params.set("city", cities.join(","));
     if (sort !== "startsAtAsc") params.set("sort", sort);
     if (view !== "list") params.set("view", view);
     if (page > 1) params.set("page", String(page));
@@ -284,10 +328,12 @@ export function EventSearchClient({
     languages,
     attendanceMode,
     countryCodes,
-    city,
+    cities,
     sort,
     view,
     page,
+    categoryKeyById,
+    eventFormatKeyById,
   ]);
 
   const scrollStorageKey = useMemo(() => {
@@ -340,7 +386,7 @@ export function EventSearchClient({
   useEffect(() => {
     const timer = setTimeout(() => {
       const queryString = buildUiQueryString();
-      router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+      router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
     }, 250);
     return () => clearTimeout(timer);
   }, [buildUiQueryString, pathname, router]);
@@ -389,21 +435,27 @@ export function EventSearchClient({
   }, [persistScroll]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const saved = window.localStorage.getItem(SHOW_EVENT_TIMEZONE_STORAGE_KEY);
-    if (saved === "1") {
-      setShowEventTimezone(true);
-    }
+    setTimeDisplayMode(readTimeDisplayMode());
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    writeTimeDisplayMode(timeDisplayMode);
+  }, [timeDisplayMode]);
+
+  useEffect(() => {
+    if (!data?.facets) {
       return;
     }
-    window.localStorage.setItem(SHOW_EVENT_TIMEZONE_STORAGE_KEY, showEventTimezone ? "1" : "0");
-  }, [showEventTimezone]);
+    setFacetBaseline((current) => ({
+      practiceCategoryId: mergeFacetRecord(current.practiceCategoryId, data.facets?.practiceCategoryId),
+      practiceSubcategoryId: mergeFacetRecord(current.practiceSubcategoryId, data.facets?.practiceSubcategoryId),
+      eventFormatId: mergeFacetRecord(current.eventFormatId, data.facets?.eventFormatId),
+      tags: mergeFacetRecord(current.tags, data.facets?.tags),
+      languages: mergeFacetRecord(current.languages, data.facets?.languages),
+      attendanceMode: mergeFacetRecord(current.attendanceMode, data.facets?.attendanceMode),
+      countryCode: mergeFacetRecord(current.countryCode, data.facets?.countryCode),
+    }));
+  }, [data?.facets]);
 
   function clearFilters() {
     setQ("");
@@ -415,7 +467,8 @@ export function EventSearchClient({
     setLanguages([]);
     setAttendanceMode("");
     setCountryCodes([]);
-    setCity("");
+    setCities([]);
+    setCityQuery("");
     setPage(1);
     setSort("startsAtAsc");
   }
@@ -428,21 +481,26 @@ export function EventSearchClient({
     if (countryCodes[0]) {
       params.set("countryCode", countryCodes[0]);
     }
-    if (city.trim()) {
-      params.set("q", city.trim());
+    if (cityQuery.trim()) {
+      params.set("q", cityQuery.trim());
+    }
+    if (cities.length) {
+      params.set("exclude", cities.join(","));
     }
     params.set("limit", "20");
     void fetchJson<{ items: Array<{ city: string; count: number }> }>(`/meta/cities?${params.toString()}`)
       .then((payload) => setCitySuggestions(payload.items ?? []))
       .catch(() => setCitySuggestions([]));
-  }, [city, countryCodes]);
+  }, [cityQuery, countryCodes, cities]);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (tagQuery.trim()) {
       params.set("q", tagQuery.trim());
+      params.set("limit", "20");
+    } else {
+      params.set("limit", "5");
     }
-    params.set("limit", "20");
     void fetchJson<{ items: Array<{ tag: string; count: number }> }>(`/meta/tags?${params.toString()}`)
       .then((payload) => setTagSuggestions(payload.items ?? []))
       .catch(() => setTagSuggestions([]));
@@ -450,8 +508,35 @@ export function EventSearchClient({
 
   const visibleCategories = useMemo(() => {
     const categories = taxonomy?.practices.categories ?? [];
-    return showMoreCategories ? categories : categories.slice(0, 8);
-  }, [showMoreCategories, taxonomy]);
+    const selectedSet = new Set(practiceCategoryIds);
+    const filtered = categories.filter((category) => {
+      const count = data?.facets?.practiceCategoryId?.[category.id] ??
+        facetBaseline.practiceCategoryId?.[category.id] ??
+        0;
+      return count > 0 || selectedSet.has(category.id);
+    });
+    return showMoreCategories ? filtered : filtered.slice(0, 8);
+  }, [data?.facets?.practiceCategoryId, facetBaseline.practiceCategoryId, practiceCategoryIds, showMoreCategories, taxonomy]);
+  const visibleEventLanguageFacets = useMemo(() => {
+    const selectedSet = new Set(languages);
+    const merged = new Map<string, number>();
+    for (const [key, value] of Object.entries(facetBaseline.languages ?? {})) {
+      if (value > 0 || selectedSet.has(key)) {
+        merged.set(key, value);
+      }
+    }
+    for (const [key, value] of Object.entries(data?.facets?.languages ?? {})) {
+      if (value > 0 || selectedSet.has(key)) {
+        merged.set(key, value);
+      }
+    }
+    for (const key of selectedSet) {
+      if (!merged.has(key)) {
+        merged.set(key, 0);
+      }
+    }
+    return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [data?.facets?.languages, facetBaseline.languages, languages]);
   const selectedFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
 
@@ -506,6 +591,16 @@ export function EventSearchClient({
         },
       });
     }
+    for (const city of cities) {
+      chips.push({
+        key: `city:${city}`,
+        label: `${t("eventSearch.placeholder.city")}: ${city}`,
+        onRemove: () => {
+          setCities((current) => current.filter((item) => item !== city));
+          setPage(1);
+        },
+      });
+    }
     return chips;
   }, [
     categoryLabelById,
@@ -518,8 +613,29 @@ export function EventSearchClient({
     practiceCategoryIds,
     t,
     tags,
+    cities,
     taxonomy?.eventFormats,
   ]);
+
+  function addTagFromInput(rawValue: string) {
+    const value = rawValue.trim().toLowerCase();
+    if (!value) {
+      return;
+    }
+    setTags((current) => (current.includes(value) ? current : [...current, value]));
+    setTagQuery("");
+    setPage(1);
+  }
+
+  function addCityFromInput(rawValue: string) {
+    const value = rawValue.trim();
+    if (!value) {
+      return;
+    }
+    setCities((current) => (current.includes(value) ? current : [...current, value]));
+    setCityQuery("");
+    setPage(1);
+  }
 
   return (
     <section className="grid">
@@ -551,7 +667,9 @@ export function EventSearchClient({
           <div className="kv">
             {visibleCategories.map((category) => {
               const checked = practiceCategoryIds.includes(category.id);
-              const count = data?.facets?.practiceCategoryId?.[category.id] ?? 0;
+              const count = data?.facets?.practiceCategoryId?.[category.id] ??
+                facetBaseline.practiceCategoryId?.[category.id] ??
+                0;
               return (
                 <label className="meta" key={category.id}>
                   <input
@@ -608,7 +726,9 @@ export function EventSearchClient({
             {t("eventSearch.eventFormat")}
             <div className="kv">
               {taxonomy?.eventFormats?.map((format) => {
-                const count = data?.facets?.eventFormatId?.[format.id] ?? 0;
+                const count = data?.facets?.eventFormatId?.[format.id] ??
+                  facetBaseline.eventFormatId?.[format.id] ??
+                  0;
                 const checked = eventFormatIds.includes(format.id);
                 return (
                   <label className="meta" key={format.id}>
@@ -634,7 +754,7 @@ export function EventSearchClient({
         <label>
           {t("eventSearch.eventLanguage")}
           <div className="kv">
-            {Object.entries(data?.facets?.languages ?? {}).map(([value, count]) => (
+            {visibleEventLanguageFacets.map(([value, count]) => (
               <label className="meta" key={value}>
                 <input
                   type="checkbox"
@@ -681,8 +801,22 @@ export function EventSearchClient({
         </details>
         <input
           list="event-city-suggestions"
-          value={city}
-          onChange={(event) => setCity(event.target.value)}
+          value={cityQuery}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            const match = citySuggestions.find((item) => item.city.toLowerCase() === nextValue.trim().toLowerCase());
+            if (match) {
+              addCityFromInput(match.city);
+              return;
+            }
+            setCityQuery(nextValue);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addCityFromInput(cityQuery);
+            }
+          }}
           placeholder={t("eventSearch.placeholder.city")}
         />
         <datalist id="event-city-suggestions">
@@ -692,36 +826,51 @@ export function EventSearchClient({
             </option>
           ))}
         </datalist>
+        {cities.length > 0 && (
+          <div className="kv">
+            {cities.map((item) => (
+              <button
+                className="tag"
+                key={item}
+                type="button"
+                onClick={() => {
+                  setCities((current) => current.filter((cityItem) => cityItem !== item));
+                  setPage(1);
+                }}
+              >
+                {item} ×
+              </button>
+            ))}
+          </div>
+        )}
         <input
           list="event-tag-suggestions"
           value={tagQuery}
           onFocus={() => setTagQuery("")}
-          onChange={(event) => setTagQuery(event.target.value)}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            const match = tagSuggestions.find((item) => item.tag.toLowerCase() === nextValue.trim().toLowerCase());
+            if (match) {
+              addTagFromInput(match.tag);
+              return;
+            }
+            setTagQuery(nextValue);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addTagFromInput(tagQuery);
+            }
+          }}
           placeholder={t("eventSearch.tags")}
         />
         <datalist id="event-tag-suggestions">
           {tagSuggestions.map((item) => (
             <option key={item.tag} value={item.tag}>
-              {item.tag} ({item.count})
+              {item.count}
             </option>
           ))}
         </datalist>
-        {tagQuery.trim() && (
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={() => {
-              const value = tagQuery.trim().toLowerCase();
-              if (value && !tags.includes(value)) {
-                setTags((current) => [...current, value]);
-              }
-              setTagQuery("");
-              setPage(1);
-            }}
-          >
-            {t("common.action.addTag")}
-          </button>
-        )}
         {tags.length > 0 && (
           <div className="kv">
             {tags.map((item) => (
@@ -743,10 +892,12 @@ export function EventSearchClient({
           <label className="meta">
             <input
               type="checkbox"
-              checked={showEventTimezone}
-              onChange={(event) => setShowEventTimezone(event.target.checked)}
+              checked={timeDisplayMode === "event"}
+              onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
             />{" "}
-            {t("eventSearch.showEventTimezone")}
+            {timeDisplayMode === "event"
+              ? t("eventSearch.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
+              : t("eventSearch.timeMode.userWithZone", { zone: userTimeZone })}
           </label>
         </div>
         <div className="kv">
@@ -810,7 +961,7 @@ export function EventSearchClient({
               hit.startsAtUtc,
               hit.endsAtUtc,
               hit.event.eventTimezone ?? "UTC",
-              showEventTimezone,
+              timeDisplayMode,
             );
 
             return (
@@ -833,9 +984,10 @@ export function EventSearchClient({
                 )}
                 <h3>{hit.event.title}</h3>
                 <div className="meta">
-                  {formatted.primary} | {t(`attendanceMode.${hit.event.attendanceMode}`)}
+                  {formatted.primary} ({formatted.suffixLabel === "event"
+                    ? t("common.eventTimezone")
+                    : t("common.yourTimezone")}) | {t(`attendanceMode.${hit.event.attendanceMode}`)}
                 </div>
-                {formatted.secondary && <div className="meta">{formatted.secondary}</div>}
                 <div className="meta">
                   {hit.location?.city ?? t("eventSearch.locationTbd")}
                   {hit.location?.country_code ? `, ${getCountryLabel(hit.location.country_code)}` : ""}
@@ -848,8 +1000,19 @@ export function EventSearchClient({
                 </div>
                 {(hit.organizers?.length ?? 0) > 0 && (
                   <div className="meta">
-                    {hit.organizers?.slice(0, 2).map((item) => item.name).join(", ")}
-                    {(hit.organizers?.length ?? 0) > 2 ? ` +${(hit.organizers?.length ?? 0) - 2}` : ""}
+                    {(() => {
+                      const names = (hit.organizers ?? []).map((item) => item.name);
+                      const organizers = names.filter((name) => /ecstatic\s*dance/i.test(name));
+                      const teachers = names.filter((name) => !/ecstatic\s*dance/i.test(name));
+                      const parts: string[] = [];
+                      if (teachers.length > 0) {
+                        parts.push(`${t("eventSearch.teacherPrefix")} ${teachers.join(", ")}`);
+                      }
+                      if (organizers.length > 0) {
+                        parts.push(`${t("eventSearch.organizerPrefix")} ${organizers.join(", ")}`);
+                      }
+                      return parts.join(" | ");
+                    })()}
                   </div>
                 )}
                 <div className="kv">
@@ -875,6 +1038,7 @@ export function EventSearchClient({
               type="button"
               onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
               disabled={loading || currentPage <= 1}
+              style={currentPage <= 1 ? { visibility: "hidden" } : undefined}
             >
               {t("common.pagination.previous")}
             </button>
@@ -886,6 +1050,7 @@ export function EventSearchClient({
               type="button"
               onClick={() => setPage((prev) => prev + 1)}
               disabled={loading || currentPage >= totalPages}
+              style={currentPage >= totalPages ? { visibility: "hidden" } : undefined}
             >
               {t("common.pagination.next")}
             </button>

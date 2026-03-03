@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { apiBase, fetchJson } from "../lib/api";
+import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
@@ -46,6 +47,7 @@ type OrganizerDetail = {
     event_slug: string;
     event_title: string;
   }>;
+  practiceCategoryIds?: string[];
 };
 
 function collectText(value: unknown, output: string[]): void {
@@ -115,6 +117,13 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const regionNames = (() => {
     try {
       return new Intl.DisplayNames([locale], { type: "region" });
+    } catch {
+      return null;
+    }
+  })();
+  const languageNames = (() => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "language" });
     } catch {
       return null;
     }
@@ -213,7 +222,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
       <div className="kv">
         {data.organizer.languages.map((item) => (
           <span className="tag" key={item}>
-            {item}
+            {labelForLanguageCode(item, languageNames)}
           </span>
         ))}
         {data.organizer.tags.map((item) => (
@@ -221,33 +230,40 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
             {item}
           </span>
         ))}
+        {(data.practiceCategoryIds ?? []).map((item) => (
+          <span className="tag" key={`practice-${item}`}>
+            {item}
+          </span>
+        ))}
       </div>
-      <div className="card">
-        <h3>{t("organizerDetail.alert.title")}</h3>
-        <div className="meta">{t("organizerDetail.alert.description")}</div>
-        <label>
-          {t("organizerDetail.alert.radiusKm")}
-          <input
-            type="number"
-            min={1}
-            max={500}
-            value={radiusKm}
-            onChange={(event) => setRadiusKm(Number(event.target.value) || 50)}
-          />
-        </label>
-        <label>
-          {t("organizerDetail.alert.city")}
-          <input value={alertCity} onChange={(event) => setAlertCity(event.target.value)} />
-        </label>
-        <label>
-          {t("organizerDetail.alert.countryCode")}
-          <input value={alertCountryCode} onChange={(event) => setAlertCountryCode(event.target.value)} />
-        </label>
-        <button className="secondary-btn" type="button" onClick={() => void createAlert()} disabled={savingAlert}>
-          {savingAlert ? t("organizerDetail.alert.saving") : t("organizerDetail.alert.follow")}
-        </button>
-        {alertStatus && <div className="meta">{alertStatus}</div>}
-      </div>
+      {auth.authenticated && (
+        <div className="card">
+          <h3>{t("organizerDetail.alert.title")}</h3>
+          <div className="meta">{t("organizerDetail.alert.description")}</div>
+          <label>
+            {t("organizerDetail.alert.radiusKm")}
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={radiusKm}
+              onChange={(event) => setRadiusKm(Number(event.target.value) || 50)}
+            />
+          </label>
+          <label>
+            {t("organizerDetail.alert.city")}
+            <input value={alertCity} onChange={(event) => setAlertCity(event.target.value)} />
+          </label>
+          <label>
+            {t("organizerDetail.alert.countryCode")}
+            <input value={alertCountryCode} onChange={(event) => setAlertCountryCode(event.target.value)} />
+          </label>
+          <button className="secondary-btn" type="button" onClick={() => void createAlert()} disabled={savingAlert}>
+            {savingAlert ? t("organizerDetail.alert.saving") : t("organizerDetail.alert.follow")}
+          </button>
+          {alertStatus && <div className="meta">{alertStatus}</div>}
+        </div>
+      )}
 
       <h3>{t("organizerDetail.locations")}</h3>
       {data.locations.length === 0 && <div className="muted">{t("organizerDetail.noLocations")}</div>}

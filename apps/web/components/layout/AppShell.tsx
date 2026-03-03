@@ -35,7 +35,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="nav">
           <Link href="/events">{t("nav.events")}</Link>
           <Link href="/organizers">{t("nav.organizers")}</Link>
-          <Link href="/admin">{t("nav.admin")}</Link>
+          {auth.authenticated && <Link href="/admin">{t("nav.admin")}</Link>}
         </nav>
         <div className="auth-actions">
           {!auth.ready ? (

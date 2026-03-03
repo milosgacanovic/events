@@ -28,6 +28,7 @@ export type OrganizerSearchInput = {
   tags?: string[];
   languages?: string[];
   roleKeys?: string[];
+  practiceCategoryIds?: string[];
   countryCode?: string;
   countryCodes?: string[];
   city?: string;
@@ -55,7 +56,19 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
 
   if (filters.languages?.length) {
     values.push(filters.languages);
-    whereParts.push(`o.languages && $${values.length}::text[]`);
+    whereParts.push(`
+      (
+        o.languages && $${values.length}::text[]
+        or exists (
+          select 1
+          from event_organizers eo
+          join events e on e.id = eo.event_id
+          where eo.organizer_id = o.id
+            and e.status = 'published'
+            and e.languages && $${values.length}::text[]
+        )
+      )
+    `);
   }
 
   if (filters.roleKeys?.length) {
@@ -67,6 +80,19 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
         join organizer_roles r on r.id = eo.role_id
         where eo.organizer_id = o.id
           and r.key = any($${values.length}::text[])
+      )
+    `);
+  }
+
+  if (filters.practiceCategoryIds?.length) {
+    values.push(filters.practiceCategoryIds);
+    whereParts.push(`
+      exists (
+        select 1
+        from event_organizers eo
+        join events e on e.id = eo.event_id
+        where eo.organizer_id = o.id
+          and e.practice_category_id = any($${values.length}::uuid[])
       )
     `);
   }
@@ -84,9 +110,16 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
     whereParts.push(`lower(o.country_code) = any($${values.length}::text[])`);
   }
 
-  if (filters.city) {
-    values.push(filters.city.toLowerCase());
+  const normalizedCities = (filters.city ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  if (normalizedCities.length === 1) {
+    values.push(normalizedCities[0]);
     whereParts.push(`lower(o.city) = $${values.length}`);
+  } else if (normalizedCities.length > 1) {
+    values.push(normalizedCities);
+    whereParts.push(`lower(o.city) = any($${values.length}::text[])`);
   }
 
   return {
@@ -105,17 +138,26 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
   const rows = await pool.query<
     OrganizerRow & {
       role_keys: string[];
+      derived_languages: string[];
+      practice_category_ids: string[];
     }
   >(
     `
       select
         o.*,
-        coalesce(role_meta.role_keys, '{}'::text[]) as role_keys
+        coalesce(role_meta.role_keys, '{}'::text[]) as role_keys,
+        coalesce(role_meta.derived_languages, '{}'::text[]) as derived_languages,
+        coalesce(role_meta.practice_category_ids, '{}'::text[]) as practice_category_ids
       from organizers o
       left join lateral (
-        select array_agg(distinct r.key order by r.key) as role_keys
+        select
+          array_agg(distinct r.key order by r.key) as role_keys,
+          array_remove(array_agg(distinct lower(ev_lang.language)), null) as derived_languages,
+          array_agg(distinct e.practice_category_id::text order by e.practice_category_id::text) as practice_category_ids
         from event_organizers eo
         join organizer_roles r on r.id = eo.role_id
+        join events e on e.id = eo.event_id and e.status = 'published'
+        left join lateral unnest(e.languages) ev_lang(language) on true
         where eo.organizer_id = o.id
       ) role_meta on true
       where ${whereSql}
@@ -150,8 +192,15 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
   const languageFacet = await pool.query<{ language: string; count: string }>(
     `
       with filtered as (
-        select o.languages
+        select coalesce(nullif(o.languages, '{}'::text[]), role_meta.derived_languages, '{}'::text[]) as languages
         from organizers o
+        left join lateral (
+          select array_remove(array_agg(distinct lower(ev_lang.language)), null) as derived_languages
+          from event_organizers eo
+          join events e on e.id = eo.event_id and e.status = 'published'
+          left join lateral unnest(e.languages) ev_lang(language) on true
+          where eo.organizer_id = o.id
+        ) role_meta on true
         where ${whereSql}
       )
       select language, count(*)::text as count
@@ -330,11 +379,23 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
     [organizer.rows[0].id],
   );
 
+  const practiceCategories = await pool.query<{ practice_category_id: string }>(
+    `
+      select distinct e.practice_category_id
+      from event_organizers rel
+      join events e on e.id = rel.event_id
+      where rel.organizer_id = $1
+        and e.status in ('published', 'cancelled')
+    `,
+    [organizer.rows[0].id],
+  );
+
   return {
     organizer: organizer.rows[0],
     locations: locations.rows,
     upcomingOccurrences: upcoming.rows,
     pastOccurrences: past.rows,
+    practiceCategoryIds: practiceCategories.rows.map((row) => row.practice_category_id),
   };
 }
 

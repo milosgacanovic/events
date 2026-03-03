@@ -3,6 +3,20 @@ import { unstable_cache } from "next/cache";
 import { apiBase } from "./api";
 
 const siteBase = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://beta.events.danceresource.org";
+const configuredServerApiBase = process.env.INTERNAL_API_BASE_URL?.replace(/\/$/, "");
+const absoluteApiBase = apiBase.startsWith("http")
+  ? apiBase.replace(/\/$/, "")
+  : `${siteBase}${apiBase.startsWith("/") ? "" : "/"}${apiBase}`;
+
+function getServerApiBaseCandidates(): string[] {
+  const values = [
+    configuredServerApiBase,
+    absoluteApiBase,
+    "http://api:13001/api",
+    "http://localhost:13001/api",
+  ].filter((value): value is string => Boolean(value));
+  return Array.from(new Set(values));
+}
 
 const EVENT_QUERY_TO = "2100-01-01T00:00:00.000Z";
 const API_PAGE_SIZE = 50;
@@ -54,15 +68,16 @@ async function fetchEventPage(page: number): Promise<EventSearchResponse | null>
     page: String(page),
     pageSize: String(API_PAGE_SIZE),
   });
-  const response = await fetch(`${apiBase}/events/search?${params.toString()}`, {
-    next: { revalidate: 600 },
-  }).catch(() => null);
-
-  if (!response || !response.ok) {
-    return null;
+  for (const base of getServerApiBaseCandidates()) {
+    const response = await fetch(`${base}/events/search?${params.toString()}`, {
+      next: { revalidate: 600 },
+    }).catch(() => null);
+    if (!response || !response.ok) {
+      continue;
+    }
+    return response.json() as Promise<EventSearchResponse>;
   }
-
-  return response.json() as Promise<EventSearchResponse>;
+  return null;
 }
 
 const getAllEventSitemapItemsCached = unstable_cache(async (): Promise<EventSitemapItem[]> => {

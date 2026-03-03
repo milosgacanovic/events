@@ -2,11 +2,12 @@ import type { Pool } from "pg";
 
 export async function listCitySuggestions(
   pool: Pool,
-  input: { q?: string; countryCode?: string; limit: number },
+  input: { q?: string; countryCode?: string; limit: number; exclude?: string[] },
 ) {
   const query = (input.q ?? "").trim().toLowerCase();
   const countryCode = (input.countryCode ?? "").trim().toLowerCase();
 
+  const excluded = (input.exclude ?? []).map((value) => value.toLowerCase()).filter(Boolean);
   const result = await pool.query<{ city: string; count: string }>(
     `
       select
@@ -20,11 +21,12 @@ export async function listCitySuggestions(
         and eo.city <> ''
         and ($1 = '' or lower(eo.city) like $1 || '%')
         and ($2 = '' or lower(eo.country_code) = $2)
+        and (cardinality($4::text[]) = 0 or lower(eo.city) <> all($4::text[]))
       group by lower(eo.city)
       order by count(*) desc, lower(eo.city) asc
       limit $3
     `,
-    [query, countryCode, input.limit],
+    [query, countryCode, input.limit, excluded],
   );
 
   return result.rows.map((row) => ({ city: row.city, count: Number(row.count) }));
@@ -63,11 +65,12 @@ export async function listTagSuggestions(
 
 export async function listOrganizerCitySuggestions(
   pool: Pool,
-  input: { q?: string; countryCode?: string; limit: number },
+  input: { q?: string; countryCode?: string; limit: number; exclude?: string[] },
 ) {
   const query = (input.q ?? "").trim().toLowerCase();
   const countryCode = (input.countryCode ?? "").trim().toLowerCase();
 
+  const excluded = (input.exclude ?? []).map((value) => value.toLowerCase()).filter(Boolean);
   const result = await pool.query<{ city: string; count: string }>(
     `
       select
@@ -80,11 +83,12 @@ export async function listOrganizerCitySuggestions(
         and ol.city <> ''
         and ($1 = '' or lower(ol.city) like $1 || '%')
         and ($2 = '' or lower(ol.country_code) = $2)
+        and (cardinality($4::text[]) = 0 or lower(ol.city) <> all($4::text[]))
       group by lower(ol.city)
       order by count(distinct o.id) desc, lower(ol.city) asc
       limit $3
     `,
-    [query, countryCode, input.limit],
+    [query, countryCode, input.limit, excluded],
   );
 
   return result.rows.map((row) => ({ city: row.city, count: Number(row.count) }));

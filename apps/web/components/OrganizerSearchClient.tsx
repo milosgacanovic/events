@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { useI18n } from "./i18n/I18nProvider";
 
 type OrganizerSearchResponse = {
@@ -20,6 +21,7 @@ type OrganizerSearchResponse = {
     languages: string[];
     roleKey?: string | null;
     roleKeys?: string[];
+    practiceCategoryIds?: string[];
     city: string | null;
     country_code: string | null;
     countryCode?: string | null;
@@ -42,12 +44,34 @@ type OrganizerSearchResponse = {
 export type OrganizerSearchInitialQuery = {
   q?: string;
   roleKeys?: string[];
+  practiceCategoryIds?: string[];
   tags?: string[];
   languages?: string[];
   countryCodes?: string[];
-  city?: string;
+  cities?: string[];
   page?: number;
 };
+
+type TaxonomyResponse = {
+  practices: {
+    categories: Array<{
+      id: string;
+      key: string;
+      label: string;
+    }>;
+  };
+};
+
+function mergeFacetRecord(
+  current: Record<string, number> | undefined,
+  incoming: Record<string, number> | undefined,
+): Record<string, number> {
+  const merged: Record<string, number> = { ...(current ?? {}) };
+  for (const [key, count] of Object.entries(incoming ?? {})) {
+    merged[key] = Math.max(merged[key] ?? 0, count);
+  }
+  return merged;
+}
 
 export function OrganizerSearchClient({
   initialQuery,
@@ -59,6 +83,7 @@ export function OrganizerSearchClient({
   const pathname = usePathname();
   const [q, setQ] = useState(initialQuery?.q ?? "");
   const [roleKeys, setRoleKeys] = useState<string[]>(initialQuery?.roleKeys ?? []);
+  const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>(initialQuery?.practiceCategoryIds ?? []);
   const [tags, setTags] = useState<string[]>(initialQuery?.tags ?? []);
   const [tagQuery, setTagQuery] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
@@ -66,38 +91,69 @@ export function OrganizerSearchClient({
   const [countryCodes, setCountryCodes] = useState(
     (initialQuery?.countryCodes ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean),
   );
-  const [city, setCity] = useState(initialQuery?.city ?? "");
+  const [cities, setCities] = useState<string[]>(initialQuery?.cities ?? []);
+  const [cityQuery, setCityQuery] = useState("");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<OrganizerSearchResponse | null>(null);
+  const [facetBaseline, setFacetBaseline] = useState<NonNullable<OrganizerSearchResponse["facets"]>>({});
+  const [practiceBaseline, setPracticeBaseline] = useState<Record<string, number>>({});
+  const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const restoredKeyRef = useRef<string | null>(null);
+  const practiceLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const category of taxonomy?.practices.categories ?? []) {
+      map.set(category.id, category.label);
+    }
+    return map;
+  }, [taxonomy]);
+  const practiceKeyById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const category of taxonomy?.practices.categories ?? []) {
+      map.set(category.id, category.key);
+    }
+    return map;
+  }, [taxonomy]);
+
+  useEffect(() => {
+    fetchJson<TaxonomyResponse>("/meta/taxonomies")
+      .then(setTaxonomy)
+      .catch(() => {
+        // Keep organizer search usable even if taxonomy metadata fails.
+      });
+  }, []);
 
   const buildQueryString = useCallback((nextPage: number) => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
+    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (city.trim()) params.set("city", city.trim());
+    if (cities.length) params.set("city", cities.join(","));
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
     return params.toString();
-  }, [q, roleKeys, tags, languages, countryCodes, city]);
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
 
   const buildUiQueryString = useCallback(() => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
+    if (practiceCategoryIds.length) {
+      const keys = practiceCategoryIds.map((id) => practiceKeyById.get(id) ?? id);
+      params.set("practice", keys.join(","));
+    }
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (city.trim()) params.set("city", city.trim());
+    if (cities.length) params.set("city", cities.join(","));
     if (page > 1) params.set("page", String(page));
     return params.toString();
-  }, [q, roleKeys, tags, languages, countryCodes, city, page]);
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, page, practiceKeyById]);
 
   const scrollStorageKey = useMemo(() => {
     const query = buildUiQueryString();
@@ -142,7 +198,7 @@ export function OrganizerSearchClient({
   useEffect(() => {
     const timer = setTimeout(() => {
       const queryString = buildUiQueryString();
-      router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+      router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
     }, 250);
     return () => clearTimeout(timer);
   }, [buildUiQueryString, pathname, router]);
@@ -195,8 +251,11 @@ export function OrganizerSearchClient({
     if (countryCodes[0]) {
       params.set("countryCode", countryCodes[0]);
     }
-    if (city.trim()) {
-      params.set("q", city.trim());
+    if (cityQuery.trim()) {
+      params.set("q", cityQuery.trim());
+    }
+    if (cities.length) {
+      params.set("exclude", cities.join(","));
     }
     params.set("limit", "20");
     void fetchJson<{ items: Array<{ city: string; count: number }> }>(
@@ -204,7 +263,7 @@ export function OrganizerSearchClient({
     )
       .then((payload) => setCitySuggestions(payload.items ?? []))
       .catch(() => setCitySuggestions([]));
-  }, [city, countryCodes]);
+  }, [cityQuery, countryCodes, cities]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -221,6 +280,19 @@ export function OrganizerSearchClient({
       .then((payload) => setTagSuggestions(payload.items ?? []))
       .catch(() => setTagSuggestions([]));
   }, [tagQuery]);
+
+  useEffect(() => {
+    if (!data?.facets) {
+      return;
+    }
+    setFacetBaseline((current) => ({
+      roleKey: mergeFacetRecord(current.roleKey, data.facets?.roleKey),
+      languages: mergeFacetRecord(current.languages, data.facets?.languages),
+      tags: mergeFacetRecord(current.tags, data.facets?.tags),
+      countryCode: mergeFacetRecord(current.countryCode, data.facets?.countryCode),
+      city: mergeFacetRecord(current.city, data.facets?.city),
+    }));
+  }, [data?.facets]);
 
   const currentPage = data?.pagination?.page ?? page;
   const totalPages = data?.pagination?.totalPages ?? 1;
@@ -239,9 +311,7 @@ export function OrganizerSearchClient({
     }
   }, [locale]);
   const getLanguageLabel = useCallback((value: string) => {
-    const normalized = value.trim().toLowerCase();
-    const localized = languageNames?.of(normalized);
-    return localized && localized !== normalized ? localized : value;
+    return labelForLanguageCode(value, languageNames);
   }, [languageNames]);
   const getCountryLabel = useCallback((value: string) => {
     const normalized = value.trim().toUpperCase();
@@ -251,6 +321,11 @@ export function OrganizerSearchClient({
   const visibleRoleFacets = useMemo(() => {
     const selectedSet = new Set(roleKeys);
     const merged = new Map<string, number>();
+    for (const [key, value] of Object.entries(facetBaseline.roleKey ?? {})) {
+      if (value > 0 || selectedSet.has(key)) {
+        merged.set(key, value);
+      }
+    }
     for (const [key, value] of Object.entries(data?.facets?.roleKey ?? {})) {
       if (value > 0 || selectedSet.has(key)) {
         merged.set(key, value);
@@ -260,10 +335,15 @@ export function OrganizerSearchClient({
       if (!merged.has(key)) merged.set(key, 0);
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.roleKey, roleKeys]);
+  }, [data?.facets?.roleKey, facetBaseline.roleKey, roleKeys]);
   const visibleLanguageFacets = useMemo(() => {
     const selectedSet = new Set(languages);
     const merged = new Map<string, number>();
+    for (const [key, value] of Object.entries(facetBaseline.languages ?? {})) {
+      if (value > 0 || selectedSet.has(key)) {
+        merged.set(key, value);
+      }
+    }
     for (const [key, value] of Object.entries(data?.facets?.languages ?? {})) {
       if (value > 0 || selectedSet.has(key)) {
         merged.set(key, value);
@@ -273,10 +353,16 @@ export function OrganizerSearchClient({
       if (!merged.has(key)) merged.set(key, 0);
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.languages, languages]);
+  }, [data?.facets?.languages, facetBaseline.languages, languages]);
   const visibleCountryFacets = useMemo(() => {
     const selectedSet = new Set(countryCodes);
     const merged = new Map<string, number>();
+    for (const [keyRaw, value] of Object.entries(facetBaseline.countryCode ?? {})) {
+      const key = keyRaw.toLowerCase();
+      if (value > 0 || selectedSet.has(key)) {
+        merged.set(key, value);
+      }
+    }
     for (const [keyRaw, value] of Object.entries(data?.facets?.countryCode ?? {})) {
       const key = keyRaw.toLowerCase();
       if (value > 0 || selectedSet.has(key)) {
@@ -287,7 +373,35 @@ export function OrganizerSearchClient({
       if (!merged.has(key)) merged.set(key, 0);
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.countryCode, countryCodes]);
+  }, [data?.facets?.countryCode, facetBaseline.countryCode, countryCodes]);
+  const livePracticeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of data?.items ?? []) {
+      for (const practiceId of item.practiceCategoryIds ?? []) {
+        counts[practiceId] = (counts[practiceId] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [data?.items]);
+  useEffect(() => {
+    setPracticeBaseline((current) => {
+      const next = { ...current };
+      for (const [practiceId, count] of Object.entries(livePracticeCounts)) {
+        next[practiceId] = Math.max(next[practiceId] ?? 0, count);
+      }
+      return next;
+    });
+  }, [livePracticeCounts]);
+  const practiceCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const [practiceId, count] of Object.entries(practiceBaseline)) {
+      counts.set(practiceId, count);
+    }
+    for (const [practiceId, count] of Object.entries(livePracticeCounts)) {
+      counts.set(practiceId, count);
+    }
+    return counts;
+  }, [livePracticeCounts, practiceBaseline]);
   const selectedChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
     for (const role of roleKeys) {
@@ -296,6 +410,16 @@ export function OrganizerSearchClient({
         label: `${t("organizerSearch.hostType")}: ${role}`,
         onRemove: () => {
           setRoleKeys((current) => current.filter((item) => item !== role));
+          setPage(1);
+        },
+      });
+    }
+    for (const practiceId of practiceCategoryIds) {
+      chips.push({
+        key: `practice:${practiceId}`,
+        label: `${t("common.category")}: ${practiceLabelById.get(practiceId) ?? practiceId}`,
+        onRemove: () => {
+          setPracticeCategoryIds((current) => current.filter((item) => item !== practiceId));
           setPage(1);
         },
       });
@@ -330,18 +454,38 @@ export function OrganizerSearchClient({
         },
       });
     }
-    if (city.trim()) {
+    for (const city of cities) {
       chips.push({
-        key: "city",
-        label: `${t("organizerSearch.placeholder.city")}: ${city.trim()}`,
+        key: `city:${city}`,
+        label: `${t("organizerSearch.placeholder.city")}: ${city}`,
         onRemove: () => {
-          setCity("");
+          setCities((current) => current.filter((item) => item !== city));
           setPage(1);
         },
       });
     }
     return chips;
-  }, [city, countryCodes, getCountryLabel, getLanguageLabel, languages, roleKeys, t, tags]);
+  }, [cities, countryCodes, getCountryLabel, getLanguageLabel, languages, practiceCategoryIds, practiceLabelById, roleKeys, t, tags]);
+
+  function addTagFromInput(rawValue: string) {
+    const value = rawValue.trim().toLowerCase();
+    if (!value) {
+      return;
+    }
+    setTags((current) => (current.includes(value) ? current : [...current, value]));
+    setTagQuery("");
+    setPage(1);
+  }
+
+  function addCityFromInput(rawValue: string) {
+    const value = rawValue.trim();
+    if (!value) {
+      return;
+    }
+    setCities((current) => (current.includes(value) ? current : [...current, value]));
+    setCityQuery("");
+    setPage(1);
+  }
 
   return (
     <section className="grid">
@@ -376,6 +520,39 @@ export function OrganizerSearchClient({
             ))}
           </div>
         </details>
+
+        {(taxonomy?.practices.categories.length ?? 0) > 0 && (
+          <details open>
+            <summary>{t("common.category")}</summary>
+            <div className="kv">
+              {taxonomy?.practices.categories
+                .filter((category) => {
+                  const count = practiceCounts.get(category.id) ?? 0;
+                  return count > 0 || practiceCategoryIds.includes(category.id);
+                })
+                .map((category) => {
+                  const count = practiceCounts.get(category.id) ?? 0;
+                  return (
+                    <label className="meta" key={`practice-${category.id}`}>
+                      <input
+                        type="checkbox"
+                        checked={practiceCategoryIds.includes(category.id)}
+                        onChange={() => {
+                          setPracticeCategoryIds((current) => (
+                            current.includes(category.id)
+                              ? current.filter((item) => item !== category.id)
+                              : [...current, category.id]
+                          ));
+                          setPage(1);
+                        }}
+                      />
+                      {category.label} ({count})
+                    </label>
+                  );
+                })}
+            </div>
+          </details>
+        )}
 
         <details open>
           <summary>{t("organizerSearch.hostLanguage")}</summary>
@@ -421,10 +598,21 @@ export function OrganizerSearchClient({
 
         <input
           list="organizer-city-suggestions"
-          value={city}
+          value={cityQuery}
           onChange={(event) => {
-            setCity(event.target.value);
-            setPage(1);
+            const nextValue = event.target.value;
+            const match = citySuggestions.find((item) => item.city.toLowerCase() === nextValue.trim().toLowerCase());
+            if (match) {
+              addCityFromInput(match.city);
+              return;
+            }
+            setCityQuery(nextValue);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addCityFromInput(cityQuery);
+            }
           }}
           placeholder={t("organizerSearch.placeholder.city")}
         />
@@ -435,37 +623,52 @@ export function OrganizerSearchClient({
             </option>
           ))}
         </datalist>
+        {cities.length > 0 && (
+          <div className="kv">
+            {cities.map((item) => (
+              <button
+                className="tag"
+                key={item}
+                type="button"
+                onClick={() => {
+                  setCities((current) => current.filter((cityItem) => cityItem !== item));
+                  setPage(1);
+                }}
+              >
+                {item} ×
+              </button>
+            ))}
+          </div>
+        )}
 
         <input
           list="organizer-tag-suggestions"
           value={tagQuery}
           onFocus={() => setTagQuery("")}
-          onChange={(event) => setTagQuery(event.target.value)}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            const match = tagSuggestions.find((item) => item.tag.toLowerCase() === nextValue.trim().toLowerCase());
+            if (match) {
+              addTagFromInput(match.tag);
+              return;
+            }
+            setTagQuery(nextValue);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addTagFromInput(tagQuery);
+            }
+          }}
           placeholder={t("organizerSearch.tags")}
         />
         <datalist id="organizer-tag-suggestions">
           {tagSuggestions.map((item) => (
             <option key={item.tag} value={item.tag}>
-              {item.tag} ({item.count})
+              {item.count}
             </option>
           ))}
         </datalist>
-        {tagQuery.trim() && (
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={() => {
-              const value = tagQuery.trim().toLowerCase();
-              if (value && !tags.includes(value)) {
-                setTags((current) => [...current, value]);
-              }
-              setTagQuery("");
-              setPage(1);
-            }}
-          >
-            {t("common.action.addTag")}
-          </button>
-        )}
         {tags.length > 0 && (
           <div className="kv">
             {tags.map((item) => (
@@ -527,6 +730,13 @@ export function OrganizerSearchClient({
                 ? ` ${getCountryLabel((item.countryCode ?? item.country_code) as string)}`
                 : ""}
             </div>
+            {(item.practiceCategoryIds?.length ?? 0) > 0 && (
+              <div className="meta">
+                {t("common.category")}: {item.practiceCategoryIds
+                  ?.map((id) => practiceLabelById.get(id) ?? id)
+                  .join(", ")}
+              </div>
+            )}
             {item.roleKey && <div className="meta">{item.roleKey}</div>}
             {(item.websiteUrl ?? item.website_url) && (
               <div className="meta">
@@ -554,6 +764,7 @@ export function OrganizerSearchClient({
               type="button"
               onClick={() => void runSearch(currentPage - 1)}
               disabled={loading || currentPage <= 1}
+              style={currentPage <= 1 ? { visibility: "hidden" } : undefined}
             >
               {t("common.pagination.previous")}
             </button>
@@ -565,6 +776,7 @@ export function OrganizerSearchClient({
               type="button"
               onClick={() => void runSearch(currentPage + 1)}
               disabled={loading || currentPage >= totalPages}
+              style={currentPage >= totalPages ? { visibility: "hidden" } : undefined}
             >
               {t("common.pagination.next")}
             </button>

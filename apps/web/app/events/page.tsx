@@ -33,10 +33,10 @@ function csvToList(value: string | null): string[] {
 
 function buildCanonical(searchParams: SearchParams): { canonical: string; noindex: boolean } {
   const page = getSingle(searchParams, "page");
-  const practiceCategoryId = getSingle(searchParams, "practiceCategoryId");
-  const eventFormatId = getSingle(searchParams, "eventFormatId");
-  const allowedSingleFilter = practiceCategoryId ? { key: "practiceCategoryId", value: practiceCategoryId }
-    : eventFormatId ? { key: "eventFormatId", value: eventFormatId }
+  const practiceKey = getSingle(searchParams, "practice");
+  const formatKey = getSingle(searchParams, "format");
+  const allowedSingleFilter = practiceKey ? { key: "practice", value: practiceKey }
+    : formatKey ? { key: "format", value: formatKey }
       : null;
   const keys = Object.keys(searchParams).filter((key) => getSingle(searchParams, key) !== null);
 
@@ -97,9 +97,9 @@ export default async function EventsPage({
   const pageNumber = Number(getSingle(searchParams, "page") ?? "1");
   const initialQuery: EventSearchInitialQuery = {
     q: getSingle(searchParams, "q") ?? undefined,
-    practiceCategoryIds: csvToList(getSingle(searchParams, "practiceCategoryId")),
+    practiceCategoryIds: [],
     practiceSubcategoryId: getSingle(searchParams, "practiceSubcategoryId") ?? undefined,
-    eventFormatIds: csvToList(getSingle(searchParams, "eventFormatId")),
+    eventFormatIds: [],
     tags: (getSingle(searchParams, "tags") ?? "")
       .split(",")
       .map((item) => item.trim())
@@ -110,11 +110,31 @@ export default async function EventsPage({
       .filter(Boolean),
     attendanceMode: getSingle(searchParams, "attendanceMode") ?? undefined,
     countryCodes: csvToList(getSingle(searchParams, "countryCode")),
-    city: getSingle(searchParams, "city") ?? undefined,
+    cities: csvToList(getSingle(searchParams, "city")),
     sort: sortParam === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc",
     view: viewParam === "map" ? "map" : "list",
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
   };
+
+  const initialTaxonomy = await fetchServerJson<TaxonomyResponse>("/meta/taxonomies");
+  const practiceParam = getSingle(searchParams, "practice");
+  const formatParam = getSingle(searchParams, "format");
+  const practiceIdParam = getSingle(searchParams, "practiceCategoryId");
+  const formatIdParam = getSingle(searchParams, "eventFormatId");
+  const practiceIdsFromKeys = (practiceParam ? csvToList(practiceParam) : [])
+    .map((key) => initialTaxonomy?.practices.categories.find((category) => category.key === key)?.id ?? "")
+    .filter(Boolean);
+  const formatIdsFromKeys = (formatParam ? csvToList(formatParam) : [])
+    .map((key) => initialTaxonomy?.eventFormats?.find((format) => format.key === key)?.id ?? "")
+    .filter(Boolean) as string[];
+  initialQuery.practiceCategoryIds = Array.from(new Set([
+    ...csvToList(practiceIdParam),
+    ...practiceIdsFromKeys,
+  ]));
+  initialQuery.eventFormatIds = Array.from(new Set([
+    ...csvToList(formatIdParam),
+    ...formatIdsFromKeys,
+  ]));
 
   const params = new URLSearchParams();
   const nowIso = new Date().toISOString();
@@ -127,17 +147,14 @@ export default async function EventsPage({
   if (initialQuery.languages?.length) params.set("languages", initialQuery.languages.join(","));
   if (initialQuery.attendanceMode) params.set("attendanceMode", initialQuery.attendanceMode);
   if (initialQuery.countryCodes?.length) params.set("countryCode", initialQuery.countryCodes.join(","));
-  if (initialQuery.city) params.set("city", initialQuery.city);
+  if (initialQuery.cities?.length) params.set("city", initialQuery.cities.join(","));
   params.set("sort", initialQuery.sort ?? "startsAtAsc");
   params.set("from", nowIso);
   params.set("to", oneYear);
   params.set("page", String(initialQuery.page ?? 1));
   params.set("pageSize", "20");
 
-  const [initialResults, initialTaxonomy] = await Promise.all([
-    fetchServerJson<SearchResponse>(`/events/search?${params.toString()}`),
-    fetchServerJson<TaxonomyResponse>("/meta/taxonomies"),
-  ]);
+  const initialResults = await fetchServerJson<SearchResponse>(`/events/search?${params.toString()}`);
 
   return (
     <EventSearchClient

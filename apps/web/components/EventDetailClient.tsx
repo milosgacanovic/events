@@ -6,11 +6,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { fetchJson } from "../lib/api";
-import { formatDateTimeRange } from "../lib/datetime";
+import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
+import { labelForLanguageCode } from "../lib/i18n/languageLabels";
+import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
-
-const SHOW_EVENT_TIMEZONE_STORAGE_KEY = "dr-events-show-event-timezone";
 
 export type TaxonomyResponse = {
   uiLabels: {
@@ -20,6 +20,7 @@ export type TaxonomyResponse = {
   practices: {
     categories: Array<{
       id: string;
+      key?: string;
       label: string;
       subcategories: Array<{
         id: string;
@@ -129,7 +130,8 @@ export function EventDetailClient({
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(initialData === null && initialData !== undefined);
-  const [showEventTimezone, setShowEventTimezone] = useState(false);
+  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
+  const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
   useEffect(() => {
     let active = true;
@@ -253,11 +255,10 @@ export function EventDetailClient({
       return null;
     }
   }, [locale]);
-  const getLanguageLabel = useCallback((value: string) => {
-    const normalized = value.trim().toLowerCase();
-    const localized = languageNames?.of(normalized);
-    return localized && localized !== normalized ? localized : value;
-  }, [languageNames]);
+  const getLanguageLabel = useCallback(
+    (value: string) => labelForLanguageCode(value, languageNames),
+    [languageNames],
+  );
   const getCountryLabel = useCallback((value: string) => {
     const normalized = value.trim().toUpperCase();
     const localized = regionNames?.of(normalized);
@@ -296,21 +297,12 @@ export function EventDetailClient({
   }, [data, descriptionSummary]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const saved = window.localStorage.getItem(SHOW_EVENT_TIMEZONE_STORAGE_KEY);
-    if (saved === "1") {
-      setShowEventTimezone(true);
-    }
+    setTimeDisplayMode(readTimeDisplayMode());
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.localStorage.setItem(SHOW_EVENT_TIMEZONE_STORAGE_KEY, showEventTimezone ? "1" : "0");
-  }, [showEventTimezone]);
+    writeTimeDisplayMode(timeDisplayMode);
+  }, [timeDisplayMode]);
 
   if (notFound) {
     return (
@@ -348,7 +340,7 @@ export function EventDetailClient({
         data.event.single_start_at,
         data.event.single_end_at,
         data.event.event_timezone,
-        showEventTimezone,
+        timeDisplayMode,
       )
     : null;
   const whenLabel = whenFormatted?.primary ?? t("eventDetail.timeTbd");
@@ -393,14 +385,18 @@ export function EventDetailClient({
         </div>
       )}
 
-      <div className="meta">{whenLabel} | {modalityLabel}</div>
+      <div className="meta">
+        {whenLabel} ({whenFormatted?.suffixLabel === "event" ? t("common.eventTimezone") : t("common.yourTimezone")}) | {modalityLabel}
+      </div>
       <label className="meta">
         <input
           type="checkbox"
-          checked={showEventTimezone}
-          onChange={(event) => setShowEventTimezone(event.target.checked)}
+          checked={timeDisplayMode === "event"}
+          onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
         />{" "}
-        {t("eventDetail.showEventTimezone")}
+        {timeDisplayMode === "event"
+          ? t("eventDetail.timeMode.eventWithZone", { zone: data.event.event_timezone || "UTC" })
+          : t("eventDetail.timeMode.userWithZone", { zone: userTimeZone })}
       </label>
       <div className="meta">
         {categorySingularLabel}: {categoryLabel}
@@ -462,7 +458,6 @@ export function EventDetailClient({
         <div>
           <h3>{t("common.scheduleKind.single")}</h3>
           <div className="meta">{whenLabel}</div>
-          {whenFormatted?.secondary && <div className="meta">{whenFormatted.secondary}</div>}
         </div>
       ) : (
         <>
@@ -474,12 +469,15 @@ export function EventDetailClient({
                 item.starts_at_utc,
                 item.ends_at_utc,
                 data.event.event_timezone,
-                showEventTimezone,
+                timeDisplayMode,
               );
               return (
                 <div className="card" key={item.id}>
-                  <div className="meta">{formatted.primary}</div>
-                  {formatted.secondary && <div className="meta">{formatted.secondary}</div>}
+                  <div className="meta">
+                    {formatted.primary} ({formatted.suffixLabel === "event"
+                      ? t("common.eventTimezone")
+                      : t("common.yourTimezone")})
+                  </div>
                 </div>
               );
             })}
@@ -492,12 +490,15 @@ export function EventDetailClient({
                 item.starts_at_utc,
                 item.ends_at_utc,
                 data.event.event_timezone,
-                showEventTimezone,
+                timeDisplayMode,
               );
               return (
                 <div className="card" key={item.id}>
-                  <div className="meta">{formatted.primary}</div>
-                  {formatted.secondary && <div className="meta">{formatted.secondary}</div>}
+                  <div className="meta">
+                    {formatted.primary} ({formatted.suffixLabel === "event"
+                      ? t("common.eventTimezone")
+                      : t("common.yourTimezone")})
+                  </div>
                 </div>
               );
             })}
