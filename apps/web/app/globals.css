@@ -101,6 +101,44 @@ main {
   font: inherit;
 }
 
+.autocomplete-wrap {
+  position: relative;
+}
+
+.autocomplete-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  max-height: 220px;
+  overflow: auto;
+}
+
+.autocomplete-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 1px solid #f0e7da;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.autocomplete-option:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-option:hover {
+  background: #f7f3ec;
+}
+
 .toggle-control {
   display: inline-flex;
   align-items: center;

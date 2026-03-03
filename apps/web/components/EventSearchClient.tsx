@@ -128,6 +128,7 @@ export function EventSearchClient({
   const [tags, setTags] = useState<string[]>(initialQuery?.tags ?? []);
   const [tagQuery, setTagQuery] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
+  const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false);
   const [languages, setLanguages] = useState<string[]>(initialQuery?.languages ?? []);
   const [attendanceMode, setAttendanceMode] = useState(initialQuery?.attendanceMode ?? "");
   const [countryCodes, setCountryCodes] = useState<string[]>(
@@ -136,6 +137,7 @@ export function EventSearchClient({
   const [cities, setCities] = useState<string[]>(initialQuery?.cities ?? []);
   const [cityQuery, setCityQuery] = useState("");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
+  const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [showMoreCategories, setShowMoreCategories] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
@@ -670,6 +672,15 @@ export function EventSearchClient({
     setPage(1);
   }
 
+  const visibleTagSuggestions = useMemo(
+    () => tagSuggestions.filter((item) => !tags.includes(item.tag)),
+    [tagSuggestions, tags],
+  );
+  const visibleCitySuggestions = useMemo(
+    () => citySuggestions.filter((item) => !cities.some((city) => city.toLowerCase() === item.city.toLowerCase())),
+    [citySuggestions, cities],
+  );
+
   return (
     <section className="grid">
       <aside className="panel filters">
@@ -803,12 +814,31 @@ export function EventSearchClient({
             ))}
           </div>
         </label>
-        <select value={attendanceMode} onChange={(event) => setAttendanceMode(event.target.value)}>
-          <option value="">{t("eventSearch.attendance.anyEventType")}</option>
-          <option value="in_person">{t("eventSearch.attendance.in_person")}</option>
-          <option value="online">{t("eventSearch.attendance.online")}</option>
-          <option value="hybrid">{t("eventSearch.attendance.hybrid")}</option>
-        </select>
+        <details open>
+          <summary>{t("eventSearch.attendance.anyEventType")}</summary>
+          <div className="kv">
+            {(["in_person", "online", "hybrid"] as const).map((mode) => {
+              const count = data?.facets?.attendanceMode?.[mode] ?? 0;
+              const checked = attendanceMode === mode;
+              if (count <= 0 && !checked) {
+                return null;
+              }
+              return (
+                <label className="meta" key={mode}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      setAttendanceMode((current) => (current === mode ? "" : mode));
+                      setPage(1);
+                    }}
+                  />
+                  {t(`eventSearch.attendance.${mode}`)} ({count})
+                </label>
+              );
+            })}
+          </div>
+        </details>
         <details open>
           <summary>{t("eventSearch.country")}</summary>
           <div className="kv">
@@ -831,33 +861,45 @@ export function EventSearchClient({
             ))}
           </div>
         </details>
-        <input
-          list="event-city-suggestions"
-          value={cityQuery}
-          onChange={(event) => {
-            const nextValue = event.target.value;
-            const match = citySuggestions.find((item) => item.city.toLowerCase() === nextValue.trim().toLowerCase());
-            if (match) {
-              addCityFromInput(match.city);
-              return;
-            }
-            setCityQuery(nextValue);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              addCityFromInput(cityQuery);
-            }
-          }}
-          placeholder={t("eventSearch.placeholder.city")}
-        />
-        <datalist id="event-city-suggestions">
-          {citySuggestions.map((item) => (
-            <option key={item.city} value={item.city}>
-              {item.city} ({item.count})
-            </option>
-          ))}
-        </datalist>
+        <div className="autocomplete-wrap">
+          <input
+            value={cityQuery}
+            onFocus={() => setCitySuggestionsOpen(true)}
+            onBlur={() => window.setTimeout(() => setCitySuggestionsOpen(false), 120)}
+            onChange={(event) => setCityQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                const query = cityQuery.trim();
+                if (!query) {
+                  return;
+                }
+                const exact = visibleCitySuggestions.find((item) => item.city.toLowerCase() === query.toLowerCase());
+                addCityFromInput(exact?.city ?? query);
+                setCitySuggestionsOpen(false);
+              }
+            }}
+            placeholder={t("eventSearch.placeholder.city")}
+          />
+          {citySuggestionsOpen && visibleCitySuggestions.length > 0 && (
+            <div className="autocomplete-menu">
+              {visibleCitySuggestions.slice(0, 10).map((item) => (
+                <button
+                  type="button"
+                  className="autocomplete-option"
+                  key={item.city}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    addCityFromInput(item.city);
+                    setCitySuggestionsOpen(false);
+                  }}
+                >
+                  {item.city} ({item.count})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {cities.length > 0 && (
           <div className="kv">
             {cities.map((item) => (
@@ -875,34 +917,45 @@ export function EventSearchClient({
             ))}
           </div>
         )}
-        <input
-          list="event-tag-suggestions"
-          value={tagQuery}
-          onFocus={() => setTagQuery("")}
-          onChange={(event) => {
-            const nextValue = event.target.value;
-            const match = tagSuggestions.find((item) => item.tag.toLowerCase() === nextValue.trim().toLowerCase());
-            if (match) {
-              addTagFromInput(match.tag);
-              return;
-            }
-            setTagQuery(nextValue);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              addTagFromInput(tagQuery);
-            }
-          }}
-          placeholder={t("eventSearch.tags")}
-        />
-        <datalist id="event-tag-suggestions">
-          {tagSuggestions.map((item) => (
-            <option key={item.tag} value={item.tag}>
-              {item.count}
-            </option>
-          ))}
-        </datalist>
+        <div className="autocomplete-wrap">
+          <input
+            value={tagQuery}
+            onFocus={() => setTagSuggestionsOpen(true)}
+            onBlur={() => window.setTimeout(() => setTagSuggestionsOpen(false), 120)}
+            onChange={(event) => setTagQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                const query = tagQuery.trim().toLowerCase();
+                if (!query) {
+                  return;
+                }
+                const exact = visibleTagSuggestions.find((item) => item.tag.toLowerCase() === query);
+                addTagFromInput(exact?.tag ?? query);
+                setTagSuggestionsOpen(false);
+              }
+            }}
+            placeholder={t("eventSearch.tags")}
+          />
+          {tagSuggestionsOpen && visibleTagSuggestions.length > 0 && (
+            <div className="autocomplete-menu">
+              {visibleTagSuggestions.slice(0, 10).map((item) => (
+                <button
+                  type="button"
+                  className="autocomplete-option"
+                  key={item.tag}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    addTagFromInput(item.tag);
+                    setTagSuggestionsOpen(false);
+                  }}
+                >
+                  {item.tag} ({item.count})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {tags.length > 0 && (
           <div className="kv">
             {tags.map((item) => (
