@@ -161,3 +161,59 @@ Scope: code inspection in `/opt/events` only (API/Web). Runtime-only claims are 
 3. Day 4: Admin sidebar navigation skeleton with existing forms moved into sections.
 4. Day 5: `is_imported` disclaimer hook decision + minimal implementation if approved.
 5. Day 5: Document timezone display policy and align remaining organizer/date renderers.
+
+---
+
+## Update Addendum (2026-03-03)
+
+This addendum captures implemented changes after the original 2026-02-28 audit.
+
+### Implemented since prior audit
+
+1. ✅ Hosts filters parity delivered on `/organizers`
+- Evidence: [OrganizerSearchClient.tsx](/opt/events/apps/web/components/OrganizerSearchClient.tsx)
+- Verified behavior:
+  - `Host type` is checkbox dropdown with counts (`facets.roleKey`)
+  - `Host language` is checkbox dropdown with counts (`facets.languages`) and localized labels
+  - `Host country` is checkbox dropdown with counts (`facets.countryCode`) and localized labels
+  - `Host city` uses autocomplete via `/api/meta/organizer-cities`
+  - `Host tags` uses autocomplete via `/api/meta/organizer-tags` (top 5 when query empty)
+  - selected filters render removable chips
+
+2. ✅ Organizer API facets/meta support expanded
+- Evidence:
+  - [organizerRepo.ts](/opt/events/apps/api/src/db/organizerRepo.ts) (`facets.roleKey/languages/tags/countryCode/city`)
+  - [organizers.ts](/opt/events/apps/api/src/routes/organizers.ts) (CSV parsing for role/language/tags/country)
+  - [meta.ts](/opt/events/apps/api/src/routes/meta.ts) (`/meta/organizer-cities`, `/meta/organizer-tags`)
+
+3. ✅ Whole organizer card is clickable
+- Evidence: [OrganizerSearchClient.tsx](/opt/events/apps/web/components/OrganizerSearchClient.tsx) cards wrapped with `Link`.
+
+4. ✅ Event list now shows hosts/teachers summary
+- Evidence: [EventSearchClient.tsx](/opt/events/apps/web/components/EventSearchClient.tsx)
+- Verified behavior: first organizers rendered (up to 2) with `+N` overflow indicator.
+
+5. ✅ Search query handling expanded for multi-select CSV
+- Evidence:
+  - [events.ts](/opt/events/apps/api/src/routes/events.ts) (`practiceCategoryId`, `eventFormatId`, `countryCode`)
+  - [eventRepo.ts](/opt/events/apps/api/src/db/eventRepo.ts) fallback DB filtering with array support.
+
+6. ✅ User alerts skeleton added (no outbound notifications yet)
+- Evidence:
+  - Migration: [014_user_alerts.sql](/opt/events/db/migrations/014_user_alerts.sql)
+  - Repo: [alertRepo.ts](/opt/events/apps/api/src/db/alertRepo.ts)
+  - Routes:
+    - [profile.ts](/opt/events/apps/api/src/routes/profile.ts): `GET/POST/DELETE /api/profile/alerts`
+    - [admin.ts](/opt/events/apps/api/src/routes/admin.ts): `GET /api/admin/alerts/run-dry`
+  - UI: [OrganizerDetailClient.tsx](/opt/events/apps/web/components/OrganizerDetailClient.tsx) follow/notify form.
+
+7. ✅ Auth header UX improved
+- Evidence:
+  - [KeycloakAuthProvider.tsx](/opt/events/apps/web/components/auth/KeycloakAuthProvider.tsx): username precedence `preferred_username -> name -> email`
+  - [AppShell.tsx](/opt/events/apps/web/components/layout/AppShell.tsx): explicit loading state while auth initializes.
+
+### Remaining notable gaps
+
+1. 🟨 Admin IA still needs full left-sidebar final polish verification in production UX flow.
+2. 🟨 Event detail importer disclaimer block remains product-dependent and not fully locked as a final copy contract.
+3. 🟨 Notification delivery pipeline (email/push worker) intentionally not implemented; current alerts are storage + dry-run matching only.

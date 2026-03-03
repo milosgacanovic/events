@@ -1,6 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
+import { DateTime } from "luxon";
 import { z } from "zod";
 
+import { runAlertsDry } from "../db/alertRepo";
 import {
   createEventFormat,
   createOrganizerRole,
@@ -199,6 +201,56 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         categoryPlural: uiLabels.categoryPlural,
         practiceCategory: uiLabels.categoryPlural,
       },
+    };
+  });
+
+  app.get("/admin/alerts/run-dry", async (request) => {
+    await app.requireAdmin(request);
+    const from = DateTime.utc();
+    const to = from.plus({ days: 30 });
+    const rows = await runAlertsDry(app.db, from.toISO()!, to.toISO()!);
+
+    const summaryByAlert = new Map<string, {
+      organizerId: string;
+      organizerName: string;
+      matches: number;
+    }>();
+
+    for (const row of rows) {
+      const existing = summaryByAlert.get(row.alert_id);
+      if (existing) {
+        existing.matches += 1;
+      } else {
+        summaryByAlert.set(row.alert_id, {
+          organizerId: row.organizer_id,
+          organizerName: row.organizer_name,
+          matches: 1,
+        });
+      }
+    }
+
+    return {
+      dryRun: true,
+      from: from.toISO(),
+      to: to.toISO(),
+      totalMatches: rows.length,
+      alertsMatched: summaryByAlert.size,
+      alerts: Array.from(summaryByAlert.entries()).map(([alertId, value]) => ({
+        alertId,
+        ...value,
+      })),
+      sample: rows.slice(0, 100).map((row) => ({
+        alertId: row.alert_id,
+        organizerId: row.organizer_id,
+        organizerName: row.organizer_name,
+        eventId: row.event_id,
+        eventSlug: row.event_slug,
+        eventTitle: row.event_title,
+        occurrenceId: row.occurrence_id,
+        startsAtUtc: row.starts_at_utc,
+        city: row.city,
+        countryCode: row.country_code,
+      })),
     };
   });
 };

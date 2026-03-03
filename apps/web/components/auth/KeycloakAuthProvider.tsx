@@ -156,7 +156,24 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
         setAuthenticated(Boolean(isAuthenticated));
         setToken(keycloak.token ?? null);
         setRoles(extractRoles(keycloak.tokenParsed, keycloakClientId));
-        setUserName(((keycloak.tokenParsed as { preferred_username?: string } | undefined)?.preferred_username ?? null));
+        setUserName(
+          (
+            keycloak.tokenParsed as
+              | { preferred_username?: string; name?: string; email?: string }
+              | undefined
+          )?.preferred_username
+            ?? (
+              keycloak.tokenParsed as
+                | { preferred_username?: string; name?: string; email?: string }
+                | undefined
+            )?.name
+            ?? (
+              keycloak.tokenParsed as
+                | { preferred_username?: string; name?: string; email?: string }
+                | undefined
+            )?.email
+            ?? null,
+        );
 
         if (isAuthenticated) {
           await keycloak.loadUserProfile().catch(() => undefined);
@@ -170,8 +187,22 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
                 setToken(keycloak.token ?? null);
                 setRoles(extractRoles(keycloak.tokenParsed, keycloakClientId));
                 setUserName(
-                  ((keycloak.tokenParsed as { preferred_username?: string } | undefined)
-                    ?.preferred_username ?? null),
+                  (
+                    keycloak.tokenParsed as
+                      | { preferred_username?: string; name?: string; email?: string }
+                      | undefined
+                  )?.preferred_username
+                    ?? (
+                      keycloak.tokenParsed as
+                        | { preferred_username?: string; name?: string; email?: string }
+                        | undefined
+                    )?.name
+                    ?? (
+                      keycloak.tokenParsed as
+                        | { preferred_username?: string; name?: string; email?: string }
+                        | undefined
+                    )?.email
+                    ?? null,
                 );
                 setAuthenticated(Boolean(keycloak.authenticated));
               }

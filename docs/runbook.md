@@ -18,6 +18,7 @@
 - Apply API migrations on server:
   - `npm run migrate -w @dr-events/api`
 - Idempotency requires `003_event_external_ref.sql` (external reference columns + unique index).
+- User alerts skeleton requires `014_user_alerts.sql`.
 - Before any deploy, run release gate checks:
   - `npm run release:gate`
 - If release gate fails only on Meili parity drift, run a hard reset reindex:
@@ -59,9 +60,29 @@
   - `/events?eventFormatId=<id>` (page 1 only)
 - Other filtered query combinations should be `noindex,follow`.
 - `/events/[slug]` should expose SSR metadata + JSON-LD.
+- Sitemap is chunked:
+  - `/sitemap.xml` (index)
+  - `/sitemap-pages.xml`
+  - `/sitemap-events-<n>.xml`
+  - Chunk route backing: `/sitemap-events/[page]`
 
 ## Importer Backfills
 - Event format backfill:
   - `./run.sh worker:once --dr-events-only --dr-events-backfill-format --dr-events-limit=2000`
 - Host linking backfill:
   - `./run.sh worker:once --dr-events-only --dr-events-backfill-hosts --dr-events-limit=2000`
+
+## Organizer Search Facets and Meta Endpoints
+- Organizer facets are served by `/api/organizers/search`:
+  - `roleKey`, `languages`, `tags`, `countryCode`, `city`
+- Organizer autocomplete endpoints:
+  - `/api/meta/organizer-cities`
+  - `/api/meta/organizer-tags`
+
+## User Alerts Skeleton (No delivery worker yet)
+- Profile endpoints:
+  - `GET /api/profile/alerts`
+  - `POST /api/profile/alerts`
+  - `DELETE /api/profile/alerts/:id`
+- Admin dry-run endpoint:
+  - `GET /api/admin/alerts/run-dry`

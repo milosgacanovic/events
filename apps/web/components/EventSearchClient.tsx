@@ -33,6 +33,10 @@ export type SearchResponse = {
       city: string | null;
       country_code: string | null;
     } | null;
+    organizers?: Array<{
+      id: string;
+      name: string;
+    }>;
   }>;
   totalHits: number;
   pagination?: {
@@ -76,9 +80,9 @@ export type TaxonomyResponse = {
 
 export type EventSearchInitialQuery = {
   q?: string;
-  practiceCategoryId?: string;
+  practiceCategoryIds?: string[];
   practiceSubcategoryId?: string;
-  eventFormatId?: string;
+  eventFormatIds?: string[];
   tags?: string[];
   languages?: string[];
   attendanceMode?: string;
@@ -109,9 +113,9 @@ export function EventSearchClient({
   const [view, setView] = useState<"list" | "map">(initialQuery?.view ?? "list");
   const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc">(initialQuery?.sort ?? "startsAtAsc");
   const [q, setQ] = useState(initialQuery?.q ?? "");
-  const [practiceCategoryId, setPracticeCategoryId] = useState(initialQuery?.practiceCategoryId ?? "");
+  const [practiceCategoryIds, setPracticeCategoryIds] = useState(initialQuery?.practiceCategoryIds ?? []);
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState(initialQuery?.practiceSubcategoryId ?? "");
-  const [eventFormatId, setEventFormatId] = useState(initialQuery?.eventFormatId ?? "");
+  const [eventFormatIds, setEventFormatIds] = useState(initialQuery?.eventFormatIds ?? []);
   const [tags, setTags] = useState<string[]>(initialQuery?.tags ?? []);
   const [tagQuery, setTagQuery] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
@@ -169,8 +173,11 @@ export function EventSearchClient({
   }, [taxonomy]);
 
   const selectedCategory = useMemo(
-    () => (taxonomy?.practices.categories ?? []).find((category) => category.id === practiceCategoryId) ?? null,
-    [taxonomy, practiceCategoryId],
+    () =>
+      practiceCategoryIds.length === 1
+        ? (taxonomy?.practices.categories ?? []).find((category) => category.id === practiceCategoryIds[0]) ?? null
+        : null,
+    [taxonomy, practiceCategoryIds],
   );
   const hasAnySubcategories = useMemo(
     () => (taxonomy?.practices.categories ?? []).some((category) => category.subcategories.length > 0),
@@ -228,9 +235,9 @@ export function EventSearchClient({
   const buildQueryString = useCallback((nextPage: number) => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
-    if (practiceCategoryId) params.set("practiceCategoryId", practiceCategoryId);
+    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
     if (practiceSubcategoryId) params.set("practiceSubcategoryId", practiceSubcategoryId);
-    if (eventFormatId) params.set("eventFormatId", eventFormatId);
+    if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
@@ -242,9 +249,9 @@ export function EventSearchClient({
     return params.toString();
   }, [
     q,
-    practiceCategoryId,
+    practiceCategoryIds,
     practiceSubcategoryId,
-    eventFormatId,
+    eventFormatIds,
     tags,
     languages,
     attendanceMode,
@@ -256,9 +263,9 @@ export function EventSearchClient({
   const buildUiQueryString = useCallback(() => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
-    if (practiceCategoryId) params.set("practiceCategoryId", practiceCategoryId);
+    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
     if (practiceSubcategoryId) params.set("practiceSubcategoryId", practiceSubcategoryId);
-    if (eventFormatId) params.set("eventFormatId", eventFormatId);
+    if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
     if (attendanceMode) params.set("attendanceMode", attendanceMode);
@@ -270,9 +277,9 @@ export function EventSearchClient({
     return params.toString();
   }, [
     q,
-    practiceCategoryId,
+    practiceCategoryIds,
     practiceSubcategoryId,
-    eventFormatId,
+    eventFormatIds,
     tags,
     languages,
     attendanceMode,
@@ -400,9 +407,9 @@ export function EventSearchClient({
 
   function clearFilters() {
     setQ("");
-    setPracticeCategoryId("");
+    setPracticeCategoryIds([]);
     setPracticeSubcategoryId("");
-    setEventFormatId("");
+    setEventFormatIds([]);
     setTags([]);
     setTagQuery("");
     setLanguages([]);
@@ -445,6 +452,74 @@ export function EventSearchClient({
     const categories = taxonomy?.practices.categories ?? [];
     return showMoreCategories ? categories : categories.slice(0, 8);
   }, [showMoreCategories, taxonomy]);
+  const selectedFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
+
+    for (const categoryId of practiceCategoryIds) {
+      chips.push({
+        key: `cat:${categoryId}`,
+        label: `${categorySingularLabel}: ${categoryLabelById.get(categoryId) ?? categoryId}`,
+        onRemove: () => {
+          setPracticeCategoryIds((current) => current.filter((item) => item !== categoryId));
+          setPage(1);
+        },
+      });
+    }
+    for (const formatId of eventFormatIds) {
+      const label = taxonomy?.eventFormats?.find((format) => format.id === formatId)?.label ?? formatId;
+      chips.push({
+        key: `format:${formatId}`,
+        label: `${t("eventSearch.eventFormat")}: ${label}`,
+        onRemove: () => {
+          setEventFormatIds((current) => current.filter((item) => item !== formatId));
+          setPage(1);
+        },
+      });
+    }
+    for (const language of languages) {
+      chips.push({
+        key: `lang:${language}`,
+        label: `${t("eventSearch.eventLanguage")}: ${getLanguageLabel(language)}`,
+        onRemove: () => {
+          setLanguages((current) => current.filter((item) => item !== language));
+          setPage(1);
+        },
+      });
+    }
+    for (const country of countryCodes) {
+      chips.push({
+        key: `country:${country}`,
+        label: `${t("eventSearch.country")}: ${getCountryLabel(country)}`,
+        onRemove: () => {
+          setCountryCodes((current) => current.filter((item) => item !== country));
+          setPage(1);
+        },
+      });
+    }
+    for (const tag of tags) {
+      chips.push({
+        key: `tag:${tag}`,
+        label: `${t("eventSearch.tags")}: ${tag}`,
+        onRemove: () => {
+          setTags((current) => current.filter((item) => item !== tag));
+          setPage(1);
+        },
+      });
+    }
+    return chips;
+  }, [
+    categoryLabelById,
+    categorySingularLabel,
+    countryCodes,
+    eventFormatIds,
+    getCountryLabel,
+    getLanguageLabel,
+    languages,
+    practiceCategoryIds,
+    t,
+    tags,
+    taxonomy?.eventFormats,
+  ]);
 
   return (
     <section className="grid">
@@ -475,7 +550,7 @@ export function EventSearchClient({
           <div className="meta">{categorySingularLabel}</div>
           <div className="kv">
             {visibleCategories.map((category) => {
-              const checked = practiceCategoryId === category.id;
+              const checked = practiceCategoryIds.includes(category.id);
               const count = data?.facets?.practiceCategoryId?.[category.id] ?? 0;
               return (
                 <label className="meta" key={category.id}>
@@ -483,8 +558,16 @@ export function EventSearchClient({
                     type="checkbox"
                     checked={checked}
                     onChange={() => {
-                      setPracticeCategoryId((current) => (current === category.id ? "" : category.id));
-                      setPracticeSubcategoryId("");
+                      setPracticeCategoryIds((current) => (
+                        current.includes(category.id)
+                          ? current.filter((item) => item !== category.id)
+                          : [...current, category.id]
+                      ));
+                      setPracticeSubcategoryId((current) =>
+                        current && !category.subcategories.some((subcategory) => subcategory.id === current)
+                          ? ""
+                          : current
+                      );
                       setPage(1);
                     }}
                   />
@@ -526,14 +609,18 @@ export function EventSearchClient({
             <div className="kv">
               {taxonomy?.eventFormats?.map((format) => {
                 const count = data?.facets?.eventFormatId?.[format.id] ?? 0;
-                const checked = eventFormatId === format.id;
+                const checked = eventFormatIds.includes(format.id);
                 return (
                   <label className="meta" key={format.id}>
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => {
-                        setEventFormatId((current) => (current === format.id ? "" : format.id));
+                        setEventFormatIds((current) => (
+                          current.includes(format.id)
+                            ? current.filter((item) => item !== format.id)
+                            : [...current, format.id]
+                        ));
                         setPage(1);
                       }}
                     />
@@ -705,28 +792,13 @@ export function EventSearchClient({
             : t("eventSearch.promptRun")}
         </div>
         {error && <div className="muted">{error}</div>}
-
-        {data && (
-          <div className="admin-card-actions">
-            <button
-              className="secondary-btn"
-              type="button"
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              disabled={loading || currentPage <= 1}
-            >
-              {t("common.pagination.previous")}
-            </button>
-            <div className="meta">
-              {t("common.pagination.pageOf", { page: currentPage, totalPages })}
-            </div>
-            <button
-              className="secondary-btn"
-              type="button"
-              onClick={() => setPage((prev) => prev + 1)}
-              disabled={loading || currentPage >= totalPages}
-            >
-              {t("common.pagination.next")}
-            </button>
+        {selectedFilterChips.length > 0 && (
+          <div className="kv">
+            {selectedFilterChips.map((chip) => (
+              <button className="tag" key={chip.key} type="button" onClick={chip.onRemove}>
+                {chip.label} ×
+              </button>
+            ))}
           </div>
         )}
 
@@ -774,6 +846,12 @@ export function EventSearchClient({
                     ? ` / ${subcategoryLabelById.get(hit.event.practiceSubcategoryId) ?? hit.event.practiceSubcategoryId}`
                     : ""}
                 </div>
+                {(hit.organizers?.length ?? 0) > 0 && (
+                  <div className="meta">
+                    {hit.organizers?.slice(0, 2).map((item) => item.name).join(", ")}
+                    {(hit.organizers?.length ?? 0) > 2 ? ` +${(hit.organizers?.length ?? 0) - 2}` : ""}
+                  </div>
+                )}
                 <div className="kv">
                   {hit.event.languages.map((item) => (
                     <span className="tag" key={item}>
@@ -789,6 +867,29 @@ export function EventSearchClient({
               </Link>
             );
           })
+        )}
+        {data && (
+          <div className="admin-card-actions">
+            <button
+              className="secondary-btn"
+              type="button"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={loading || currentPage <= 1}
+            >
+              {t("common.pagination.previous")}
+            </button>
+            <div className="meta">
+              {t("common.pagination.pageOf", { page: currentPage, totalPages })}
+            </div>
+            <button
+              className="secondary-btn"
+              type="button"
+              onClick={() => setPage((prev) => prev + 1)}
+              disabled={loading || currentPage >= totalPages}
+            >
+              {t("common.pagination.next")}
+            </button>
+          </div>
         )}
       </div>
     </section>

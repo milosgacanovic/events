@@ -54,3 +54,30 @@ Use this checklist to verify `constitution.md` MVP Definition of Done (Section 2
 - `npm -C /opt/events test`
 - Pass criteria:
   - all commands exit `0`
+
+## 7) Sitemap Index + Chunks
+- `curl -sS -I 'https://beta.events.danceresource.org/sitemap.xml'`
+- `curl -sS -I 'https://beta.events.danceresource.org/sitemap-pages.xml'`
+- `curl -sS -I 'https://beta.events.danceresource.org/sitemap-events-1.xml'`
+- Pass criteria:
+  - all endpoints return `200`
+  - `sitemap.xml` is a sitemap index referencing chunk URLs
+
+## 8) Organizer Facets + Meta Suggestions
+- `curl -sS 'https://beta.events.danceresource.org/api/organizers/search?page=1&pageSize=1' | jq '.facets | keys'`
+- `curl -sS 'https://beta.events.danceresource.org/api/meta/organizer-tags?limit=5' | jq '.items | length'`
+- `curl -sS 'https://beta.events.danceresource.org/api/meta/organizer-cities?limit=5' | jq '.items | length'`
+- Pass criteria:
+  - organizer facets include role/language/tags/country/city
+  - organizer suggestions endpoints respond without errors
+
+## 9) User Alerts Skeleton
+- Authenticated checks (manual token required):
+  - `GET /api/profile/alerts`
+  - `POST /api/profile/alerts`
+  - `DELETE /api/profile/alerts/:id`
+- Admin checks:
+  - `GET /api/admin/alerts/run-dry`
+- Pass criteria:
+  - profile routes enforce authentication
+  - admin dry-run returns structured summary payload

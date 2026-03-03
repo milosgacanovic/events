@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { fetchJson } from "../lib/api";
+import { apiBase, fetchJson } from "../lib/api";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
@@ -83,6 +83,11 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const auth = useKeycloakAuth();
   const [data, setData] = useState<OrganizerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [radiusKm, setRadiusKm] = useState(50);
+  const [alertCity, setAlertCity] = useState("");
+  const [alertCountryCode, setAlertCountryCode] = useState("");
+  const [alertStatus, setAlertStatus] = useState<string | null>(null);
+  const [savingAlert, setSavingAlert] = useState(false);
 
   useEffect(() => {
     fetchJson<OrganizerDetail>(`/organizers/${slug}`)
@@ -118,6 +123,46 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const countryLabel = countryValue
     ? (regionNames?.of(countryValue.toUpperCase()) ?? countryValue.toUpperCase())
     : null;
+
+  async function createAlert() {
+    const organizerId = data?.organizer.id;
+    if (!organizerId) {
+      return;
+    }
+    if (!auth.authenticated) {
+      await auth.login();
+      return;
+    }
+    setSavingAlert(true);
+    setAlertStatus(null);
+    try {
+      const token = await auth.getToken();
+      if (!token) {
+        throw new Error("missing_token");
+      }
+      const response = await fetch(`${apiBase}/profile/alerts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          organizerId,
+          radiusKm,
+          city: alertCity.trim() || undefined,
+          countryCode: alertCountryCode.trim() || undefined,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`alert_create_failed_${response.status}`);
+      }
+      setAlertStatus(t("organizerDetail.alert.created"));
+    } catch (err) {
+      setAlertStatus(err instanceof Error ? err.message : t("organizerDetail.alert.failed"));
+    } finally {
+      setSavingAlert(false);
+    }
+  }
 
   return (
     <section className="panel cards">
@@ -176,6 +221,32 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
             {item}
           </span>
         ))}
+      </div>
+      <div className="card">
+        <h3>{t("organizerDetail.alert.title")}</h3>
+        <div className="meta">{t("organizerDetail.alert.description")}</div>
+        <label>
+          {t("organizerDetail.alert.radiusKm")}
+          <input
+            type="number"
+            min={1}
+            max={500}
+            value={radiusKm}
+            onChange={(event) => setRadiusKm(Number(event.target.value) || 50)}
+          />
+        </label>
+        <label>
+          {t("organizerDetail.alert.city")}
+          <input value={alertCity} onChange={(event) => setAlertCity(event.target.value)} />
+        </label>
+        <label>
+          {t("organizerDetail.alert.countryCode")}
+          <input value={alertCountryCode} onChange={(event) => setAlertCountryCode(event.target.value)} />
+        </label>
+        <button className="secondary-btn" type="button" onClick={() => void createAlert()} disabled={savingAlert}>
+          {savingAlert ? t("organizerDetail.alert.saving") : t("organizerDetail.alert.follow")}
+        </button>
+        {alertStatus && <div className="meta">{alertStatus}</div>}
       </div>
 
       <h3>{t("organizerDetail.locations")}</h3>

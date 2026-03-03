@@ -44,19 +44,10 @@ export type OrganizerSearchInitialQuery = {
   roleKeys?: string[];
   tags?: string[];
   languages?: string[];
-  countryCode?: string;
+  countryCodes?: string[];
   city?: string;
   page?: number;
 };
-
-function topFacetEntries(values: Record<string, number> | undefined, limit = 8): Array<[string, number]> {
-  if (!values) {
-    return [];
-  }
-  return Object.entries(values)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, limit);
-}
 
 export function OrganizerSearchClient({
   initialQuery,
@@ -72,7 +63,9 @@ export function OrganizerSearchClient({
   const [tagQuery, setTagQuery] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
   const [languages, setLanguages] = useState<string[]>(initialQuery?.languages ?? []);
-  const [countryCode, setCountryCode] = useState(initialQuery?.countryCode ?? "");
+  const [countryCodes, setCountryCodes] = useState(
+    (initialQuery?.countryCodes ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean),
+  );
   const [city, setCity] = useState(initialQuery?.city ?? "");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
@@ -87,12 +80,12 @@ export function OrganizerSearchClient({
     if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
-    if (countryCode.trim()) params.set("countryCode", countryCode.trim());
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (city.trim()) params.set("city", city.trim());
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
     return params.toString();
-  }, [q, roleKeys, tags, languages, countryCode, city]);
+  }, [q, roleKeys, tags, languages, countryCodes, city]);
 
   const buildUiQueryString = useCallback(() => {
     const params = new URLSearchParams();
@@ -100,11 +93,11 @@ export function OrganizerSearchClient({
     if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
-    if (countryCode.trim()) params.set("countryCode", countryCode.trim());
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (city.trim()) params.set("city", city.trim());
     if (page > 1) params.set("page", String(page));
     return params.toString();
-  }, [q, roleKeys, tags, languages, countryCode, city, page]);
+  }, [q, roleKeys, tags, languages, countryCodes, city, page]);
 
   const scrollStorageKey = useMemo(() => {
     const query = buildUiQueryString();
@@ -199,8 +192,8 @@ export function OrganizerSearchClient({
 
   useEffect(() => {
     const params = new URLSearchParams();
-    if (countryCode.trim()) {
-      params.set("countryCode", countryCode.trim());
+    if (countryCodes[0]) {
+      params.set("countryCode", countryCodes[0]);
     }
     if (city.trim()) {
       params.set("q", city.trim());
@@ -211,7 +204,7 @@ export function OrganizerSearchClient({
     )
       .then((payload) => setCitySuggestions(payload.items ?? []))
       .catch(() => setCitySuggestions([]));
-  }, [city, countryCode]);
+  }, [city, countryCodes]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -255,6 +248,100 @@ export function OrganizerSearchClient({
     const localized = regionNames?.of(normalized);
     return localized && localized !== normalized ? localized : normalized;
   }, [regionNames]);
+  const visibleRoleFacets = useMemo(() => {
+    const selectedSet = new Set(roleKeys);
+    const merged = new Map<string, number>();
+    for (const [key, value] of Object.entries(data?.facets?.roleKey ?? {})) {
+      if (value > 0 || selectedSet.has(key)) {
+        merged.set(key, value);
+      }
+    }
+    for (const key of selectedSet) {
+      if (!merged.has(key)) merged.set(key, 0);
+    }
+    return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [data?.facets?.roleKey, roleKeys]);
+  const visibleLanguageFacets = useMemo(() => {
+    const selectedSet = new Set(languages);
+    const merged = new Map<string, number>();
+    for (const [key, value] of Object.entries(data?.facets?.languages ?? {})) {
+      if (value > 0 || selectedSet.has(key)) {
+        merged.set(key, value);
+      }
+    }
+    for (const key of selectedSet) {
+      if (!merged.has(key)) merged.set(key, 0);
+    }
+    return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [data?.facets?.languages, languages]);
+  const visibleCountryFacets = useMemo(() => {
+    const selectedSet = new Set(countryCodes);
+    const merged = new Map<string, number>();
+    for (const [keyRaw, value] of Object.entries(data?.facets?.countryCode ?? {})) {
+      const key = keyRaw.toLowerCase();
+      if (value > 0 || selectedSet.has(key)) {
+        merged.set(key, value);
+      }
+    }
+    for (const key of selectedSet) {
+      if (!merged.has(key)) merged.set(key, 0);
+    }
+    return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [data?.facets?.countryCode, countryCodes]);
+  const selectedChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
+    for (const role of roleKeys) {
+      chips.push({
+        key: `role:${role}`,
+        label: `${t("organizerSearch.hostType")}: ${role}`,
+        onRemove: () => {
+          setRoleKeys((current) => current.filter((item) => item !== role));
+          setPage(1);
+        },
+      });
+    }
+    for (const language of languages) {
+      chips.push({
+        key: `lang:${language}`,
+        label: `${t("organizerSearch.hostLanguage")}: ${getLanguageLabel(language)}`,
+        onRemove: () => {
+          setLanguages((current) => current.filter((item) => item !== language));
+          setPage(1);
+        },
+      });
+    }
+    for (const country of countryCodes) {
+      chips.push({
+        key: `country:${country}`,
+        label: `${t("organizerSearch.country")}: ${getCountryLabel(country)}`,
+        onRemove: () => {
+          setCountryCodes((current) => current.filter((item) => item !== country));
+          setPage(1);
+        },
+      });
+    }
+    for (const tag of tags) {
+      chips.push({
+        key: `tag:${tag}`,
+        label: `${t("organizerSearch.tags")}: ${tag}`,
+        onRemove: () => {
+          setTags((current) => current.filter((item) => item !== tag));
+          setPage(1);
+        },
+      });
+    }
+    if (city.trim()) {
+      chips.push({
+        key: "city",
+        label: `${t("organizerSearch.placeholder.city")}: ${city.trim()}`,
+        onRemove: () => {
+          setCity("");
+          setPage(1);
+        },
+      });
+    }
+    return chips;
+  }, [city, countryCodes, getCountryLabel, getLanguageLabel, languages, roleKeys, t, tags]);
 
   return (
     <section className="grid">
@@ -269,10 +356,10 @@ export function OrganizerSearchClient({
           placeholder={t("organizerSearch.placeholder.searchName")}
         />
 
-        <label>
-          {t("organizerSearch.hostType")}
+        <details open>
+          <summary>{t("organizerSearch.hostType")}</summary>
           <div className="kv">
-            {topFacetEntries(data?.facets?.roleKey, 20).map(([value, count]) => (
+            {visibleRoleFacets.map(([value, count]) => (
               <label className="meta" key={`role-${value}`}>
                 <input
                   type="checkbox"
@@ -288,12 +375,12 @@ export function OrganizerSearchClient({
               </label>
             ))}
           </div>
-        </label>
+        </details>
 
-        <label>
-          {t("organizerSearch.hostLanguage")}
+        <details open>
+          <summary>{t("organizerSearch.hostLanguage")}</summary>
           <div className="kv">
-            {topFacetEntries(data?.facets?.languages, 20).map(([value, count]) => (
+            {visibleLanguageFacets.map(([value, count]) => (
               <label className="meta" key={`lang-${value}`}>
                 <input
                   type="checkbox"
@@ -309,18 +396,20 @@ export function OrganizerSearchClient({
               </label>
             ))}
           </div>
-        </label>
+        </details>
 
-        <label>
-          {t("organizerSearch.country")}
+        <details open>
+          <summary>{t("organizerSearch.country")}</summary>
           <div className="kv">
-            {topFacetEntries(data?.facets?.countryCode, 30).map(([value, count]) => (
+            {visibleCountryFacets.map(([value, count]) => (
               <label className="meta" key={`country-${value}`}>
                 <input
                   type="checkbox"
-                  checked={countryCode === value}
+                  checked={countryCodes.includes(value)}
                   onChange={() => {
-                    setCountryCode((current) => (current === value ? "" : value));
+                    setCountryCodes((current) => (
+                      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+                    ));
                     setPage(1);
                   }}
                 />
@@ -328,7 +417,7 @@ export function OrganizerSearchClient({
               </label>
             ))}
           </div>
-        </label>
+        </details>
 
         <input
           list="organizer-city-suggestions"
@@ -404,6 +493,60 @@ export function OrganizerSearchClient({
         </div>
         {error && <div className="muted">{error}</div>}
 
+        {selectedChips.length > 0 && (
+          <div className="kv">
+            {selectedChips.map((chip) => (
+              <button className="tag" key={chip.key} type="button" onClick={chip.onRemove}>
+                {chip.label} ×
+              </button>
+            ))}
+          </div>
+        )}
+
+        {data?.items.map((item) => (
+          <Link className="card" key={item.id} href={`/organizers/${item.slug}`} onClick={persistScroll}>
+            <div className="organizer-thumb-shell">
+              {(item.imageUrl ?? item.avatar_path) ? (
+                <img
+                  className="organizer-thumb"
+                  src={(item.imageUrl ?? item.avatar_path) as string}
+                  alt={item.name}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <span className="organizer-thumb-placeholder" aria-hidden>
+                  {item.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <h3>{item.name}</h3>
+            <div className="meta">
+              {item.city ?? ""}
+              {(item.countryCode ?? item.country_code)
+                ? ` ${getCountryLabel((item.countryCode ?? item.country_code) as string)}`
+                : ""}
+            </div>
+            {item.roleKey && <div className="meta">{item.roleKey}</div>}
+            {(item.websiteUrl ?? item.website_url) && (
+              <div className="meta">
+                {(item.websiteUrl ?? item.website_url) as string}
+              </div>
+            )}
+            <div className="kv">
+              {item.languages.map((language) => (
+                <span className="tag" key={language}>
+                  {getLanguageLabel(language)}
+                </span>
+              ))}
+              {item.tags.map((tag) => (
+                <span className="tag" key={tag}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </Link>
+        ))}
         {data && (
           <div className="admin-card-actions">
             <button
@@ -427,55 +570,6 @@ export function OrganizerSearchClient({
             </button>
           </div>
         )}
-
-        {data?.items.map((item) => (
-          <article className="card" key={item.id}>
-            <div className="organizer-thumb-shell">
-              {(item.imageUrl ?? item.avatar_path) ? (
-                <img
-                  className="organizer-thumb"
-                  src={(item.imageUrl ?? item.avatar_path) as string}
-                  alt={item.name}
-                  loading="lazy"
-                  decoding="async"
-                />
-              ) : (
-                <span className="organizer-thumb-placeholder" aria-hidden>
-                  {item.name.charAt(0).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <h3>
-              <Link href={`/organizers/${item.slug}`} onClick={persistScroll}>{item.name}</Link>
-            </h3>
-            <div className="meta">
-              {item.city ?? ""}
-              {(item.countryCode ?? item.country_code)
-                ? ` ${getCountryLabel((item.countryCode ?? item.country_code) as string)}`
-                : ""}
-            </div>
-            {item.roleKey && <div className="meta">{item.roleKey}</div>}
-            {(item.websiteUrl ?? item.website_url) && (
-              <div className="meta">
-                <a href={(item.websiteUrl ?? item.website_url) as string} target="_blank" rel="noreferrer">
-                  {(item.websiteUrl ?? item.website_url) as string}
-                </a>
-              </div>
-            )}
-            <div className="kv">
-              {item.languages.map((language) => (
-                <span className="tag" key={language}>
-                  {language}
-                </span>
-              ))}
-              {item.tags.map((tag) => (
-                <span className="tag" key={tag}>
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </article>
-        ))}
       </div>
     </section>
   );

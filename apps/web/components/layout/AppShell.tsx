@@ -38,7 +38,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/admin">{t("nav.admin")}</Link>
         </nav>
         <div className="auth-actions">
-          {auth.ready && auth.authenticated ? (
+          {!auth.ready ? (
+            <span className="meta">{t("auth.loading")}</span>
+          ) : auth.authenticated ? (
             <>
               <Link className="ghost-btn" href="/profile">
                 {auth.userName ?? t("nav.profile")}

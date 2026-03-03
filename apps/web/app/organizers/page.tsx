@@ -32,7 +32,7 @@ export default function OrganizersPage({
     roleKeys: csvToList(getSingle(searchParams, "roleKey")),
     tags: csvToList(getSingle(searchParams, "tags")),
     languages: csvToList(getSingle(searchParams, "languages")),
-    countryCode: getSingle(searchParams, "countryCode") ?? undefined,
+    countryCodes: csvToList(getSingle(searchParams, "countryCode")),
     city: getSingle(searchParams, "city") ?? undefined,
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
   };

@@ -3,6 +3,16 @@ Version: 0.1
 Target domain: beta.events.danceresource.org
 SSO: https://sso.danceresource.org (existing Keycloak)
 
+## Implementation addendum (2026-03-03)
+Delivered in codebase since initial draft:
+- Event detail route `/events/:slug` implemented with SEO metadata and JSON-LD.
+- Public search supports multi-select filters via CSV params for category/format/country.
+- Public organizer directory now supports faceted filtering (`role`, `language`, `tags`, `country`, `city`) and autocomplete endpoints for tags/cities.
+- Chunked sitemap implementation is live (`/sitemap.xml` index + `/sitemap-events-<n>.xml` chunks).
+- User profile baseline delivered (`/profile`) including display-name edit.
+- Alert skeleton delivered (follow host / notify intent): profile alert CRUD + admin dry-run matching endpoint.
+- Import transparency fields are included in public event payload (`isImported`, `importSource`, `externalUrl`, `lastSyncedAt`).
+
 ## 1) Purpose and hard scope boundary
 
 ### 1.1 MVP goal

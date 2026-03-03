@@ -7,6 +7,8 @@ Base path: `/api`
 - `GET /api/meta/taxonomies` (practices taxonomy is currently canonical flat level-1 list)
 - `GET /api/meta/cities` (`q`, optional `countryCode`, optional `limit<=20`)
 - `GET /api/meta/tags` (`q`, optional `limit<=20`)
+- `GET /api/meta/organizer-cities` (`q`, optional `countryCode`, optional `limit<=20`)
+- `GET /api/meta/organizer-tags` (`q`, optional `limit<=20`)
 - `GET /api/events/search` (returns `hits`, `facets`, `pagination`)
 - `GET /api/events/:slug`
 - `GET /api/organizers/search` (returns `items`, `facets`, `pagination`)
@@ -31,6 +33,11 @@ Base path: `/api`
 - `POST /api/events/:id/unpublish`
 - `POST /api/events/:id/cancel`
 - `POST /api/uploads`
+- `GET /api/profile`
+- `PATCH /api/profile`
+- `GET /api/profile/alerts`
+- `POST /api/profile/alerts`
+- `DELETE /api/profile/alerts/:id`
 
 ## Admin only
 - `POST /api/admin/practices`
@@ -42,8 +49,51 @@ Base path: `/api`
 - `PATCH /api/admin/event-formats/:id`
 - `GET /api/admin/ui-labels`
 - `PATCH /api/admin/ui-labels`
+- `GET /api/admin/alerts/run-dry`
 
 See `constitution.md` for complete behavior and field-level requirements.
+
+## Search Query Conventions
+- `practiceCategoryId`, `eventFormatId`, and `countryCode` accept CSV values for multi-select filters.
+  - Example: `practiceCategoryId=<uuid1>,<uuid2>`
+  - Example: `eventFormatId=<uuid1>,<uuid2>`
+  - Example: `countryCode=de,rs`
+- `practiceCategoryId` and `eventFormatId` CSV values are UUID-validated; invalid UUID list returns `400` with `error: "invalid_uuid_list"`.
+- `GET /api/events/search` includes cache headers:
+  - `Cache-Control: public, max-age=30`
+  - `Vary: Authorization`
+
+## Event Search and Detail Payload Additions
+- Public event payloads include importer transparency fields:
+  - `isImported` (boolean)
+  - `importSource` (string|null)
+  - `externalUrl` (string|null)
+  - `lastSyncedAt` (ISO timestamp|null)
+- `GET /api/events/search` includes lightweight organizer refs on each hit:
+  - `organizers: [{ id, name, avatarUrl, roles[] }]`
+
+## Organizer Search Facets
+- `GET /api/organizers/search` returns facets:
+  - `roleKey`
+  - `languages`
+  - `tags`
+  - `countryCode`
+  - `city`
+- Query params support CSV for multi-select:
+  - `roleKey`
+  - `languages`
+  - `tags`
+  - `countryCode`
+
+## User Alerts (Skeleton)
+- `POST /api/profile/alerts` payload:
+  - `organizerId` (uuid, required)
+  - `radiusKm` (int 1..500, optional, default 50)
+  - `city` (string, optional)
+  - `countryCode` (string, optional)
+- `GET /api/profile/alerts` returns saved alert items for the authenticated user.
+- `DELETE /api/profile/alerts/:id` removes a user-owned alert.
+- `GET /api/admin/alerts/run-dry` returns dry-run matches for the next 30 days (admin-only).
 
 ## Event Import Idempotency (Single/Recurring Event Create/Patch)
 - `POST /api/events` accepts optional `externalSource` and `externalId` (`string|null`, max 255 each).

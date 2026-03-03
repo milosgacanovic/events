@@ -9,8 +9,10 @@ type EventSearchInput = {
   from: string;
   to: string;
   practiceCategoryId?: string;
+  practiceCategoryIds?: string[];
   practiceSubcategoryId?: string;
   eventFormatId?: string;
+  eventFormatIds?: string[];
   tags?: string[];
   languages?: string[];
   attendanceMode?: "in_person" | "online" | "hybrid";
@@ -42,9 +44,19 @@ function buildEventFilters(input: Omit<EventSearchInput, "page" | "pageSize" | "
     whereParts.push(`(e.title ilike $${index} or e.slug ilike $${index})`);
   }
 
-  if (input.practiceCategoryId) {
-    values.push(input.practiceCategoryId);
+  const normalizedPracticeCategoryIds = (
+    input.practiceCategoryIds?.length
+      ? input.practiceCategoryIds
+      : input.practiceCategoryId
+        ? [input.practiceCategoryId]
+        : []
+  ).filter(Boolean);
+  if (normalizedPracticeCategoryIds.length === 1) {
+    values.push(normalizedPracticeCategoryIds[0]);
     whereParts.push(`e.practice_category_id = $${values.length}::uuid`);
+  } else if (normalizedPracticeCategoryIds.length > 1) {
+    values.push(normalizedPracticeCategoryIds);
+    whereParts.push(`e.practice_category_id = any($${values.length}::uuid[])`);
   }
 
   if (input.practiceSubcategoryId) {
@@ -52,9 +64,19 @@ function buildEventFilters(input: Omit<EventSearchInput, "page" | "pageSize" | "
     whereParts.push(`e.practice_subcategory_id = $${values.length}::uuid`);
   }
 
-  if (input.eventFormatId) {
-    values.push(input.eventFormatId);
+  const normalizedEventFormatIds = (
+    input.eventFormatIds?.length
+      ? input.eventFormatIds
+      : input.eventFormatId
+        ? [input.eventFormatId]
+        : []
+  ).filter(Boolean);
+  if (normalizedEventFormatIds.length === 1) {
+    values.push(normalizedEventFormatIds[0]);
     whereParts.push(`e.event_format_id = $${values.length}::uuid`);
+  } else if (normalizedEventFormatIds.length > 1) {
+    values.push(normalizedEventFormatIds);
+    whereParts.push(`e.event_format_id = any($${values.length}::uuid[])`);
   }
 
   if (input.tags?.length) {

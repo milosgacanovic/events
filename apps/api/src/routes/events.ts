@@ -29,9 +29,9 @@ const searchQuerySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   includePast: z.enum(["true", "false"]).optional(),
-  practiceCategoryId: z.string().uuid().optional(),
+  practiceCategoryId: z.string().optional(),
   practiceSubcategoryId: z.string().uuid().optional(),
-  eventFormatId: z.string().uuid().optional(),
+  eventFormatId: z.string().optional(),
   tags: z.string().optional(),
   languages: z.string().optional(),
   attendanceMode: z.enum(["in_person", "online", "hybrid"]).optional(),
@@ -65,6 +65,18 @@ function csvToList(value?: string): string[] {
     .filter(Boolean);
 }
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parseUuidCsv(value?: string): string[] | null {
+  const items = csvToList(value);
+  for (const item of items) {
+    if (!uuidPattern.test(item)) {
+      return null;
+    }
+  }
+  return items;
+}
+
 function resolveCoverImagePath(input: { coverImagePath?: string | null; coverImageUrl?: string | null }) {
   if (input.coverImageUrl !== undefined) {
     return input.coverImageUrl;
@@ -76,9 +88,9 @@ function resolveCoverImagePath(input: { coverImagePath?: string | null; coverIma
 function buildMeiliFilters(input: {
   from: string;
   to: string;
-  practiceCategoryId?: string;
+  practiceCategoryIds?: string[];
   practiceSubcategoryId?: string;
-  eventFormatId?: string;
+  eventFormatIds?: string[];
   tags: string[];
   languages: string[];
   attendanceMode?: string;
@@ -92,14 +104,18 @@ function buildMeiliFilters(input: {
     `starts_at_utc <= ${JSON.stringify(input.to)}`,
   ];
 
-  if (input.practiceCategoryId) {
-    filters.push(`practice_category_id = ${JSON.stringify(input.practiceCategoryId)}`);
+  if (input.practiceCategoryIds?.length === 1) {
+    filters.push(`practice_category_id = ${JSON.stringify(input.practiceCategoryIds[0])}`);
+  } else if (input.practiceCategoryIds && input.practiceCategoryIds.length > 1) {
+    filters.push(`(${input.practiceCategoryIds.map((value) => `practice_category_id = ${JSON.stringify(value)}`).join(" OR ")})`);
   }
   if (input.practiceSubcategoryId) {
     filters.push(`practice_subcategory_id = ${JSON.stringify(input.practiceSubcategoryId)}`);
   }
-  if (input.eventFormatId) {
-    filters.push(`event_format_id = ${JSON.stringify(input.eventFormatId)}`);
+  if (input.eventFormatIds?.length === 1) {
+    filters.push(`event_format_id = ${JSON.stringify(input.eventFormatIds[0])}`);
+  } else if (input.eventFormatIds && input.eventFormatIds.length > 1) {
+    filters.push(`(${input.eventFormatIds.map((value) => `event_format_id = ${JSON.stringify(value)}`).join(" OR ")})`);
   }
   if (input.tags.length) {
     for (const tag of input.tags) {
@@ -183,6 +199,14 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const to = parsed.data.to ?? now.plus({ days: 365 }).toISO();
     const tags = csvToList(parsed.data.tags);
     const languages = csvToList(parsed.data.languages);
+    const practiceCategoryIds = parseUuidCsv(parsed.data.practiceCategoryId);
+    const eventFormatIds = parseUuidCsv(parsed.data.eventFormatId);
+    if (!practiceCategoryIds || !eventFormatIds) {
+      reply.code(400);
+      return {
+        error: "invalid_uuid_list",
+      };
+    }
     const countryCodes = csvToList(parsed.data.countryCode).map((value) => value.toLowerCase());
     const hasGeo = parsed.data.hasGeo ? parsed.data.hasGeo === "true" : undefined;
 
@@ -198,9 +222,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       q: parsed.data.q ?? "",
       from: from ?? "",
       to: to ?? "",
-      practiceCategoryId: parsed.data.practiceCategoryId ?? null,
+      practiceCategoryId: practiceCategoryIds.join(",") || null,
       practiceSubcategoryId: parsed.data.practiceSubcategoryId ?? null,
-      eventFormatId: parsed.data.eventFormatId ?? null,
+      eventFormatId: eventFormatIds.join(",") || null,
       tags,
       languages,
       attendanceMode: parsed.data.attendanceMode ?? null,
@@ -223,9 +247,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       const meiliFilters = buildMeiliFilters({
         from: from ?? now.toISO()!,
         to: to ?? now.plus({ days: 365 }).toISO()!,
-        practiceCategoryId: parsed.data.practiceCategoryId,
+        practiceCategoryIds,
         practiceSubcategoryId: parsed.data.practiceSubcategoryId,
-        eventFormatId: parsed.data.eventFormatId,
+        eventFormatIds,
         tags,
         languages,
         attendanceMode: parsed.data.attendanceMode,
@@ -325,9 +349,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         q: parsed.data.q,
         from: from ?? now.toISO()!,
         to: to ?? now.plus({ days: 365 }).toISO()!,
-        practiceCategoryId: parsed.data.practiceCategoryId,
+        practiceCategoryIds,
         practiceSubcategoryId: parsed.data.practiceSubcategoryId,
-        eventFormatId: parsed.data.eventFormatId,
+        eventFormatIds,
         tags,
         languages,
         attendanceMode: parsed.data.attendanceMode,

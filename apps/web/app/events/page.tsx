@@ -97,9 +97,9 @@ export default async function EventsPage({
   const pageNumber = Number(getSingle(searchParams, "page") ?? "1");
   const initialQuery: EventSearchInitialQuery = {
     q: getSingle(searchParams, "q") ?? undefined,
-    practiceCategoryId: getSingle(searchParams, "practiceCategoryId") ?? undefined,
+    practiceCategoryIds: csvToList(getSingle(searchParams, "practiceCategoryId")),
     practiceSubcategoryId: getSingle(searchParams, "practiceSubcategoryId") ?? undefined,
-    eventFormatId: getSingle(searchParams, "eventFormatId") ?? undefined,
+    eventFormatIds: csvToList(getSingle(searchParams, "eventFormatId")),
     tags: (getSingle(searchParams, "tags") ?? "")
       .split(",")
       .map((item) => item.trim())
@@ -120,9 +120,9 @@ export default async function EventsPage({
   const nowIso = new Date().toISOString();
   const oneYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
   if (initialQuery.q) params.set("q", initialQuery.q);
-  if (initialQuery.practiceCategoryId) params.set("practiceCategoryId", initialQuery.practiceCategoryId);
+  if (initialQuery.practiceCategoryIds?.length) params.set("practiceCategoryId", initialQuery.practiceCategoryIds.join(","));
   if (initialQuery.practiceSubcategoryId) params.set("practiceSubcategoryId", initialQuery.practiceSubcategoryId);
-  if (initialQuery.eventFormatId) params.set("eventFormatId", initialQuery.eventFormatId);
+  if (initialQuery.eventFormatIds?.length) params.set("eventFormatId", initialQuery.eventFormatIds.join(","));
   if (initialQuery.tags?.length) params.set("tags", initialQuery.tags.join(","));
   if (initialQuery.languages?.length) params.set("languages", initialQuery.languages.join(","));
   if (initialQuery.attendanceMode) params.set("attendanceMode", initialQuery.attendanceMode);

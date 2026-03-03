@@ -29,6 +29,7 @@ export type OrganizerSearchInput = {
   languages?: string[];
   roleKeys?: string[];
   countryCode?: string;
+  countryCodes?: string[];
   city?: string;
   page: number;
   pageSize: number;
@@ -70,9 +71,17 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
     `);
   }
 
-  if (filters.countryCode) {
-    values.push(filters.countryCode.toLowerCase());
+  const normalizedCountryCodes = (
+    filters.countryCodes?.length ? filters.countryCodes : filters.countryCode ? [filters.countryCode] : []
+  )
+    .map((value) => value.toLowerCase())
+    .filter(Boolean);
+  if (normalizedCountryCodes.length === 1) {
+    values.push(normalizedCountryCodes[0]);
     whereParts.push(`lower(o.country_code) = $${values.length}`);
+  } else if (normalizedCountryCodes.length > 1) {
+    values.push(normalizedCountryCodes);
+    whereParts.push(`lower(o.country_code) = any($${values.length}::text[])`);
   }
 
   if (filters.city) {

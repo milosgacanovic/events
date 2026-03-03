@@ -358,7 +358,7 @@ export function AdminConsole() {
     params.set("section", section);
     params.delete("id");
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
   async function loadMetadata() {
