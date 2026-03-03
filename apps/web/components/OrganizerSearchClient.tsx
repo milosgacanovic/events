@@ -34,6 +34,7 @@ type OrganizerSearchResponse = {
   };
   facets?: {
     roleKey?: Record<string, number>;
+    practiceCategoryId?: Record<string, number>;
     languages?: Record<string, number>;
     tags?: Record<string, number>;
     countryCode?: Record<string, number>;
@@ -62,16 +63,12 @@ type TaxonomyResponse = {
   };
 };
 
-function mergeFacetRecord(
-  current: Record<string, number> | undefined,
-  incoming: Record<string, number> | undefined,
-): Record<string, number> {
-  const merged: Record<string, number> = { ...(current ?? {}) };
-  for (const [key, count] of Object.entries(incoming ?? {})) {
-    merged[key] = Math.max(merged[key] ?? 0, count);
-  }
-  return merged;
-}
+type DisjunctiveFacets = {
+  roleKey: Record<string, number>;
+  practiceCategoryId: Record<string, number>;
+  languages: Record<string, number>;
+  countryCode: Record<string, number>;
+};
 
 export function OrganizerSearchClient({
   initialQuery,
@@ -98,10 +95,15 @@ export function OrganizerSearchClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<OrganizerSearchResponse | null>(null);
-  const [facetBaseline, setFacetBaseline] = useState<NonNullable<OrganizerSearchResponse["facets"]>>({});
-  const [practiceBaseline, setPracticeBaseline] = useState<Record<string, number>>({});
+  const [disjunctiveFacets, setDisjunctiveFacets] = useState<DisjunctiveFacets>({
+    roleKey: {},
+    practiceCategoryId: {},
+    languages: {},
+    countryCode: {},
+  });
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const restoredKeyRef = useRef<string | null>(null);
+  const facetRequestRef = useRef(0);
   const practiceLabelById = useMemo(() => {
     const map = new Map<string, string>();
     for (const category of taxonomy?.practices.categories ?? []) {
@@ -155,6 +157,20 @@ export function OrganizerSearchClient({
     return params.toString();
   }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, page, practiceKeyById]);
 
+  const buildFacetQueryString = useCallback((exclude: "role" | "practice" | "languages" | "country") => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (exclude !== "role" && roleKeys.length) params.set("roleKey", roleKeys.join(","));
+    if (exclude !== "practice" && practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+    if (tags.length) params.set("tags", tags.join(","));
+    if (exclude !== "languages" && languages.length) params.set("languages", languages.join(","));
+    if (exclude !== "country" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
+    if (cities.length) params.set("city", cities.join(","));
+    params.set("page", "1");
+    params.set("pageSize", "1");
+    return params.toString();
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
+
   const scrollStorageKey = useMemo(() => {
     const query = buildUiQueryString();
     return `search-scroll:${pathname}${query ? `?${query}` : ""}`;
@@ -202,6 +218,41 @@ export function OrganizerSearchClient({
     }, 250);
     return () => clearTimeout(timer);
   }, [buildUiQueryString, pathname, router]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const requestId = facetRequestRef.current + 1;
+      facetRequestRef.current = requestId;
+
+      void Promise.all([
+        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("role")}`),
+        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("practice")}`),
+        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("languages")}`),
+        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("country")}`),
+      ]).then(([roleResult, practiceResult, languageResult, countryResult]) => {
+        if (requestId !== facetRequestRef.current) {
+          return;
+        }
+        setDisjunctiveFacets({
+          roleKey: roleResult?.facets?.roleKey ?? {},
+          practiceCategoryId: practiceResult?.facets?.practiceCategoryId ?? {},
+          languages: languageResult?.facets?.languages ?? {},
+          countryCode: countryResult?.facets?.countryCode ?? {},
+        });
+      }).catch(() => {
+        if (requestId !== facetRequestRef.current) {
+          return;
+        }
+        setDisjunctiveFacets({
+          roleKey: {},
+          practiceCategoryId: {},
+          languages: {},
+          countryCode: {},
+        });
+      });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [buildFacetQueryString]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -281,19 +332,6 @@ export function OrganizerSearchClient({
       .catch(() => setTagSuggestions([]));
   }, [tagQuery]);
 
-  useEffect(() => {
-    if (!data?.facets) {
-      return;
-    }
-    setFacetBaseline((current) => ({
-      roleKey: mergeFacetRecord(current.roleKey, data.facets?.roleKey),
-      languages: mergeFacetRecord(current.languages, data.facets?.languages),
-      tags: mergeFacetRecord(current.tags, data.facets?.tags),
-      countryCode: mergeFacetRecord(current.countryCode, data.facets?.countryCode),
-      city: mergeFacetRecord(current.city, data.facets?.city),
-    }));
-  }, [data?.facets]);
-
   const currentPage = data?.pagination?.page ?? page;
   const totalPages = data?.pagination?.totalPages ?? 1;
   const languageNames = useMemo(() => {
@@ -321,12 +359,7 @@ export function OrganizerSearchClient({
   const visibleRoleFacets = useMemo(() => {
     const selectedSet = new Set(roleKeys);
     const merged = new Map<string, number>();
-    for (const [key, value] of Object.entries(facetBaseline.roleKey ?? {})) {
-      if (value > 0 || selectedSet.has(key)) {
-        merged.set(key, value);
-      }
-    }
-    for (const [key, value] of Object.entries(data?.facets?.roleKey ?? {})) {
+    for (const [key, value] of Object.entries(disjunctiveFacets.roleKey ?? {})) {
       if (value > 0 || selectedSet.has(key)) {
         merged.set(key, value);
       }
@@ -335,16 +368,11 @@ export function OrganizerSearchClient({
       if (!merged.has(key)) merged.set(key, 0);
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.roleKey, facetBaseline.roleKey, roleKeys]);
+  }, [disjunctiveFacets.roleKey, roleKeys]);
   const visibleLanguageFacets = useMemo(() => {
     const selectedSet = new Set(languages);
     const merged = new Map<string, number>();
-    for (const [key, value] of Object.entries(facetBaseline.languages ?? {})) {
-      if (value > 0 || selectedSet.has(key)) {
-        merged.set(key, value);
-      }
-    }
-    for (const [key, value] of Object.entries(data?.facets?.languages ?? {})) {
+    for (const [key, value] of Object.entries(disjunctiveFacets.languages ?? {})) {
       if (value > 0 || selectedSet.has(key)) {
         merged.set(key, value);
       }
@@ -353,17 +381,11 @@ export function OrganizerSearchClient({
       if (!merged.has(key)) merged.set(key, 0);
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.languages, facetBaseline.languages, languages]);
+  }, [disjunctiveFacets.languages, languages]);
   const visibleCountryFacets = useMemo(() => {
     const selectedSet = new Set(countryCodes);
     const merged = new Map<string, number>();
-    for (const [keyRaw, value] of Object.entries(facetBaseline.countryCode ?? {})) {
-      const key = keyRaw.toLowerCase();
-      if (value > 0 || selectedSet.has(key)) {
-        merged.set(key, value);
-      }
-    }
-    for (const [keyRaw, value] of Object.entries(data?.facets?.countryCode ?? {})) {
+    for (const [keyRaw, value] of Object.entries(disjunctiveFacets.countryCode ?? {})) {
       const key = keyRaw.toLowerCase();
       if (value > 0 || selectedSet.has(key)) {
         merged.set(key, value);
@@ -373,35 +395,19 @@ export function OrganizerSearchClient({
       if (!merged.has(key)) merged.set(key, 0);
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.countryCode, facetBaseline.countryCode, countryCodes]);
-  const livePracticeCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const item of data?.items ?? []) {
-      for (const practiceId of item.practiceCategoryIds ?? []) {
-        counts[practiceId] = (counts[practiceId] ?? 0) + 1;
-      }
-    }
-    return counts;
-  }, [data?.items]);
-  useEffect(() => {
-    setPracticeBaseline((current) => {
-      const next = { ...current };
-      for (const [practiceId, count] of Object.entries(livePracticeCounts)) {
-        next[practiceId] = Math.max(next[practiceId] ?? 0, count);
-      }
-      return next;
-    });
-  }, [livePracticeCounts]);
+  }, [disjunctiveFacets.countryCode, countryCodes]);
   const practiceCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const [practiceId, count] of Object.entries(practiceBaseline)) {
+    for (const [practiceId, count] of Object.entries(disjunctiveFacets.practiceCategoryId ?? {})) {
       counts.set(practiceId, count);
     }
-    for (const [practiceId, count] of Object.entries(livePracticeCounts)) {
-      counts.set(practiceId, count);
+    for (const selectedId of practiceCategoryIds) {
+      if (!counts.has(selectedId)) {
+        counts.set(selectedId, 0);
+      }
     }
     return counts;
-  }, [livePracticeCounts, practiceBaseline]);
+  }, [disjunctiveFacets.practiceCategoryId, practiceCategoryIds]);
   const selectedChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
     for (const role of roleKeys) {

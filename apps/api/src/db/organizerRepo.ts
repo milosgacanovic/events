@@ -77,6 +77,7 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
       exists (
         select 1
         from event_organizers eo
+        join events e on e.id = eo.event_id and e.status = 'published'
         join organizer_roles r on r.id = eo.role_id
         where eo.organizer_id = o.id
           and r.key = any($${values.length}::text[])
@@ -90,7 +91,7 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
       exists (
         select 1
         from event_organizers eo
-        join events e on e.id = eo.event_id
+        join events e on e.id = eo.event_id and e.status = 'published'
         where eo.organizer_id = o.id
           and e.practice_category_id = any($${values.length}::uuid[])
       )
@@ -211,6 +212,23 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
     values,
   );
 
+  const practiceFacet = await pool.query<{ key: string; count: string }>(
+    `
+      with filtered as (
+        select o.id
+        from organizers o
+        where ${whereSql}
+      )
+      select e.practice_category_id::text as key, count(distinct f.id)::text as count
+      from filtered f
+      join event_organizers eo on eo.organizer_id = f.id
+      join events e on e.id = eo.event_id and e.status = 'published'
+      where e.practice_category_id is not null
+      group by e.practice_category_id::text
+    `,
+    values,
+  );
+
   const countryFacet = await pool.query<{ country_code: string; count: string }>(
     `
       with filtered as (
@@ -266,6 +284,9 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
       roleKey: Object.fromEntries(roleFacet.rows.map((row) => [row.key, Number(row.count)])),
       languages: Object.fromEntries(
         languageFacet.rows.map((row) => [row.language, Number(row.count)]),
+      ),
+      practiceCategoryId: Object.fromEntries(
+        practiceFacet.rows.map((row) => [row.key, Number(row.count)]),
       ),
       tags: Object.fromEntries(tagFacet.rows.map((row) => [row.tag, Number(row.count)])),
       countryCode: Object.fromEntries(
