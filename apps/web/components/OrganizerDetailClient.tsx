@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import DOMPurify from "dompurify";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { apiBase, fetchJson } from "../lib/api";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
@@ -194,15 +194,11 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
     ?? (typeof (data?.organizer.descriptionJson as { html?: unknown })?.html === "string"
       ? (data?.organizer.descriptionJson as { html?: string }).html
       : null);
-  const sanitizedDescriptionHtml = useMemo(() => {
-    if (descriptionHtmlRaw && descriptionHtmlRaw.trim()) {
-      return DOMPurify.sanitize(descriptionHtmlRaw);
-    }
-    if (descriptionSections.description) {
-      return `<p>${DOMPurify.sanitize(descriptionSections.description).replace(/\n/g, "<br>")}</p>`;
-    }
-    return null;
-  }, [descriptionHtmlRaw, descriptionSections.description]);
+  const sanitizedDescriptionHtml = descriptionHtmlRaw && descriptionHtmlRaw.trim()
+    ? DOMPurify.sanitize(descriptionHtmlRaw)
+    : descriptionSections.description
+      ? `<p>${DOMPurify.sanitize(descriptionSections.description).replace(/\n/g, "<br>")}</p>`
+      : null;
 
   if (error) {
     return <div className="panel">{error}</div>;
