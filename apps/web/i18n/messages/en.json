@@ -350,5 +350,8 @@
   "common.none": "None",
   "common.category": "Category",
   "common.categories": "Categories",
-  "common.subcategory": "Subcategory"
+  "common.subcategory": "Subcategory",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+  "theme.system": "System"
 }

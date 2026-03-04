@@ -8,6 +8,66 @@
   --accent: #1e63e9;
   --accent-2: #154ec0;
   --line: #d9c9b2;
+  --surface: #fff;
+  --surface-alt: #f5f5f5;
+  --surface-warm: #fffaf3;
+  --surface-skeleton: #efe4d2;
+  --surface-placeholder: #f3f3f3;
+  --border: #ccc;
+  --border-warm: #f0e7da;
+  --hover-bg: #f7f3ec;
+  --accent-bg: #eef4ff;
+  --toggle-track: #d1d5db;
+  --toggle-track-border: #b9c0c9;
+  --toggle-knob: #fff;
+  --tag-bg: #f8eddc;
+  --tag-border: #e7d3b6;
+  --warning-bg: #fff2e6;
+  --warning-border: #e7be9d;
+  --warning-ink: #7a4b1a;
+  --disclaimer-bg: #f5f3ee;
+  --mapbox-border: #b7a48d;
+  --mapbox-bg-start: #efe5d3;
+  --mapbox-bg-end: #d8eadf;
+  --mapbox-ink: #3a4f44;
+  --focus-ring: rgba(30, 99, 233, 0.35);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-dropdown: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] {
+  --bg: #1a1816;
+  --panel: #242220;
+  --ink: #e8e4de;
+  --muted: #a09b8f;
+  --accent: #5b8ef7;
+  --accent-2: #7da4fa;
+  --line: #3d362c;
+  --surface: #242220;
+  --surface-alt: #2a2826;
+  --surface-warm: #26231e;
+  --surface-skeleton: #33302a;
+  --surface-placeholder: #2e2b28;
+  --border: #3d362c;
+  --border-warm: #3d362c;
+  --hover-bg: #302d28;
+  --accent-bg: #1e2a42;
+  --toggle-track: #4a4540;
+  --toggle-track-border: #5a554e;
+  --toggle-knob: #e8e4de;
+  --tag-bg: #342e22;
+  --tag-border: #4a4030;
+  --warning-bg: #352a1e;
+  --warning-border: #5a4830;
+  --warning-ink: #d4a060;
+  --disclaimer-bg: #28261f;
+  --mapbox-border: #4a4030;
+  --mapbox-bg-start: #2a2720;
+  --mapbox-bg-end: #1e2a24;
+  --mapbox-ink: #8ab09a;
+  --focus-ring: rgba(91, 142, 247, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-dropdown: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -113,8 +173,8 @@ main {
   z-index: 20;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  background: var(--surface);
+  box-shadow: var(--shadow-dropdown);
   max-height: 220px;
   overflow: auto;
 }
@@ -125,7 +185,7 @@ main {
   text-align: left;
   padding: 8px 10px;
   border: none;
-  border-bottom: 1px solid #f0e7da;
+  border-bottom: 1px solid var(--border-warm);
   background: transparent;
   cursor: pointer;
   color: var(--ink);
@@ -136,7 +196,7 @@ main {
 }
 
 .autocomplete-option:hover {
-  background: #f7f3ec;
+  background: var(--hover-bg);
 }
 
 summary {
@@ -166,8 +226,8 @@ label.meta {
   width: 46px;
   height: 26px;
   border-radius: 999px;
-  background: #d1d5db;
-  border: 1px solid #b9c0c9;
+  background: var(--toggle-track);
+  border: 1px solid var(--toggle-track-border);
   transition: background-color 0.16s ease, border-color 0.16s ease;
   flex: 0 0 auto;
 }
@@ -180,8 +240,8 @@ label.meta {
   width: 20px;
   height: 20px;
   border-radius: 999px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  background: var(--toggle-knob);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.16s ease;
 }
 
@@ -195,7 +255,7 @@ label.meta {
 }
 
 .toggle-control-input:focus-visible + .toggle-control-track {
-  outline: 2px solid rgba(30, 99, 233, 0.35);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -225,7 +285,7 @@ label.meta {
   border-radius: 10px;
   border: 1px solid var(--line);
   font: inherit;
-  background: #fff;
+  background: var(--surface);
 }
 
 .filters button {
@@ -295,7 +355,7 @@ label.meta {
 .secondary-btn.icon-btn {
   border-color: var(--accent);
   color: var(--accent);
-  background: #eef4ff;
+  background: var(--accent-bg);
 }
 
 .card {
@@ -303,7 +363,7 @@ label.meta {
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .card h3 {
@@ -315,7 +375,7 @@ label.meta {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: #f3f3f3;
+  background: var(--surface-placeholder);
   border-radius: 10px;
   border: 1px solid var(--line);
   margin-bottom: 10px;
@@ -349,7 +409,7 @@ label.meta {
   height: 84px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: #f3f3f3;
+  background: var(--surface-placeholder);
   overflow: hidden;
 }
 
@@ -370,7 +430,7 @@ label.meta {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .organizer-thumb-shell {
@@ -378,7 +438,7 @@ label.meta {
   height: 72px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #f3f3f3;
+  background: var(--surface-placeholder);
   margin-bottom: 10px;
   overflow: hidden;
 }
@@ -406,7 +466,7 @@ label.meta {
   height: 160px;
   border-radius: 12px;
   overflow: hidden;
-  background: #f5f5f5;
+  background: var(--surface-alt);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -447,7 +507,7 @@ label.meta {
   object-fit: contain;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #f3f3f3;
+  background: var(--surface-placeholder);
 }
 
 .organizer-cover-shell {
@@ -461,7 +521,7 @@ label.meta {
   object-fit: contain;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #f3f3f3;
+  background: var(--surface-placeholder);
 }
 
 .event-cover-shell {
@@ -481,7 +541,7 @@ label.meta {
   border-radius: 999px;
   object-fit: cover;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
 }
 
 .meta {
@@ -497,8 +557,8 @@ label.meta {
 }
 
 .tag {
-  background: #f8eddc;
-  border: 1px solid #e7d3b6;
+  background: var(--tag-bg);
+  border: 1px solid var(--tag-border);
   border-radius: 999px;
   padding: 4px 8px;
   font-size: 0.8rem;
@@ -516,7 +576,7 @@ label.meta {
 .skeleton-line {
   height: 12px;
   border-radius: 999px;
-  background: #efe4d2;
+  background: var(--surface-skeleton);
 }
 
 .skeleton-line.short {
@@ -526,17 +586,17 @@ label.meta {
 .skeleton-block {
   height: 180px;
   border-radius: 12px;
-  background: #efe4d2;
+  background: var(--surface-skeleton);
 }
 
 .mapbox {
   min-height: 260px;
   border-radius: 12px;
-  border: 1px dashed #b7a48d;
-  background: linear-gradient(120deg, #efe5d3, #d8eadf);
+  border: 1px dashed var(--mapbox-border);
+  background: linear-gradient(120deg, var(--mapbox-bg-start), var(--mapbox-bg-end));
   display: grid;
   place-items: center;
-  color: #3a4f44;
+  color: var(--mapbox-ink);
 }
 
 .map-shell {
@@ -574,7 +634,7 @@ label.meta {
 }
 
 .secondary-btn {
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
 }
 
@@ -595,7 +655,7 @@ label.meta {
 }
 
 .admin-form {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 14px;
@@ -621,7 +681,7 @@ label.meta {
   border-radius: 8px;
   padding: 9px 10px;
   color: var(--ink);
-  background: #fff;
+  background: var(--surface);
 }
 
 .admin-header {
@@ -634,16 +694,16 @@ label.meta {
 .admin-warning {
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #e7be9d;
-  background: #fff2e6;
-  color: #7a4b1a;
+  border: 1px solid var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning-ink);
 }
 
 .admin-status {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   color: var(--muted);
 }
 
@@ -666,7 +726,7 @@ label.meta {
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fffaf3;
+  background: var(--surface-warm);
   color: var(--muted);
   font-size: 0.88rem;
 }
@@ -679,7 +739,7 @@ label.meta {
 }
 
 .import-disclaimer {
-  background: #f5f3ee;
+  background: var(--disclaimer-bg);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
@@ -731,7 +791,7 @@ label.meta {
 }
 
 .rich-editor {
-  border: 1px solid var(--border, #ccc);
+  border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -741,8 +801,8 @@ label.meta {
   flex-wrap: wrap;
   gap: 2px;
   padding: 4px;
-  border-bottom: 1px solid var(--border, #ccc);
-  background: var(--surface-alt, #f5f5f5);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
 }
 
 .rich-editor .tiptap {
@@ -755,8 +815,61 @@ label.meta {
 .rich-editor .tiptap ul,
 .rich-editor .tiptap ol { margin: 0 0 0.5em; padding-left: 1.5em; }
 .rich-editor .tiptap blockquote {
-  border-left: 3px solid var(--border, #ccc);
+  border-left: 3px solid var(--border);
   margin: 0 0 0.5em;
   padding-left: 0.75em;
-  color: var(--muted, #666);
+  color: var(--muted);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+  transition: background-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--hover-bg);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Leaflet dark-mode overrides */
+[data-theme="dark"] .leaflet-popup-content-wrapper,
+[data-theme="dark"] .leaflet-popup-tip {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+[data-theme="dark"] .leaflet-control-zoom a {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .leaflet-control-zoom a:hover {
+  background: var(--hover-bg);
+}
+
+[data-theme="dark"] .leaflet-control-attribution {
+  background: rgba(36, 34, 32, 0.8);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .leaflet-control-attribution a {
+  color: var(--accent);
 }

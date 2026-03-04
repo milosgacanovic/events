@@ -7,10 +7,12 @@ import { useKeycloakAuth } from "../auth/KeycloakAuthProvider";
 import { useI18n } from "../i18n/I18nProvider";
 import { LocaleSwitcher } from "../i18n/LocaleSwitcher";
 import { getKeycloakClientConfig } from "../../lib/keycloakConfig";
+import { useTheme } from "../../lib/useTheme";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const auth = useKeycloakAuth();
+  const { preference, resolved, cycle } = useTheme();
   const canOpenAdmin = auth.roles.some((role) =>
     role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
   );
@@ -65,6 +67,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </>
           )}
           <LocaleSwitcher />
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={cycle}
+            aria-label={
+              preference === "light"
+                ? t("theme.light")
+                : preference === "dark"
+                  ? t("theme.dark")
+                  : t("theme.system")
+            }
+            title={
+              preference === "light"
+                ? t("theme.light")
+                : preference === "dark"
+                  ? t("theme.dark")
+                  : t("theme.system")
+            }
+          >
+            {resolved === "dark" ? "\u263E" : "\u2600"}
+          </button>
         </div>
       </header>
       {children}

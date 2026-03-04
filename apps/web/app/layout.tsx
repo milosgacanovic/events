@@ -44,7 +44,10 @@ export default function RootLayout({
   const keycloakConfig = getKeycloakClientConfig();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var p='system';try{p=localStorage.getItem('dr-theme')||'system'}catch(e){}var r=p;if(p==='system'){r=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',r);document.documentElement.setAttribute('data-theme-preference',p)})()` }} />
+      </head>
       <body>
         <I18nProvider locale={locale} messages={messages}>
           <KeycloakAuthProvider config={keycloakConfig}>

@@ -350,5 +350,8 @@
   "common.none": "Nijedno",
   "common.category": "Kategorija",
   "common.categories": "Kategorije",
-  "common.subcategory": "Potkategorija"
+  "common.subcategory": "Potkategorija",
+  "theme.light": "Svetla",
+  "theme.dark": "Tamna",
+  "theme.system": "Sistem"
 }
