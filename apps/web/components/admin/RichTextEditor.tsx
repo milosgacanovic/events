@@ -3,7 +3,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 type ToolbarButtonProps = {
   onClick: () => void;
@@ -34,19 +34,29 @@ export function RichTextEditor({
   value: string;
   onChange: (html: string) => void;
 }) {
+  // Track the last HTML the editor itself produced so we can distinguish
+  // internal edits (no setContent needed) from external value changes
+  // (e.g. switching to a different entity), where we DO need setContent.
+  const lastEmittedRef = useRef(value);
+
   const editor = useEditor({
     extensions: [StarterKit, Underline],
     content: value,
     onUpdate({ editor: ed }) {
-      onChange(ed.getHTML());
+      const html = ed.getHTML();
+      lastEmittedRef.current = html;
+      onChange(html);
     },
   });
 
-  // Sync external value changes (e.g. when a different entity is loaded)
+  // Only replace content when the value changed externally (not from the
+  // editor's own onUpdate). Calling setContent resets the cursor to position
+  // 0, so doing it on every keystroke would cause the cursor to jump into
+  // the first <strong> tag and make all subsequent typing appear bold.
   useEffect(() => {
     if (!editor) return;
-    const current = editor.getHTML();
-    if (current !== value) {
+    if (value !== lastEmittedRef.current) {
+      lastEmittedRef.current = value;
       editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [value, editor]);
