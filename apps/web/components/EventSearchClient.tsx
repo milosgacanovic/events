@@ -30,6 +30,7 @@ export type SearchResponse = {
       practiceCategoryId: string;
       practiceSubcategoryId: string | null;
       eventFormatId: string | null;
+      visibility?: string;
     };
     location: {
       city: string | null;
@@ -143,9 +144,10 @@ export function EventSearchClient({
 }) {
   const { locale, t } = useI18n();
   const auth = useKeycloakAuth();
-  const canSeeDetailedErrors = auth.authenticated && auth.roles.some((role) =>
+  const isEditor = auth.authenticated && auth.roles.some((role) =>
     role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
   );
+  const canSeeDetailedErrors = isEditor;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -170,6 +172,7 @@ export function EventSearchClient({
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
+  const [showUnlisted, setShowUnlisted] = useState(false);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,7 +216,7 @@ export function EventSearchClient({
   const categorySingularLabel =
     taxonomy?.uiLabels.categorySingular ??
     taxonomy?.uiLabels.practiceCategory ??
-    t("common.category");
+    "";
 
   const categoryLabelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -319,6 +322,7 @@ export function EventSearchClient({
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
     params.set("tz", userTimeZone);
     params.set("sort", sort);
+    if (showUnlisted) params.set("showUnlisted", "true");
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
     return params.toString();
@@ -335,6 +339,7 @@ export function EventSearchClient({
     eventDates,
     userTimeZone,
     sort,
+    showUnlisted,
   ]);
 
   const buildUiQueryString = useCallback(() => {
@@ -511,7 +516,9 @@ export function EventSearchClient({
     setError(null);
 
     try {
-      const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`);
+      const token = (showUnlisted && auth.authenticated) ? await auth.getToken() : null;
+      const fetchInit = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
+      const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`, fetchInit);
       setData(result);
       setDisjunctiveFacets((current) => ({
         ...current,
@@ -533,7 +540,7 @@ export function EventSearchClient({
     } finally {
       setLoading(false);
     }
-  }, [buildQueryString, canSeeDetailedErrors, page, t]);
+  }, [buildQueryString, canSeeDetailedErrors, page, t, showUnlisted, auth]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1189,6 +1196,19 @@ export function EventSearchClient({
             </span>
           </label>
         </div>
+        {isEditor && (
+          <label className="meta">
+            <input
+              type="checkbox"
+              checked={showUnlisted}
+              onChange={(e) => {
+                setShowUnlisted(e.target.checked);
+                setPage(1);
+              }}
+            />
+            {" Show unlisted"}
+          </label>
+        )}
         <div className="kv">
           <button
             type="button"
@@ -1307,7 +1327,12 @@ export function EventSearchClient({
                     />
                   </div>
                 )}
-                <h3>{hit.event.title}</h3>
+                <h3>
+                  {hit.event.title}
+                  {hit.event.visibility === "unlisted" && (
+                    <span className="tag" style={{ marginLeft: "0.5em", fontSize: "0.75em" }}>Unlisted</span>
+                  )}
+                </h3>
                 <div className="meta">
                   {formatted.primary} ({formatted.suffixLabel === "event"
                     ? t("common.eventTimezone")

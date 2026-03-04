@@ -36,6 +36,7 @@ export type OccurrenceDoc = {
   geo: { lat: number; lng: number } | null;
   published_at: string | null;
   published_at_ts: number | null;
+  visibility: string;
 };
 
 export class MeilisearchService {
@@ -65,6 +66,7 @@ export class MeilisearchService {
       "country_code",
       "city",
       "has_geo",
+      "visibility",
     ]);
     await index.updateSortableAttributes(["starts_at_utc", "starts_at_ts", "published_at", "published_at_ts"]);
     await index.updatePagination({ maxTotalHits: 50000 });
@@ -101,6 +103,7 @@ export class MeilisearchService {
         e.event_format_id,
         e.tags,
         e.languages,
+        e.visibility,
         eo.country_code,
         eo.city,
         eo.geom,
@@ -135,6 +138,7 @@ export class MeilisearchService {
       event_format_id: string | null;
       tags: string[];
       languages: string[];
+      visibility: string;
       country_code: string | null;
       city: string | null;
       geom: string | null;
@@ -170,6 +174,7 @@ export class MeilisearchService {
         event_format_id: row.event_format_id,
         tags: row.tags,
         languages: row.languages,
+        visibility: row.visibility,
         organizer_ids: row.organizer_ids,
         organizer_names: row.organizer_names,
         country_code: row.country_code,

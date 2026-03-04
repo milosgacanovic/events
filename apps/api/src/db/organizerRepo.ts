@@ -48,6 +48,7 @@ export type OrganizerSearchInput = {
   countryCode?: string;
   countryCodes?: string[];
   city?: string;
+  showArchived?: boolean;
   page: number;
   pageSize: number;
 };
@@ -100,7 +101,11 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
   whereSql: string;
   values: unknown[];
 } {
-  const whereParts: string[] = ["o.status = 'published'"];
+  const whereParts: string[] = [
+    filters.showArchived
+      ? "o.status in ('published', 'archived')"
+      : "o.status = 'published'",
+  ];
   const values: unknown[] = [];
 
   if (filters.q) {

@@ -170,6 +170,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
 
   useEffect(() => {
+    setError(null);
     (async () => {
       const token = auth.authenticated ? await auth.getToken() : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;

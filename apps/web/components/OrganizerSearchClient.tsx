@@ -16,6 +16,7 @@ type OrganizerSearchResponse = {
     id: string;
     slug: string;
     name: string;
+    status?: string;
     imageUrl?: string | null;
     avatar_path?: string | null;
     websiteUrl?: string | null;
@@ -78,9 +79,10 @@ export function OrganizerSearchClient({
 }) {
   const { locale, t } = useI18n();
   const auth = useKeycloakAuth();
-  const canSeeDetailedErrors = auth.authenticated && auth.roles.some((role) =>
+  const isEditor = auth.authenticated && auth.roles.some((role) =>
     role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
   );
+  const canSeeDetailedErrors = isEditor;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -101,6 +103,7 @@ export function OrganizerSearchClient({
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
+  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<OrganizerSearchResponse | null>(null);
@@ -159,10 +162,11 @@ export function OrganizerSearchClient({
     if (languages.length) params.set("languages", languages.join(","));
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
+    if (showArchived) params.set("showArchived", "true");
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
     return params.toString();
-  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, showArchived]);
 
   const buildPracticeFacetQueryString = useCallback(() => {
     const params = new URLSearchParams();
@@ -317,7 +321,12 @@ export function OrganizerSearchClient({
     setError(null);
 
     try {
-      const result = await fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildQueryString(nextPage)}`);
+      const token = (showArchived && auth.authenticated) ? await auth.getToken() : null;
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      const result = await fetchJson<OrganizerSearchResponse>(
+        `/organizers/search?${buildQueryString(nextPage)}`,
+        headers ? { headers } : undefined,
+      );
       setData(result);
       setPage(nextPage);
     } catch (err) {
@@ -325,7 +334,7 @@ export function OrganizerSearchClient({
     } finally {
       setLoading(false);
     }
-  }, [buildQueryString, canSeeDetailedErrors, page, t]);
+  }, [buildQueryString, canSeeDetailedErrors, page, t, showArchived, auth]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -530,7 +539,7 @@ export function OrganizerSearchClient({
   const categorySingularLabel =
     taxonomy?.uiLabels?.categorySingular ??
     taxonomy?.uiLabels?.practiceCategory ??
-    t("common.category");
+    "";
   const visibleRoleFacets = useMemo(() => {
     const selectedSet = new Set(roleKeys);
     const merged = new Map<string, number>();
@@ -926,6 +935,19 @@ export function OrganizerSearchClient({
             ))}
           </div>
         )}
+        {isEditor && (
+          <label className="meta">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => {
+                setShowArchived(e.target.checked);
+                setPage(1);
+              }}
+            />
+            {" Show archived"}
+          </label>
+        )}
         <div className="kv">
           <button type="button" className="secondary-btn" onClick={clearFilters} disabled={loading}>
             {t("eventSearch.clearFilters")}
@@ -1003,7 +1025,12 @@ export function OrganizerSearchClient({
                 </span>
               )}
             </div>
-            <h3>{item.name}</h3>
+            <h3>
+              {item.name}
+              {item.status === "archived" && (
+                <span className="tag" style={{ marginLeft: "0.5em", fontSize: "0.75em" }}>Archived</span>
+              )}
+            </h3>
             <div className="meta">
               {item.city ?? ""}
               {(item.countryCode ?? item.country_code)

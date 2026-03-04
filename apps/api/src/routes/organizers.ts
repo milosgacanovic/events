@@ -19,6 +19,7 @@ const querySchema = z.object({
   roleKey: z.string().optional(),
   countryCode: z.string().optional(),
   city: z.string().optional(),
+  showArchived: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),
 });
@@ -153,6 +154,16 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
+    if (request.headers.authorization) {
+      try {
+        await app.authenticate(request);
+      } catch {
+        // Ignore auth failures — showArchived simply won't be respected.
+      }
+    }
+    const isEditor = Boolean(request.auth?.isEditor);
+    const showArchived = isEditor && parsed.data.showArchived === "true";
+
     const practiceCategoryIds = parseUuidCsv(parsed.data.practiceCategoryId);
     if (!practiceCategoryIds) {
       reply.code(400);
@@ -179,6 +190,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       roleKeys: csvToList(parsed.data.roleKey),
       countryCodes: csvToList(parsed.data.countryCode),
       city: parsed.data.city,
+      showArchived,
       page: parsed.data.page,
       pageSize: parsed.data.pageSize,
     };

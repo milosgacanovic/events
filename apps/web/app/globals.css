@@ -729,3 +729,34 @@ label.meta {
     min-width: 70px;
   }
 }
+
+.rich-editor {
+  border: 1px solid var(--border, #ccc);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.rich-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  border-bottom: 1px solid var(--border, #ccc);
+  background: var(--surface-alt, #f5f5f5);
+}
+
+.rich-editor .tiptap {
+  min-height: 160px;
+  padding: 8px 12px;
+  outline: none;
+}
+
+.rich-editor .tiptap p { margin: 0 0 0.5em; }
+.rich-editor .tiptap ul,
+.rich-editor .tiptap ol { margin: 0 0 0.5em; padding-left: 1.5em; }
+.rich-editor .tiptap blockquote {
+  border-left: 3px solid var(--border, #ccc);
+  margin: 0 0 0.5em;
+  padding-left: 0.75em;
+  color: var(--muted, #666);
+}

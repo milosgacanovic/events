@@ -9,6 +9,7 @@ import { apiBase, fetchJson } from "../../lib/api";
 import { labelForLanguageCode } from "../../lib/i18n/languageLabels";
 import { useI18n } from "../i18n/I18nProvider";
 import { useKeycloakAuth } from "../auth/KeycloakAuthProvider";
+import { RichTextEditor } from "./RichTextEditor";
 
 type TaxonomyResponse = {
   uiLabels: {
@@ -71,6 +72,7 @@ type AdminEventDetailResponse = {
   id: string;
   slug: string;
   title: string;
+  description_json?: Record<string, unknown>;
   attendance_mode: "in_person" | "online" | "hybrid";
   online_url: string | null;
   practice_category_id: string;
@@ -142,6 +144,7 @@ type EventEditorState = {
   id: string;
   slug: string;
   title: string;
+  descriptionHtml: string;
   attendanceMode: "in_person" | "online" | "hybrid";
   onlineUrl: string;
   practiceCategoryId: string;
@@ -1099,6 +1102,7 @@ export function AdminConsole() {
         id: detail.id,
         slug: detail.slug,
         title: detail.title,
+        descriptionHtml: (typeof detail.description_json?.html === "string" ? detail.description_json.html : "") ?? "",
         attendanceMode: detail.attendance_mode,
         onlineUrl: detail.online_url ?? "",
         practiceCategoryId: detail.practice_category_id,
@@ -1139,6 +1143,7 @@ export function AdminConsole() {
     try {
       const payload: Record<string, unknown> = {
         title: eventEditor.title,
+        descriptionJson: { html: eventEditor.descriptionHtml || "" },
         attendanceMode: eventEditor.attendanceMode,
         onlineUrl: eventEditor.onlineUrl || null,
         practiceCategoryId: eventEditor.practiceCategoryId,
@@ -2095,6 +2100,15 @@ export function AdminConsole() {
                 />
               </label>
               <label>
+                Description
+                <RichTextEditor
+                  value={eventEditor.descriptionHtml}
+                  onChange={(html) =>
+                    setEventEditor((current) => (current ? { ...current, descriptionHtml: html } : current))
+                  }
+                />
+              </label>
+              <label>
                 {t("common.field.attendanceMode")}
                 <select
                   value={eventEditor.attendanceMode}
@@ -2766,15 +2780,13 @@ export function AdminConsole() {
               </label>
               <label>
                 Description
-                <textarea
-                  rows={10}
+                <RichTextEditor
                   value={organizerEditor.descriptionHtml}
-                  onChange={(e) =>
+                  onChange={(html) =>
                     setOrganizerEditor((current) => (
-                      current ? { ...current, descriptionHtml: e.target.value } : current
+                      current ? { ...current, descriptionHtml: html } : current
                     ))
                   }
-                  placeholder="Use simple HTML (p, strong, em, u, ul, li, blockquote)"
                 />
               </label>
               <label>

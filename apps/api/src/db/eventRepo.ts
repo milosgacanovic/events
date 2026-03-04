@@ -33,6 +33,7 @@ function buildEventFilters(input: Omit<EventSearchInput, "page" | "pageSize" | "
   const whereParts: string[] = [
     "e.status = 'published'",
     "eo.status = 'published'",
+    "e.visibility = 'public'",
     "eo.starts_at_utc >= $1::timestamptz",
     "eo.starts_at_utc <= $2::timestamptz",
   ];

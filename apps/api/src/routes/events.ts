@@ -50,6 +50,7 @@ const searchQuerySchema = z.object({
   eventDate: z.string().optional(),
   tz: z.string().optional(),
   skipEventDateFacet: z.enum(["true", "false"]).optional(),
+  showUnlisted: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),
   sort: z.enum(["date_asc", "date_desc", "startsAtAsc", "startsAtDesc", "publishedAtDesc"]).default("date_asc"),
@@ -352,6 +353,16 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const cityFilters = csvToList(parsed.data.city);
     const hasGeo = parsed.data.hasGeo ? parsed.data.hasGeo === "true" : undefined;
 
+    if (request.headers.authorization) {
+      try {
+        await app.authenticate(request);
+      } catch {
+        // Ignore auth failures — showUnlisted simply won't be respected.
+      }
+    }
+    const isEditor = Boolean(request.auth?.isEditor);
+    const showUnlisted = isEditor && parsed.data.showUnlisted === "true";
+
     reply.header("Cache-Control", "public, max-age=30");
     reply.header("Vary", "Authorization");
 
@@ -377,6 +388,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       eventDate: eventDatePresets,
       tz: timezone,
       skipEventDateFacet: parsed.data.skipEventDateFacet === "true",
+      showUnlisted,
       sort: normalizedSort,
       page: parsed.data.page,
       pageSize: parsed.data.pageSize,
@@ -403,6 +415,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         cities: cityFilters,
         hasGeo,
       });
+      if (!showUnlisted) {
+        baseMeiliFilters.push(`visibility = "public"`);
+      }
       const eventDateFilterClauses = selectedEventDateRanges.map((range) => buildEventDateClause(range));
       const meiliFilters = eventDateFilterClauses.length > 0
         ? [...baseMeiliFilters, `(${eventDateFilterClauses.join(" OR ")})`]
@@ -476,6 +491,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             practiceCategoryId: doc.practice_category_id,
             practiceSubcategoryId: doc.practice_subcategory_id,
             eventFormatId: doc.event_format_id,
+            visibility: doc.visibility,
             isImported: Boolean(doc.is_imported),
             importSource: doc.import_source ?? null,
             externalUrl: doc.external_url ?? null,

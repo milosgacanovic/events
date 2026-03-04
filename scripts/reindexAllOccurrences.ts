@@ -91,6 +91,7 @@ async function main() {
         "country_code",
         "city",
         "has_geo",
+        "visibility",
       ],
       sortableAttributes: ["starts_at_utc", "starts_at_ts", "published_at", "published_at_ts"],
       pagination: { maxTotalHits: 50000 },
@@ -122,6 +123,7 @@ async function main() {
         event_format_id: string | null;
         tags: string[];
         languages: string[];
+        visibility: string;
         country_code: string | null;
         city: string | null;
         geom: string | null;
@@ -150,6 +152,7 @@ async function main() {
             e.event_format_id,
             e.tags,
             e.languages,
+            e.visibility,
             eo.country_code,
             eo.city,
             eo.geom,
@@ -195,6 +198,7 @@ async function main() {
           event_format_id: row.event_format_id,
           tags: row.tags,
           languages: row.languages,
+          visibility: row.visibility,
           organizer_ids: row.organizer_ids,
           organizer_names: row.organizer_names,
           country_code: row.country_code,
