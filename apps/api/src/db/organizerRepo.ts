@@ -511,6 +511,8 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
 export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
   const slug = await generateUniqueSlug(pool, "organizers", input.name);
   const imageUrl = input.imageUrl ?? input.avatarPath ?? null;
+  const locationCity = input.primaryLocation?.city ?? input.city ?? null;
+  const locationCountryCode = input.primaryLocation?.countryCode ?? input.countryCode ?? null;
   const client = await pool.connect();
   try {
     await client.query("begin");
@@ -545,8 +547,8 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
       input.externalUrl ?? null,
       input.tags,
       input.languages,
-      input.city ?? null,
-      input.countryCode?.toLowerCase() ?? null,
+      locationCity,
+      locationCountryCode?.toLowerCase() ?? null,
       imageUrl,
       input.avatarPath ?? imageUrl,
       input.status,
@@ -555,6 +557,7 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
     const created = result.rows[0];
     await syncOrganizerProfileRoles(client, created.id, input.profileRoleIds);
     await syncOrganizerPractices(client, created.id, input.practiceCategoryIds);
+    await syncOrganizerPrimaryLocation(client, created.id, input.primaryLocation);
     await client.query("commit");
     return created;
   } catch (error) {
@@ -593,6 +596,8 @@ function buildUpdateStatement(
 
 export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrganizerInput) {
   const imageUrl = input.imageUrl ?? input.avatarPath;
+  const locationCity = input.primaryLocation?.city ?? input.city;
+  const locationCountryCode = input.primaryLocation?.countryCode ?? input.countryCode;
   const fields: Record<string, unknown> = {
     name: input.name,
     external_source: input.externalSource,
@@ -602,8 +607,8 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
     external_url: input.externalUrl,
     tags: input.tags,
     languages: input.languages,
-    city: input.city,
-    country_code: input.countryCode?.toLowerCase(),
+    city: locationCity,
+    country_code: locationCountryCode?.toLowerCase(),
     image_url: imageUrl,
     avatar_path: input.avatarPath ?? imageUrl,
     status: input.status,
@@ -625,6 +630,7 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
     }
     await syncOrganizerProfileRoles(client, id, input.profileRoleIds);
     await syncOrganizerPractices(client, id, input.practiceCategoryIds);
+    await syncOrganizerPrimaryLocation(client, id, input.primaryLocation);
     await client.query("commit");
     return updated;
   } catch (error) {
@@ -633,6 +639,76 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
   } finally {
     client.release();
   }
+}
+
+async function syncOrganizerPrimaryLocation(
+  client: PoolClient,
+  organizerId: string,
+  primaryLocation:
+    | {
+      label?: string | null;
+      formattedAddress?: string | null;
+      city?: string | null;
+      countryCode?: string | null;
+      lat?: number | null;
+      lng?: number | null;
+    }
+    | null
+    | undefined,
+) {
+  if (primaryLocation === undefined) {
+    return;
+  }
+  if (primaryLocation === null) {
+    await client.query("delete from organizer_locations where organizer_id = $1", [organizerId]);
+    return;
+  }
+  const hasAnyLocationValue = Boolean(
+    primaryLocation.label?.trim()
+      || primaryLocation.formattedAddress?.trim()
+      || primaryLocation.city?.trim()
+      || primaryLocation.countryCode?.trim()
+      || (primaryLocation.lat !== undefined && primaryLocation.lat !== null)
+      || (primaryLocation.lng !== undefined && primaryLocation.lng !== null),
+  );
+  if (!hasAnyLocationValue) {
+    await client.query("delete from organizer_locations where organizer_id = $1", [organizerId]);
+    return;
+  }
+  await client.query("delete from organizer_locations where organizer_id = $1", [organizerId]);
+  await client.query(
+    `
+      insert into organizer_locations (
+        organizer_id,
+        label,
+        formatted_address,
+        city,
+        country_code,
+        geom
+      )
+      values (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        case
+          when $6::double precision is not null and $7::double precision is not null
+            then st_setsrid(st_makepoint($7::double precision, $6::double precision), 4326)::geography
+          else null
+        end
+      )
+    `,
+    [
+      organizerId,
+      primaryLocation.label?.trim() || null,
+      primaryLocation.formattedAddress?.trim() || null,
+      primaryLocation.city?.trim() || null,
+      primaryLocation.countryCode?.trim().toLowerCase() || null,
+      primaryLocation.lat ?? null,
+      primaryLocation.lng ?? null,
+    ],
+  );
 }
 
 async function syncOrganizerProfileRoles(

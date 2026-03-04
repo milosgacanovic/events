@@ -380,10 +380,60 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
       [organizerId],
     ),
   ]);
+  const [derivedRoles, derivedPractices, locations] = await Promise.all([
+    pool.query<{ role_id: string }>(
+      `
+        select distinct eo.role_id
+        from event_organizers eo
+        join events e on e.id = eo.event_id
+        where eo.organizer_id = $1
+          and e.status in ('published', 'cancelled')
+      `,
+      [organizerId],
+    ),
+    pool.query<{ practice_id: string }>(
+      `
+        select distinct e.practice_category_id as practice_id
+        from event_organizers eo
+        join events e on e.id = eo.event_id
+        where eo.organizer_id = $1
+          and e.status in ('published', 'cancelled')
+          and e.practice_category_id is not null
+      `,
+      [organizerId],
+    ),
+    pool.query<{
+      id: string;
+      label: string | null;
+      formatted_address: string | null;
+      city: string | null;
+      country_code: string | null;
+      lat: number | null;
+      lng: number | null;
+    }>(
+      `
+        select
+          ol.id,
+          ol.label,
+          ol.formatted_address,
+          ol.city,
+          ol.country_code,
+          st_y(ol.geom::geometry) as lat,
+          st_x(ol.geom::geometry) as lng
+        from organizer_locations ol
+        where ol.organizer_id = $1
+        order by ol.created_at desc
+      `,
+      [organizerId],
+    ),
+  ]);
 
   return {
     ...organizer,
     profile_role_ids: profileRoles.rows.map((row) => row.role_id),
     practice_category_ids: profilePractices.rows.map((row) => row.practice_id),
+    derived_role_ids: derivedRoles.rows.map((row) => row.role_id),
+    derived_practice_category_ids: derivedPractices.rows.map((row) => row.practice_id),
+    locations: locations.rows,
   };
 }

@@ -253,13 +253,47 @@ label.meta {
   gap: 8px;
 }
 
+.icon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-group.with-separator {
+  border-left: 1px solid var(--line);
+  padding-left: 10px;
+  margin-left: 2px;
+}
+
 .icon-btn {
-  min-width: 40px;
-  min-height: 40px;
-  padding: 8px 10px;
+  min-width: 82px;
+  min-height: 50px;
+  padding: 6px 8px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.icon-glyph {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.icon-label {
+  font-size: 11px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.secondary-btn.icon-btn {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #eef4ff;
 }
 
 .card {
@@ -298,6 +332,43 @@ label.meta {
 .event-card-thumb-shell-sm {
   max-width: 240px;
   margin-bottom: 10px;
+}
+
+.upcoming-event-card {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.upcoming-event-card-thumb-shell {
+  position: relative;
+  width: 140px;
+  height: 84px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #f3f3f3;
+  overflow: hidden;
+}
+
+.upcoming-event-card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.upcoming-event-card-body {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-richtext {
+  min-height: 160px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
 }
 
 .organizer-thumb-shell {
@@ -362,6 +433,10 @@ label.meta {
 
 .organizer-description {
   white-space: pre-wrap;
+}
+
+.organizer-description-text {
+  white-space: pre-line;
 }
 
 .event-cover {
@@ -637,5 +712,18 @@ label.meta {
     width: 120px;
     height: 120px;
     flex-basis: 120px;
+  }
+
+  .upcoming-event-card {
+    grid-template-columns: 1fr;
+  }
+
+  .upcoming-event-card-thumb-shell {
+    width: 100%;
+    height: 180px;
+  }
+
+  .icon-btn {
+    min-width: 70px;
   }
 }

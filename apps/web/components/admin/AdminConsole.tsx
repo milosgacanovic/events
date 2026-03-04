@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRef } from "react";
 
 import { apiBase, fetchJson } from "../../lib/api";
+import { labelForLanguageCode } from "../../lib/i18n/languageLabels";
 import { useI18n } from "../i18n/I18nProvider";
 import { useKeycloakAuth } from "../auth/KeycloakAuthProvider";
 
@@ -42,6 +43,13 @@ type OrganizerOption = {
   id: string;
   slug: string;
   name: string;
+};
+
+type OrganizerFacetResponse = {
+  facets?: {
+    languages?: Record<string, number>;
+    countryCode?: Record<string, number>;
+  };
 };
 
 type AdminOrganizer = {
@@ -109,6 +117,17 @@ type AdminOrganizerDetailResponse = {
   country_code: string | null;
   profile_role_ids?: string[];
   practice_category_ids?: string[];
+  derived_role_ids?: string[];
+  derived_practice_category_ids?: string[];
+  locations?: Array<{
+    id: string;
+    label: string | null;
+    formatted_address: string | null;
+    city: string | null;
+    country_code: string | null;
+    lat: number | null;
+    lng: number | null;
+  }>;
   status: "draft" | "published" | "archived";
 };
 
@@ -140,14 +159,21 @@ type OrganizerEditorState = {
   id: string;
   slug: string;
   name: string;
-  descriptionJson: string;
+  descriptionRaw: Record<string, unknown>;
+  descriptionBio: string;
+  descriptionInfo: string;
+  descriptionText: string;
   websiteUrl: string;
   externalUrl: string;
   imageUrl: string;
   tags: string;
-  languages: string;
+  languages: string[];
   city: string;
-  countryCode: string;
+  countryCodes: string[];
+  locationLabel: string;
+  locationAddress: string;
+  locationLat: string;
+  locationLng: string;
   profileRoleIds: string[];
   practiceCategoryIds: string[];
   status: "draft" | "published" | "archived";
@@ -217,6 +243,54 @@ function deriveTaxonomyKey(value: string): string {
     .slice(0, 90);
 }
 
+function extractOrganizerDescriptionFields(
+  raw: Record<string, unknown> | null | undefined,
+): { bio: string; info: string; description: string } {
+  const source = raw ?? {};
+  const normalizeText = (value: unknown): string => {
+    if (typeof value !== "string") {
+      return "";
+    }
+    return value
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/\s+\n/g, "\n")
+      .trim();
+  };
+  const bio = normalizeText(source.bio);
+  const info = normalizeText(source.info);
+  const description = normalizeText(source.description);
+  if (bio || info || description) {
+    return { bio, info, description };
+  }
+
+  const fallbackCandidates = [source.text, source.html];
+  for (const candidate of fallbackCandidates) {
+    const normalized = normalizeText(candidate);
+    if (normalized) {
+      return {
+        bio: "",
+        info: "",
+        description: normalized,
+      };
+    }
+  }
+
+  return { bio: "", info: "", description: "" };
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 export function AdminConsole() {
   const { locale, t } = useI18n();
   const { ready, authenticated, roles, userName, authError, login, logout, getToken } = useKeycloakAuth();
@@ -234,13 +308,22 @@ export function AdminConsole() {
 
   const [organizerName, setOrganizerName] = useState("");
   const [organizerWebsite, setOrganizerWebsite] = useState("");
-  const [organizerLanguages, setOrganizerLanguages] = useState("en");
+  const [organizerLanguages, setOrganizerLanguages] = useState<string[]>(["en"]);
   const [organizerTags, setOrganizerTags] = useState("");
+  const [organizerBio, setOrganizerBio] = useState("");
+  const [organizerInfo, setOrganizerInfo] = useState("");
+  const [organizerDescription, setOrganizerDescription] = useState("");
   const [organizerCity, setOrganizerCity] = useState("");
-  const [organizerCountryCode, setOrganizerCountryCode] = useState("");
+  const [organizerCountryCodes, setOrganizerCountryCodes] = useState<string[]>([]);
+  const [createCountryQuery, setCreateCountryQuery] = useState("");
+  const [createLanguageQuery, setCreateLanguageQuery] = useState("");
   const [organizerProfileRoleIds, setOrganizerProfileRoleIds] = useState<string[]>([]);
   const [organizerPracticeCategoryIds, setOrganizerPracticeCategoryIds] = useState<string[]>([]);
   const [organizerImageUrl, setOrganizerImageUrl] = useState("");
+  const [organizerLocationLabel, setOrganizerLocationLabel] = useState("");
+  const [organizerLocationAddress, setOrganizerLocationAddress] = useState("");
+  const [organizerLocationLat, setOrganizerLocationLat] = useState("");
+  const [organizerLocationLng, setOrganizerLocationLng] = useState("");
   const [organizerAvatarFile, setOrganizerAvatarFile] = useState<File | null>(null);
   const [organizerEditAvatarFile, setOrganizerEditAvatarFile] = useState<File | null>(null);
 
@@ -285,8 +368,12 @@ export function AdminConsole() {
   const [roleCreateLabel, setRoleCreateLabel] = useState("");
   const [eventEditor, setEventEditor] = useState<EventEditorState | null>(null);
   const [organizerEditor, setOrganizerEditor] = useState<OrganizerEditorState | null>(null);
+  const [adminLanguageOptions, setAdminLanguageOptions] = useState<string[]>([]);
+  const [adminCountryOptions, setAdminCountryOptions] = useState<string[]>([]);
   const [loadingEventEditor, setLoadingEventEditor] = useState(false);
   const [loadingOrganizerEditor, setLoadingOrganizerEditor] = useState(false);
+  const [editCountryQuery, setEditCountryQuery] = useState("");
+  const [editLanguageQuery, setEditLanguageQuery] = useState("");
   const [editLocationQuery, setEditLocationQuery] = useState("");
   const [editLocationResults, setEditLocationResults] = useState<GeocodeResult[]>([]);
   const [editLocationLoading, setEditLocationLoading] = useState(false);
@@ -318,6 +405,60 @@ export function AdminConsole() {
     taxonomy?.uiLabels.categoryPlural ??
     taxonomy?.uiLabels.practiceCategory ??
     t("admin.field.categories");
+  const languageNames = useMemo(() => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "language" });
+    } catch {
+      return null;
+    }
+  }, [locale]);
+  const regionNames = useMemo(() => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "region" });
+    } catch {
+      return null;
+    }
+  }, [locale]);
+  const createCountryOptions = useMemo(() => {
+    const query = createCountryQuery.trim().toLowerCase();
+    return adminCountryOptions.filter((code) => {
+      if (!query) {
+        return true;
+      }
+      const label = (regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()).toLowerCase();
+      return code.toLowerCase().includes(query) || label.includes(query);
+    });
+  }, [adminCountryOptions, createCountryQuery, regionNames]);
+  const createLanguageOptions = useMemo(() => {
+    const query = createLanguageQuery.trim().toLowerCase();
+    return adminLanguageOptions.filter((code) => {
+      if (!query) {
+        return true;
+      }
+      const label = labelForLanguageCode(code, languageNames).toLowerCase();
+      return code.toLowerCase().includes(query) || label.includes(query);
+    });
+  }, [adminLanguageOptions, createLanguageQuery, languageNames]);
+  const editCountryOptions = useMemo(() => {
+    const query = editCountryQuery.trim().toLowerCase();
+    return adminCountryOptions.filter((code) => {
+      if (!query) {
+        return true;
+      }
+      const label = (regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()).toLowerCase();
+      return code.toLowerCase().includes(query) || label.includes(query);
+    });
+  }, [adminCountryOptions, editCountryQuery, regionNames]);
+  const editLanguageOptions = useMemo(() => {
+    const query = editLanguageQuery.trim().toLowerCase();
+    return adminLanguageOptions.filter((code) => {
+      if (!query) {
+        return true;
+      }
+      const label = labelForLanguageCode(code, languageNames).toLowerCase();
+      return code.toLowerCase().includes(query) || label.includes(query);
+    });
+  }, [adminLanguageOptions, editLanguageQuery, languageNames]);
 
   useEffect(() => {
     const section = searchParams.get("section");
@@ -367,13 +508,20 @@ export function AdminConsole() {
   async function loadMetadata() {
     setLoadingMeta(true);
     try {
-      const [taxonomyResult, organizerResult] = await Promise.all([
+      const [taxonomyResult, organizerResult, organizerFacetResult] = await Promise.all([
         fetchJson<TaxonomyResponse>("/meta/taxonomies"),
         fetchJson<{ items: OrganizerOption[] }>("/organizers/search?page=1&pageSize=50"),
+        fetchJson<OrganizerFacetResponse>("/organizers/search?page=1&pageSize=1"),
       ]);
 
       setTaxonomy(taxonomyResult);
       setOrganizerOptions(organizerResult.items);
+      setAdminLanguageOptions(
+        Object.keys(organizerFacetResult.facets?.languages ?? {}).sort((a, b) => a.localeCompare(b)),
+      );
+      setAdminCountryOptions(
+        Object.keys(organizerFacetResult.facets?.countryCode ?? {}).sort((a, b) => a.localeCompare(b)),
+      );
       setCategoryLabelSingular(
         taxonomyResult.uiLabels.categorySingular ?? taxonomyResult.uiLabels.practiceCategory ?? "",
       );
@@ -623,18 +771,42 @@ export function AdminConsole() {
     setStatus(t("admin.status.creatingOrganizer"));
 
     try {
+      const nextBio = organizerBio.trim();
+      const nextInfo = organizerInfo.trim();
+      const nextDescription = organizerDescription.trim();
+      const textSections = [nextBio, nextInfo, nextDescription].filter(Boolean);
+      const plainText = textSections.join("\n\n");
+      const html = textSections.length > 0
+        ? textSections
+          .map((section) => `<p>${escapeHtml(section).replace(/\n/g, "<br>")}</p>`)
+          .join("")
+        : "";
       const organizer = await authorizedRequest<{ id: string; slug: string; name: string }>(
         "/organizers",
         "POST",
         {
           name: organizerName,
-          descriptionJson: { time: Date.now(), blocks: [] },
+          descriptionJson: {
+            ...(nextBio ? { bio: nextBio } : {}),
+            ...(nextInfo ? { info: nextInfo } : {}),
+            ...(nextDescription ? { description: nextDescription } : {}),
+            ...(plainText ? { text: plainText } : {}),
+            ...(html ? { html } : {}),
+          },
           websiteUrl: organizerWebsite || null,
           tags: csvToArray(organizerTags),
-          languages: csvToArray(organizerLanguages),
+          languages: organizerLanguages,
           imageUrl: organizerImageUrl.trim() || null,
           city: organizerCity.trim() || null,
-          countryCode: organizerCountryCode.trim() || null,
+          countryCode: organizerCountryCodes[0]?.trim() || null,
+          primaryLocation: {
+            label: organizerLocationLabel.trim() || null,
+            formattedAddress: organizerLocationAddress.trim() || null,
+            city: organizerCity.trim() || null,
+            countryCode: organizerCountryCodes[0]?.trim() || null,
+            lat: organizerLocationLat.trim() ? Number(organizerLocationLat.trim()) : null,
+            lng: organizerLocationLng.trim() ? Number(organizerLocationLng.trim()) : null,
+          },
           profileRoleIds: organizerProfileRoleIds,
           practiceCategoryIds: organizerPracticeCategoryIds,
           status: "published",
@@ -654,11 +826,21 @@ export function AdminConsole() {
       setOrganizerName("");
       setOrganizerWebsite("");
       setOrganizerTags("");
+      setOrganizerBio("");
+      setOrganizerInfo("");
+      setOrganizerDescription("");
       setOrganizerCity("");
-      setOrganizerCountryCode("");
+      setOrganizerCountryCodes([]);
+      setOrganizerLanguages(["en"]);
+      setCreateCountryQuery("");
+      setCreateLanguageQuery("");
       setOrganizerProfileRoleIds([]);
       setOrganizerPracticeCategoryIds([]);
       setOrganizerImageUrl("");
+      setOrganizerLocationLabel("");
+      setOrganizerLocationAddress("");
+      setOrganizerLocationLat("");
+      setOrganizerLocationLng("");
       setOrganizerAvatarFile(null);
       await loadAdminContent();
       router.push(`/hosts/${organizer.slug}`);
@@ -881,7 +1063,7 @@ export function AdminConsole() {
           : null;
       }
 
-      await authorizedRequest(`/events/${eventEditor.id}`, "PATCH", payload);
+      const updated = await authorizedRequest<{ id: string; slug: string }>(`/events/${eventEditor.id}`, "PATCH", payload);
       if (eventCoverFile) {
         const uploaded = await authorizedUpload("eventCover", eventEditor.id, eventCoverFile);
         await authorizedRequest(`/events/${eventEditor.id}`, "PATCH", {
@@ -891,7 +1073,7 @@ export function AdminConsole() {
       await loadAdminContent();
       setStatus(t("admin.status.eventUpdated", { id: eventEditor.id }));
       setEventCoverFile(null);
-      router.push(`/events/${eventEditor.slug}`);
+      router.push(`/events/${updated.slug ?? eventEditor.slug}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.eventSaveFailed"));
     }
@@ -899,28 +1081,45 @@ export function AdminConsole() {
 
   async function loadOrganizerForEdit(organizerId: string) {
     setLoadingOrganizerEditor(true);
-    setStatus(t("admin.status.loadingOrganizerEditor"));
 
     try {
       const detail = await authorizedGet<AdminOrganizerDetailResponse>(`/admin/organizers/${organizerId}`);
+      const mergedProfileRoleIds = Array.from(new Set([
+        ...(detail.profile_role_ids ?? []),
+        ...(detail.derived_role_ids ?? []),
+      ]));
+      const mergedPracticeCategoryIds = Array.from(new Set([
+        ...(detail.practice_category_ids ?? []),
+        ...(detail.derived_practice_category_ids ?? []),
+      ]));
+      const primaryLocation = detail.locations?.[0] ?? null;
+      const descriptionFields = extractOrganizerDescriptionFields(detail.description_json ?? {});
       setOrganizerEditor({
         id: detail.id,
         slug: detail.slug,
         name: detail.name,
-        descriptionJson: JSON.stringify(detail.description_json ?? {}, null, 2),
+        descriptionRaw: detail.description_json ?? {},
+        descriptionBio: descriptionFields.bio,
+        descriptionInfo: descriptionFields.info,
+        descriptionText: descriptionFields.description,
         websiteUrl: detail.website_url ?? "",
         externalUrl: detail.external_url ?? "",
         imageUrl: detail.image_url ?? "",
         tags: detail.tags.join(", "),
-        languages: detail.languages.join(", "),
+        languages: detail.languages,
         city: detail.city ?? "",
-        countryCode: detail.country_code ?? "",
-        profileRoleIds: detail.profile_role_ids ?? [],
-        practiceCategoryIds: detail.practice_category_ids ?? [],
+        countryCodes: detail.country_code ? [detail.country_code] : [],
+        locationLabel: primaryLocation?.label ?? "",
+        locationAddress: primaryLocation?.formatted_address ?? "",
+        locationLat: primaryLocation?.lat != null ? String(primaryLocation.lat) : "",
+        locationLng: primaryLocation?.lng != null ? String(primaryLocation.lng) : "",
+        profileRoleIds: mergedProfileRoleIds,
+        practiceCategoryIds: mergedPracticeCategoryIds,
         status: detail.status,
       });
       setOrganizerEditAvatarFile(null);
-      setStatus(t("admin.status.organizerLoadedForEdit", { name: detail.name, slug: detail.slug }));
+      setEditCountryQuery("");
+      setEditLanguageQuery("");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.organizerEditorLoadFailed"));
     } finally {
@@ -937,20 +1136,43 @@ export function AdminConsole() {
     setStatus(t("admin.status.savingOrganizerChanges"));
 
     try {
-      let parsedDescription: Record<string, unknown> = {};
-      if (organizerEditor.descriptionJson.trim()) {
-        parsedDescription = JSON.parse(organizerEditor.descriptionJson) as Record<string, unknown>;
-      }
-      await authorizedRequest(`/organizers/${organizerEditor.id}`, "PATCH", {
+      const nextBio = organizerEditor.descriptionBio.trim();
+      const nextInfo = organizerEditor.descriptionInfo.trim();
+      const nextDescription = organizerEditor.descriptionText.trim();
+      const textSections = [nextBio, nextInfo, nextDescription].filter(Boolean);
+      const plainText = textSections.join("\n\n");
+      const html = textSections.length > 0
+        ? textSections
+          .map((section) => `<p>${escapeHtml(section).replace(/\n/g, "<br>")}</p>`)
+          .join("")
+        : "";
+      const parsedDescription: Record<string, unknown> = {
+        ...organizerEditor.descriptionRaw,
+      };
+      if (nextBio) parsedDescription.bio = nextBio; else delete parsedDescription.bio;
+      if (nextInfo) parsedDescription.info = nextInfo; else delete parsedDescription.info;
+      if (nextDescription) parsedDescription.description = nextDescription; else delete parsedDescription.description;
+      if (plainText) parsedDescription.text = plainText; else delete parsedDescription.text;
+      if (html) parsedDescription.html = html; else delete parsedDescription.html;
+
+      const updated = await authorizedRequest<{ id: string; slug: string }>(`/organizers/${organizerEditor.id}`, "PATCH", {
         name: organizerEditor.name,
         descriptionJson: parsedDescription,
         websiteUrl: organizerEditor.websiteUrl || null,
         externalUrl: organizerEditor.externalUrl || null,
         imageUrl: organizerEditor.imageUrl || null,
         tags: csvToArray(organizerEditor.tags),
-        languages: csvToArray(organizerEditor.languages),
+        languages: organizerEditor.languages,
         city: organizerEditor.city || null,
-        countryCode: organizerEditor.countryCode || null,
+        countryCode: organizerEditor.countryCodes[0] || null,
+        primaryLocation: {
+          label: organizerEditor.locationLabel || null,
+          formattedAddress: organizerEditor.locationAddress || null,
+          city: organizerEditor.city || null,
+          countryCode: organizerEditor.countryCodes[0] || null,
+          lat: organizerEditor.locationLat.trim() ? Number(organizerEditor.locationLat.trim()) : null,
+          lng: organizerEditor.locationLng.trim() ? Number(organizerEditor.locationLng.trim()) : null,
+        },
         profileRoleIds: organizerEditor.profileRoleIds,
         practiceCategoryIds: organizerEditor.practiceCategoryIds,
         status: organizerEditor.status,
@@ -965,7 +1187,7 @@ export function AdminConsole() {
       await Promise.all([loadAdminContent(), loadMetadata()]);
       setStatus(t("admin.status.organizerUpdated", { id: organizerEditor.id }));
       setOrganizerEditAvatarFile(null);
-      router.push(`/hosts/${organizerEditor.slug}`);
+      router.push(`/hosts/${updated.slug ?? organizerEditor.slug}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.organizerSaveFailed"));
     }
@@ -1158,21 +1380,130 @@ export function AdminConsole() {
             />
           </label>
           <label>
+            Bio
+            <textarea
+              rows={3}
+              value={organizerBio}
+              onChange={(e) => setOrganizerBio(e.target.value)}
+              placeholder="Short biography"
+            />
+          </label>
+          <label>
+            Info
+            <textarea
+              rows={3}
+              value={organizerInfo}
+              onChange={(e) => setOrganizerInfo(e.target.value)}
+              placeholder="Additional information"
+            />
+          </label>
+          <label>
+            Description
+            <textarea
+              rows={4}
+              value={organizerDescription}
+              onChange={(e) => setOrganizerDescription(e.target.value)}
+              placeholder="Host description"
+            />
+          </label>
+          <label>
             {t("common.field.city")}
             <input value={organizerCity} onChange={(e) => setOrganizerCity(e.target.value)} />
           </label>
-          <label>
-            {t("common.field.countryCode")}
-            <input value={organizerCountryCode} onChange={(e) => setOrganizerCountryCode(e.target.value)} />
-          </label>
-          <label>
-            {t("common.field.languagesCsv")}
+          <details>
+            <summary>{t("common.field.countryCode")}</summary>
             <input
-              value={organizerLanguages}
-              onChange={(e) => setOrganizerLanguages(e.target.value)}
-              placeholder={t("admin.placeholder.languagesCsv")}
+              value={createCountryQuery}
+              onChange={(e) => setCreateCountryQuery(e.target.value)}
+              placeholder={t("eventSearch.search")}
             />
+            {organizerCountryCodes.length > 0 && (
+              <div className="kv">
+                {organizerCountryCodes.map((code) => (
+                  <button
+                    className="tag"
+                    type="button"
+                    key={`create-country-chip-${code}`}
+                    onClick={() => setOrganizerCountryCodes((current) => current.filter((item) => item !== code))}
+                  >
+                    {regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()} ×
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="kv">
+              {createCountryOptions.map((code) => (
+                <label className="meta" key={`create-country-${code}`}>
+                  <input
+                    type="checkbox"
+                    checked={organizerCountryCodes.includes(code)}
+                    onChange={() =>
+                      setOrganizerCountryCodes((current) =>
+                        current.includes(code) ? current.filter((item) => item !== code) : [...current, code]
+                      )
+                    }
+                  />
+                  {regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()}
+                </label>
+              ))}
+            </div>
+          </details>
+          <details>
+            <summary>{t("common.field.languagesCsv")}</summary>
+            <input
+              value={createLanguageQuery}
+              onChange={(e) => setCreateLanguageQuery(e.target.value)}
+              placeholder={t("eventSearch.search")}
+            />
+            {organizerLanguages.length > 0 && (
+              <div className="kv">
+                {organizerLanguages.map((code) => (
+                  <button
+                    className="tag"
+                    type="button"
+                    key={`create-language-chip-${code}`}
+                    onClick={() => setOrganizerLanguages((current) => current.filter((item) => item !== code))}
+                  >
+                    {labelForLanguageCode(code, languageNames)} ×
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="kv">
+              {createLanguageOptions.map((code) => (
+                <label className="meta" key={`create-language-${code}`}>
+                  <input
+                    type="checkbox"
+                    checked={organizerLanguages.includes(code)}
+                    onChange={() =>
+                      setOrganizerLanguages((current) =>
+                        current.includes(code) ? current.filter((item) => item !== code) : [...current, code]
+                      )
+                    }
+                  />
+                  {labelForLanguageCode(code, languageNames)}
+                </label>
+              ))}
+            </div>
+          </details>
+          <label>
+            Host location label
+            <input value={organizerLocationLabel} onChange={(e) => setOrganizerLocationLabel(e.target.value)} />
           </label>
+          <label>
+            Host location address
+            <input value={organizerLocationAddress} onChange={(e) => setOrganizerLocationAddress(e.target.value)} />
+          </label>
+          <div className="admin-inline-list">
+            <label>
+              Lat
+              <input value={organizerLocationLat} onChange={(e) => setOrganizerLocationLat(e.target.value)} />
+            </label>
+            <label>
+              Lng
+              <input value={organizerLocationLng} onChange={(e) => setOrganizerLocationLng(e.target.value)} />
+            </label>
+          </div>
           <label>
             {t("common.field.tagsCsv")}
             <input value={organizerTags} onChange={(e) => setOrganizerTags(e.target.value)} />
@@ -1963,7 +2294,6 @@ export function AdminConsole() {
           )}
           {organizerEditor && (
             <>
-              <div className="meta">{t("common.editingEntity", { title: organizerEditor.name, slug: organizerEditor.slug })}</div>
               <label>
                 {t("common.field.name")}
                 <input
@@ -2026,28 +2356,152 @@ export function AdminConsole() {
                   }
                 />
               </label>
-              <label>
-                {t("common.field.countryCode")}
+              <details>
+                <summary>{t("common.field.countryCode")}</summary>
                 <input
-                  value={organizerEditor.countryCode}
+                  value={editCountryQuery}
+                  onChange={(e) => setEditCountryQuery(e.target.value)}
+                  placeholder={t("eventSearch.search")}
+                />
+                {organizerEditor.countryCodes.length > 0 && (
+                  <div className="kv">
+                    {organizerEditor.countryCodes.map((code) => (
+                      <button
+                        className="tag"
+                        type="button"
+                        key={`edit-country-chip-${code}`}
+                        onClick={() =>
+                          setOrganizerEditor((current) => (
+                            current
+                              ? {
+                                  ...current,
+                                  countryCodes: current.countryCodes.filter((item) => item !== code),
+                                }
+                              : current
+                          ))
+                        }
+                      >
+                        {regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="kv">
+                  {editCountryOptions.map((code) => (
+                    <label className="meta" key={`edit-country-${code}`}>
+                      <input
+                        type="checkbox"
+                        checked={organizerEditor.countryCodes.includes(code)}
+                        onChange={() =>
+                          setOrganizerEditor((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  countryCodes: current.countryCodes.includes(code)
+                                    ? current.countryCodes.filter((item) => item !== code)
+                                    : [...current.countryCodes, code],
+                                }
+                              : current
+                          )
+                        }
+                      />
+                      {regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()}
+                    </label>
+                  ))}
+                </div>
+              </details>
+              <details>
+                <summary>{t("common.field.languagesCsv")}</summary>
+                <input
+                  value={editLanguageQuery}
+                  onChange={(e) => setEditLanguageQuery(e.target.value)}
+                  placeholder={t("eventSearch.search")}
+                />
+                {organizerEditor.languages.length > 0 && (
+                  <div className="kv">
+                    {organizerEditor.languages.map((code) => (
+                      <button
+                        className="tag"
+                        type="button"
+                        key={`edit-language-chip-${code}`}
+                        onClick={() =>
+                          setOrganizerEditor((current) => (
+                            current
+                              ? {
+                                  ...current,
+                                  languages: current.languages.filter((item) => item !== code),
+                                }
+                              : current
+                          ))
+                        }
+                      >
+                        {labelForLanguageCode(code, languageNames)} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="kv">
+                  {editLanguageOptions.map((code) => (
+                    <label className="meta" key={`edit-language-${code}`}>
+                      <input
+                        type="checkbox"
+                        checked={organizerEditor.languages.includes(code)}
+                        onChange={() =>
+                          setOrganizerEditor((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  languages: current.languages.includes(code)
+                                    ? current.languages.filter((item) => item !== code)
+                                    : [...current.languages, code],
+                                }
+                              : current
+                          )
+                        }
+                      />
+                      {labelForLanguageCode(code, languageNames)}
+                    </label>
+                  ))}
+                </div>
+              </details>
+              <label>
+                Host location label
+                <input
+                  value={organizerEditor.locationLabel}
                   onChange={(e) =>
-                    setOrganizerEditor((current) =>
-                      current ? { ...current, countryCode: e.target.value } : current,
-                    )
+                    setOrganizerEditor((current) => (current ? { ...current, locationLabel: e.target.value } : current))
                   }
                 />
               </label>
               <label>
-                {t("common.field.languagesCsv")}
+                Host location address
                 <input
-                  value={organizerEditor.languages}
+                  value={organizerEditor.locationAddress}
                   onChange={(e) =>
-                    setOrganizerEditor((current) =>
-                      current ? { ...current, languages: e.target.value } : current,
-                    )
+                    setOrganizerEditor((current) => (current ? { ...current, locationAddress: e.target.value } : current))
                   }
                 />
               </label>
+              <div className="admin-inline-list">
+                <label>
+                  Lat
+                  <input
+                    value={organizerEditor.locationLat}
+                    onChange={(e) =>
+                      setOrganizerEditor((current) => (current ? { ...current, locationLat: e.target.value } : current))
+                    }
+                  />
+                </label>
+                <label>
+                  Lng
+                  <input
+                    value={organizerEditor.locationLng}
+                    onChange={(e) =>
+                      setOrganizerEditor((current) => (current ? { ...current, locationLng: e.target.value } : current))
+                    }
+                  />
+                </label>
+              </div>
               <label>
                 {t("common.field.tagsCsv")}
                 <input
@@ -2110,15 +2564,42 @@ export function AdminConsole() {
                 </div>
               </label>
               <label>
-                Description JSON
+                Bio
                 <textarea
-                  value={organizerEditor.descriptionJson}
+                  rows={4}
+                  value={organizerEditor.descriptionBio}
                   onChange={(e) =>
-                    setOrganizerEditor((current) =>
-                      current ? { ...current, descriptionJson: e.target.value } : current,
-                    )
+                    setOrganizerEditor((current) => (
+                      current ? { ...current, descriptionBio: e.target.value } : current
+                    ))
                   }
-                  rows={8}
+                  placeholder="Short biography"
+                />
+              </label>
+              <label>
+                Info
+                <textarea
+                  rows={4}
+                  value={organizerEditor.descriptionInfo}
+                  onChange={(e) =>
+                    setOrganizerEditor((current) => (
+                      current ? { ...current, descriptionInfo: e.target.value } : current
+                    ))
+                  }
+                  placeholder="Additional information"
+                />
+              </label>
+              <label>
+                Description
+                <textarea
+                  rows={6}
+                  value={organizerEditor.descriptionText}
+                  onChange={(e) =>
+                    setOrganizerEditor((current) => (
+                      current ? { ...current, descriptionText: e.target.value } : current
+                    ))
+                  }
+                  placeholder="Host description"
                 />
               </label>
               <label>

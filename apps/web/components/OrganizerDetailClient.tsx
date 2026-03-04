@@ -67,6 +67,12 @@ type TaxonomyResponse = {
   };
 };
 
+type DescriptionSections = {
+  bio: string;
+  info: string;
+  description: string;
+};
+
 function collectText(value: unknown, output: string[]): void {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -95,6 +101,58 @@ function getDescriptionText(value: unknown): string | null {
   collectText(value, parts);
   const normalized = parts.join(" ").replace(/\s+/g, " ").trim();
   return normalized || null;
+}
+
+function htmlToText(value: string): string {
+  const normalized = value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n");
+  return normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .join("\n")
+    .trim();
+}
+
+function extractDescriptionSections(value: unknown): DescriptionSections {
+  const objectValue = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const bioRaw = objectValue.bio;
+  const infoRaw = objectValue.info;
+  const descriptionRaw = objectValue.description;
+  const htmlRaw = objectValue.html;
+  const textRaw = objectValue.text;
+
+  const bio = typeof bioRaw === "string" ? bioRaw.trim() : "";
+  const info = typeof infoRaw === "string" ? infoRaw.trim() : "";
+  const description = typeof descriptionRaw === "string" ? descriptionRaw.trim() : "";
+  if (bio || info || description) {
+    return { bio, info, description };
+  }
+
+  if (typeof htmlRaw === "string" && htmlRaw.trim()) {
+    return {
+      bio: "",
+      info: "",
+      description: htmlToText(htmlRaw),
+    };
+  }
+
+  if (typeof textRaw === "string" && textRaw.trim()) {
+    return {
+      bio: "",
+      info: "",
+      description: textRaw.trim(),
+    };
+  }
+
+  return {
+    bio: "",
+    info: "",
+    description: getDescriptionText(value) ?? "",
+  };
 }
 
 export function OrganizerDetailClient({ slug }: { slug: string }) {
@@ -131,7 +189,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
     return <div className="panel">{t("organizerDetail.loading")}</div>;
   }
 
-  const description = getDescriptionText(data.organizer.descriptionJson ?? data.organizer.description_json);
+  const descriptionSections = extractDescriptionSections(data.organizer.descriptionJson ?? data.organizer.description_json);
   const hasEditorRole = auth.roles.some((role) =>
     role === "dr_events_admin" || role === "dr_events_editor" || role === "admin" || role === "editor"
   );
@@ -176,6 +234,21 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const hasGeoLocation = data.locations.some((location) =>
     location.lat !== null && location.lat !== undefined && location.lng !== null && location.lng !== undefined
   );
+  const hasProfileLocation = Boolean(data.organizer.city || countryValue);
+  const canFollowHost = auth.authenticated && (hasGeoLocation || hasProfileLocation);
+  const displayedLocations = data.locations.length > 0
+    ? data.locations
+    : (data.organizer.city || countryValue
+      ? [{
+        id: "profile-fallback",
+        label: null,
+        formatted_address: null,
+        city: data.organizer.city ?? null,
+        country_code: countryValue ?? null,
+        lat: null,
+        lng: null,
+      }]
+      : []);
 
   async function createAlert() {
     const organizerId = data?.organizer.id;
@@ -257,10 +330,24 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
           </div>
         </div>
       </div>
-      {description && (
+      {(descriptionSections.bio || descriptionSections.info || descriptionSections.description) && (
         <div>
           <h3>{t("organizerDetail.descriptionLabel")}</h3>
-          <div className="meta organizer-description">{description}</div>
+          {descriptionSections.bio && (
+            <div className="meta organizer-description-text">
+              <strong>{t("organizerDetail.bio")}:</strong> {descriptionSections.bio}
+            </div>
+          )}
+          {descriptionSections.info && (
+            <div className="meta organizer-description-text">
+              <strong>{t("organizerDetail.info")}:</strong> {descriptionSections.info}
+            </div>
+          )}
+          {descriptionSections.description && (
+            <div className="meta organizer-description-text">
+              <strong>{t("organizerDetail.description")}:</strong> {descriptionSections.description}
+            </div>
+          )}
         </div>
       )}
       <div className="kv">
@@ -285,7 +372,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
           </span>
         ))}
       </div>
-      {auth.authenticated && hasGeoLocation && (
+      {canFollowHost && (
         <div className="card">
           <h3>{t("organizerDetail.alert.title")}</h3>
           <div className="meta">{t("organizerDetail.alert.description")}</div>
@@ -315,8 +402,8 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
       )}
 
       <h3>{t("organizerDetail.locations")}</h3>
-      {data.locations.length === 0 && <div className="muted">{t("organizerDetail.noLocations")}</div>}
-      {data.locations.map((location) => {
+      {displayedLocations.length === 0 && <div className="muted">{t("organizerDetail.noLocations")}</div>}
+      {displayedLocations.map((location) => {
         const mapHref =
           location.lat !== null &&
           location.lat !== undefined &&
@@ -324,15 +411,25 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
           location.lng !== undefined
             ? `https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=16/${location.lat}/${location.lng}`
             : null;
+        const locationCountry = location.country_code
+          ? (regionNames?.of(location.country_code.toUpperCase()) ?? location.country_code.toUpperCase())
+          : null;
+        const locationLabel = location.label?.trim() || "";
+        const locationAddress = location.formatted_address?.trim() || "";
+        const hasCustomTitle = Boolean(locationLabel || locationAddress);
+        const locationTitle = locationLabel
+          || locationAddress
+          || [location.city, locationCountry].filter(Boolean).join(", ")
+          || t("common.unknown");
 
         return (
           <div className="card" key={location.id}>
-            <div>{location.label || location.formatted_address || t("common.unknown")}</div>
-            {(location.city || location.country_code) && (
+            <div>{locationTitle}</div>
+            {(location.city || location.country_code) && hasCustomTitle && (
               <div className="meta">
                 {location.city ?? ""}
-                {location.country_code
-                  ? `${location.city ? ", " : ""}${location.country_code.toUpperCase()}`
+                {locationCountry
+                  ? `${location.city ? ", " : ""}${locationCountry}`
                   : ""}
               </div>
             )}
@@ -350,11 +447,11 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
       <h3>{t("organizerDetail.upcomingEvents")}</h3>
       {data.upcomingOccurrences.length === 0 && <div className="muted">{t("organizerDetail.noUpcoming")}</div>}
       {data.upcomingOccurrences.map((item) => (
-        <div className="card" key={item.occurrence_id}>
+        <Link className="card upcoming-event-card" key={item.occurrence_id} href={`/events/${item.event_slug}`}>
           {item.coverImageUrl && (
-            <div className="event-card-thumb-shell event-card-thumb-shell-sm">
+            <div className="upcoming-event-card-thumb-shell">
               <img
-                className="event-card-thumb"
+                className="upcoming-event-card-thumb"
                 src={item.coverImageUrl}
                 alt={item.event_title}
                 loading="lazy"
@@ -362,9 +459,11 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
               />
             </div>
           )}
-          <Link href={`/events/${item.event_slug}`}>{item.event_title}</Link>
-          <div className="meta">{new Date(item.starts_at_utc).toLocaleString(locale)}</div>
-        </div>
+          <div className="upcoming-event-card-body">
+            <div>{item.event_title}</div>
+            <div className="meta">{new Date(item.starts_at_utc).toLocaleString(locale)}</div>
+          </div>
+        </Link>
       ))}
 
       <h3>{t("organizerDetail.pastEvents")}</h3>

@@ -1209,6 +1209,7 @@ export function EventSearchClient({
               : t("eventSearch.promptRun")}
           </div>
           <div className="results-toolbar-actions">
+            <div className="icon-group">
             <button
               type="button"
               className={sort === "startsAtAsc" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
@@ -1216,10 +1217,11 @@ export function EventSearchClient({
                 setSort("startsAtAsc");
                 setPage(1);
               }}
-              aria-label={t("eventSearch.sort.dateAsc")}
-              title={t("eventSearch.sort.dateAsc")}
+              aria-label={t("eventSearch.sort.soonestUpcoming")}
+              title={t("eventSearch.sort.soonestUpcoming")}
             >
-              <span aria-hidden>↑</span>
+              <span aria-hidden className="icon-glyph">↑</span>
+              <span className="icon-label">{t("eventSearch.sort.soonestUpcoming")}</span>
             </button>
             <button
               type="button"
@@ -1228,11 +1230,14 @@ export function EventSearchClient({
                 setSort("startsAtDesc");
                 setPage(1);
               }}
-              aria-label={t("eventSearch.sort.dateDesc")}
-              title={t("eventSearch.sort.dateDesc")}
+              aria-label={t("eventSearch.sort.newestPublished")}
+              title={t("eventSearch.sort.newestPublished")}
             >
-              <span aria-hidden>↓</span>
+              <span aria-hidden className="icon-glyph">↓</span>
+              <span className="icon-label">{t("eventSearch.sort.newestPublished")}</span>
             </button>
+            </div>
+            <div className="icon-group with-separator">
             <button
               type="button"
               className={view === "list" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
@@ -1240,7 +1245,8 @@ export function EventSearchClient({
               aria-label={t("eventSearch.view.list")}
               title={t("eventSearch.view.list")}
             >
-              <span aria-hidden>☰</span>
+              <span aria-hidden className="icon-glyph">☰</span>
+              <span className="icon-label">{t("eventSearch.view.list")}</span>
             </button>
             <button
               type="button"
@@ -1249,8 +1255,15 @@ export function EventSearchClient({
               aria-label={t("eventSearch.view.map")}
               title={t("eventSearch.view.map")}
             >
-              <span aria-hidden>⌖</span>
+              <span aria-hidden className="icon-glyph">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="10" r="3" />
+                  <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z" />
+                </svg>
+              </span>
+              <span className="icon-label">{t("eventSearch.view.map")}</span>
             </button>
+            </div>
           </div>
         </div>
         {view === "map" ? (

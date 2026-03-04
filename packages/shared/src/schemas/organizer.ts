@@ -14,6 +14,14 @@ const organizerSchemaBase = z.object({
   countryCode: z.string().min(2).max(8).nullable().optional(),
   profileRoleIds: z.array(z.string().uuid()).optional(),
   practiceCategoryIds: z.array(z.string().uuid()).optional(),
+  primaryLocation: z.object({
+    label: z.string().max(255).nullable().optional(),
+    formattedAddress: z.string().max(500).nullable().optional(),
+    city: z.string().max(120).nullable().optional(),
+    countryCode: z.string().min(2).max(8).nullable().optional(),
+    lat: z.number().min(-90).max(90).nullable().optional(),
+    lng: z.number().min(-180).max(180).nullable().optional(),
+  }).nullable().optional(),
   status: organizerStatusSchema.default("published"),
   externalSource: z.string().max(255).nullable().optional(),
   externalId: z.string().max(255).nullable().optional(),
@@ -35,6 +43,19 @@ function withExternalPairValidation<T extends z.ZodTypeAny>(schema: T) {
   }, {
     message: "externalSource and externalId must be provided together",
     path: ["externalSource"],
+  }).refine((value) => {
+    const item = value as {
+      primaryLocation?: { lat?: number | null; lng?: number | null } | null;
+    };
+    if (item.primaryLocation === undefined || item.primaryLocation === null) {
+      return true;
+    }
+    const hasLat = item.primaryLocation.lat !== undefined && item.primaryLocation.lat !== null;
+    const hasLng = item.primaryLocation.lng !== undefined && item.primaryLocation.lng !== null;
+    return (hasLat && hasLng) || (!hasLat && !hasLng);
+  }, {
+    message: "primaryLocation.lat and primaryLocation.lng must be provided together",
+    path: ["primaryLocation"],
   });
 }
 
