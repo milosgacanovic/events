@@ -83,6 +83,17 @@ body {
   font-family: "IBM Plex Sans", sans-serif;
 }
 
+input,
+select,
+textarea {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -876,9 +887,9 @@ label.meta {
   color: var(--accent);
 }
 
-/* Dark mode: invert logo */
+/* Dark mode: logo blending */
 [data-theme="dark"] .brand-logo {
-  filter: invert(1) hue-rotate(180deg);
+  mix-blend-mode: screen;
 }
 
 /* Dark mode: darken map tiles */
