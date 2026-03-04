@@ -2,17 +2,12 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Bold from "@tiptap/extension-bold";
-import Italic from "@tiptap/extension-italic";
 import Underline from "@tiptap/extension-underline";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
-// Override marks so they do NOT bleed into adjacent typing.
-// ProseMirror's default inclusive:true causes marks to extend
-// when the cursor is at the boundary of a styled element.
-const NonInclusiveBold = Bold.extend({ inclusive: false });
-const NonInclusiveItalic = Italic.extend({ inclusive: false });
-const NonInclusiveUnderline = Underline.extend({ inclusive: false });
+// Stable extension array — created once at module level so TipTap v3's
+// reactive useEditor never sees a reference change and never recreates.
+const extensions = [StarterKit, Underline];
 
 type ToolbarButtonProps = {
   onClick: () => void;
@@ -36,6 +31,9 @@ function ToolbarButton({ onClick, active, title, children }: ToolbarButtonProps)
   );
 }
 
+// Uncontrolled editor: `value` is only used as initial content on mount.
+// To reset the editor for a different entity, change the `key` prop on the
+// parent so React remounts this component with fresh state.
 export function RichTextEditor({
   value,
   onChange,
@@ -43,36 +41,22 @@ export function RichTextEditor({
   value: string;
   onChange: (html: string) => void;
 }) {
-  // Track the last HTML the editor itself produced so we can distinguish
-  // internal edits (no setContent needed) from external value changes
-  // (e.g. switching to a different entity), where we DO need setContent.
-  const lastEmittedRef = useRef(value);
+  // Refs keep the useEditor options stable across re-renders, preventing
+  // TipTap v3's reactive option diffing from calling setOptions/updateState.
+  const initialContent = useRef(value);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ bold: false, italic: false }),
-      NonInclusiveBold,
-      NonInclusiveItalic,
-      NonInclusiveUnderline,
-    ],
-    content: value,
+    extensions,
+    content: initialContent.current,
+    // Required for Next.js SSR — prevents hydration mismatch that can
+    // corrupt internal ProseMirror state (including stored marks).
+    immediatelyRender: false,
     onUpdate({ editor: ed }) {
-      const html = ed.getHTML();
-      lastEmittedRef.current = html;
-      onChange(html);
+      onChangeRef.current(ed.getHTML());
     },
   });
-
-  // Only replace content when the value changed externally (not from the
-  // editor's own onUpdate). Calling setContent resets the cursor, so doing
-  // it on every keystroke would jump the cursor and break editing.
-  useEffect(() => {
-    if (!editor) return;
-    if (value !== lastEmittedRef.current) {
-      lastEmittedRef.current = value;
-      editor.commands.setContent(value, { emitUpdate: false });
-    }
-  }, [value, editor]);
 
   if (!editor) {
     return null;

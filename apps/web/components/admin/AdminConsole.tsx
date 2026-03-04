@@ -2111,15 +2111,16 @@ export function AdminConsole() {
                   }
                 />
               </label>
-              <label>
-                Description
+              <div>
+                <label>Description</label>
                 <RichTextEditor
+                  key={eventEditor.id}
                   value={eventEditor.descriptionHtml}
                   onChange={(html) =>
                     setEventEditor((current) => (current ? { ...current, descriptionHtml: html } : current))
                   }
                 />
-              </label>
+              </div>
               <label>
                 {t("common.field.attendanceMode")}
                 <select
@@ -2790,9 +2791,10 @@ export function AdminConsole() {
                   ))}
                 </div>
               </label>
-              <label>
-                Description
+              <div>
+                <label>Description</label>
                 <RichTextEditor
+                  key={organizerEditor.id}
                   value={organizerEditor.descriptionHtml}
                   onChange={(html) =>
                     setOrganizerEditor((current) => (
@@ -2800,7 +2802,7 @@ export function AdminConsole() {
                     ))
                   }
                 />
-              </label>
+              </div>
               <label>
                 {t("common.field.status")}
                 <select
