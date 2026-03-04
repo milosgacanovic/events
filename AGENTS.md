@@ -15,6 +15,33 @@
 - Run seed: `npm run seed -w @dr-events/api`
 - Refresh recurring horizon: `npm run occurrences:refresh -w @dr-events/api`
 
+## Blue/Green deploy (beta)
+- Architecture:
+  - Shared services: `postgres`, `meilisearch`
+  - Blue app stack: `api_blue` (`13001`), `web_blue` (`13000`)
+  - Green app stack: `api_green` (`13101`), `web_green` (`13100`)
+  - Apache switches active color via:
+    - `/etc/apache2/sites-available/includes/dr_events_api_active.conf`
+    - `/etc/apache2/sites-available/includes/dr_events_web_active.conf`
+- First-time setup on host:
+  - `npm run bg:init:apache` (or `npm run bg:init:apache -- green`)
+- Standard deploy:
+  - `npm run release:gate`
+  - `npm run bg:deploy -- main`
+  - `npm run bg:active`
+  - `curl -fsS https://beta.events.danceresource.org/api/health`
+- Fast rollback:
+  - `npm run bg:rollback`
+- Cleanup old color after verification:
+  - `npm run bg:cleanup -- blue` or `npm run bg:cleanup -- green`
+- Script entrypoints:
+  - `scripts/bg-init-apache.sh`
+  - `scripts/bg-active-color.sh`
+  - `scripts/bg-switch.sh`
+  - `scripts/bg-deploy.sh`
+  - `scripts/bg-rollback.sh`
+  - `scripts/bg-cleanup.sh`
+
 ## Live API verification (dev-only)
 - Script: `npm run test:live:admin`
 - Guard: script executes only when `RUN_LIVE_ADMIN_TEST=1` is set.

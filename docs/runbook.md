@@ -6,6 +6,70 @@
 - API (Fastify)
 - Web (Next.js)
 
+## Blue/Green Deployment (Zero-Downtime + Fast Rollback)
+
+### Architecture
+- Shared singleton services:
+  - `postgres`
+  - `meilisearch`
+- Two application colors:
+  - `blue`: `api_blue` (`:13001`), `web_blue` (`:13000`)
+  - `green`: `api_green` (`:13101`), `web_green` (`:13100`)
+- Apache routes traffic via active include files:
+  - `/etc/apache2/sites-available/includes/dr_events_api_active.conf`
+  - `/etc/apache2/sites-available/includes/dr_events_web_active.conf`
+
+### Compose files
+- Shared infra: `deploy/docker/docker-compose.base.yml`
+- Blue stack: `deploy/docker/docker-compose.blue.yml`
+- Green stack: `deploy/docker/docker-compose.green.yml`
+
+### First-time setup on server
+1. Install updated Apache vhost config from:
+   - `deploy/apache/beta.events.danceresource.org.conf`
+2. Initialize active includes (defaults to blue):
+   - `npm run bg:init:apache`
+   - Optional explicit color: `npm run bg:init:apache -- green`
+3. Validate Apache:
+   - `apachectl configtest`
+   - `systemctl reload apache2` (or `apachectl graceful`)
+
+### Standard deploy (build inactive color, then switch)
+1. Preflight:
+   - `npm run release:gate`
+2. Deploy:
+   - `npm run bg:deploy -- main`
+3. Verify:
+   - `npm run bg:active`
+   - `curl -fsS https://beta.events.danceresource.org/api/health`
+   - `curl -fsSI https://beta.events.danceresource.org/events`
+   - `curl -fsSI https://beta.events.danceresource.org/sitemap.xml`
+
+### Rollback (one command)
+- `npm run bg:rollback`
+- Then verify:
+  - `npm run bg:active`
+  - `curl -fsS https://beta.events.danceresource.org/api/health`
+
+### Cleanup old color after observation window
+- Stop old color stack only after release is stable:
+  - `npm run bg:cleanup -- blue`
+  - or
+  - `npm run bg:cleanup -- green`
+
+### Scripts
+- `scripts/bg-active-color.sh`
+- `scripts/bg-switch.sh <blue|green>`
+- `scripts/bg-deploy.sh [git_ref]`
+- `scripts/bg-rollback.sh`
+- `scripts/bg-cleanup.sh <blue|green>`
+- `scripts/bg-init-apache.sh [blue|green]`
+
+### Migration policy for rollback safety
+- Use expand/contract migrations only in blue/green deploys.
+- Run migrations while inactive color is up, before switch.
+- Avoid destructive schema contractions in the same release as a traffic switch.
+
 ## I18n
 - Web UI uses ICU message catalogs with `intl-messageformat`.
 - Supported locales: `en` (default), `sr-Latn`.

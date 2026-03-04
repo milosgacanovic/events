@@ -1,0 +1,56 @@
+services:
+  api_green:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/api.Dockerfile
+    container_name: dr_events_api_green
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://dr_events:dr_events_password@postgres:5432/dr_events
+      MEILI_URL: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change_me}
+      UPLOADS_DIR: /app/uploads
+      PUBLIC_BASE_URL: https://beta.events.danceresource.org
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:-https://sso.danceresource.org/realms/YOUR_REALM}
+      KEYCLOAK_JWKS_URL: ${KEYCLOAK_JWKS_URL:-https://sso.danceresource.org/realms/YOUR_REALM/protocol/openid-connect/certs}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-YOUR_CLIENT_ID_OR_AUDIENCE}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-YOUR_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_started
+    ports:
+      - "13101:3001"
+    volumes:
+      - ../../data/uploads:/app/uploads
+
+  web_green:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+        NEXT_PUBLIC_KEYCLOAK_URL: ${NEXT_PUBLIC_KEYCLOAK_URL:-https://sso.danceresource.org}
+        NEXT_PUBLIC_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-YOUR_REALM}
+        NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-YOUR_CLIENT_ID}
+        NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH:-/auth/keycloak/callback}
+        NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH:-/admin}
+        NEXT_PUBLIC_MAP_TILE_URL: ${NEXT_PUBLIC_MAP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+    container_name: dr_events_web_green
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      NEXT_PUBLIC_API_BASE_URL: /api
+      NEXT_PUBLIC_KEYCLOAK_URL: https://sso.danceresource.org
+      NEXT_PUBLIC_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-YOUR_REALM}
+      NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-YOUR_CLIENT_ID}
+      NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH:-/auth/keycloak/callback}
+      NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH:-/admin}
+      NEXT_PUBLIC_MAP_TILE_URL: ${NEXT_PUBLIC_MAP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+    depends_on:
+      - api_green
+    ports:
+      - "13100:3000"

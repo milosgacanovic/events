@@ -238,6 +238,7 @@ label.meta {
 .cards {
   display: grid;
   gap: 12px;
+  align-content: start;
 }
 
 .results-toolbar {

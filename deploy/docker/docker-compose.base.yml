@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: dr_events_postgres
+    environment:
+      POSTGRES_DB: dr_events
+      POSTGRES_USER: dr_events
+      POSTGRES_PASSWORD: dr_events_password
+    ports:
+      - "15432:5432"
+    volumes:
+      - ../../data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dr_events -d dr_events"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: dr_events_meili
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change_me}
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "17700:7700"
+    volumes:
+      - ../../data/meili:/meili_data

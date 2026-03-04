@@ -18,6 +18,12 @@
     "meili:backup": "ts-node scripts/meiliBackup.ts",
     "occurrences:dedupe:single": "tsx scripts/cleanup-single-occurrence-duplicates.ts",
     "occurrences:reindex:all": "tsx scripts/reindexAllOccurrences.ts",
+    "bg:init:apache": "bash scripts/bg-init-apache.sh",
+    "bg:active": "bash scripts/bg-active-color.sh",
+    "bg:switch": "bash scripts/bg-switch.sh",
+    "bg:deploy": "bash scripts/bg-deploy.sh",
+    "bg:rollback": "bash scripts/bg-rollback.sh",
+    "bg:cleanup": "bash scripts/bg-cleanup.sh",
     "migrate": "npm run migrate -w @dr-events/api",
     "seed": "npm run seed -w @dr-events/api",
     "occurrences:refresh": "npm run occurrences:refresh -w @dr-events/api"
