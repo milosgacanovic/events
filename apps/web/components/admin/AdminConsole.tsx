@@ -292,7 +292,7 @@ function mergeLegacyOrganizerDescription(
   }
   if (sections.length > 0) {
     return sections
-      .map((section) => `<h3>${section.heading}</h3><p>${escapeHtml(section.value).replace(/\n/g, "<br>")}</p>`)
+      .map((section) => `<p><strong>${escapeHtml(section.heading)}</strong></p><p>${escapeHtml(section.value).replace(/\n/g, "<br>")}</p>`)
       .join("");
   }
   const fallbackCandidates = [source.html, source.text];
@@ -312,6 +312,18 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function ensureHtml(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  // If it already contains HTML tags, use as-is
+  if (/<[a-z][\s\S]*?>/i.test(trimmed)) return trimmed;
+  // Plain text — convert double newlines to paragraphs, single newlines to <br>
+  return trimmed
+    .split(/\n\n+/)
+    .map((para) => `<p>${escapeHtml(para.trim()).replace(/\n/g, "<br>")}</p>`)
+    .join("");
 }
 
 function SearchableMultiSelectDropdown({
@@ -1102,7 +1114,7 @@ export function AdminConsole() {
         id: detail.id,
         slug: detail.slug,
         title: detail.title,
-        descriptionHtml: (typeof detail.description_json?.html === "string" ? detail.description_json.html : "") ?? "",
+        descriptionHtml: ensureHtml(typeof detail.description_json?.html === "string" ? detail.description_json.html : ""),
         attendanceMode: detail.attendance_mode,
         onlineUrl: detail.online_url ?? "",
         practiceCategoryId: detail.practice_category_id,
@@ -1205,7 +1217,7 @@ export function AdminConsole() {
       ]));
       const mergedDescriptionHtml =
         (detail.description_html && detail.description_html.trim())
-          ? detail.description_html
+          ? ensureHtml(detail.description_html)
           : mergeLegacyOrganizerDescription(detail.description_json ?? {});
       const mappedLocations = (detail.locations ?? []).map((location, index) => ({
         id: location.id,
@@ -2075,7 +2087,7 @@ export function AdminConsole() {
         </form>
       </div>
 
-      <section className="admin-list-grid">
+      <section>
         <form
           className="admin-form"
           onSubmit={(event) => void saveEventEdits(event)}
