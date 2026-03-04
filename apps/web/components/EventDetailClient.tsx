@@ -142,10 +142,14 @@ export function EventDetailClient({
       };
     }
 
-    Promise.all([
-      fetchJson<EventDetail>(`/events/${slug}`),
-      fetchJson<TaxonomyResponse>("/meta/taxonomies").catch(() => null),
-    ])
+    (async () => {
+      const token = auth.authenticated ? await auth.getToken() : null;
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      return Promise.all([
+        fetchJson<EventDetail>(`/events/${slug}`, headers ? { headers } : undefined),
+        fetchJson<TaxonomyResponse>("/meta/taxonomies").catch(() => null),
+      ]);
+    })()
       .then(([eventData, taxonomyData]) => {
         if (!active) {
           return;
@@ -172,7 +176,7 @@ export function EventDetailClient({
     return () => {
       active = false;
     };
-  }, [initialData, slug, t]);
+  }, [auth.authenticated, auth.getToken, initialData, slug, t]);
 
   const hosts = useMemo(() => {
     if (!data) {

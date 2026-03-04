@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useRef } from "react";
@@ -108,6 +109,7 @@ type AdminOrganizerDetailResponse = {
   slug: string;
   name: string;
   description_json: Record<string, unknown>;
+  description_html?: string | null;
   website_url: string | null;
   external_url: string | null;
   image_url: string | null;
@@ -121,6 +123,11 @@ type AdminOrganizerDetailResponse = {
   derived_practice_category_ids?: string[];
   locations?: Array<{
     id: string;
+    is_primary?: boolean;
+    external_source?: string | null;
+    external_id?: string | null;
+    provider?: string | null;
+    place_id?: string | null;
     label: string | null;
     formatted_address: string | null;
     city: string | null;
@@ -160,9 +167,7 @@ type OrganizerEditorState = {
   slug: string;
   name: string;
   descriptionRaw: Record<string, unknown>;
-  descriptionBio: string;
-  descriptionInfo: string;
-  descriptionText: string;
+  descriptionHtml: string;
   websiteUrl: string;
   externalUrl: string;
   imageUrl: string;
@@ -170,10 +175,18 @@ type OrganizerEditorState = {
   languages: string[];
   city: string;
   countryCodes: string[];
-  locationLabel: string;
-  locationAddress: string;
-  locationLat: string;
-  locationLng: string;
+  locations: Array<{
+    id: string;
+    isPrimary: boolean;
+    label: string;
+    formattedAddress: string;
+    city: string;
+    countryCode: string;
+    lat: string;
+    lng: string;
+    provider: string;
+    placeId: string;
+  }>;
   profileRoleIds: string[];
   practiceCategoryIds: string[];
   status: "draft" | "published" | "archived";
@@ -197,6 +210,11 @@ type LocationResponse = {
   country_code: string | null;
   lat: number;
   lng: number;
+};
+
+type MultiSelectOption = {
+  value: string;
+  label: string;
 };
 
 function csvToArray(value: string): string[] {
@@ -243,9 +261,9 @@ function deriveTaxonomyKey(value: string): string {
     .slice(0, 90);
 }
 
-function extractOrganizerDescriptionFields(
+function mergeLegacyOrganizerDescription(
   raw: Record<string, unknown> | null | undefined,
-): { bio: string; info: string; description: string } {
+): string {
   const source = raw ?? {};
   const normalizeText = (value: unknown): string => {
     if (typeof value !== "string") {
@@ -263,23 +281,25 @@ function extractOrganizerDescriptionFields(
   const bio = normalizeText(source.bio);
   const info = normalizeText(source.info);
   const description = normalizeText(source.description);
-  if (bio || info || description) {
-    return { bio, info, description };
+  const sections: Array<{ heading: string; value: string }> = [];
+  if (bio) sections.push({ heading: "Bio", value: bio });
+  if (info && info !== bio) sections.push({ heading: "Info", value: info });
+  if (description && description !== bio && description !== info) {
+    sections.push({ heading: "Description", value: description });
   }
-
-  const fallbackCandidates = [source.text, source.html];
+  if (sections.length > 0) {
+    return sections
+      .map((section) => `<h3>${section.heading}</h3><p>${escapeHtml(section.value).replace(/\n/g, "<br>")}</p>`)
+      .join("");
+  }
+  const fallbackCandidates = [source.html, source.text];
   for (const candidate of fallbackCandidates) {
     const normalized = normalizeText(candidate);
     if (normalized) {
-      return {
-        bio: "",
-        info: "",
-        description: normalized,
-      };
+      return `<p>${escapeHtml(normalized).replace(/\n/g, "<br>")}</p>`;
     }
   }
-
-  return { bio: "", info: "", description: "" };
+  return "";
 }
 
 function escapeHtml(value: string): string {
@@ -289,6 +309,101 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function SearchableMultiSelectDropdown({
+  label,
+  options,
+  selectedValues,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  options: MultiSelectOption[];
+  selectedValues: string[];
+  onChange: (nextValues: string[]) => void;
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const selectedSet = useMemo(() => new Set(selectedValues), [selectedValues]);
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return options.filter((option) => {
+      if (!normalized) {
+        return true;
+      }
+      return option.label.toLowerCase().includes(normalized) || option.value.toLowerCase().includes(normalized);
+    });
+  }, [options, query]);
+
+  const selectedOptions = useMemo(() => {
+    const map = new Map(options.map((option) => [option.value, option]));
+    return selectedValues
+      .map((value) => map.get(value))
+      .filter((item): item is MultiSelectOption => Boolean(item));
+  }, [options, selectedValues]);
+
+  return (
+    <div className="searchable-multiselect">
+      <label>{label}</label>
+      <button
+        type="button"
+        className="ghost-btn"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        {selectedOptions.length > 0 ? `${selectedOptions.length} selected` : placeholder}
+      </button>
+      {selectedOptions.length > 0 && (
+        <div className="kv">
+          {selectedOptions.map((option) => (
+            <button
+              className="tag"
+              type="button"
+              key={`${label}-chip-${option.value}`}
+              onClick={() => onChange(selectedValues.filter((value) => value !== option.value))}
+            >
+              {option.label} ×
+            </button>
+          ))}
+        </div>
+      )}
+      {open && (
+        <div className="panel">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={placeholder}
+            onKeyDown={(event) => {
+              if (event.key === "Backspace" && query.length === 0 && selectedValues.length > 0) {
+                onChange(selectedValues.slice(0, selectedValues.length - 1));
+              }
+            }}
+          />
+          <div className="kv" style={{ maxHeight: 220, overflowY: "auto" }}>
+            {filtered.map((option) => (
+              <label className="meta" key={`${label}-${option.value}`}>
+                <input
+                  type="checkbox"
+                  checked={selectedSet.has(option.value)}
+                  onChange={() =>
+                    onChange(
+                      selectedSet.has(option.value)
+                        ? selectedValues.filter((value) => value !== option.value)
+                        : [...selectedValues, option.value],
+                    )
+                  }
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AdminConsole() {
@@ -310,13 +425,9 @@ export function AdminConsole() {
   const [organizerWebsite, setOrganizerWebsite] = useState("");
   const [organizerLanguages, setOrganizerLanguages] = useState<string[]>(["en"]);
   const [organizerTags, setOrganizerTags] = useState("");
-  const [organizerBio, setOrganizerBio] = useState("");
-  const [organizerInfo, setOrganizerInfo] = useState("");
   const [organizerDescription, setOrganizerDescription] = useState("");
   const [organizerCity, setOrganizerCity] = useState("");
   const [organizerCountryCodes, setOrganizerCountryCodes] = useState<string[]>([]);
-  const [createCountryQuery, setCreateCountryQuery] = useState("");
-  const [createLanguageQuery, setCreateLanguageQuery] = useState("");
   const [organizerProfileRoleIds, setOrganizerProfileRoleIds] = useState<string[]>([]);
   const [organizerPracticeCategoryIds, setOrganizerPracticeCategoryIds] = useState<string[]>([]);
   const [organizerImageUrl, setOrganizerImageUrl] = useState("");
@@ -372,13 +483,17 @@ export function AdminConsole() {
   const [adminCountryOptions, setAdminCountryOptions] = useState<string[]>([]);
   const [loadingEventEditor, setLoadingEventEditor] = useState(false);
   const [loadingOrganizerEditor, setLoadingOrganizerEditor] = useState(false);
-  const [editCountryQuery, setEditCountryQuery] = useState("");
-  const [editLanguageQuery, setEditLanguageQuery] = useState("");
   const [editLocationQuery, setEditLocationQuery] = useState("");
   const [editLocationResults, setEditLocationResults] = useState<GeocodeResult[]>([]);
   const [editLocationLoading, setEditLocationLoading] = useState(false);
+  const [showArchivedHosts, setShowArchivedHosts] = useState(false);
+  const [showUnlistedEvents, setShowUnlistedEvents] = useState(false);
   const [activeSection, setActiveSection] = useState<AdminSection>("events");
   const loadedEditorTargetRef = useRef<string | null>(null);
+  const AdminLocationPreviewMap = useMemo(
+    () => dynamic(() => import("./AdminLocationPreviewMap").then((module) => module.AdminLocationPreviewMap), { ssr: false }),
+    [],
+  );
 
   const hasEditorRole = useMemo(
     () => roles.includes("dr_events_editor") || roles.includes("dr_events_admin"),
@@ -419,46 +534,48 @@ export function AdminConsole() {
       return null;
     }
   }, [locale]);
-  const createCountryOptions = useMemo(() => {
-    const query = createCountryQuery.trim().toLowerCase();
-    return adminCountryOptions.filter((code) => {
-      if (!query) {
-        return true;
+  const allCountryOptions = useMemo<MultiSelectOption[]>(() => {
+    const available = new Set<string>(adminCountryOptions);
+    const intlWithSupportedValuesOf = Intl as unknown as {
+      supportedValuesOf?: (key: string) => string[];
+    };
+    try {
+      for (const code of intlWithSupportedValuesOf.supportedValuesOf?.("region") ?? []) {
+        available.add(code.toLowerCase());
       }
-      const label = (regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()).toLowerCase();
-      return code.toLowerCase().includes(query) || label.includes(query);
-    });
-  }, [adminCountryOptions, createCountryQuery, regionNames]);
-  const createLanguageOptions = useMemo(() => {
-    const query = createLanguageQuery.trim().toLowerCase();
-    return adminLanguageOptions.filter((code) => {
-      if (!query) {
-        return true;
+    } catch {
+      // Keep facet-derived options when full browser list is unavailable.
+    }
+    return Array.from(available)
+      .sort((a, b) => {
+        const labelA = regionNames?.of(a.toUpperCase()) ?? a.toUpperCase();
+        const labelB = regionNames?.of(b.toUpperCase()) ?? b.toUpperCase();
+        return labelA.localeCompare(labelB);
+      })
+      .map((code) => ({
+        value: code,
+        label: regionNames?.of(code.toUpperCase()) ?? code.toUpperCase(),
+      }));
+  }, [adminCountryOptions, regionNames]);
+  const allLanguageOptions = useMemo<MultiSelectOption[]>(() => {
+    const available = new Set<string>(adminLanguageOptions);
+    const intlWithSupportedValuesOf = Intl as unknown as {
+      supportedValuesOf?: (key: string) => string[];
+    };
+    try {
+      for (const code of intlWithSupportedValuesOf.supportedValuesOf?.("language") ?? []) {
+        available.add(code.toLowerCase());
       }
-      const label = labelForLanguageCode(code, languageNames).toLowerCase();
-      return code.toLowerCase().includes(query) || label.includes(query);
-    });
-  }, [adminLanguageOptions, createLanguageQuery, languageNames]);
-  const editCountryOptions = useMemo(() => {
-    const query = editCountryQuery.trim().toLowerCase();
-    return adminCountryOptions.filter((code) => {
-      if (!query) {
-        return true;
-      }
-      const label = (regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()).toLowerCase();
-      return code.toLowerCase().includes(query) || label.includes(query);
-    });
-  }, [adminCountryOptions, editCountryQuery, regionNames]);
-  const editLanguageOptions = useMemo(() => {
-    const query = editLanguageQuery.trim().toLowerCase();
-    return adminLanguageOptions.filter((code) => {
-      if (!query) {
-        return true;
-      }
-      const label = labelForLanguageCode(code, languageNames).toLowerCase();
-      return code.toLowerCase().includes(query) || label.includes(query);
-    });
-  }, [adminLanguageOptions, editLanguageQuery, languageNames]);
+    } catch {
+      // Keep facet-derived options when full browser list is unavailable.
+    }
+    return Array.from(available)
+      .sort((a, b) => labelForLanguageCode(a, languageNames).localeCompare(labelForLanguageCode(b, languageNames)))
+      .map((code) => ({
+        value: code,
+        label: labelForLanguageCode(code, languageNames),
+      }));
+  }, [adminLanguageOptions, languageNames]);
 
   useEffect(() => {
     const section = searchParams.get("section");
@@ -557,7 +674,7 @@ export function AdminConsole() {
     };
 
     void run();
-  }, [authenticated, hasEditorRole]);
+  }, [authenticated, hasEditorRole, showArchivedHosts, showUnlistedEvents]);
 
   const selectedCategory = taxonomy?.practices.categories.find((category) => category.id === practiceCategoryId);
   const selectedEditCategory = taxonomy?.practices.categories.find(
@@ -757,7 +874,9 @@ export function AdminConsole() {
 
     setLoadingAdminContent(true);
     try {
-      const organizersResult = await authorizedGet<{ items: AdminOrganizer[] }>("/admin/organizers?page=1&pageSize=20");
+      const organizersResult = await authorizedGet<{ items: AdminOrganizer[] }>(
+        `/admin/organizers?page=1&pageSize=20${showArchivedHosts ? "&showArchived=true" : ""}`,
+      );
       setAdminOrganizers(organizersResult.items);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.loadAdminListsFailed"));
@@ -771,28 +890,19 @@ export function AdminConsole() {
     setStatus(t("admin.status.creatingOrganizer"));
 
     try {
-      const nextBio = organizerBio.trim();
-      const nextInfo = organizerInfo.trim();
       const nextDescription = organizerDescription.trim();
-      const textSections = [nextBio, nextInfo, nextDescription].filter(Boolean);
-      const plainText = textSections.join("\n\n");
-      const html = textSections.length > 0
-        ? textSections
-          .map((section) => `<p>${escapeHtml(section).replace(/\n/g, "<br>")}</p>`)
-          .join("")
-        : "";
+      const plainText = nextDescription;
+      const html = nextDescription ? `<p>${escapeHtml(nextDescription).replace(/\n/g, "<br>")}</p>` : "";
       const organizer = await authorizedRequest<{ id: string; slug: string; name: string }>(
         "/organizers",
         "POST",
         {
           name: organizerName,
           descriptionJson: {
-            ...(nextBio ? { bio: nextBio } : {}),
-            ...(nextInfo ? { info: nextInfo } : {}),
-            ...(nextDescription ? { description: nextDescription } : {}),
             ...(plainText ? { text: plainText } : {}),
             ...(html ? { html } : {}),
           },
+          descriptionHtml: html || null,
           websiteUrl: organizerWebsite || null,
           tags: csvToArray(organizerTags),
           languages: organizerLanguages,
@@ -826,14 +936,10 @@ export function AdminConsole() {
       setOrganizerName("");
       setOrganizerWebsite("");
       setOrganizerTags("");
-      setOrganizerBio("");
-      setOrganizerInfo("");
       setOrganizerDescription("");
       setOrganizerCity("");
       setOrganizerCountryCodes([]);
       setOrganizerLanguages(["en"]);
-      setCreateCountryQuery("");
-      setCreateLanguageQuery("");
       setOrganizerProfileRoleIds([]);
       setOrganizerPracticeCategoryIds([]);
       setOrganizerImageUrl("");
@@ -1092,16 +1198,28 @@ export function AdminConsole() {
         ...(detail.practice_category_ids ?? []),
         ...(detail.derived_practice_category_ids ?? []),
       ]));
-      const primaryLocation = detail.locations?.[0] ?? null;
-      const descriptionFields = extractOrganizerDescriptionFields(detail.description_json ?? {});
+      const mergedDescriptionHtml =
+        (detail.description_html && detail.description_html.trim())
+          ? detail.description_html
+          : mergeLegacyOrganizerDescription(detail.description_json ?? {});
+      const mappedLocations = (detail.locations ?? []).map((location, index) => ({
+        id: location.id,
+        isPrimary: Boolean(location.is_primary) || index === 0,
+        label: location.label ?? "",
+        formattedAddress: location.formatted_address ?? "",
+        city: location.city ?? "",
+        countryCode: location.country_code ?? "",
+        lat: location.lat != null ? String(location.lat) : "",
+        lng: location.lng != null ? String(location.lng) : "",
+        provider: location.provider ?? "",
+        placeId: location.place_id ?? "",
+      }));
       setOrganizerEditor({
         id: detail.id,
         slug: detail.slug,
         name: detail.name,
         descriptionRaw: detail.description_json ?? {},
-        descriptionBio: descriptionFields.bio,
-        descriptionInfo: descriptionFields.info,
-        descriptionText: descriptionFields.description,
+        descriptionHtml: mergedDescriptionHtml,
         websiteUrl: detail.website_url ?? "",
         externalUrl: detail.external_url ?? "",
         imageUrl: detail.image_url ?? "",
@@ -1109,17 +1227,12 @@ export function AdminConsole() {
         languages: detail.languages,
         city: detail.city ?? "",
         countryCodes: detail.country_code ? [detail.country_code] : [],
-        locationLabel: primaryLocation?.label ?? "",
-        locationAddress: primaryLocation?.formatted_address ?? "",
-        locationLat: primaryLocation?.lat != null ? String(primaryLocation.lat) : "",
-        locationLng: primaryLocation?.lng != null ? String(primaryLocation.lng) : "",
+        locations: mappedLocations,
         profileRoleIds: mergedProfileRoleIds,
         practiceCategoryIds: mergedPracticeCategoryIds,
         status: detail.status,
       });
       setOrganizerEditAvatarFile(null);
-      setEditCountryQuery("");
-      setEditLanguageQuery("");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.organizerEditorLoadFailed"));
     } finally {
@@ -1136,28 +1249,47 @@ export function AdminConsole() {
     setStatus(t("admin.status.savingOrganizerChanges"));
 
     try {
-      const nextBio = organizerEditor.descriptionBio.trim();
-      const nextInfo = organizerEditor.descriptionInfo.trim();
-      const nextDescription = organizerEditor.descriptionText.trim();
-      const textSections = [nextBio, nextInfo, nextDescription].filter(Boolean);
-      const plainText = textSections.join("\n\n");
-      const html = textSections.length > 0
-        ? textSections
-          .map((section) => `<p>${escapeHtml(section).replace(/\n/g, "<br>")}</p>`)
-          .join("")
-        : "";
+      const html = organizerEditor.descriptionHtml.trim();
+      const plainText = html
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n\n")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
       const parsedDescription: Record<string, unknown> = {
         ...organizerEditor.descriptionRaw,
       };
-      if (nextBio) parsedDescription.bio = nextBio; else delete parsedDescription.bio;
-      if (nextInfo) parsedDescription.info = nextInfo; else delete parsedDescription.info;
-      if (nextDescription) parsedDescription.description = nextDescription; else delete parsedDescription.description;
+      delete parsedDescription.bio;
+      delete parsedDescription.info;
+      delete parsedDescription.description;
       if (plainText) parsedDescription.text = plainText; else delete parsedDescription.text;
       if (html) parsedDescription.html = html; else delete parsedDescription.html;
+
+      const normalizedLocations = organizerEditor.locations
+        .map((location) => ({
+          id: location.id || undefined,
+          isPrimary: location.isPrimary,
+          label: location.label.trim() || null,
+          formattedAddress: location.formattedAddress.trim() || null,
+          city: location.city.trim() || null,
+          countryCode: location.countryCode.trim().toLowerCase() || null,
+          lat: location.lat.trim() ? Number(location.lat.trim()) : null,
+          lng: location.lng.trim() ? Number(location.lng.trim()) : null,
+          provider: location.provider.trim() || null,
+          placeId: location.placeId.trim() || null,
+        }))
+        .filter((location) => Boolean(
+          location.label || location.formattedAddress || location.city || location.countryCode || location.lat !== null,
+        ));
+      const primaryLocation = normalizedLocations.find((location) => location.isPrimary)
+        ?? normalizedLocations[0]
+        ?? null;
 
       const updated = await authorizedRequest<{ id: string; slug: string }>(`/organizers/${organizerEditor.id}`, "PATCH", {
         name: organizerEditor.name,
         descriptionJson: parsedDescription,
+        descriptionHtml: html || null,
         websiteUrl: organizerEditor.websiteUrl || null,
         externalUrl: organizerEditor.externalUrl || null,
         imageUrl: organizerEditor.imageUrl || null,
@@ -1165,14 +1297,8 @@ export function AdminConsole() {
         languages: organizerEditor.languages,
         city: organizerEditor.city || null,
         countryCode: organizerEditor.countryCodes[0] || null,
-        primaryLocation: {
-          label: organizerEditor.locationLabel || null,
-          formattedAddress: organizerEditor.locationAddress || null,
-          city: organizerEditor.city || null,
-          countryCode: organizerEditor.countryCodes[0] || null,
-          lat: organizerEditor.locationLat.trim() ? Number(organizerEditor.locationLat.trim()) : null,
-          lng: organizerEditor.locationLng.trim() ? Number(organizerEditor.locationLng.trim()) : null,
-        },
+        locations: normalizedLocations,
+        primaryLocationId: primaryLocation?.id ?? null,
         profileRoleIds: organizerEditor.profileRoleIds,
         practiceCategoryIds: organizerEditor.practiceCategoryIds,
         status: organizerEditor.status,
@@ -1190,6 +1316,51 @@ export function AdminConsole() {
       router.push(`/hosts/${updated.slug ?? organizerEditor.slug}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.organizerSaveFailed"));
+    }
+  }
+
+  async function geocodeOrganizerLocation(locationIndex: number) {
+    if (!organizerEditor) {
+      return;
+    }
+    const target = organizerEditor.locations[locationIndex];
+    const query = (target.formattedAddress || `${target.city} ${target.countryCode}`).trim();
+    if (!query) {
+      setStatus("Enter address or city/country before geocoding.");
+      return;
+    }
+    try {
+      const results = await authorizedGet<GeocodeResult[]>(
+        `/admin/geocode/search?q=${encodeURIComponent(query)}&limit=1`,
+      );
+      const first = results[0];
+      if (!first) {
+        setStatus("No geocode result found for this location.");
+        return;
+      }
+      setOrganizerEditor((current) => (
+        current
+          ? {
+              ...current,
+              locations: current.locations.map((item, idx) => (
+                idx === locationIndex
+                  ? {
+                      ...item,
+                      formattedAddress: first.formatted_address,
+                      city: first.city ?? item.city,
+                      countryCode: first.country_code ?? item.countryCode,
+                      lat: String(first.lat),
+                      lng: String(first.lng),
+                      provider: "nominatim",
+                    }
+                  : item
+              )),
+            }
+          : current
+      ));
+      setStatus("Location verified and coordinates updated.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Location geocoding failed");
     }
   }
 
@@ -1351,6 +1522,26 @@ export function AdminConsole() {
             >
               {t("admin.sections.users")}
             </button>
+            {activeSection === "organizers" && (
+              <label className="meta">
+                <input
+                  type="checkbox"
+                  checked={showArchivedHosts}
+                  onChange={(event) => setShowArchivedHosts(event.target.checked)}
+                />
+                Show archived hosts
+              </label>
+            )}
+            {activeSection === "events" && (
+              <label className="meta">
+                <input
+                  type="checkbox"
+                  checked={showUnlistedEvents}
+                  onChange={(event) => setShowUnlistedEvents(event.target.checked)}
+                />
+                Show unlisted events
+              </label>
+            )}
           </div>
         </aside>
 
@@ -1380,24 +1571,6 @@ export function AdminConsole() {
             />
           </label>
           <label>
-            Bio
-            <textarea
-              rows={3}
-              value={organizerBio}
-              onChange={(e) => setOrganizerBio(e.target.value)}
-              placeholder="Short biography"
-            />
-          </label>
-          <label>
-            Info
-            <textarea
-              rows={3}
-              value={organizerInfo}
-              onChange={(e) => setOrganizerInfo(e.target.value)}
-              placeholder="Additional information"
-            />
-          </label>
-          <label>
             Description
             <textarea
               rows={4}
@@ -1410,82 +1583,20 @@ export function AdminConsole() {
             {t("common.field.city")}
             <input value={organizerCity} onChange={(e) => setOrganizerCity(e.target.value)} />
           </label>
-          <details>
-            <summary>{t("common.field.countryCode")}</summary>
-            <input
-              value={createCountryQuery}
-              onChange={(e) => setCreateCountryQuery(e.target.value)}
-              placeholder={t("eventSearch.search")}
-            />
-            {organizerCountryCodes.length > 0 && (
-              <div className="kv">
-                {organizerCountryCodes.map((code) => (
-                  <button
-                    className="tag"
-                    type="button"
-                    key={`create-country-chip-${code}`}
-                    onClick={() => setOrganizerCountryCodes((current) => current.filter((item) => item !== code))}
-                  >
-                    {regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()} ×
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="kv">
-              {createCountryOptions.map((code) => (
-                <label className="meta" key={`create-country-${code}`}>
-                  <input
-                    type="checkbox"
-                    checked={organizerCountryCodes.includes(code)}
-                    onChange={() =>
-                      setOrganizerCountryCodes((current) =>
-                        current.includes(code) ? current.filter((item) => item !== code) : [...current, code]
-                      )
-                    }
-                  />
-                  {regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()}
-                </label>
-              ))}
-            </div>
-          </details>
-          <details>
-            <summary>{t("common.field.languagesCsv")}</summary>
-            <input
-              value={createLanguageQuery}
-              onChange={(e) => setCreateLanguageQuery(e.target.value)}
-              placeholder={t("eventSearch.search")}
-            />
-            {organizerLanguages.length > 0 && (
-              <div className="kv">
-                {organizerLanguages.map((code) => (
-                  <button
-                    className="tag"
-                    type="button"
-                    key={`create-language-chip-${code}`}
-                    onClick={() => setOrganizerLanguages((current) => current.filter((item) => item !== code))}
-                  >
-                    {labelForLanguageCode(code, languageNames)} ×
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="kv">
-              {createLanguageOptions.map((code) => (
-                <label className="meta" key={`create-language-${code}`}>
-                  <input
-                    type="checkbox"
-                    checked={organizerLanguages.includes(code)}
-                    onChange={() =>
-                      setOrganizerLanguages((current) =>
-                        current.includes(code) ? current.filter((item) => item !== code) : [...current, code]
-                      )
-                    }
-                  />
-                  {labelForLanguageCode(code, languageNames)}
-                </label>
-              ))}
-            </div>
-          </details>
+          <SearchableMultiSelectDropdown
+            label={t("common.field.countryCode")}
+            options={allCountryOptions}
+            selectedValues={organizerCountryCodes}
+            onChange={setOrganizerCountryCodes}
+            placeholder={t("eventSearch.search")}
+          />
+          <SearchableMultiSelectDropdown
+            label={t("common.field.languagesCsv")}
+            options={allLanguageOptions}
+            selectedValues={organizerLanguages}
+            onChange={setOrganizerLanguages}
+            placeholder={t("eventSearch.search")}
+          />
           <label>
             Host location label
             <input value={organizerLocationLabel} onChange={(e) => setOrganizerLocationLabel(e.target.value)} />
@@ -2288,7 +2399,6 @@ export function AdminConsole() {
           style={{ display: activeSection === "organizers" && organizerEditor ? undefined : "none" }}
         >
           <h3>{t("admin.editOrganizer.heading")}</h3>
-          {loadingOrganizerEditor && <div className="meta">{t("admin.loading.organizerDetails")}</div>}
           {!loadingOrganizerEditor && !organizerEditor && (
             <div className="meta">{t("admin.editOrganizer.promptSelect")}</div>
           )}
@@ -2356,151 +2466,242 @@ export function AdminConsole() {
                   }
                 />
               </label>
-              <details>
-                <summary>{t("common.field.countryCode")}</summary>
-                <input
-                  value={editCountryQuery}
-                  onChange={(e) => setEditCountryQuery(e.target.value)}
-                  placeholder={t("eventSearch.search")}
-                />
-                {organizerEditor.countryCodes.length > 0 && (
-                  <div className="kv">
-                    {organizerEditor.countryCodes.map((code) => (
+              <SearchableMultiSelectDropdown
+                label={t("common.field.countryCode")}
+                options={allCountryOptions}
+                selectedValues={organizerEditor.countryCodes}
+                onChange={(nextCountryCodes) =>
+                  setOrganizerEditor((current) => (
+                    current ? { ...current, countryCodes: nextCountryCodes } : current
+                  ))
+                }
+                placeholder={t("eventSearch.search")}
+              />
+              <SearchableMultiSelectDropdown
+                label={t("common.field.languagesCsv")}
+                options={allLanguageOptions}
+                selectedValues={organizerEditor.languages}
+                onChange={(nextLanguages) =>
+                  setOrganizerEditor((current) => (
+                    current ? { ...current, languages: nextLanguages } : current
+                  ))
+                }
+                placeholder={t("eventSearch.search")}
+              />
+              <div className="admin-form-section">
+                <h4>Host locations</h4>
+                <div className="meta">Add one or more locations and mark one as primary.</div>
+                {organizerEditor.locations.map((location, locationIndex) => (
+                  <div className="card" key={`${location.id || "new"}-${locationIndex}`}>
+                    <div className="admin-inline-list">
+                      <label className="meta">
+                        <input
+                          type="radio"
+                          checked={location.isPrimary}
+                          onChange={() =>
+                            setOrganizerEditor((current) => (
+                              current
+                                ? {
+                                    ...current,
+                                    locations: current.locations.map((item, idx) => ({
+                                      ...item,
+                                      isPrimary: idx === locationIndex,
+                                    })),
+                                  }
+                                : current
+                            ))
+                          }
+                        />
+                        Primary
+                      </label>
                       <button
-                        className="tag"
+                        className="ghost-btn"
                         type="button"
-                        key={`edit-country-chip-${code}`}
                         onClick={() =>
                           setOrganizerEditor((current) => (
                             current
                               ? {
                                   ...current,
-                                  countryCodes: current.countryCodes.filter((item) => item !== code),
+                                  locations: current.locations.filter((_, idx) => idx !== locationIndex),
                                 }
                               : current
                           ))
                         }
                       >
-                        {regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()} ×
+                        Remove location
                       </button>
-                    ))}
-                  </div>
-                )}
-                <div className="kv">
-                  {editCountryOptions.map((code) => (
-                    <label className="meta" key={`edit-country-${code}`}>
+                    </div>
+                    <label>
+                      Label
                       <input
-                        type="checkbox"
-                        checked={organizerEditor.countryCodes.includes(code)}
-                        onChange={() =>
-                          setOrganizerEditor((current) =>
-                            current
-                              ? {
-                                  ...current,
-                                  countryCodes: current.countryCodes.includes(code)
-                                    ? current.countryCodes.filter((item) => item !== code)
-                                    : [...current.countryCodes, code],
-                                }
-                              : current
-                          )
-                        }
-                      />
-                      {regionNames?.of(code.toUpperCase()) ?? code.toUpperCase()}
-                    </label>
-                  ))}
-                </div>
-              </details>
-              <details>
-                <summary>{t("common.field.languagesCsv")}</summary>
-                <input
-                  value={editLanguageQuery}
-                  onChange={(e) => setEditLanguageQuery(e.target.value)}
-                  placeholder={t("eventSearch.search")}
-                />
-                {organizerEditor.languages.length > 0 && (
-                  <div className="kv">
-                    {organizerEditor.languages.map((code) => (
-                      <button
-                        className="tag"
-                        type="button"
-                        key={`edit-language-chip-${code}`}
-                        onClick={() =>
+                        value={location.label}
+                        onChange={(e) =>
                           setOrganizerEditor((current) => (
                             current
                               ? {
                                   ...current,
-                                  languages: current.languages.filter((item) => item !== code),
+                                  locations: current.locations.map((item, idx) => (
+                                    idx === locationIndex ? { ...item, label: e.target.value } : item
+                                  )),
                                 }
                               : current
                           ))
                         }
-                      >
-                        {labelForLanguageCode(code, languageNames)} ×
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="kv">
-                  {editLanguageOptions.map((code) => (
-                    <label className="meta" key={`edit-language-${code}`}>
+                      />
+                    </label>
+                    <label>
+                      Address
                       <input
-                        type="checkbox"
-                        checked={organizerEditor.languages.includes(code)}
-                        onChange={() =>
-                          setOrganizerEditor((current) =>
+                        value={location.formattedAddress}
+                        onChange={(e) =>
+                          setOrganizerEditor((current) => (
                             current
                               ? {
                                   ...current,
-                                  languages: current.languages.includes(code)
-                                    ? current.languages.filter((item) => item !== code)
-                                    : [...current.languages, code],
+                                  locations: current.locations.map((item, idx) => (
+                                    idx === locationIndex ? { ...item, formattedAddress: e.target.value } : item
+                                  )),
                                 }
                               : current
-                          )
+                          ))
                         }
                       />
-                      {labelForLanguageCode(code, languageNames)}
                     </label>
-                  ))}
-                </div>
-              </details>
-              <label>
-                Host location label
-                <input
-                  value={organizerEditor.locationLabel}
-                  onChange={(e) =>
-                    setOrganizerEditor((current) => (current ? { ...current, locationLabel: e.target.value } : current))
+                    <button
+                      className="ghost-btn"
+                      type="button"
+                      onClick={() => void geocodeOrganizerLocation(locationIndex)}
+                    >
+                      Search and verify location
+                    </button>
+                    <div className="admin-inline-list">
+                      <label>
+                        City
+                        <input
+                          value={location.city}
+                          onChange={(e) =>
+                            setOrganizerEditor((current) => (
+                              current
+                                ? {
+                                    ...current,
+                                    locations: current.locations.map((item, idx) => (
+                                      idx === locationIndex ? { ...item, city: e.target.value } : item
+                                    )),
+                                  }
+                                : current
+                            ))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Country
+                        <input
+                          value={location.countryCode}
+                          onChange={(e) =>
+                            setOrganizerEditor((current) => (
+                              current
+                                ? {
+                                    ...current,
+                                    locations: current.locations.map((item, idx) => (
+                                      idx === locationIndex ? { ...item, countryCode: e.target.value } : item
+                                    )),
+                                  }
+                                : current
+                            ))
+                          }
+                        />
+                      </label>
+                    </div>
+                    <div className="admin-inline-list">
+                      <label>
+                        Lat
+                        <input
+                          value={location.lat}
+                          onChange={(e) =>
+                            setOrganizerEditor((current) => (
+                              current
+                                ? {
+                                    ...current,
+                                    locations: current.locations.map((item, idx) => (
+                                      idx === locationIndex ? { ...item, lat: e.target.value } : item
+                                    )),
+                                  }
+                                : current
+                            ))
+                          }
+                        />
+                      </label>
+                      <label>
+                        Lng
+                        <input
+                          value={location.lng}
+                          onChange={(e) =>
+                            setOrganizerEditor((current) => (
+                              current
+                                ? {
+                                    ...current,
+                                    locations: current.locations.map((item, idx) => (
+                                      idx === locationIndex ? { ...item, lng: e.target.value } : item
+                                    )),
+                                  }
+                                : current
+                            ))
+                          }
+                        />
+                      </label>
+                    </div>
+                    {location.lat.trim() && location.lng.trim() && (
+                      <AdminLocationPreviewMap
+                        lat={Number(location.lat)}
+                        lng={Number(location.lng)}
+                        onMarkerChange={(nextLat, nextLng) =>
+                          setOrganizerEditor((current) => (
+                            current
+                              ? {
+                                  ...current,
+                                  locations: current.locations.map((item, idx) => (
+                                    idx === locationIndex
+                                      ? { ...item, lat: nextLat.toFixed(6), lng: nextLng.toFixed(6) }
+                                      : item
+                                  )),
+                                }
+                              : current
+                          ))
+                        }
+                      />
+                    )}
+                  </div>
+                ))}
+                <button
+                  className="secondary-btn"
+                  type="button"
+                  onClick={() =>
+                    setOrganizerEditor((current) => (
+                      current
+                        ? {
+                            ...current,
+                            locations: [
+                              ...current.locations,
+                              {
+                                id: "",
+                                isPrimary: current.locations.length === 0,
+                                label: "",
+                                formattedAddress: "",
+                                city: "",
+                                countryCode: "",
+                                lat: "",
+                                lng: "",
+                                provider: "",
+                                placeId: "",
+                              },
+                            ],
+                          }
+                        : current
+                    ))
                   }
-                />
-              </label>
-              <label>
-                Host location address
-                <input
-                  value={organizerEditor.locationAddress}
-                  onChange={(e) =>
-                    setOrganizerEditor((current) => (current ? { ...current, locationAddress: e.target.value } : current))
-                  }
-                />
-              </label>
-              <div className="admin-inline-list">
-                <label>
-                  Lat
-                  <input
-                    value={organizerEditor.locationLat}
-                    onChange={(e) =>
-                      setOrganizerEditor((current) => (current ? { ...current, locationLat: e.target.value } : current))
-                    }
-                  />
-                </label>
-                <label>
-                  Lng
-                  <input
-                    value={organizerEditor.locationLng}
-                    onChange={(e) =>
-                      setOrganizerEditor((current) => (current ? { ...current, locationLng: e.target.value } : current))
-                    }
-                  />
-                </label>
+                >
+                  Add location
+                </button>
               </div>
               <label>
                 {t("common.field.tagsCsv")}
@@ -2564,42 +2765,16 @@ export function AdminConsole() {
                 </div>
               </label>
               <label>
-                Bio
-                <textarea
-                  rows={4}
-                  value={organizerEditor.descriptionBio}
-                  onChange={(e) =>
-                    setOrganizerEditor((current) => (
-                      current ? { ...current, descriptionBio: e.target.value } : current
-                    ))
-                  }
-                  placeholder="Short biography"
-                />
-              </label>
-              <label>
-                Info
-                <textarea
-                  rows={4}
-                  value={organizerEditor.descriptionInfo}
-                  onChange={(e) =>
-                    setOrganizerEditor((current) => (
-                      current ? { ...current, descriptionInfo: e.target.value } : current
-                    ))
-                  }
-                  placeholder="Additional information"
-                />
-              </label>
-              <label>
                 Description
                 <textarea
-                  rows={6}
-                  value={organizerEditor.descriptionText}
+                  rows={10}
+                  value={organizerEditor.descriptionHtml}
                   onChange={(e) =>
                     setOrganizerEditor((current) => (
-                      current ? { ...current, descriptionText: e.target.value } : current
+                      current ? { ...current, descriptionHtml: e.target.value } : current
                     ))
                   }
-                  placeholder="Host description"
+                  placeholder="Use simple HTML (p, strong, em, u, ul, li, blockquote)"
                 />
               </label>
               <label>
@@ -2646,7 +2821,7 @@ export function AdminConsole() {
         </section>
       )}
 
-      <div className="admin-status">{status || t("admin.status.noneYet")}</div>
+      {status && <div className="admin-status">{status}</div>}
         </div>
       </div>
     </section>

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import DOMPurify from "dompurify";
+import { useEffect, useMemo, useState } from "react";
 
 import { apiBase, fetchJson } from "../lib/api";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
@@ -27,6 +28,7 @@ type OrganizerDetail = {
     countryCode?: string | null;
     description_json: unknown;
     descriptionJson?: unknown;
+    descriptionHtml?: string | null;
   };
   locations: Array<{
     id: string;
@@ -168,10 +170,14 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
 
   useEffect(() => {
-    fetchJson<OrganizerDetail>(`/organizers/${slug}`)
+    (async () => {
+      const token = auth.authenticated ? await auth.getToken() : null;
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      return fetchJson<OrganizerDetail>(`/organizers/${slug}`, headers ? { headers } : undefined);
+    })()
       .then(setData)
       .catch((err) => setError(err instanceof Error ? err.message : t("organizerDetail.error.fetchFailed")));
-  }, [slug, t]);
+  }, [auth.authenticated, auth.getToken, slug, t]);
 
   useEffect(() => {
     fetchJson<TaxonomyResponse>("/meta/taxonomies")
@@ -190,6 +196,19 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   }
 
   const descriptionSections = extractDescriptionSections(data.organizer.descriptionJson ?? data.organizer.description_json);
+  const descriptionHtmlRaw = data.organizer.descriptionHtml
+    ?? (typeof (data.organizer.descriptionJson as { html?: unknown })?.html === "string"
+      ? (data.organizer.descriptionJson as { html?: string }).html
+      : null);
+  const sanitizedDescriptionHtml = useMemo(() => {
+    if (descriptionHtmlRaw && descriptionHtmlRaw.trim()) {
+      return DOMPurify.sanitize(descriptionHtmlRaw);
+    }
+    if (descriptionSections.description) {
+      return `<p>${DOMPurify.sanitize(descriptionSections.description).replace(/\n/g, "<br>")}</p>`;
+    }
+    return null;
+  }, [descriptionHtmlRaw, descriptionSections.description]);
   const hasEditorRole = auth.roles.some((role) =>
     role === "dr_events_admin" || role === "dr_events_editor" || role === "admin" || role === "editor"
   );
@@ -330,24 +349,10 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
           </div>
         </div>
       </div>
-      {(descriptionSections.bio || descriptionSections.info || descriptionSections.description) && (
+      {sanitizedDescriptionHtml && (
         <div>
           <h3>{t("organizerDetail.descriptionLabel")}</h3>
-          {descriptionSections.bio && (
-            <div className="meta organizer-description-text">
-              <strong>{t("organizerDetail.bio")}:</strong> {descriptionSections.bio}
-            </div>
-          )}
-          {descriptionSections.info && (
-            <div className="meta organizer-description-text">
-              <strong>{t("organizerDetail.info")}:</strong> {descriptionSections.info}
-            </div>
-          )}
-          {descriptionSections.description && (
-            <div className="meta organizer-description-text">
-              <strong>{t("organizerDetail.description")}:</strong> {descriptionSections.description}
-            </div>
-          )}
+          <div className="meta organizer-description-text" dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }} />
         </div>
       )}
       <div className="kv">
@@ -414,7 +419,8 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
         const locationCountry = location.country_code
           ? (regionNames?.of(location.country_code.toUpperCase()) ?? location.country_code.toUpperCase())
           : null;
-        const locationLabel = location.label?.trim() || "";
+        const locationLabelRaw = location.label?.trim() || "";
+        const locationLabel = locationLabelRaw.toLowerCase() === "unknown" ? "" : locationLabelRaw;
         const locationAddress = location.formatted_address?.trim() || "";
         const hasCustomTitle = Boolean(locationLabel || locationAddress);
         const locationTitle = locationLabel

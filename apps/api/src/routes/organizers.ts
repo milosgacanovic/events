@@ -8,7 +8,7 @@ import {
   searchOrganizers,
   updateOrganizer,
 } from "../db/organizerRepo";
-import { getSearchCache, setSearchCache } from "../services/searchCache";
+import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 
 const querySchema = z.object({
   q: z.string().optional(),
@@ -128,6 +128,7 @@ function mapOrganizerDetail(result: Record<string, unknown>) {
     organizer: {
       ...organizer,
       imageUrl,
+      descriptionHtml: typeof organizer.description_html === "string" ? organizer.description_html : null,
       descriptionJson: organizer.description_json ?? {},
       websiteUrl: typeof organizer.website_url === "string" ? organizer.website_url : null,
       externalUrl: typeof organizer.external_url === "string" ? organizer.external_url : null,
@@ -206,7 +207,17 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
-    const result = await getOrganizerBySlug(app.db, parsed.data.slug);
+    if (request.headers.authorization) {
+      try {
+        await app.authenticate(request);
+      } catch {
+        // Ignore optional auth failures to keep public detail accessible.
+      }
+    }
+
+    const result = await getOrganizerBySlug(app.db, parsed.data.slug, {
+      includeNonPublic: Boolean(request.auth?.isEditor),
+    });
     if (!result) {
       reply.code(404);
       return { error: "not_found" };
@@ -243,6 +254,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const organizer = await createOrganizer(app.db, parsed.data);
+    clearSearchCache();
     reply.code(201);
     return organizer;
   });
@@ -267,6 +279,8 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       reply.code(404);
       return { error: "not_found" };
     }
+
+    clearSearchCache();
 
     return organizer;
   });

@@ -10,6 +10,7 @@ type OrganizerRow = {
   external_source: string | null;
   external_id: string | null;
   description_json: Record<string, unknown>;
+  description_html: string | null;
   website_url: string | null;
   external_url: string | null;
   tags: string[];
@@ -21,6 +22,21 @@ type OrganizerRow = {
   status: "published" | "draft" | "archived";
   created_at: string;
   updated_at: string;
+};
+
+type OrganizerLocationInput = {
+  id?: string;
+  externalSource?: string | null;
+  externalId?: string | null;
+  isPrimary?: boolean;
+  label?: string | null;
+  formattedAddress?: string | null;
+  city?: string | null;
+  countryCode?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  provider?: string | null;
+  placeId?: string | null;
 };
 
 export type OrganizerSearchInput = {
@@ -35,6 +51,50 @@ export type OrganizerSearchInput = {
   page: number;
   pageSize: number;
 };
+
+function normalizeDescriptionHtml(input: CreateOrganizerInput | UpdateOrganizerInput): string | null | undefined {
+  if (input.descriptionHtml !== undefined) {
+    return input.descriptionHtml?.trim() || null;
+  }
+  return undefined;
+}
+
+function normalizeLocations(
+  input: CreateOrganizerInput | UpdateOrganizerInput,
+): OrganizerLocationInput[] | undefined {
+  if (input.locations) {
+    return input.locations.map((location: OrganizerLocationInput) => ({
+      ...location,
+      countryCode: location.countryCode?.toLowerCase() ?? null,
+      label: location.label?.trim() || null,
+      formattedAddress: location.formattedAddress?.trim() || null,
+      city: location.city?.trim() || null,
+      provider: location.provider?.trim() || null,
+      placeId: location.placeId?.trim() || null,
+      externalSource: location.externalSource?.trim() || null,
+      externalId: location.externalId?.trim() || null,
+    }));
+  }
+  if (input.primaryLocation !== undefined) {
+    if (input.primaryLocation === null) {
+      return [];
+    }
+    return [{
+      isPrimary: true,
+      label: input.primaryLocation.label?.trim() || null,
+      formattedAddress: input.primaryLocation.formattedAddress?.trim() || null,
+      city: input.primaryLocation.city?.trim() || null,
+      countryCode: input.primaryLocation.countryCode?.trim().toLowerCase() || null,
+      lat: input.primaryLocation.lat ?? null,
+      lng: input.primaryLocation.lng ?? null,
+      provider: null,
+      placeId: null,
+      externalSource: null,
+      externalId: null,
+    }];
+  }
+  return undefined;
+}
 
 function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageSize">): {
   whereSql: string;
@@ -350,10 +410,24 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
   };
 }
 
-export async function getOrganizerBySlug(pool: Pool, slug: string) {
+export async function getOrganizerBySlug(
+  pool: Pool,
+  slug: string,
+  options?: {
+    includeNonPublic?: boolean;
+  },
+) {
+  const includeNonPublic = options?.includeNonPublic ?? false;
   const organizer = await pool.query<OrganizerRow>(
-    `select * from organizers where slug = $1 and status = 'published'`,
-    [slug],
+    `
+      select * from organizers
+      where slug = $1
+        and (
+          status = 'published'
+          or ($2::boolean = true and status in ('draft', 'archived'))
+        )
+    `,
+    [slug, includeNonPublic],
   );
 
   if (!organizer.rowCount) {
@@ -428,6 +502,9 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
 
   const locations = await pool.query<{
     id: string;
+    is_primary: boolean;
+    external_source: string | null;
+    external_id: string | null;
     label: string | null;
     formatted_address: string | null;
     country_code: string | null;
@@ -438,6 +515,9 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
     `
       select
         ol.id,
+        ol.is_primary,
+        ol.external_source,
+        ol.external_id,
         ol.label,
         ol.formatted_address,
         ol.country_code,
@@ -446,7 +526,7 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
         st_x(ol.geom::geometry) as lng
       from organizer_locations ol
       where ol.organizer_id = $1
-      order by ol.created_at desc
+      order by ol.is_primary desc, ol.created_at desc
       limit 5
     `,
     [organizer.rows[0].id],
@@ -513,6 +593,8 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
   const imageUrl = input.imageUrl ?? input.avatarPath ?? null;
   const locationCity = input.primaryLocation?.city ?? input.city ?? null;
   const locationCountryCode = input.primaryLocation?.countryCode ?? input.countryCode ?? null;
+  const normalizedLocations = normalizeLocations(input);
+  const normalizedDescriptionHtml = normalizeDescriptionHtml(input);
   const client = await pool.connect();
   try {
     await client.query("begin");
@@ -524,6 +606,7 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
         external_source,
         external_id,
         description_json,
+        description_html,
         website_url,
         external_url,
         tags,
@@ -534,7 +617,7 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
         avatar_path,
         status
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       returning *
     `,
     [
@@ -543,6 +626,7 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
       input.externalSource ?? null,
       input.externalId ?? null,
       JSON.stringify(input.descriptionJson ?? {}),
+      normalizedDescriptionHtml ?? null,
       input.websiteUrl ?? null,
       input.externalUrl ?? null,
       input.tags,
@@ -557,7 +641,7 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
     const created = result.rows[0];
     await syncOrganizerProfileRoles(client, created.id, input.profileRoleIds);
     await syncOrganizerPractices(client, created.id, input.practiceCategoryIds);
-    await syncOrganizerPrimaryLocation(client, created.id, input.primaryLocation);
+    await syncOrganizerLocations(client, created.id, normalizedLocations, input.primaryLocationId);
     await client.query("commit");
     return created;
   } catch (error) {
@@ -598,11 +682,14 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
   const imageUrl = input.imageUrl ?? input.avatarPath;
   const locationCity = input.primaryLocation?.city ?? input.city;
   const locationCountryCode = input.primaryLocation?.countryCode ?? input.countryCode;
+  const normalizedLocations = normalizeLocations(input);
+  const normalizedDescriptionHtml = normalizeDescriptionHtml(input);
   const fields: Record<string, unknown> = {
     name: input.name,
     external_source: input.externalSource,
     external_id: input.externalId,
     description_json: input.descriptionJson ? JSON.stringify(input.descriptionJson) : undefined,
+    description_html: normalizedDescriptionHtml,
     website_url: input.websiteUrl,
     external_url: input.externalUrl,
     tags: input.tags,
@@ -630,7 +717,7 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
     }
     await syncOrganizerProfileRoles(client, id, input.profileRoleIds);
     await syncOrganizerPractices(client, id, input.practiceCategoryIds);
-    await syncOrganizerPrimaryLocation(client, id, input.primaryLocation);
+    await syncOrganizerLocations(client, id, normalizedLocations, input.primaryLocationId);
     await client.query("commit");
     return updated;
   } catch (error) {
@@ -641,74 +728,100 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
   }
 }
 
-async function syncOrganizerPrimaryLocation(
+async function syncOrganizerLocations(
   client: PoolClient,
   organizerId: string,
-  primaryLocation:
-    | {
-      label?: string | null;
-      formattedAddress?: string | null;
-      city?: string | null;
-      countryCode?: string | null;
-      lat?: number | null;
-      lng?: number | null;
-    }
-    | null
-    | undefined,
+  locations: OrganizerLocationInput[] | undefined,
+  primaryLocationId: string | null | undefined,
 ) {
-  if (primaryLocation === undefined) {
+  if (locations === undefined) {
     return;
   }
-  if (primaryLocation === null) {
+  if (locations.length === 0) {
     await client.query("delete from organizer_locations where organizer_id = $1", [organizerId]);
     return;
   }
-  const hasAnyLocationValue = Boolean(
-    primaryLocation.label?.trim()
-      || primaryLocation.formattedAddress?.trim()
-      || primaryLocation.city?.trim()
-      || primaryLocation.countryCode?.trim()
-      || (primaryLocation.lat !== undefined && primaryLocation.lat !== null)
-      || (primaryLocation.lng !== undefined && primaryLocation.lng !== null),
-  );
-  if (!hasAnyLocationValue) {
+
+  const filtered = locations.filter((location) => Boolean(
+    location.label?.trim()
+      || location.formattedAddress?.trim()
+      || location.city?.trim()
+      || location.countryCode?.trim()
+      || (location.lat !== undefined && location.lat !== null)
+      || (location.lng !== undefined && location.lng !== null),
+  ));
+  if (filtered.length === 0) {
     await client.query("delete from organizer_locations where organizer_id = $1", [organizerId]);
     return;
   }
+
+  const explicitPrimaryId = primaryLocationId ?? null;
+  let primaryResolved = false;
+
   await client.query("delete from organizer_locations where organizer_id = $1", [organizerId]);
-  await client.query(
-    `
-      insert into organizer_locations (
-        organizer_id,
-        label,
-        formatted_address,
-        city,
-        country_code,
-        geom
-      )
-      values (
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        case
-          when $6::double precision is not null and $7::double precision is not null
-            then st_setsrid(st_makepoint($7::double precision, $6::double precision), 4326)::geography
-          else null
-        end
-      )
-    `,
-    [
-      organizerId,
-      primaryLocation.label?.trim() || null,
-      primaryLocation.formattedAddress?.trim() || null,
-      primaryLocation.city?.trim() || null,
-      primaryLocation.countryCode?.trim().toLowerCase() || null,
-      primaryLocation.lat ?? null,
-      primaryLocation.lng ?? null,
-    ],
-  );
+  for (let index = 0; index < filtered.length; index += 1) {
+    const location = filtered[index];
+    const isPrimary = explicitPrimaryId
+      ? location.id === explicitPrimaryId
+      : (!primaryResolved && (location.isPrimary || index === 0));
+    if (isPrimary) {
+      primaryResolved = true;
+    }
+    await client.query(
+      `
+        insert into organizer_locations (
+          organizer_id,
+          external_source,
+          external_id,
+          is_primary,
+          label,
+          formatted_address,
+          city,
+          country_code,
+          provider,
+          place_id,
+          verified_at,
+          geom
+        )
+        values (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          $10,
+          case
+            when $11::double precision is not null and $12::double precision is not null
+              then now()
+            else null
+          end,
+          case
+            when $11::double precision is not null and $12::double precision is not null
+              then st_setsrid(st_makepoint($12::double precision, $11::double precision), 4326)::geography
+            else null
+          end
+        )
+      `,
+      [
+        organizerId,
+        location.externalSource ?? null,
+        location.externalId ?? null,
+        isPrimary,
+        location.label?.trim() || null,
+        location.formattedAddress?.trim() || null,
+        location.city?.trim() || null,
+        location.countryCode?.trim().toLowerCase() || null,
+        location.provider?.trim() || null,
+        location.placeId?.trim() || null,
+        location.lat ?? null,
+        location.lng ?? null,
+      ],
+    );
+  }
 }
 
 async function syncOrganizerProfileRoles(

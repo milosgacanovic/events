@@ -14,10 +14,13 @@ import {
   getOrganizerByExternalRef,
   updateOrganizer,
 } from "../db/organizerRepo";
+import { geocodeSearch } from "../services/geocodeService";
+import { clearSearchCache } from "../services/searchCache";
 
 const eventQuerySchema = z.object({
   q: z.string().optional(),
   status: z.enum(["draft", "published", "cancelled", "archived"]).optional(),
+  showUnlisted: z.coerce.boolean().optional(),
   externalSource: z.string().trim().min(1).max(255).optional(),
   externalId: z.string().trim().min(1).max(255).optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -27,6 +30,7 @@ const eventQuerySchema = z.object({
 const organizerQuerySchema = z.object({
   q: z.string().optional(),
   status: z.enum(["draft", "published", "archived"]).optional(),
+  showArchived: z.coerce.boolean().optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });
@@ -38,11 +42,27 @@ const upsertOrganizerExternalSchema = z.object({
   websiteUrl: z.string().url().nullable().optional(),
   externalUrl: z.string().url().nullable().optional(),
   imageUrl: z.string().url().nullable().optional(),
+  descriptionHtml: z.string().max(100000).nullable().optional(),
   descriptionJson: z.record(z.any()).optional(),
   tags: z.array(z.string().min(1)).default([]),
   languages: z.array(z.string().min(2).max(16)).default([]),
   profileRoleIds: z.array(z.string().uuid()).optional(),
   practiceCategoryIds: z.array(z.string().uuid()).optional(),
+  locations: z.array(z.object({
+    id: z.string().uuid().optional(),
+    externalSource: z.string().max(255).nullable().optional(),
+    externalId: z.string().max(255).nullable().optional(),
+    isPrimary: z.boolean().optional(),
+    label: z.string().max(255).nullable().optional(),
+    formattedAddress: z.string().max(500).nullable().optional(),
+    city: z.string().max(120).nullable().optional(),
+    countryCode: z.string().min(2).max(8).nullable().optional(),
+    lat: z.number().gte(-90).lte(90).nullable().optional(),
+    lng: z.number().gte(-180).lte(180).nullable().optional(),
+    provider: z.string().max(64).nullable().optional(),
+    placeId: z.string().max(255).nullable().optional(),
+  })).optional(),
+  primaryLocationId: z.string().uuid().nullable().optional(),
   city: z.string().trim().min(1).max(120).nullable().optional(),
   countryCode: z.string().trim().min(2).max(8).nullable().optional(),
   status: z.enum(["published", "draft", "archived"]).default("published"),
@@ -126,7 +146,10 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       return { error: "externalSource and externalId must be provided together" };
     }
 
-    return listAdminEvents(app.db, parsed.data);
+    return listAdminEvents(app.db, {
+      ...parsed.data,
+      status: parsed.data.status ?? "published",
+    });
   });
 
   app.get("/admin/organizers", async (request, reply) => {
@@ -138,7 +161,10 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
-    return listAdminOrganizers(app.db, parsed.data);
+    return listAdminOrganizers(app.db, {
+      ...parsed.data,
+      status: parsed.data.status ?? (parsed.data.showArchived ? undefined : "published"),
+    });
   });
 
   app.get("/admin/events/:id", async (request, reply) => {
@@ -191,6 +217,21 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     return created;
   });
 
+  app.get("/admin/geocode/search", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const parsed = z.object({
+      q: z.string().trim().min(2),
+      limit: z.coerce.number().int().positive().max(10).default(8),
+    }).safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    return geocodeSearch(app.db, parsed.data.q, parsed.data.limit);
+  });
+
   app.post("/admin/organizers/upsert-external", async (request, reply) => {
     await app.requireEditor(request);
 
@@ -211,6 +252,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
         websiteUrl: parsed.data.websiteUrl ?? null,
         externalUrl: parsed.data.externalUrl ?? null,
         descriptionJson: parsed.data.descriptionJson ?? {},
+        descriptionHtml: parsed.data.descriptionHtml ?? null,
         tags: parsed.data.tags,
         languages: parsed.data.languages,
         imageUrl: parsed.data.imageUrl ?? null,
@@ -219,10 +261,13 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
         countryCode: parsed.data.countryCode ?? null,
         profileRoleIds: parsed.data.profileRoleIds,
         practiceCategoryIds: parsed.data.practiceCategoryIds,
+        locations: parsed.data.locations,
+        primaryLocationId: parsed.data.primaryLocationId,
         status: parsed.data.status,
         externalSource: parsed.data.externalSource,
         externalId: parsed.data.externalId,
       });
+      clearSearchCache();
       return {
         id: updated?.id ?? existing.id,
         slug: updated?.slug ?? existing.slug,
@@ -235,6 +280,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       websiteUrl: parsed.data.websiteUrl ?? null,
       externalUrl: parsed.data.externalUrl ?? null,
       descriptionJson: parsed.data.descriptionJson ?? {},
+      descriptionHtml: parsed.data.descriptionHtml ?? null,
       tags: parsed.data.tags,
       languages: parsed.data.languages,
       status: parsed.data.status,
@@ -244,9 +290,12 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       countryCode: parsed.data.countryCode ?? null,
       profileRoleIds: parsed.data.profileRoleIds,
       practiceCategoryIds: parsed.data.practiceCategoryIds,
+      locations: parsed.data.locations,
+      primaryLocationId: parsed.data.primaryLocationId,
       externalSource: parsed.data.externalSource,
       externalId: parsed.data.externalId,
     });
+    clearSearchCache();
     reply.code(201);
     return { id: created.id, slug: created.slug, created: true };
   });

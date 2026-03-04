@@ -5,6 +5,7 @@ export async function listAdminEvents(
   input: {
     q?: string;
     status?: "draft" | "published" | "cancelled" | "archived";
+    showUnlisted?: boolean;
     externalSource?: string;
     externalId?: string;
     page: number;
@@ -27,6 +28,9 @@ export async function listAdminEvents(
   if (input.status) {
     values.push(input.status);
     whereParts.push(`e.status = $${values.length}`);
+  }
+  if (!input.showUnlisted) {
+    whereParts.push("e.visibility = 'public'");
   }
 
   if (input.externalSource && input.externalId) {
@@ -106,6 +110,7 @@ export async function listAdminOrganizers(
   input: {
     q?: string;
     status?: "draft" | "published" | "archived";
+    showArchived?: boolean;
     page: number;
     pageSize: number;
   },
@@ -320,6 +325,7 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
     slug: string;
     name: string;
     description_json: Record<string, unknown>;
+    description_html: string | null;
     website_url: string | null;
     external_url: string | null;
     tags: string[];
@@ -338,6 +344,7 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
         o.slug,
         o.name,
         o.description_json,
+        o.description_html,
         o.website_url,
         o.external_url,
         o.tags,
@@ -404,6 +411,12 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
     ),
     pool.query<{
       id: string;
+      is_primary: boolean;
+      external_source: string | null;
+      external_id: string | null;
+      provider: string | null;
+      place_id: string | null;
+      verified_at: string | null;
       label: string | null;
       formatted_address: string | null;
       city: string | null;
@@ -414,6 +427,12 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
       `
         select
           ol.id,
+          ol.is_primary,
+          ol.external_source,
+          ol.external_id,
+          ol.provider,
+          ol.place_id,
+          ol.verified_at,
           ol.label,
           ol.formatted_address,
           ol.city,
@@ -422,7 +441,7 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
           st_x(ol.geom::geometry) as lng
         from organizer_locations ol
         where ol.organizer_id = $1
-        order by ol.created_at desc
+        order by ol.is_primary desc, ol.created_at desc
       `,
       [organizerId],
     ),

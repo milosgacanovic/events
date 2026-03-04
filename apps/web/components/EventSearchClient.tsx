@@ -1221,7 +1221,6 @@ export function EventSearchClient({
               title={t("eventSearch.sort.soonestUpcoming")}
             >
               <span aria-hidden className="icon-glyph">↑</span>
-              <span className="icon-label">{t("eventSearch.sort.soonestUpcoming")}</span>
             </button>
             <button
               type="button"
@@ -1234,7 +1233,6 @@ export function EventSearchClient({
               title={t("eventSearch.sort.newestPublished")}
             >
               <span aria-hidden className="icon-glyph">↓</span>
-              <span className="icon-label">{t("eventSearch.sort.newestPublished")}</span>
             </button>
             </div>
             <div className="icon-group with-separator">

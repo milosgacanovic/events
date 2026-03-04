@@ -389,17 +389,27 @@ export async function getEventByIdWithLocation(
   };
 }
 
-export async function getEventBySlug(pool: Pool, slug: string) {
+export async function getEventBySlug(
+  pool: Pool,
+  slug: string,
+  options?: {
+    includeNonPublic?: boolean;
+  },
+) {
+  const includeNonPublic = options?.includeNonPublic ?? false;
   const eventRes = await pool.query<EventSeriesRow & { event_format_key: string | null; event_format_label: string | null }>(
     `
       select e.*, ef.key as event_format_key, ef.label as event_format_label
       from events e
       left join event_formats ef on ef.id = e.event_format_id
       where e.slug = $1
-        and e.status in ('published', 'cancelled')
+        and (
+          e.status in ('published', 'cancelled')
+          or ($2::boolean = true and e.status in ('draft', 'archived'))
+        )
       limit 1
     `,
-    [slug],
+    [slug, includeNonPublic],
   );
 
   const event = eventRes.rows[0];

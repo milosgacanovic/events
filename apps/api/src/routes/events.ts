@@ -571,7 +571,17 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
-    const event = await getEventBySlug(app.db, parsed.data.slug);
+    if (request.headers.authorization) {
+      try {
+        await app.authenticate(request);
+      } catch {
+        // Keep public details accessible even when optional auth fails.
+      }
+    }
+
+    const event = await getEventBySlug(app.db, parsed.data.slug, {
+      includeNonPublic: Boolean(request.auth?.isEditor),
+    });
     if (!event) {
       reply.code(404);
       return { error: "not_found" };
