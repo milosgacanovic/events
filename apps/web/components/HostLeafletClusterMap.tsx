@@ -26,13 +26,14 @@ type ClusterFeature = {
     point_count?: number;
     organizer_id?: string;
     organizer_slug?: string;
+    organizer_name?: string;
+    practice_labels?: string[];
   };
 };
 
 type ClusterResponse = {
   type: "FeatureCollection";
   features: ClusterFeature[];
-  truncated?: boolean;
 };
 
 function MapChangeWatcher({ onChange }: { onChange: () => void }) {
@@ -64,7 +65,7 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
     lat: feature.geometry.coordinates[1],
     lng: feature.geometry.coordinates[0],
   }));
-  if (zoom < 12) {
+  if (zoom < 8) {
     return base;
   }
 
@@ -88,7 +89,8 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
     const cosLat = Math.max(Math.cos((centerLat * Math.PI) / 180), 0.2);
     for (let i = 0; i < markers.length; i += 1) {
       const ring = Math.floor(i / 8);
-      const radiusMeters = 40 + ring * 24;
+      const baseMeters = zoom <= 8 ? 900 : zoom === 9 ? 780 : zoom === 10 ? 660 : zoom === 11 ? 540 : 420;
+      const radiusMeters = baseMeters + ring * 150;
       const angle = (2 * Math.PI * i) / Math.max(markers.length, 1);
       const latOffset = (radiusMeters / 111_320) * Math.sin(angle);
       const lngOffset = (radiusMeters / (111_320 * cosLat)) * Math.cos(angle);
@@ -102,34 +104,41 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
 
 export function HostLeafletClusterMap({
   queryString,
-  refreshToken,
 }: {
   queryString: string;
-  refreshToken: number;
 }) {
   const { t } = useI18n();
   const router = useRouter();
   const mapRef = useRef<LeafletMap | null>(null);
   const requestRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRequestKeyRef = useRef<string>("");
 
   const [features, setFeatures] = useState<ClusterFeature[]>([]);
-  const [truncated, setTruncated] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [currentZoom, setCurrentZoom] = useState(2);
+  const [mapReady, setMapReady] = useState(false);
 
   const tileUrl =
     process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   const refreshClusters = useCallback(async () => {
-    if (!mapRef.current) {
+    if (!mapRef.current || !mapReady) {
       return;
     }
 
     const bounds = mapRef.current.getBounds();
+    if (!bounds.isValid()) {
+      return;
+    }
     const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(",");
     const zoom = Math.round(mapRef.current.getZoom());
     setCurrentZoom(zoom);
+    const requestKey = `${queryString}|${bbox}|${zoom}`;
+    if (lastRequestKeyRef.current === requestKey) {
+      return;
+    }
+    lastRequestKeyRef.current = requestKey;
 
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
@@ -151,16 +160,15 @@ export function HostLeafletClusterMap({
       }
 
       setFeatures(data.features ?? []);
-      setTruncated(Boolean(data.truncated));
       setStatus("idle");
     } catch {
       if (requestRef.current !== requestId) {
         return;
       }
-      setTruncated(false);
+      lastRequestKeyRef.current = "";
       setStatus("error");
     }
-  }, [queryString]);
+  }, [mapReady, queryString]);
 
   const scheduleRefresh = useCallback(() => {
     if (debounceRef.current) {
@@ -172,8 +180,11 @@ export function HostLeafletClusterMap({
   }, [refreshClusters]);
 
   useEffect(() => {
+    if (!mapReady) {
+      return;
+    }
     void refreshClusters();
-  }, [refreshClusters, refreshToken]);
+  }, [mapReady, refreshClusters]);
 
   useEffect(() => () => {
     if (debounceRef.current) {
@@ -218,7 +229,14 @@ export function HostLeafletClusterMap({
             <Tooltip>
               {isCluster
                 ? t("map.tooltip.cluster", { count: pointCount })
-                : feature.properties.organizer_slug ?? t("common.unknown")}
+                : (() => {
+                    const name = feature.properties.organizer_name?.trim() || t("common.unknown");
+                    const practices = (feature.properties.practice_labels ?? []).filter(Boolean);
+                    if (practices.length === 0) {
+                      return name;
+                    }
+                    return `${name} (${practices.join(", ")})`;
+                  })()}
             </Tooltip>
           </CircleMarker>
         );
@@ -237,7 +255,10 @@ export function HostLeafletClusterMap({
           mapRef.current = instance;
         }}
         whenReady={() => {
-          void refreshClusters();
+          setMapReady(true);
+          window.setTimeout(() => {
+            mapRef.current?.invalidateSize();
+          }, 80);
         }}
       >
         <TileLayer
@@ -252,14 +273,7 @@ export function HostLeafletClusterMap({
         {markers}
       </MapContainer>
 
-      <div className="map-status">
-        <div>{t("map.note.geoOnly")}</div>
-        {status === "loading" ? t("map.status.loading") : null}
-        {status === "error" ? t("map.status.error") : null}
-        {status === "idle" ? t("map.status.idle", { count: features.length }) : null}
-        {status === "idle" && features.length === 0 ? <div>{t("map.status.empty")}</div> : null}
-        {status === "idle" && truncated ? <div>{t("map.status.truncated")}</div> : null}
-      </div>
+      {status === "error" ? <div className="map-status">{t("map.status.error")}</div> : null}
     </div>
   );
 }

@@ -18,7 +18,7 @@ const mapQuerySchema = z.object({
   practiceSubcategoryId: z.string().uuid().optional(),
   tags: z.string().optional(),
   languages: z.string().optional(),
-  attendanceMode: z.enum(["in_person", "online", "hybrid"]).optional(),
+  attendanceMode: z.string().optional(),
   organizerId: z.string().uuid().optional(),
   countryCode: z.string().optional(),
   city: z.string().optional(),
@@ -87,6 +87,15 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
 
     const tags = parseCsv(parsed.data.tags);
     const languages = parseCsv(parsed.data.languages);
+    const rawAttendanceModes = parseCsv(parsed.data.attendanceMode);
+    const attendanceModes = rawAttendanceModes.filter(
+      (value): value is "in_person" | "online" | "hybrid" =>
+        value === "in_person" || value === "online" || value === "hybrid",
+    );
+    if (rawAttendanceModes.length > 0 && attendanceModes.length !== rawAttendanceModes.length) {
+      reply.code(400);
+      return { error: "invalid_attendance_mode" };
+    }
     const practiceCategoryIds = parseUuidCsv(parsed.data.practiceCategoryId);
     if (!practiceCategoryIds) {
       reply.code(400);
@@ -102,7 +111,7 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       practiceSubcategoryId: parsed.data.practiceSubcategoryId ?? null,
       tags,
       languages,
-      attendanceMode: parsed.data.attendanceMode ?? null,
+      attendanceMode: attendanceModes.join(",") || null,
       organizerId: parsed.data.organizerId ?? null,
       countryCode: parsed.data.countryCode ?? null,
       city: parsed.data.city ?? null,
@@ -128,7 +137,7 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       practiceSubcategoryId: parsed.data.practiceSubcategoryId,
       tags,
       languages,
-      attendanceMode: parsed.data.attendanceMode,
+      attendanceModes,
       organizerId: parsed.data.organizerId,
       countryCode: parsed.data.countryCode,
       city: parsed.data.city,

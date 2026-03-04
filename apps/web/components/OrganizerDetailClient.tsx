@@ -12,6 +12,8 @@ type OrganizerDetail = {
   organizer: {
     id: string;
     name: string;
+    roleKeys?: string[];
+    roleKey?: string | null;
     imageUrl?: string | null;
     avatar_path?: string | null;
     website_url: string | null;
@@ -40,12 +42,14 @@ type OrganizerDetail = {
     starts_at_utc: string;
     event_slug: string;
     event_title: string;
+    coverImageUrl?: string | null;
   }>;
   pastOccurrences: Array<{
     occurrence_id: string;
     starts_at_utc: string;
     event_slug: string;
     event_title: string;
+    coverImageUrl?: string | null;
   }>;
   practiceCategoryIds?: string[];
 };
@@ -168,6 +172,10 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const practiceLabels = (data.practiceCategoryIds ?? [])
     .map((item) => practiceLabelById.get(item))
     .filter((item): item is string => Boolean(item));
+  const roleLabels = Array.from(new Set(data.organizer.roleKeys ?? []));
+  const hasGeoLocation = data.locations.some((location) =>
+    location.lat !== null && location.lat !== undefined && location.lng !== null && location.lng !== undefined
+  );
 
   async function createAlert() {
     const organizerId = data?.organizer.id;
@@ -256,6 +264,11 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
         </div>
       )}
       <div className="kv">
+        {roleLabels.map((item) => (
+          <span className="tag" key={`role-${item}`}>
+            {`${t("organizerSearch.hostType")}: ${item}`}
+          </span>
+        ))}
         {data.organizer.languages.map((item) => (
           <span className="tag" key={item}>
             {labelForLanguageCode(item, languageNames)}
@@ -272,7 +285,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
           </span>
         ))}
       </div>
-      {auth.authenticated && (
+      {auth.authenticated && hasGeoLocation && (
         <div className="card">
           <h3>{t("organizerDetail.alert.title")}</h3>
           <div className="meta">{t("organizerDetail.alert.description")}</div>
@@ -338,6 +351,17 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
       {data.upcomingOccurrences.length === 0 && <div className="muted">{t("organizerDetail.noUpcoming")}</div>}
       {data.upcomingOccurrences.map((item) => (
         <div className="card" key={item.occurrence_id}>
+          {item.coverImageUrl && (
+            <div className="event-card-thumb-shell event-card-thumb-shell-sm">
+              <img
+                className="event-card-thumb"
+                src={item.coverImageUrl}
+                alt={item.event_title}
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          )}
           <Link href={`/events/${item.event_slug}`}>{item.event_title}</Link>
           <div className="meta">{new Date(item.starts_at_utc).toLocaleString(locale)}</div>
         </div>

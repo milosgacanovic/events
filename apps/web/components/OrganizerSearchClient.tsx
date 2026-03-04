@@ -2,11 +2,13 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
+import { scrollToTopFast } from "../lib/scroll";
+import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
 type OrganizerSearchResponse = {
@@ -75,8 +77,13 @@ export function OrganizerSearchClient({
   initialQuery?: OrganizerSearchInitialQuery;
 }) {
   const { locale, t } = useI18n();
+  const auth = useKeycloakAuth();
+  const canSeeDetailedErrors = auth.authenticated && auth.roles.some((role) =>
+    role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
+  );
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [view, setView] = useState<"list" | "map">(initialQuery?.view ?? "list");
   const [q, setQ] = useState(initialQuery?.q ?? "");
   const [roleKeys, setRoleKeys] = useState<string[]>(initialQuery?.roleKeys ?? []);
@@ -97,12 +104,21 @@ export function OrganizerSearchClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<OrganizerSearchResponse | null>(null);
+  const [roleFacetCounts, setRoleFacetCounts] = useState<Record<string, number>>({});
+  const [languageFacetCounts, setLanguageFacetCounts] = useState<Record<string, number>>({});
   const [practiceFacetCounts, setPracticeFacetCounts] = useState<Record<string, number>>({});
-  const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
-  const [mapRefreshToken, setMapRefreshToken] = useState(0);
+  const [countryFacetCounts, setCountryFacetCounts] = useState<Record<string, number>>({});
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
+  const [hostTypeOpen, setHostTypeOpen] = useState((initialQuery?.roleKeys?.length ?? 0) > 0);
+  const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);
+  const [languageOpen, setLanguageOpen] = useState((initialQuery?.languages?.length ?? 0) > 0);
+  const [countryOpen, setCountryOpen] = useState((initialQuery?.countryCodes?.length ?? 0) > 0);
   const restoredKeyRef = useRef<string | null>(null);
+  const syncingFromUrlRef = useRef(false);
+  const roleFacetRequestRef = useRef(0);
+  const languageFacetRequestRef = useRef(0);
   const practiceFacetRequestRef = useRef(0);
+  const cityInputRef = useRef<HTMLInputElement | null>(null);
   const practiceLabelById = useMemo(() => {
     const map = new Map<string, string>();
     for (const category of taxonomy?.practices.categories ?? []) {
@@ -160,6 +176,42 @@ export function OrganizerSearchClient({
     params.set("pageSize", "1");
     return params.toString();
   }, [q, roleKeys, tags, languages, countryCodes, cities]);
+  const buildRoleFacetQueryString = useCallback(() => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+    if (tags.length) params.set("tags", tags.join(","));
+    if (languages.length) params.set("languages", languages.join(","));
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+    if (cities.length) params.set("city", cities.join(","));
+    params.set("page", "1");
+    params.set("pageSize", "1");
+    return params.toString();
+  }, [q, practiceCategoryIds, tags, languages, countryCodes, cities]);
+  const buildLanguageFacetQueryString = useCallback(() => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
+    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+    if (tags.length) params.set("tags", tags.join(","));
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+    if (cities.length) params.set("city", cities.join(","));
+    params.set("page", "1");
+    params.set("pageSize", "1");
+    return params.toString();
+  }, [q, roleKeys, practiceCategoryIds, tags, countryCodes, cities]);
+  const buildCountryFacetQueryString = useCallback(() => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
+    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+    if (tags.length) params.set("tags", tags.join(","));
+    if (languages.length) params.set("languages", languages.join(","));
+    if (cities.length) params.set("city", cities.join(","));
+    params.set("page", "1");
+    params.set("pageSize", "1");
+    return params.toString();
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, cities]);
 
   const buildUiQueryString = useCallback(() => {
     const params = new URLSearchParams();
@@ -189,6 +241,58 @@ export function OrganizerSearchClient({
     if (cities.length) params.set("city", cities.join(","));
     return params.toString();
   }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
+  const activeQueryString = useMemo(() => buildMapQueryString(), [buildMapQueryString]);
+
+  useEffect(() => {
+    const readCsv = (key: string) =>
+      (searchParams.get(key) ?? "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+    const nextQ = searchParams.get("q") ?? "";
+    const practiceIdsFromUrl = [
+      ...readCsv("practiceCategoryId"),
+      ...readCsv("practice").map((key) => taxonomy?.practices.categories.find((item) => item.key === key)?.id ?? "")
+        .filter(Boolean),
+    ];
+    const nextPracticeCategoryIds = Array.from(new Set(practiceIdsFromUrl));
+    const nextRoleKeys = readCsv("roleKey");
+    const nextTags = readCsv("tags").map((item) => item.toLowerCase());
+    const nextLanguages = readCsv("languages").map((item) => item.toLowerCase());
+    const nextCountryCodes = readCsv("countryCode").map((item) => item.toLowerCase());
+    const nextCities = readCsv("city");
+    const nextView = searchParams.get("view") === "map" ? "map" : "list";
+    const parsedPage = Number(searchParams.get("page") ?? "1");
+    const nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+
+    syncingFromUrlRef.current = true;
+    setQ(nextQ);
+    setRoleKeys(nextRoleKeys);
+    setPracticeCategoryIds(nextPracticeCategoryIds);
+    setTags(nextTags);
+    setLanguages(nextLanguages);
+    setCountryCodes(nextCountryCodes);
+    setCities(nextCities);
+    setView(nextView);
+    setPage(nextPage);
+    window.setTimeout(() => {
+      syncingFromUrlRef.current = false;
+    }, 0);
+  }, [searchParams, taxonomy]);
+
+  useEffect(() => {
+    if (roleKeys.length > 0) setHostTypeOpen(true);
+  }, [roleKeys.length]);
+  useEffect(() => {
+    if (practiceCategoryIds.length > 0) setPracticeOpen(true);
+  }, [practiceCategoryIds.length]);
+  useEffect(() => {
+    if (languages.length > 0) setLanguageOpen(true);
+  }, [languages.length]);
+  useEffect(() => {
+    if (countryCodes.length > 0) setCountryOpen(true);
+  }, [countryCodes.length]);
 
   const scrollStorageKey = useMemo(() => {
     const query = buildUiQueryString();
@@ -217,11 +321,11 @@ export function OrganizerSearchClient({
       setData(result);
       setPage(nextPage);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("organizerSearch.error.searchFailed"));
+      setError(canSeeDetailedErrors && err instanceof Error ? err.message : t("organizerSearch.error.searchFailed"));
     } finally {
       setLoading(false);
     }
-  }, [buildQueryString, page, t]);
+  }, [buildQueryString, canSeeDetailedErrors, page, t]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -229,12 +333,6 @@ export function OrganizerSearchClient({
     }, 250);
     return () => clearTimeout(timer);
   }, [runSearch, page]);
-
-  useEffect(() => {
-    const query = buildMapQueryString();
-    setActiveQueryString(query);
-    setMapRefreshToken((current) => current + 1);
-  }, [buildMapQueryString]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -256,8 +354,63 @@ export function OrganizerSearchClient({
     }, 250);
     return () => clearTimeout(timer);
   }, [buildPracticeFacetQueryString]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const requestId = roleFacetRequestRef.current + 1;
+      roleFacetRequestRef.current = requestId;
+      void fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildRoleFacetQueryString()}`)
+        .then((response) => {
+          if (requestId !== roleFacetRequestRef.current) {
+            return;
+          }
+          setRoleFacetCounts(response.facets?.roleKey ?? {});
+        })
+        .catch(() => {
+          if (requestId !== roleFacetRequestRef.current) {
+            return;
+          }
+          setRoleFacetCounts({});
+        });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [buildRoleFacetQueryString]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const requestId = languageFacetRequestRef.current + 1;
+      languageFacetRequestRef.current = requestId;
+      void fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildLanguageFacetQueryString()}`)
+        .then((response) => {
+          if (requestId !== languageFacetRequestRef.current) {
+            return;
+          }
+          setLanguageFacetCounts(response.facets?.languages ?? {});
+        })
+        .catch(() => {
+          if (requestId !== languageFacetRequestRef.current) {
+            return;
+          }
+          setLanguageFacetCounts({});
+        });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [buildLanguageFacetQueryString]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildCountryFacetQueryString()}`)
+        .then((response) => {
+          setCountryFacetCounts(response.facets?.countryCode ?? {});
+        })
+        .catch(() => {
+          setCountryFacetCounts({});
+        });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [buildCountryFacetQueryString]);
 
   useEffect(() => {
+    if (syncingFromUrlRef.current) {
+      return;
+    }
     const timer = setTimeout(() => {
       const queryString = buildUiQueryString();
       router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
@@ -367,6 +520,13 @@ export function OrganizerSearchClient({
     const localized = regionNames?.of(normalized);
     return localized && localized !== normalized ? localized : normalized;
   }, [regionNames]);
+  const formatCityLabel = useCallback((value: string) => {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      return normalized;
+    }
+    return normalized.replace(/(^|[\s-])([a-z])/g, (_match, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`);
+  }, []);
   const categorySingularLabel =
     taxonomy?.uiLabels?.categorySingular ??
     taxonomy?.uiLabels?.practiceCategory ??
@@ -374,7 +534,7 @@ export function OrganizerSearchClient({
   const visibleRoleFacets = useMemo(() => {
     const selectedSet = new Set(roleKeys);
     const merged = new Map<string, number>();
-    for (const [key, value] of Object.entries(data?.facets?.roleKey ?? {})) {
+    for (const [key, value] of Object.entries(roleFacetCounts ?? {})) {
       if (value > 0 || selectedSet.has(key)) {
         merged.set(key, value);
       }
@@ -383,11 +543,11 @@ export function OrganizerSearchClient({
       if (!merged.has(key)) merged.set(key, 0);
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.roleKey, roleKeys]);
+  }, [roleFacetCounts, roleKeys]);
   const visibleLanguageFacets = useMemo(() => {
     const selectedSet = new Set(languages);
     const merged = new Map<string, number>();
-    for (const [key, value] of Object.entries(data?.facets?.languages ?? {})) {
+    for (const [key, value] of Object.entries(languageFacetCounts ?? {})) {
       if (value > 0 || selectedSet.has(key)) {
         merged.set(key, value);
       }
@@ -396,11 +556,11 @@ export function OrganizerSearchClient({
       if (!merged.has(key)) merged.set(key, 0);
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.languages, languages]);
+  }, [languageFacetCounts, languages]);
   const visibleCountryFacets = useMemo(() => {
     const selectedSet = new Set(countryCodes);
     const merged = new Map<string, number>();
-    for (const [keyRaw, value] of Object.entries(data?.facets?.countryCode ?? {})) {
+    for (const [keyRaw, value] of Object.entries(countryFacetCounts ?? {})) {
       const key = keyRaw.toLowerCase();
       if (value > 0 || selectedSet.has(key)) {
         merged.set(key, value);
@@ -410,7 +570,7 @@ export function OrganizerSearchClient({
       if (!merged.has(key)) merged.set(key, 0);
     }
     return Array.from(merged.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [data?.facets?.countryCode, countryCodes]);
+  }, [countryFacetCounts, countryCodes]);
   const practiceCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const [practiceId, count] of Object.entries(practiceFacetCounts ?? {})) {
@@ -478,7 +638,7 @@ export function OrganizerSearchClient({
     for (const city of cities) {
       chips.push({
         key: `city:${city}`,
-        label: `${t("organizerSearch.placeholder.city")}: ${city}`,
+        label: `${t("organizerSearch.cityLabel")}: ${formatCityLabel(city)}`,
         onRemove: () => {
           setCities((current) => current.filter((item) => item !== city));
           setPage(1);
@@ -486,7 +646,7 @@ export function OrganizerSearchClient({
       });
     }
     return chips;
-  }, [categorySingularLabel, cities, countryCodes, getCountryLabel, getLanguageLabel, languages, practiceCategoryIds, practiceLabelById, roleKeys, t, tags]);
+  }, [categorySingularLabel, cities, countryCodes, formatCityLabel, getCountryLabel, getLanguageLabel, languages, practiceCategoryIds, practiceLabelById, roleKeys, t, tags]);
 
   const visibleTagSuggestions = useMemo(
     () => tagSuggestions.filter((item) => !tags.includes(item.tag)),
@@ -514,6 +674,20 @@ export function OrganizerSearchClient({
     }
     setCities((current) => (current.includes(value) ? current : [...current, value]));
     setCityQuery("");
+    cityInputRef.current?.blur();
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setQ("");
+    setRoleKeys([]);
+    setPracticeCategoryIds([]);
+    setTags([]);
+    setTagQuery("");
+    setLanguages([]);
+    setCountryCodes([]);
+    setCities([]);
+    setCityQuery("");
     setPage(1);
   }
 
@@ -521,22 +695,6 @@ export function OrganizerSearchClient({
     <section className="grid">
       <aside className="panel filters">
         <h2 className="title-xl">{t("organizerSearch.title")}</h2>
-        <div className="kv">
-          <button
-            type="button"
-            className={view === "list" ? "secondary-btn" : "ghost-btn"}
-            onClick={() => setView("list")}
-          >
-            {t("eventSearch.view.list")}
-          </button>
-          <button
-            type="button"
-            className={view === "map" ? "secondary-btn" : "ghost-btn"}
-            onClick={() => setView("map")}
-          >
-            {t("eventSearch.view.map")}
-          </button>
-        </div>
         <input
           value={q}
           onChange={(event) => {
@@ -546,7 +704,10 @@ export function OrganizerSearchClient({
           placeholder={t("organizerSearch.placeholder.searchName")}
         />
 
-        <details open>
+        <details
+          open={hostTypeOpen}
+          onToggle={(event) => setHostTypeOpen((event.currentTarget as HTMLDetailsElement).open)}
+        >
           <summary>{t("organizerSearch.hostType")}</summary>
           <div className="kv">
             {visibleRoleFacets.map(([value, count]) => (
@@ -568,7 +729,10 @@ export function OrganizerSearchClient({
         </details>
 
         {(taxonomy?.practices.categories.length ?? 0) > 0 && (
-          <details open>
+          <details
+            open={practiceOpen}
+            onToggle={(event) => setPracticeOpen((event.currentTarget as HTMLDetailsElement).open)}
+          >
             <summary>{categorySingularLabel}</summary>
             <div className="kv">
               {taxonomy?.practices.categories
@@ -600,7 +764,10 @@ export function OrganizerSearchClient({
           </details>
         )}
 
-        <details open>
+        <details
+          open={languageOpen}
+          onToggle={(event) => setLanguageOpen((event.currentTarget as HTMLDetailsElement).open)}
+        >
           <summary>{t("organizerSearch.hostLanguage")}</summary>
           <div className="kv">
             {visibleLanguageFacets.map(([value, count]) => (
@@ -621,7 +788,10 @@ export function OrganizerSearchClient({
           </div>
         </details>
 
-        <details open>
+        <details
+          open={countryOpen}
+          onToggle={(event) => setCountryOpen((event.currentTarget as HTMLDetailsElement).open)}
+        >
           <summary>{t("organizerSearch.country")}</summary>
           <div className="kv">
             {visibleCountryFacets.map(([value, count]) => (
@@ -644,6 +814,7 @@ export function OrganizerSearchClient({
 
         <div className="autocomplete-wrap">
           <input
+            ref={cityInputRef}
             value={cityQuery}
             onFocus={() => setCitySuggestionsOpen(true)}
             onBlur={() => window.setTimeout(() => setCitySuggestionsOpen(false), 120)}
@@ -675,7 +846,7 @@ export function OrganizerSearchClient({
                     setCitySuggestionsOpen(false);
                   }}
                 >
-                  {item.city} ({item.count})
+                  {formatCityLabel(item.city)} ({item.count})
                 </button>
               ))}
             </div>
@@ -693,7 +864,7 @@ export function OrganizerSearchClient({
                   setPage(1);
                 }}
               >
-                {item} ×
+                {formatCityLabel(item)} ×
               </button>
             ))}
           </div>
@@ -755,13 +926,40 @@ export function OrganizerSearchClient({
             ))}
           </div>
         )}
+        <div className="kv">
+          <button type="button" className="secondary-btn" onClick={clearFilters} disabled={loading}>
+            {t("eventSearch.clearFilters")}
+          </button>
+        </div>
       </aside>
 
       <div className="panel cards">
-        <div className="meta">
-          {data
-            ? t("organizerSearch.totalCount", { count: data.total })
-            : t("organizerSearch.promptRun")}
+        <div className="results-toolbar">
+          <div className="meta">
+            {data
+              ? t("organizerSearch.totalCount", { count: data.total })
+              : t("organizerSearch.promptRun")}
+          </div>
+          <div className="results-toolbar-actions">
+            <button
+              type="button"
+              className={view === "list" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
+              onClick={() => setView("list")}
+              aria-label={t("eventSearch.view.list")}
+              title={t("eventSearch.view.list")}
+            >
+              <span aria-hidden>☰</span>
+            </button>
+            <button
+              type="button"
+              className={view === "map" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
+              onClick={() => setView("map")}
+              aria-label={t("eventSearch.view.map")}
+              title={t("eventSearch.view.map")}
+            >
+              <span aria-hidden>⌖</span>
+            </button>
+          </div>
         </div>
         {error && <div className="muted">{error}</div>}
 
@@ -776,7 +974,7 @@ export function OrganizerSearchClient({
         )}
 
         {view === "map" ? (
-          <HostLeafletClusterMap queryString={activeQueryString} refreshToken={mapRefreshToken} />
+          <HostLeafletClusterMap queryString={activeQueryString} />
         ) : null}
 
         {view === "list" && data?.items.map((item) => (
@@ -810,7 +1008,9 @@ export function OrganizerSearchClient({
                   .join(", ")}
               </div>
             )}
-            {item.roleKey && <div className="meta">{item.roleKey}</div>}
+            {(item.roleKeys?.length ?? 0) > 0 && (
+              <div className="meta">{Array.from(new Set(item.roleKeys ?? [])).join(", ")}</div>
+            )}
             {(item.websiteUrl ?? item.website_url) && (
               <div className="meta">
                 {(item.websiteUrl ?? item.website_url) as string}
@@ -835,7 +1035,10 @@ export function OrganizerSearchClient({
             <button
               className="secondary-btn"
               type="button"
-              onClick={() => void runSearch(currentPage - 1)}
+              onClick={() => {
+                void runSearch(currentPage - 1);
+                scrollToTopFast(160);
+              }}
               disabled={loading || currentPage <= 1}
               style={currentPage <= 1 ? { visibility: "hidden" } : undefined}
             >
@@ -847,7 +1050,10 @@ export function OrganizerSearchClient({
             <button
               className="secondary-btn"
               type="button"
-              onClick={() => void runSearch(currentPage + 1)}
+              onClick={() => {
+                void runSearch(currentPage + 1);
+                scrollToTopFast(160);
+              }}
               disabled={loading || currentPage >= totalPages}
               style={currentPage >= totalPages ? { visibility: "hidden" } : undefined}
             >

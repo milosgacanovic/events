@@ -44,17 +44,6 @@ type OrganizerOption = {
   name: string;
 };
 
-type AdminEvent = {
-  id: string;
-  slug: string;
-  title: string;
-  status: "draft" | "published" | "cancelled" | "archived";
-  attendance_mode: string;
-  schedule_kind: string;
-  updated_at: string;
-  published_at: string | null;
-};
-
 type AdminOrganizer = {
   id: string;
   slug: string;
@@ -89,6 +78,7 @@ type AdminEventDetailResponse = {
   duration_minutes: number | null;
   visibility: "public" | "unlisted";
   status: "draft" | "published" | "cancelled" | "archived";
+  cover_image_path: string | null;
   organizer_roles: Array<{
     organizer_id: string;
     role_id: string;
@@ -109,9 +99,16 @@ type AdminOrganizerDetailResponse = {
   id: string;
   slug: string;
   name: string;
+  description_json: Record<string, unknown>;
   website_url: string | null;
+  external_url: string | null;
+  image_url: string | null;
   tags: string[];
   languages: string[];
+  city: string | null;
+  country_code: string | null;
+  profile_role_ids?: string[];
+  practice_category_ids?: string[];
   status: "draft" | "published" | "archived";
 };
 
@@ -134,6 +131,7 @@ type EventEditorState = {
   rruleDtstartLocal: string;
   durationMinutes: string;
   visibility: "public" | "unlisted";
+  coverImageUrl: string;
   locationId: string | null;
   locationLabel: string;
 };
@@ -142,9 +140,16 @@ type OrganizerEditorState = {
   id: string;
   slug: string;
   name: string;
+  descriptionJson: string;
   websiteUrl: string;
+  externalUrl: string;
+  imageUrl: string;
   tags: string;
   languages: string;
+  city: string;
+  countryCode: string;
+  profileRoleIds: string[];
+  practiceCategoryIds: string[];
   status: "draft" | "published" | "archived";
 };
 
@@ -223,7 +228,6 @@ export function AdminConsole() {
   const [organizerOptions, setOrganizerOptions] = useState<OrganizerOption[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [loadingAdminContent, setLoadingAdminContent] = useState(false);
-  const [adminEvents, setAdminEvents] = useState<AdminEvent[]>([]);
   const [adminOrganizers, setAdminOrganizers] = useState<AdminOrganizer[]>([]);
 
   const [status, setStatus] = useState<string>("");
@@ -232,7 +236,13 @@ export function AdminConsole() {
   const [organizerWebsite, setOrganizerWebsite] = useState("");
   const [organizerLanguages, setOrganizerLanguages] = useState("en");
   const [organizerTags, setOrganizerTags] = useState("");
+  const [organizerCity, setOrganizerCity] = useState("");
+  const [organizerCountryCode, setOrganizerCountryCode] = useState("");
+  const [organizerProfileRoleIds, setOrganizerProfileRoleIds] = useState<string[]>([]);
+  const [organizerPracticeCategoryIds, setOrganizerPracticeCategoryIds] = useState<string[]>([]);
+  const [organizerImageUrl, setOrganizerImageUrl] = useState("");
   const [organizerAvatarFile, setOrganizerAvatarFile] = useState<File | null>(null);
+  const [organizerEditAvatarFile, setOrganizerEditAvatarFile] = useState<File | null>(null);
 
   const [eventTitle, setEventTitle] = useState("");
   const [attendanceMode, setAttendanceMode] = useState<"in_person" | "online" | "hybrid">("in_person");
@@ -249,6 +259,7 @@ export function AdminConsole() {
   const [eventLanguages, setEventLanguages] = useState("en");
   const [eventTags, setEventTags] = useState("");
   const [eventCoverFile, setEventCoverFile] = useState<File | null>(null);
+  const [eventCoverUrl, setEventCoverUrl] = useState("");
   const [createLocationQuery, setCreateLocationQuery] = useState("");
   const [createLocationResults, setCreateLocationResults] = useState<GeocodeResult[]>([]);
   const [createLocationLoading, setCreateLocationLoading] = useState(false);
@@ -294,14 +305,6 @@ export function AdminConsole() {
   const roleLabelsById = useMemo(
     () => new Map((taxonomy?.organizerRoles ?? []).map((role) => [role.id, role.label])),
     [taxonomy],
-  );
-  const attendanceModeLabel = useMemo(
-    () => (value: string) => t(`attendanceMode.${value}`),
-    [t],
-  );
-  const scheduleKindLabel = useMemo(
-    () => (value: string) => t(`common.scheduleKind.${value}`),
-    [t],
   );
   const statusLabel = useMemo(
     () => (value: string) => t(`common.status.${value}`),
@@ -600,19 +603,13 @@ export function AdminConsole() {
 
   async function loadAdminContent() {
     if (!hasEditorRole) {
-      setAdminEvents([]);
       setAdminOrganizers([]);
       return;
     }
 
     setLoadingAdminContent(true);
     try {
-      const [eventsResult, organizersResult] = await Promise.all([
-        authorizedGet<{ items: AdminEvent[] }>("/admin/events?page=1&pageSize=20"),
-        authorizedGet<{ items: AdminOrganizer[] }>("/admin/organizers?page=1&pageSize=20"),
-      ]);
-
-      setAdminEvents(eventsResult.items);
+      const organizersResult = await authorizedGet<{ items: AdminOrganizer[] }>("/admin/organizers?page=1&pageSize=20");
       setAdminOrganizers(organizersResult.items);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.loadAdminListsFailed"));
@@ -635,6 +632,11 @@ export function AdminConsole() {
           websiteUrl: organizerWebsite || null,
           tags: csvToArray(organizerTags),
           languages: csvToArray(organizerLanguages),
+          imageUrl: organizerImageUrl.trim() || null,
+          city: organizerCity.trim() || null,
+          countryCode: organizerCountryCode.trim() || null,
+          profileRoleIds: organizerProfileRoleIds,
+          practiceCategoryIds: organizerPracticeCategoryIds,
           status: "published",
         },
       );
@@ -652,8 +654,14 @@ export function AdminConsole() {
       setOrganizerName("");
       setOrganizerWebsite("");
       setOrganizerTags("");
+      setOrganizerCity("");
+      setOrganizerCountryCode("");
+      setOrganizerProfileRoleIds([]);
+      setOrganizerPracticeCategoryIds([]);
+      setOrganizerImageUrl("");
       setOrganizerAvatarFile(null);
       await loadAdminContent();
+      router.push(`/hosts/${organizer.slug}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.organizerCreateFailed"));
     }
@@ -673,6 +681,7 @@ export function AdminConsole() {
         eventFormatId: eventFormatId || null,
         tags: csvToArray(eventTags),
         languages: csvToArray(eventLanguages),
+        coverImageUrl: eventCoverUrl.trim() || null,
         scheduleKind,
         eventTimezone,
         visibility: "public",
@@ -706,10 +715,12 @@ export function AdminConsole() {
       setStatus(t("admin.status.eventDraftCreated", { title: created.title, slug: created.slug }));
       setEventTitle("");
       setEventTags("");
+      setEventCoverUrl("");
       setEventCoverFile(null);
       setEventOrganizerRoles([]);
       clearCreateLocation();
       await loadAdminContent();
+      router.push(`/events/${created.slug}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.eventCreateFailed"));
     }
@@ -815,6 +826,7 @@ export function AdminConsole() {
         rruleDtstartLocal: isoToDatetimeLocal(detail.rrule_dtstart_local),
         durationMinutes: detail.duration_minutes ? String(detail.duration_minutes) : "",
         visibility: detail.visibility,
+        coverImageUrl: detail.cover_image_path ?? "",
         locationId: detail.location_id,
         locationLabel: detail.location?.formatted_address ?? "",
       });
@@ -849,6 +861,7 @@ export function AdminConsole() {
         scheduleKind: eventEditor.scheduleKind,
         eventTimezone: eventEditor.eventTimezone,
         visibility: eventEditor.visibility,
+        coverImageUrl: eventEditor.coverImageUrl || null,
         locationId: eventEditor.locationId,
       };
 
@@ -869,8 +882,16 @@ export function AdminConsole() {
       }
 
       await authorizedRequest(`/events/${eventEditor.id}`, "PATCH", payload);
+      if (eventCoverFile) {
+        const uploaded = await authorizedUpload("eventCover", eventEditor.id, eventCoverFile);
+        await authorizedRequest(`/events/${eventEditor.id}`, "PATCH", {
+          coverImagePath: uploaded.stored_path,
+        });
+      }
       await loadAdminContent();
       setStatus(t("admin.status.eventUpdated", { id: eventEditor.id }));
+      setEventCoverFile(null);
+      router.push(`/events/${eventEditor.slug}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.eventSaveFailed"));
     }
@@ -886,11 +907,19 @@ export function AdminConsole() {
         id: detail.id,
         slug: detail.slug,
         name: detail.name,
+        descriptionJson: JSON.stringify(detail.description_json ?? {}, null, 2),
         websiteUrl: detail.website_url ?? "",
+        externalUrl: detail.external_url ?? "",
+        imageUrl: detail.image_url ?? "",
         tags: detail.tags.join(", "),
         languages: detail.languages.join(", "),
+        city: detail.city ?? "",
+        countryCode: detail.country_code ?? "",
+        profileRoleIds: detail.profile_role_ids ?? [],
+        practiceCategoryIds: detail.practice_category_ids ?? [],
         status: detail.status,
       });
+      setOrganizerEditAvatarFile(null);
       setStatus(t("admin.status.organizerLoadedForEdit", { name: detail.name, slug: detail.slug }));
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.organizerEditorLoadFailed"));
@@ -908,15 +937,35 @@ export function AdminConsole() {
     setStatus(t("admin.status.savingOrganizerChanges"));
 
     try {
+      let parsedDescription: Record<string, unknown> = {};
+      if (organizerEditor.descriptionJson.trim()) {
+        parsedDescription = JSON.parse(organizerEditor.descriptionJson) as Record<string, unknown>;
+      }
       await authorizedRequest(`/organizers/${organizerEditor.id}`, "PATCH", {
         name: organizerEditor.name,
+        descriptionJson: parsedDescription,
         websiteUrl: organizerEditor.websiteUrl || null,
+        externalUrl: organizerEditor.externalUrl || null,
+        imageUrl: organizerEditor.imageUrl || null,
         tags: csvToArray(organizerEditor.tags),
         languages: csvToArray(organizerEditor.languages),
+        city: organizerEditor.city || null,
+        countryCode: organizerEditor.countryCode || null,
+        profileRoleIds: organizerEditor.profileRoleIds,
+        practiceCategoryIds: organizerEditor.practiceCategoryIds,
         status: organizerEditor.status,
       });
+      if (organizerEditAvatarFile) {
+        const uploaded = await authorizedUpload("organizerAvatar", organizerEditor.id, organizerEditAvatarFile);
+        await authorizedRequest(`/organizers/${organizerEditor.id}`, "PATCH", {
+          avatarPath: uploaded.stored_path,
+          imageUrl: uploaded.stored_path,
+        });
+      }
       await Promise.all([loadAdminContent(), loadMetadata()]);
       setStatus(t("admin.status.organizerUpdated", { id: organizerEditor.id }));
+      setOrganizerEditAvatarFile(null);
+      router.push(`/hosts/${organizerEditor.slug}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : t("admin.status.organizerSaveFailed"));
     }
@@ -1085,7 +1134,11 @@ export function AdminConsole() {
 
         <div className="cards">
       <div className="admin-grid">
-        <form className="admin-form" onSubmit={createOrganizerSubmit} style={{ display: activeSection === "organizers" ? undefined : "none" }}>
+        <form
+          className="admin-form"
+          onSubmit={createOrganizerSubmit}
+          style={{ display: activeSection === "organizers" && !organizerEditor ? undefined : "none" }}
+        >
           <h3>{t("admin.createOrganizer.heading")}</h3>
           <label>
             {t("common.field.name")}
@@ -1105,6 +1158,14 @@ export function AdminConsole() {
             />
           </label>
           <label>
+            {t("common.field.city")}
+            <input value={organizerCity} onChange={(e) => setOrganizerCity(e.target.value)} />
+          </label>
+          <label>
+            {t("common.field.countryCode")}
+            <input value={organizerCountryCode} onChange={(e) => setOrganizerCountryCode(e.target.value)} />
+          </label>
+          <label>
             {t("common.field.languagesCsv")}
             <input
               value={organizerLanguages}
@@ -1115,6 +1176,52 @@ export function AdminConsole() {
           <label>
             {t("common.field.tagsCsv")}
             <input value={organizerTags} onChange={(e) => setOrganizerTags(e.target.value)} />
+          </label>
+          <label>
+            Image URL
+            <input value={organizerImageUrl} onChange={(e) => setOrganizerImageUrl(e.target.value)} />
+          </label>
+          <label>
+            {t("organizerSearch.hostType")}
+            <div className="kv">
+              {taxonomy?.organizerRoles.map((role) => (
+                <label key={`create-role-${role.id}`} className="meta">
+                  <input
+                    type="checkbox"
+                    checked={organizerProfileRoleIds.includes(role.id)}
+                    onChange={() =>
+                      setOrganizerProfileRoleIds((current) => (
+                        current.includes(role.id)
+                          ? current.filter((item) => item !== role.id)
+                          : [...current, role.id]
+                      ))
+                    }
+                  />
+                  {role.label}
+                </label>
+              ))}
+            </div>
+          </label>
+          <label>
+            {categorySingularLabel}
+            <div className="kv">
+              {taxonomy?.practices.categories.map((category) => (
+                <label key={`create-practice-${category.id}`} className="meta">
+                  <input
+                    type="checkbox"
+                    checked={organizerPracticeCategoryIds.includes(category.id)}
+                    onChange={() =>
+                      setOrganizerPracticeCategoryIds((current) => (
+                        current.includes(category.id)
+                          ? current.filter((item) => item !== category.id)
+                          : [...current, category.id]
+                      ))
+                    }
+                  />
+                  {category.label}
+                </label>
+              ))}
+            </div>
           </label>
           <label>
             {t("admin.field.avatarImage")}
@@ -1129,7 +1236,11 @@ export function AdminConsole() {
           </button>
         </form>
 
-        <form className="admin-form" onSubmit={createEventSubmit} style={{ display: activeSection === "events" ? undefined : "none" }}>
+        <form
+          className="admin-form"
+          onSubmit={createEventSubmit}
+          style={{ display: activeSection === "events" && !eventEditor ? undefined : "none" }}
+        >
           <h3>{t("admin.createEvent.heading")}</h3>
           <label>
             {t("common.field.title")}
@@ -1316,6 +1427,10 @@ export function AdminConsole() {
               accept="image/jpeg,image/png,image/webp"
               onChange={(e) => setEventCoverFile(e.target.files?.[0] ?? null)}
             />
+          </label>
+          <label>
+            Cover image URL
+            <input value={eventCoverUrl} onChange={(e) => setEventCoverUrl(e.target.value)} />
           </label>
 
           <label>
@@ -1514,117 +1629,11 @@ export function AdminConsole() {
       </div>
 
       <section className="admin-list-grid">
-        <div className="admin-form" style={{ display: activeSection === "events" ? undefined : "none" }}>
-          <h3>{t("admin.recentEvents.heading")}</h3>
-          {loadingAdminContent && <div className="meta">{t("admin.loading.adminLists")}</div>}
-          {!loadingAdminContent && adminEvents.length === 0 && (
-            <div className="meta">{t("admin.recentEvents.empty")}</div>
-          )}
-          {adminEvents.map((item) => (
-            <div className="card" key={item.id}>
-              <div><strong>{item.title}</strong></div>
-              <div className="meta">
-                {statusLabel(item.status)} | {attendanceModeLabel(item.attendance_mode)} | {scheduleKindLabel(item.schedule_kind)}
-              </div>
-              <div className="meta">{t("common.updatedAt", { value: new Date(item.updated_at).toLocaleString(locale) })}</div>
-              {hasEditorRole && (
-                <div className="admin-card-actions">
-                  <button
-                    className="secondary-btn"
-                    type="button"
-                    onClick={() => void loadEventForEdit(item.id)}
-                  >
-                    {t("common.edit")}
-                  </button>
-                  {item.status !== "published" && (
-                    <button
-                      className="secondary-btn"
-                      type="button"
-                      onClick={() => void runEventLifecycleAction(item.id, "publish")}
-                    >
-                      {t("common.action.publish")}
-                    </button>
-                  )}
-                  {(item.status === "published" || item.status === "cancelled") && (
-                    <button
-                      className="secondary-btn"
-                      type="button"
-                      onClick={() => void runEventLifecycleAction(item.id, "unpublish")}
-                    >
-                      {t("common.action.unpublish")}
-                    </button>
-                  )}
-                  {item.status === "published" && (
-                    <button
-                      className="secondary-btn"
-                      type="button"
-                      onClick={() => void runEventLifecycleAction(item.id, "cancel")}
-                    >
-                      {t("common.action.cancel")}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="admin-form" style={{ display: activeSection === "organizers" ? undefined : "none" }}>
-          <h3>{t("admin.recentOrganizers.heading")}</h3>
-          {loadingAdminContent && <div className="meta">{t("admin.loading.adminLists")}</div>}
-          {!loadingAdminContent && adminOrganizers.length === 0 && (
-            <div className="meta">{t("admin.recentOrganizers.empty")}</div>
-          )}
-          {adminOrganizers.map((item) => (
-            <div className="card" key={item.id}>
-              <div><strong>{item.name}</strong></div>
-              <div className="meta">{statusLabel(item.status)}</div>
-              <div className="meta">{t("common.updatedAt", { value: new Date(item.updated_at).toLocaleString(locale) })}</div>
-              {hasEditorRole && (
-                <div className="admin-card-actions">
-                  <button
-                    className="secondary-btn"
-                    type="button"
-                    onClick={() => void loadOrganizerForEdit(item.id)}
-                  >
-                    {t("common.edit")}
-                  </button>
-                  {item.status !== "published" && (
-                    <button
-                      className="secondary-btn"
-                      type="button"
-                      onClick={() => void updateOrganizerStatus(item.id, "published")}
-                    >
-                      {t("common.action.publish")}
-                    </button>
-                  )}
-                  {item.status !== "draft" && (
-                    <button
-                      className="secondary-btn"
-                      type="button"
-                      onClick={() => void updateOrganizerStatus(item.id, "draft")}
-                    >
-                      {t("common.action.unpublish")}
-                    </button>
-                  )}
-                  {hasAdminRole && item.status !== "archived" && (
-                    <button
-                      className="secondary-btn"
-                      type="button"
-                      onClick={() => void updateOrganizerStatus(item.id, "archived")}
-                    >
-                      {t("common.action.archive")}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="admin-list-grid">
-        <form className="admin-form" onSubmit={(event) => void saveEventEdits(event)} style={{ display: activeSection === "events" ? undefined : "none" }}>
+        <form
+          className="admin-form"
+          onSubmit={(event) => void saveEventEdits(event)}
+          style={{ display: activeSection === "events" && eventEditor ? undefined : "none" }}
+        >
           <h3>{t("admin.editEvent.heading")}</h3>
           {loadingEventEditor && <div className="meta">{t("admin.loading.eventDetails")}</div>}
           {!loadingEventEditor && !eventEditor && (
@@ -1903,6 +1912,25 @@ export function AdminConsole() {
                   <option value="unlisted">{t("common.visibility.unlisted")}</option>
                 </select>
               </label>
+              <label>
+                Cover image URL
+                <input
+                  value={eventEditor.coverImageUrl}
+                  onChange={(e) =>
+                    setEventEditor((current) =>
+                      current ? { ...current, coverImageUrl: e.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+              <label>
+                {t("admin.field.coverImage")}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setEventCoverFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
               <div className="admin-card-actions">
                 <button className="primary-btn" type="submit" disabled={!hasEditorRole}>
                   {t("admin.editEvent.submit")}
@@ -1923,7 +1951,11 @@ export function AdminConsole() {
           )}
         </form>
 
-        <form className="admin-form" onSubmit={(event) => void saveOrganizerEdits(event)} style={{ display: activeSection === "organizers" ? undefined : "none" }}>
+        <form
+          className="admin-form"
+          onSubmit={(event) => void saveOrganizerEdits(event)}
+          style={{ display: activeSection === "organizers" && organizerEditor ? undefined : "none" }}
+        >
           <h3>{t("admin.editOrganizer.heading")}</h3>
           {loadingOrganizerEditor && <div className="meta">{t("admin.loading.organizerDetails")}</div>}
           {!loadingOrganizerEditor && !organizerEditor && (
@@ -1954,6 +1986,58 @@ export function AdminConsole() {
                 />
               </label>
               <label>
+                External URL
+                <input
+                  value={organizerEditor.externalUrl}
+                  onChange={(e) =>
+                    setOrganizerEditor((current) =>
+                      current ? { ...current, externalUrl: e.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+              <label>
+                Image URL
+                <input
+                  value={organizerEditor.imageUrl}
+                  onChange={(e) =>
+                    setOrganizerEditor((current) =>
+                      current ? { ...current, imageUrl: e.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+              <label>
+                {t("admin.field.avatarImage")}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setOrganizerEditAvatarFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              <label>
+                {t("common.field.city")}
+                <input
+                  value={organizerEditor.city}
+                  onChange={(e) =>
+                    setOrganizerEditor((current) =>
+                      current ? { ...current, city: e.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+              <label>
+                {t("common.field.countryCode")}
+                <input
+                  value={organizerEditor.countryCode}
+                  onChange={(e) =>
+                    setOrganizerEditor((current) =>
+                      current ? { ...current, countryCode: e.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+              <label>
                 {t("common.field.languagesCsv")}
                 <input
                   value={organizerEditor.languages}
@@ -1971,6 +2055,70 @@ export function AdminConsole() {
                   onChange={(e) =>
                     setOrganizerEditor((current) => (current ? { ...current, tags: e.target.value } : current))
                   }
+                />
+              </label>
+              <label>
+                {t("organizerSearch.hostType")}
+                <div className="kv">
+                  {taxonomy?.organizerRoles.map((role) => (
+                    <label key={`edit-role-${role.id}`} className="meta">
+                      <input
+                        type="checkbox"
+                        checked={organizerEditor.profileRoleIds.includes(role.id)}
+                        onChange={() =>
+                          setOrganizerEditor((current) => (
+                            current
+                              ? {
+                                  ...current,
+                                  profileRoleIds: current.profileRoleIds.includes(role.id)
+                                    ? current.profileRoleIds.filter((item) => item !== role.id)
+                                    : [...current.profileRoleIds, role.id],
+                                }
+                              : current
+                          ))
+                        }
+                      />
+                      {role.label}
+                    </label>
+                  ))}
+                </div>
+              </label>
+              <label>
+                {categorySingularLabel}
+                <div className="kv">
+                  {taxonomy?.practices.categories.map((category) => (
+                    <label key={`edit-practice-${category.id}`} className="meta">
+                      <input
+                        type="checkbox"
+                        checked={organizerEditor.practiceCategoryIds.includes(category.id)}
+                        onChange={() =>
+                          setOrganizerEditor((current) => (
+                            current
+                              ? {
+                                  ...current,
+                                  practiceCategoryIds: current.practiceCategoryIds.includes(category.id)
+                                    ? current.practiceCategoryIds.filter((item) => item !== category.id)
+                                    : [...current.practiceCategoryIds, category.id],
+                                }
+                              : current
+                          ))
+                        }
+                      />
+                      {category.label}
+                    </label>
+                  ))}
+                </div>
+              </label>
+              <label>
+                Description JSON
+                <textarea
+                  value={organizerEditor.descriptionJson}
+                  onChange={(e) =>
+                    setOrganizerEditor((current) =>
+                      current ? { ...current, descriptionJson: e.target.value } : current,
+                    )
+                  }
+                  rows={8}
                 />
               </label>
               <label>

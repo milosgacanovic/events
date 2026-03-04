@@ -36,7 +36,6 @@ type ClusterFeature = {
 type ClusterResponse = {
   type: "FeatureCollection";
   features: ClusterFeature[];
-  truncated?: boolean;
 };
 
 function MapChangeWatcher({ onChange }: { onChange: () => void }) {
@@ -68,7 +67,7 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
     lat: feature.geometry.coordinates[1],
     lng: feature.geometry.coordinates[0],
   }));
-  if (zoom < 12) {
+  if (zoom < 8) {
     return base;
   }
 
@@ -90,10 +89,10 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
     }
     const centerLat = markers[0].lat;
     const cosLat = Math.max(Math.cos((centerLat * Math.PI) / 180), 0.2);
-    const baseMeters = 40;
+    const baseMeters = zoom <= 8 ? 900 : zoom === 9 ? 780 : zoom === 10 ? 660 : zoom === 11 ? 540 : 420;
     for (let i = 0; i < markers.length; i += 1) {
       const ring = Math.floor(i / 8);
-      const radiusMeters = baseMeters + ring * 24;
+      const radiusMeters = baseMeters + ring * 150;
       const angle = (2 * Math.PI * i) / Math.max(markers.length, 1);
       const latOffset = (radiusMeters / 111_320) * Math.sin(angle);
       const lngOffset = (radiusMeters / (111_320 * cosLat)) * Math.cos(angle);
@@ -121,19 +120,22 @@ export function LeafletClusterMap({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [features, setFeatures] = useState<ClusterFeature[]>([]);
-  const [truncated, setTruncated] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [currentZoom, setCurrentZoom] = useState(2);
+  const [mapReady, setMapReady] = useState(false);
 
   const tileUrl =
     process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   const refreshClusters = useCallback(async () => {
-    if (!mapRef.current) {
+    if (!mapRef.current || !mapReady) {
       return;
     }
 
     const bounds = mapRef.current.getBounds();
+    if (!bounds.isValid()) {
+      return;
+    }
     const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(",");
     const zoom = Math.round(mapRef.current.getZoom());
     setCurrentZoom(zoom);
@@ -158,16 +160,14 @@ export function LeafletClusterMap({
       }
 
       setFeatures(data.features ?? []);
-      setTruncated(Boolean(data.truncated));
       setStatus("idle");
     } catch {
       if (requestRef.current !== requestId) {
         return;
       }
-      setTruncated(false);
       setStatus("error");
     }
-  }, [queryString]);
+  }, [mapReady, queryString]);
 
   const scheduleRefresh = useCallback(() => {
     if (debounceRef.current) {
@@ -179,8 +179,11 @@ export function LeafletClusterMap({
   }, [refreshClusters]);
 
   useEffect(() => {
+    if (!mapReady) {
+      return;
+    }
     void refreshClusters();
-  }, [refreshClusters, refreshToken]);
+  }, [mapReady, refreshClusters, refreshToken]);
 
   useEffect(() => () => {
     if (debounceRef.current) {
@@ -251,7 +254,11 @@ export function LeafletClusterMap({
           mapRef.current = instance;
         }}
         whenReady={() => {
-          void refreshClusters();
+          setMapReady(true);
+          window.setTimeout(() => {
+            mapRef.current?.invalidateSize();
+            void refreshClusters();
+          }, 80);
         }}
       >
         <TileLayer
@@ -266,14 +273,7 @@ export function LeafletClusterMap({
         {markers}
       </MapContainer>
 
-      <div className="map-status">
-        <div>{t("map.note.geoOnly")}</div>
-        {status === "loading" ? t("map.status.loading") : null}
-        {status === "error" ? t("map.status.error") : null}
-        {status === "idle" ? t("map.status.idle", { count: features.length }) : null}
-        {status === "idle" && features.length === 0 ? <div>{t("map.status.empty")}</div> : null}
-        {status === "idle" && truncated ? <div>{t("map.status.truncated")}</div> : null}
-      </div>
+      {status === "error" ? <div className="map-status">{t("map.status.error")}</div> : null}
     </div>
   );
 }

@@ -11,7 +11,12 @@ type PointProps = {
   starts_at_utc: string;
   event_timezone: string | null;
 };
-type OrganizerPointProps = { organizer_id: string; organizer_slug: string };
+type OrganizerPointProps = {
+  organizer_id: string;
+  organizer_slug: string;
+  organizer_name: string;
+  practice_labels: string[];
+};
 
 export async function buildClusters(
   pool: Pool,
@@ -33,7 +38,7 @@ export async function buildClusters(
     },
   }));
 
-  if (input.zoom >= 12) {
+  if (input.zoom >= 8) {
     return {
       collection: {
         type: "FeatureCollection",
@@ -55,7 +60,7 @@ export async function buildClusters(
   }
 
   const supercluster = new Supercluster<PointProps, { cluster: true; point_count: number }>({
-    radius: 50,
+    radius: 56,
     maxZoom: 20,
   });
   supercluster.load(features);
@@ -116,10 +121,12 @@ export async function buildOrganizerClusters(
     properties: {
       organizer_id: point.organizer_id,
       organizer_slug: point.organizer_slug,
+      organizer_name: point.organizer_name,
+      practice_labels: point.practice_labels ?? [],
     },
   }));
 
-  if (input.zoom >= 12) {
+  if (input.zoom >= 8) {
     return {
       collection: {
         type: "FeatureCollection",
@@ -130,6 +137,8 @@ export async function buildOrganizerClusters(
             cluster: false,
             organizer_id: feature.properties.organizer_id,
             organizer_slug: feature.properties.organizer_slug,
+            organizer_name: feature.properties.organizer_name,
+            practice_labels: feature.properties.practice_labels,
           },
         })),
       },
@@ -138,7 +147,7 @@ export async function buildOrganizerClusters(
   }
 
   const supercluster = new Supercluster<OrganizerPointProps, { cluster: true; point_count: number }>({
-    radius: 50,
+    radius: 56,
     maxZoom: 20,
   });
   supercluster.load(features);
@@ -171,6 +180,8 @@ export async function buildOrganizerClusters(
           cluster: false,
           organizer_id: props.organizer_id,
           organizer_slug: props.organizer_slug,
+          organizer_name: props.organizer_name,
+          practice_labels: props.practice_labels,
         },
       };
     }),

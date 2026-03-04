@@ -73,19 +73,41 @@ export async function listOrganizerCitySuggestions(
   const excluded = (input.exclude ?? []).map((value) => value.toLowerCase()).filter(Boolean);
   const result = await pool.query<{ city: string; count: string }>(
     `
+      with organizer_city_sources as (
+        select
+          o.id as organizer_id,
+          lower(o.city) as city,
+          lower(o.country_code) as country_code
+        from organizers o
+        where o.status = 'published'
+          and o.city is not null
+          and o.city <> ''
+
+        union all
+
+        select
+          o.id as organizer_id,
+          lower(ol.city) as city,
+          lower(ol.country_code) as country_code
+        from organizers o
+        join organizer_locations ol on ol.organizer_id = o.id
+        where o.status = 'published'
+          and ol.city is not null
+          and ol.city <> ''
+      ),
+      dedup as (
+        select distinct organizer_id, city, country_code
+        from organizer_city_sources
+      )
       select
-        lower(ol.city) as city,
-        count(distinct o.id)::text as count
-      from organizers o
-      join organizer_locations ol on ol.organizer_id = o.id
-      where o.status = 'published'
-        and ol.city is not null
-        and ol.city <> ''
-        and ($1 = '' or lower(ol.city) like $1 || '%')
-        and ($2 = '' or lower(ol.country_code) = $2)
-        and (cardinality($4::text[]) = 0 or lower(ol.city) <> all($4::text[]))
-      group by lower(ol.city)
-      order by count(distinct o.id) desc, lower(ol.city) asc
+        d.city,
+        count(distinct d.organizer_id)::text as count
+      from dedup d
+      where ($1 = '' or d.city like $1 || '%')
+        and ($2 = '' or d.country_code = $2)
+        and (cardinality($4::text[]) = 0 or d.city <> all($4::text[]))
+      group by d.city
+      order by count(distinct d.organizer_id) desc, d.city asc
       limit $3
     `,
     [query, countryCode, input.limit, excluded],

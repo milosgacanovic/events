@@ -91,6 +91,9 @@ function mapOrganizerSearchItem(item: Record<string, unknown>) {
 
 function mapOrganizerDetail(result: Record<string, unknown>) {
   const organizer = (result.organizer ?? {}) as Record<string, unknown>;
+  const roleKeys = Array.isArray(organizer.role_keys)
+    ? organizer.role_keys.filter((value): value is string => typeof value === "string")
+    : [];
   const imageUrl =
     (typeof organizer.image_url === "string" ? organizer.image_url : null)
     ?? (typeof organizer.avatar_path === "string" ? organizer.avatar_path : null);
@@ -99,8 +102,29 @@ function mapOrganizerDetail(result: Record<string, unknown>) {
   const derivedLanguages = sanitizeLanguageCodes(result.derivedLanguages);
   const effectiveLanguages = organizerLanguages.length > 0 ? organizerLanguages : derivedLanguages;
 
+  const upcomingOccurrences = Array.isArray(result.upcomingOccurrences)
+    ? result.upcomingOccurrences.map((item) => {
+      const row = item as Record<string, unknown>;
+      return {
+        ...row,
+        coverImageUrl: typeof row.cover_image_url === "string" ? row.cover_image_url : null,
+      };
+    })
+    : [];
+  const pastOccurrences = Array.isArray(result.pastOccurrences)
+    ? result.pastOccurrences.map((item) => {
+      const row = item as Record<string, unknown>;
+      return {
+        ...row,
+        coverImageUrl: typeof row.cover_image_url === "string" ? row.cover_image_url : null,
+      };
+    })
+    : [];
+
   return {
     ...result,
+    upcomingOccurrences,
+    pastOccurrences,
     organizer: {
       ...organizer,
       imageUrl,
@@ -111,6 +135,8 @@ function mapOrganizerDetail(result: Record<string, unknown>) {
       countryCode: typeof organizer.country_code === "string" ? organizer.country_code : null,
       languages: effectiveLanguages,
       tags: Array.isArray(organizer.tags) ? organizer.tags : [],
+      roleKeys,
+      roleKey: roleKeys[0] ?? null,
     },
     practiceCategoryIds: Array.isArray(result.practiceCategoryIds)
       ? result.practiceCategoryIds.filter((value): value is string => typeof value === "string")

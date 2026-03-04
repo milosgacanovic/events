@@ -42,7 +42,7 @@ const searchQuerySchema = z.object({
   format: z.string().optional(),
   tags: z.string().optional(),
   languages: z.string().optional(),
-  attendanceMode: z.enum(["in_person", "online", "hybrid"]).optional(),
+  attendanceMode: z.string().optional(),
   organizerId: z.string().uuid().optional(),
   countryCode: z.string().optional(),
   city: z.string().optional(),
@@ -197,7 +197,7 @@ function buildMeiliFilters(input: {
   eventFormatIds?: string[];
   tags: string[];
   languages: string[];
-  attendanceMode?: string;
+  attendanceModes?: string[];
   organizerId?: string;
   countryCodes?: string[];
   cities?: string[];
@@ -226,13 +226,15 @@ function buildMeiliFilters(input: {
       filters.push(`tags = ${JSON.stringify(tag)}`);
     }
   }
-  if (input.languages.length) {
-    for (const language of input.languages) {
-      filters.push(`languages = ${JSON.stringify(language)}`);
-    }
+  if (input.languages.length === 1) {
+    filters.push(`languages = ${JSON.stringify(input.languages[0])}`);
+  } else if (input.languages.length > 1) {
+    filters.push(`(${input.languages.map((language) => `languages = ${JSON.stringify(language)}`).join(" OR ")})`);
   }
-  if (input.attendanceMode) {
-    filters.push(`attendance_mode = ${JSON.stringify(input.attendanceMode)}`);
+  if (input.attendanceModes?.length === 1) {
+    filters.push(`attendance_mode = ${JSON.stringify(input.attendanceModes[0])}`);
+  } else if (input.attendanceModes && input.attendanceModes.length > 1) {
+    filters.push(`(${input.attendanceModes.map((mode) => `attendance_mode = ${JSON.stringify(mode)}`).join(" OR ")})`);
   }
   if (input.organizerId) {
     filters.push(`organizer_ids = ${JSON.stringify(input.organizerId)}`);
@@ -315,6 +317,15 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const selectedEventDateRanges = eventDatePresets.map((preset) => eventDateRangeMap[preset]);
     const tags = csvToList(parsed.data.tags);
     const languages = csvToList(parsed.data.languages);
+    const rawAttendanceModes = csvToList(parsed.data.attendanceMode);
+    const attendanceModes = rawAttendanceModes.filter(
+      (value): value is "in_person" | "online" | "hybrid" =>
+        value === "in_person" || value === "online" || value === "hybrid",
+    );
+    if (rawAttendanceModes.length > 0 && attendanceModes.length !== rawAttendanceModes.length) {
+      reply.code(400);
+      return { error: "invalid_attendance_mode" };
+    }
     const practiceCategoryUuids = parseUuidCsv(parsed.data.practiceCategoryId);
     const eventFormatUuids = parseUuidCsv(parsed.data.eventFormatId);
     const practiceKeys = csvToList(parsed.data.practice);
@@ -358,7 +369,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       eventFormatId: eventFormatIds.join(",") || null,
       tags,
       languages,
-      attendanceMode: parsed.data.attendanceMode ?? null,
+      attendanceMode: attendanceModes.join(",") || null,
       organizerId: parsed.data.organizerId ?? null,
       countryCode: countryCodes.join(",") || null,
       city: cityFilters.join(",") || null,
@@ -386,7 +397,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         eventFormatIds,
         tags,
         languages,
-        attendanceMode: parsed.data.attendanceMode,
+        attendanceModes,
         organizerId: parsed.data.organizerId,
         countryCodes,
         cities: cityFilters,
@@ -470,13 +481,13 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             externalUrl: doc.external_url ?? null,
             lastSyncedAt: doc.updated_at ?? null,
           },
-          location: doc.geo
+          location: doc.geo || doc.city || doc.country_code
             ? {
                 formatted_address: null,
                 city: doc.city,
                 country_code: doc.country_code,
-                lat: doc.geo.lat,
-                lng: doc.geo.lng,
+                lat: doc.geo?.lat ?? null,
+                lng: doc.geo?.lng ?? null,
               }
             : null,
           organizers: organizerMap.get(doc.event_id) ?? doc.organizer_ids.map((id: string, index2: number) => ({
@@ -520,7 +531,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         eventFormatIds,
         tags,
         languages,
-        attendanceMode: parsed.data.attendanceMode,
+        attendanceMode: attendanceModes.length === 1 ? attendanceModes[0] : undefined,
         organizerId: parsed.data.organizerId,
         countryCodes,
         city: cityFilters.join(","),

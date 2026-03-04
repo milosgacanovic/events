@@ -118,7 +118,7 @@ export default async function EventsPage({
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean),
-    attendanceMode: getSingle(searchParams, "attendanceMode") ?? undefined,
+    attendanceModes: csvToList(getSingle(searchParams, "attendanceMode")),
     countryCodes: csvToList(getSingle(searchParams, "countryCode")),
     cities: csvToList(getSingle(searchParams, "city")),
     eventDates: csvToList(getSingle(searchParams, "eventDate"))
@@ -158,7 +158,7 @@ export default async function EventsPage({
   if (initialQuery.eventFormatIds?.length) params.set("eventFormatId", initialQuery.eventFormatIds.join(","));
   if (initialQuery.tags?.length) params.set("tags", initialQuery.tags.join(","));
   if (initialQuery.languages?.length) params.set("languages", initialQuery.languages.join(","));
-  if (initialQuery.attendanceMode) params.set("attendanceMode", initialQuery.attendanceMode);
+  if (initialQuery.attendanceModes?.length) params.set("attendanceMode", initialQuery.attendanceModes.join(","));
   if (initialQuery.countryCodes?.length) params.set("countryCode", initialQuery.countryCodes.join(","));
   if (initialQuery.cities?.length) params.set("city", initialQuery.cities.join(","));
   if (initialQuery.eventDates?.length) params.set("eventDate", initialQuery.eventDates.join(","));

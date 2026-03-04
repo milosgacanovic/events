@@ -11,6 +11,9 @@ import { getKeycloakClientConfig } from "../../lib/keycloakConfig";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const auth = useKeycloakAuth();
+  const canOpenAdmin = auth.roles.some((role) =>
+    role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
+  );
   const config = getKeycloakClientConfig();
   const registerUrl = useMemo(() => {
     const envUrl = process.env.NEXT_PUBLIC_KEYCLOAK_REGISTER_URL?.trim();
@@ -35,7 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="nav">
           <Link href="/events">{t("nav.events")}</Link>
           <Link href="/hosts">{t("nav.organizers")}</Link>
-          {auth.authenticated && <Link href="/admin">{t("nav.admin")}</Link>}
+          {auth.authenticated && canOpenAdmin && <Link href="/admin">{t("nav.admin")}</Link>}
         </nav>
         <div className="auth-actions">
           {!auth.ready ? (

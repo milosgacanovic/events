@@ -13,7 +13,7 @@ export type MapFilterInput = {
   practiceSubcategoryId?: string;
   tags?: string[];
   languages?: string[];
-  attendanceMode?: "in_person" | "online" | "hybrid";
+  attendanceModes?: Array<"in_person" | "online" | "hybrid">;
   organizerId?: string;
   countryCode?: string;
   city?: string;
@@ -94,9 +94,12 @@ function buildWhere(input: Omit<MapFilterInput, "bbox">): { whereSql: string; va
     values.push(input.languages);
     where.push(`e.languages && $${values.length}::text[]`);
   }
-  if (input.attendanceMode) {
-    values.push(input.attendanceMode);
+  if (input.attendanceModes?.length === 1) {
+    values.push(input.attendanceModes[0]);
     where.push(`e.attendance_mode = $${values.length}`);
+  } else if (input.attendanceModes && input.attendanceModes.length > 1) {
+    values.push(input.attendanceModes);
+    where.push(`e.attendance_mode = any($${values.length}::text[])`);
   }
   if (input.organizerId) {
     values.push(input.organizerId);
@@ -198,9 +201,8 @@ function buildOrganizerMapWhere(input: Omit<OrganizerMapFilterInput, "bbox" | "l
         or exists (
           select 1
           from event_organizers eo
-          join events e on e.id = eo.event_id
+          join events e on e.id = eo.event_id and e.status = 'published'
           where eo.organizer_id = o.id
-            and e.status = 'published'
             and e.languages && $${values.length}::text[]
         )
       )
@@ -212,10 +214,9 @@ function buildOrganizerMapWhere(input: Omit<OrganizerMapFilterInput, "bbox" | "l
     whereParts.push(`
       exists (
         select 1
-        from event_organizers eo
-        join events e on e.id = eo.event_id and e.status = 'published'
-        join organizer_roles r on r.id = eo.role_id
-        where eo.organizer_id = o.id
+        from organizer_profile_roles opr
+        join organizer_roles r on r.id = opr.role_id
+        where opr.organizer_id = o.id
           and r.key = any($${values.length}::text[])
       )
     `);
@@ -224,37 +225,22 @@ function buildOrganizerMapWhere(input: Omit<OrganizerMapFilterInput, "bbox" | "l
   if (input.practiceCategoryIds?.length) {
     values.push(input.practiceCategoryIds);
     whereParts.push(`
-      exists (
-        select 1
-        from event_organizers eo
-        join events e on e.id = eo.event_id and e.status = 'published'
-        where eo.organizer_id = o.id
-          and e.practice_category_id = any($${values.length}::uuid[])
+      (
+        exists (
+          select 1
+          from organizer_practices op
+          where op.organizer_id = o.id
+            and op.practice_id = any($${values.length}::uuid[])
+        )
+        or exists (
+          select 1
+          from event_organizers eo
+          join events e on e.id = eo.event_id and e.status = 'published'
+          where eo.organizer_id = o.id
+            and e.practice_category_id = any($${values.length}::uuid[])
+        )
       )
     `);
-  }
-
-  const normalizedCountryCodes = (input.countryCodes ?? [])
-    .map((value) => value.toLowerCase())
-    .filter(Boolean);
-  if (normalizedCountryCodes.length === 1) {
-    values.push(normalizedCountryCodes[0]);
-    whereParts.push(`lower(o.country_code) = $${values.length}`);
-  } else if (normalizedCountryCodes.length > 1) {
-    values.push(normalizedCountryCodes);
-    whereParts.push(`lower(o.country_code) = any($${values.length}::text[])`);
-  }
-
-  const normalizedCities = (input.city ?? "")
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-  if (normalizedCities.length === 1) {
-    values.push(normalizedCities[0]);
-    whereParts.push(`lower(o.city) = $${values.length}`);
-  } else if (normalizedCities.length > 1) {
-    values.push(normalizedCities);
-    whereParts.push(`lower(o.city) = any($${values.length}::text[])`);
   }
 
   return {
@@ -265,6 +251,17 @@ function buildOrganizerMapWhere(input: Omit<OrganizerMapFilterInput, "bbox" | "l
 
 export async function fetchOrganizerMapPoints(pool: Pool, input: OrganizerMapFilterInput) {
   const { whereSql, values } = buildOrganizerMapWhere(input);
+  const normalizedCountryCodes = (input.countryCodes ?? [])
+    .map((value) => value.toLowerCase())
+    .filter(Boolean);
+  const normalizedCities = (input.city ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  values.push(normalizedCountryCodes);
+  const countryFilterIndex = values.length;
+  values.push(normalizedCities);
+  const cityFilterIndex = values.length;
   values.push(input.bbox.west, input.bbox.south, input.bbox.east, input.bbox.north);
   const westIndex = values.length - 3;
   const southIndex = values.length - 2;
@@ -276,24 +273,116 @@ export async function fetchOrganizerMapPoints(pool: Pool, input: OrganizerMapFil
   const result = await pool.query<{
     organizer_id: string;
     organizer_slug: string;
+    organizer_name: string;
+    practice_labels: string[];
     lat: number;
     lng: number;
   }>(
     `
-      select distinct on (o.id)
-        o.id as organizer_id,
-        o.slug as organizer_slug,
-        st_y(ol.geom::geometry) as lat,
-        st_x(ol.geom::geometry) as lng
-      from organizers o
-      join organizer_locations ol on ol.organizer_id = o.id
-      where ${whereSql}
-        and ol.geom is not null
-        and st_intersects(
-          ol.geom::geometry,
-          ST_MakeEnvelope($${westIndex}, $${southIndex}, $${eastIndex}, $${northIndex}, 4326)
-        )
-      order by o.id, ol.created_at desc
+      with filtered_organizers as (
+        select
+          o.id as organizer_id,
+          o.slug as organizer_slug,
+          o.name as organizer_name
+        from organizers o
+        where ${whereSql}
+      ),
+      latest_profile_points as (
+        select
+          ol.organizer_id,
+          ol.geom::geometry as geom
+        from (
+          select
+            ol.organizer_id,
+            ol.geom,
+            row_number() over (
+              partition by ol.organizer_id
+              order by ol.created_at desc, ol.id desc
+            ) as rn
+          from organizer_locations ol
+          join filtered_organizers fo on fo.organizer_id = ol.organizer_id
+          where ol.geom is not null
+            and (
+              cardinality($${countryFilterIndex}::text[]) = 0
+              or lower(coalesce(ol.country_code, '')) = any($${countryFilterIndex}::text[])
+            )
+            and (
+              cardinality($${cityFilterIndex}::text[]) = 0
+              or lower(coalesce(ol.city, '')) = any($${cityFilterIndex}::text[])
+            )
+            and st_intersects(
+              ol.geom,
+              ST_MakeEnvelope($${westIndex}, $${southIndex}, $${eastIndex}, $${northIndex}, 4326)::geography
+            )
+        ) ol
+        where ol.rn = 1
+      ),
+      fallback_points as (
+        select distinct on (fo.organizer_id)
+          fo.organizer_id,
+          eo.geom::geometry as geom
+        from filtered_organizers fo
+        left join latest_profile_points lp on lp.organizer_id = fo.organizer_id
+        join event_organizers rel on rel.organizer_id = fo.organizer_id
+        join events e on e.id = rel.event_id and e.status = 'published'
+        join event_occurrences eo on eo.event_id = e.id
+        where lp.organizer_id is null
+          and eo.status = 'published'
+          and eo.starts_at_utc >= now()
+          and eo.geom is not null
+          and (
+            cardinality($${countryFilterIndex}::text[]) = 0
+            or lower(coalesce(eo.country_code, '')) = any($${countryFilterIndex}::text[])
+          )
+          and (
+            cardinality($${cityFilterIndex}::text[]) = 0
+            or lower(coalesce(eo.city, '')) = any($${cityFilterIndex}::text[])
+          )
+          and st_intersects(
+            eo.geom::geometry,
+            ST_MakeEnvelope($${westIndex}, $${southIndex}, $${eastIndex}, $${northIndex}, 4326)
+          )
+        order by fo.organizer_id, eo.starts_at_utc asc
+      ),
+      selected_points as (
+        select organizer_id, geom from latest_profile_points
+        union all
+        select organizer_id, geom from fallback_points
+      ),
+      practice_meta as (
+        select
+          practices_union.organizer_id,
+          array_agg(distinct practices_union.practice_label order by practices_union.practice_label) as practice_labels
+        from (
+          select
+            op.organizer_id,
+            p.label as practice_label
+          from organizer_practices op
+          join practices p on p.id = op.practice_id
+
+          union
+
+          select
+            eo.organizer_id,
+            p.label as practice_label
+          from event_organizers eo
+          join events e on e.id = eo.event_id and e.status = 'published'
+          join practices p on p.id = e.practice_category_id
+        ) practices_union
+        group by practices_union.organizer_id
+      )
+      select
+        fo.organizer_id,
+        fo.organizer_slug,
+        fo.organizer_name,
+        coalesce(pm.practice_labels, '{}'::text[]) as practice_labels,
+        st_y(sp.geom) as lat,
+        st_x(sp.geom) as lng
+      from filtered_organizers fo
+      join selected_points sp on sp.organizer_id = fo.organizer_id
+      left join practice_meta pm on pm.organizer_id = fo.organizer_id
+      order by
+        fo.organizer_name asc
       limit $${limitIndex}
     `,
     values,

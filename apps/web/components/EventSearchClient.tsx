@@ -2,13 +2,15 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
+import { scrollToTopFast } from "../lib/scroll";
 import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
+import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
 export type SearchResponse = {
@@ -88,7 +90,7 @@ export type EventSearchInitialQuery = {
   eventFormatIds?: string[];
   tags?: string[];
   languages?: string[];
-  attendanceMode?: string;
+  attendanceModes?: string[];
   countryCodes?: string[];
   cities?: string[];
   eventDates?: EventDatePreset[];
@@ -125,6 +127,7 @@ type DisjunctiveFacetState = {
   practiceCategoryId: Record<string, number>;
   eventFormatId: Record<string, number>;
   languages: Record<string, number>;
+  attendanceMode: Record<string, number>;
   countryCode: Record<string, number>;
   eventDate: Record<string, number>;
 };
@@ -139,8 +142,13 @@ export function EventSearchClient({
   initialQuery?: EventSearchInitialQuery;
 }) {
   const { locale, t } = useI18n();
+  const auth = useKeycloakAuth();
+  const canSeeDetailedErrors = auth.authenticated && auth.roles.some((role) =>
+    role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
+  );
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [view, setView] = useState<"list" | "map">(initialQuery?.view ?? "list");
   const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc">(initialQuery?.sort ?? "startsAtAsc");
   const [q, setQ] = useState(initialQuery?.q ?? "");
@@ -152,7 +160,7 @@ export function EventSearchClient({
   const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
   const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false);
   const [languages, setLanguages] = useState<string[]>(initialQuery?.languages ?? []);
-  const [attendanceMode, setAttendanceMode] = useState(initialQuery?.attendanceMode ?? "");
+  const [attendanceModes, setAttendanceModes] = useState<string[]>(initialQuery?.attendanceModes ?? []);
   const [countryCodes, setCountryCodes] = useState<string[]>(
     (initialQuery?.countryCodes ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean),
   );
@@ -170,14 +178,24 @@ export function EventSearchClient({
     practiceCategoryId: initialResults?.facets?.practiceCategoryId ?? {},
     eventFormatId: initialResults?.facets?.eventFormatId ?? {},
     languages: initialResults?.facets?.languages ?? {},
+    attendanceMode: initialResults?.facets?.attendanceMode ?? {},
     countryCode: initialResults?.facets?.countryCode ?? {},
     eventDate: initialResults?.facets?.eventDate ?? {},
   });
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
+  const [dateOpen, setDateOpen] = useState((initialQuery?.eventDates?.length ?? 0) > 0);
+  const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);
+  const [eventFormatOpen, setEventFormatOpen] = useState((initialQuery?.eventFormatIds?.length ?? 0) > 0);
+  const [languageOpen, setLanguageOpen] = useState((initialQuery?.languages?.length ?? 0) > 0);
+  const [attendanceOpen, setAttendanceOpen] = useState((initialQuery?.attendanceModes?.length ?? 0) > 0);
+  const [countryOpen, setCountryOpen] = useState((initialQuery?.countryCodes?.length ?? 0) > 0);
   const restoredKeyRef = useRef<string | null>(null);
+  const syncingFromUrlRef = useRef(false);
   const facetRequestRef = useRef(0);
+  const pendingPaginationScrollRef = useRef(false);
+  const skipNextScrollRestoreRef = useRef(false);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
   useEffect(() => {
@@ -295,7 +313,7 @@ export function EventSearchClient({
     if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
-    if (attendanceMode) params.set("attendanceMode", attendanceMode);
+    if (attendanceModes.length) params.set("attendanceMode", attendanceModes.join(","));
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
@@ -311,7 +329,7 @@ export function EventSearchClient({
     eventFormatIds,
     tags,
     languages,
-    attendanceMode,
+    attendanceModes,
     countryCodes,
     cities,
     eventDates,
@@ -333,7 +351,7 @@ export function EventSearchClient({
     }
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
-    if (attendanceMode) params.set("attendanceMode", attendanceMode);
+    if (attendanceModes.length) params.set("attendanceMode", attendanceModes.join(","));
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
@@ -348,7 +366,7 @@ export function EventSearchClient({
     eventFormatIds,
     tags,
     languages,
-    attendanceMode,
+    attendanceModes,
     countryCodes,
     cities,
     eventDates,
@@ -359,7 +377,7 @@ export function EventSearchClient({
     eventFormatKeyById,
   ]);
 
-  const buildFacetQueryString = useCallback((exclude: "practice" | "eventFormat" | "languages" | "country") => {
+  const buildFacetQueryString = useCallback((exclude: "practice" | "eventFormat" | "languages" | "attendance" | "country") => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (exclude !== "practice") {
@@ -369,7 +387,7 @@ export function EventSearchClient({
     if (exclude !== "eventFormat" && eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
     if (tags.length) params.set("tags", tags.join(","));
     if (exclude !== "languages" && languages.length) params.set("languages", languages.join(","));
-    if (attendanceMode) params.set("attendanceMode", attendanceMode);
+    if (exclude !== "attendance" && attendanceModes.length) params.set("attendanceMode", attendanceModes.join(","));
     if (exclude !== "country" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
@@ -385,12 +403,87 @@ export function EventSearchClient({
     eventFormatIds,
     tags,
     languages,
-    attendanceMode,
+    attendanceModes,
     countryCodes,
     cities,
     eventDates,
     userTimeZone,
   ]);
+
+  useEffect(() => {
+    const readCsv = (key: string) =>
+      (searchParams.get(key) ?? "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+    const nextQ = searchParams.get("q") ?? "";
+    const practiceIdsFromUrl = [
+      ...readCsv("practiceCategoryId"),
+      ...readCsv("practice").map((key) => (
+        taxonomy?.practices.categories.find((category) => category.key === key)?.id ?? ""
+      )).filter(Boolean),
+    ];
+    const nextPracticeCategoryIds = Array.from(new Set(practiceIdsFromUrl));
+    const nextPracticeSubcategoryId = searchParams.get("practiceSubcategoryId") ?? "";
+    const eventFormatIdsFromUrl = [
+      ...readCsv("eventFormatId"),
+      ...readCsv("format").map((key) => taxonomy?.eventFormats?.find((format) => format.key === key)?.id ?? "")
+        .filter(Boolean) as string[],
+    ];
+    const nextEventFormatIds = Array.from(new Set(eventFormatIdsFromUrl));
+    const nextTags = readCsv("tags").map((item) => item.toLowerCase());
+    const nextLanguages = readCsv("languages").map((item) => item.toLowerCase());
+    const nextAttendanceModes = readCsv("attendanceMode")
+      .map((item) => item.toLowerCase())
+      .filter((item) => item === "in_person" || item === "online" || item === "hybrid");
+    const nextCountryCodes = readCsv("countryCode").map((item) => item.toLowerCase());
+    const nextCities = readCsv("city");
+    const nextEventDates = readCsv("eventDate")
+      .map((item) => item.toLowerCase())
+      .filter((item): item is EventDatePreset => EVENT_DATE_PRESETS.includes(item as EventDatePreset));
+    const nextSort = searchParams.get("sort") === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc";
+    const nextView = searchParams.get("view") === "map" ? "map" : "list";
+    const parsedPage = Number(searchParams.get("page") ?? "1");
+    const nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+
+    syncingFromUrlRef.current = true;
+    setQ(nextQ);
+    setPracticeCategoryIds(nextPracticeCategoryIds);
+    setPracticeSubcategoryId(nextPracticeSubcategoryId);
+    setEventFormatIds(nextEventFormatIds);
+    setTags(nextTags);
+    setLanguages(nextLanguages);
+    setAttendanceModes(nextAttendanceModes);
+    setCountryCodes(nextCountryCodes);
+    setCities(nextCities);
+    setEventDates(nextEventDates);
+    setSort(nextSort);
+    setView(nextView);
+    setPage(nextPage);
+    window.setTimeout(() => {
+      syncingFromUrlRef.current = false;
+    }, 0);
+  }, [searchParams, taxonomy]);
+
+  useEffect(() => {
+    if (eventDates.length > 0) setDateOpen(true);
+  }, [eventDates.length]);
+  useEffect(() => {
+    if (practiceCategoryIds.length > 0) setPracticeOpen(true);
+  }, [practiceCategoryIds.length]);
+  useEffect(() => {
+    if (eventFormatIds.length > 0) setEventFormatOpen(true);
+  }, [eventFormatIds.length]);
+  useEffect(() => {
+    if (languages.length > 0) setLanguageOpen(true);
+  }, [languages.length]);
+  useEffect(() => {
+    if (attendanceModes.length > 0) setAttendanceOpen(true);
+  }, [attendanceModes.length]);
+  useEffect(() => {
+    if (countryCodes.length > 0) setCountryOpen(true);
+  }, [countryCodes.length]);
 
   const scrollStorageKey = useMemo(() => {
     const query = buildUiQueryString();
@@ -426,12 +519,21 @@ export function EventSearchClient({
       }));
       setActiveQueryString(currentQuery);
       setRefreshToken((value) => value + 1);
+      if (pendingPaginationScrollRef.current && typeof window !== "undefined") {
+        pendingPaginationScrollRef.current = false;
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            scrollToTopFast(160);
+          });
+        });
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("eventSearch.error.searchFailed"));
+      pendingPaginationScrollRef.current = false;
+      setError(canSeeDetailedErrors && err instanceof Error ? err.message : t("eventSearch.error.searchFailed"));
     } finally {
       setLoading(false);
     }
-  }, [buildQueryString, page, t]);
+  }, [buildQueryString, canSeeDetailedErrors, page, t]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -452,35 +554,41 @@ export function EventSearchClient({
         fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("practice")}`),
         fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("eventFormat")}`),
         fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("languages")}`),
+        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("attendance")}`),
         fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("country")}`),
-      ]).then(([practiceResult, eventFormatResult, languageResult, countryResult]) => {
+      ]).then(([practiceResult, eventFormatResult, languageResult, attendanceResult, countryResult]) => {
         if (requestId !== facetRequestRef.current) {
           return;
         }
-        setDisjunctiveFacets({
+        setDisjunctiveFacets((current) => ({
           practiceCategoryId: practiceResult?.facets?.practiceCategoryId ?? {},
           eventFormatId: eventFormatResult?.facets?.eventFormatId ?? {},
           languages: languageResult?.facets?.languages ?? {},
+          attendanceMode: attendanceResult?.facets?.attendanceMode ?? {},
           countryCode: countryResult?.facets?.countryCode ?? {},
-          eventDate: data?.facets?.eventDate ?? {},
-        });
+          eventDate: current.eventDate,
+        }));
       }).catch(() => {
         if (requestId !== facetRequestRef.current) {
           return;
         }
-        setDisjunctiveFacets({
+        setDisjunctiveFacets((current) => ({
           practiceCategoryId: {},
           eventFormatId: {},
           languages: {},
+          attendanceMode: {},
           countryCode: {},
-          eventDate: data?.facets?.eventDate ?? {},
-        });
+          eventDate: current.eventDate,
+        }));
       });
-    }, 250);
+    }, 350);
     return () => clearTimeout(timer);
-  }, [buildFacetQueryString, data?.facets?.eventDate]);
+  }, [buildFacetQueryString]);
 
   useEffect(() => {
+    if (syncingFromUrlRef.current) {
+      return;
+    }
     const timer = setTimeout(() => {
       const queryString = buildUiQueryString();
       router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
@@ -490,6 +598,11 @@ export function EventSearchClient({
 
   useEffect(() => {
     if (typeof window === "undefined") {
+      return;
+    }
+
+    if (skipNextScrollRestoreRef.current) {
+      skipNextScrollRestoreRef.current = false;
       return;
     }
 
@@ -547,7 +660,7 @@ export function EventSearchClient({
     setTags([]);
     setTagQuery("");
     setLanguages([]);
-    setAttendanceMode("");
+    setAttendanceModes([]);
     setCountryCodes([]);
     setCities([]);
     setCityQuery("");
@@ -655,6 +768,16 @@ export function EventSearchClient({
         },
       });
     }
+    for (const attendanceMode of attendanceModes) {
+      chips.push({
+        key: `attendance:${attendanceMode}`,
+        label: `${t("eventSearch.attendance.anyEventType")}: ${t(`eventSearch.attendance.${attendanceMode}`)}`,
+        onRemove: () => {
+          setAttendanceModes((current) => current.filter((item) => item !== attendanceMode));
+          setPage(1);
+        },
+      });
+    }
     for (const country of countryCodes) {
       chips.push({
         key: `country:${country}`,
@@ -703,6 +826,7 @@ export function EventSearchClient({
     eventFormatIds,
     getCountryLabel,
     getLanguageLabel,
+    attendanceModes,
     languages,
     practiceCategoryIds,
     t,
@@ -745,29 +869,38 @@ export function EventSearchClient({
     <section className="grid">
       <aside className="panel filters">
         <h2 className="title-xl">{t("eventSearch.title")}</h2>
-        <div className="kv">
-          <button
-            type="button"
-            className={view === "list" ? "secondary-btn" : "ghost-btn"}
-            onClick={() => setView("list")}
-          >
-            {t("eventSearch.view.list")}
-          </button>
-          <button
-            type="button"
-            className={view === "map" ? "secondary-btn" : "ghost-btn"}
-            onClick={() => setView("map")}
-          >
-            {t("eventSearch.view.map")}
-          </button>
-        </div>
         <input
           value={q}
           onChange={(event) => setQ(event.target.value)}
           placeholder={t("eventSearch.placeholder.searchTitle")}
         />
-        <div>
-          <div className="meta">{categorySingularLabel}</div>
+        <details open={dateOpen} onToggle={(event) => setDateOpen((event.currentTarget as HTMLDetailsElement).open)}>
+          <summary>{t("eventSearch.eventDate")}</summary>
+          <div className="kv">
+            {visibleEventDateFacets.map((item) => (
+              <label className="meta" key={item.key}>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => {
+                    setEventDates((current) => (
+                      current.includes(item.key)
+                        ? current.filter((value) => value !== item.key)
+                        : [...current, item.key]
+                    ));
+                    setPage(1);
+                  }}
+                />
+                {t(`eventSearch.eventDateOption.${item.key}`)} ({item.count})
+              </label>
+            ))}
+          </div>
+        </details>
+        <details
+          open={practiceOpen}
+          onToggle={(event) => setPracticeOpen((event.currentTarget as HTMLDetailsElement).open)}
+        >
+          <summary>{categorySingularLabel}</summary>
           <div className="kv">
             {visibleCategories.map((category) => {
               const checked = practiceCategoryIds.includes(category.id);
@@ -796,7 +929,7 @@ export function EventSearchClient({
               );
             })}
           </div>
-        </div>
+        </details>
         {hasAnySubcategories && (
           <label>
             {t("common.subcategory")}
@@ -815,8 +948,11 @@ export function EventSearchClient({
           </label>
         )}
         {(taxonomy?.eventFormats?.length ?? 0) > 0 && (
-          <label>
-            {t("eventSearch.eventFormat")}
+          <details
+            open={eventFormatOpen}
+            onToggle={(event) => setEventFormatOpen((event.currentTarget as HTMLDetailsElement).open)}
+          >
+            <summary>{t("eventSearch.eventFormat")}</summary>
             <div className="kv">
               {taxonomy?.eventFormats?.map((format) => {
                 const checked = eventFormatIds.includes(format.id);
@@ -843,10 +979,13 @@ export function EventSearchClient({
                 );
               })}
             </div>
-          </label>
+          </details>
         )}
-        <label>
-          {t("eventSearch.eventLanguage")}
+        <details
+          open={languageOpen}
+          onToggle={(event) => setLanguageOpen((event.currentTarget as HTMLDetailsElement).open)}
+        >
+          <summary>{t("eventSearch.eventLanguage")}</summary>
           <div className="kv">
             {visibleEventLanguageFacets.map(([value, count]) => (
               <label className="meta" key={value}>
@@ -864,35 +1003,16 @@ export function EventSearchClient({
               </label>
             ))}
           </div>
-        </label>
-        <details open>
-          <summary>{t("eventSearch.eventDate")}</summary>
-          <div className="kv">
-            {visibleEventDateFacets.map((item) => (
-              <label className="meta" key={item.key}>
-                <input
-                  type="checkbox"
-                  checked={item.checked}
-                  onChange={() => {
-                    setEventDates((current) => (
-                      current.includes(item.key)
-                        ? current.filter((value) => value !== item.key)
-                        : [...current, item.key]
-                    ));
-                    setPage(1);
-                  }}
-                />
-                {t(`eventSearch.eventDateOption.${item.key}`)} ({item.count})
-              </label>
-            ))}
-          </div>
         </details>
-        <details open>
+        <details
+          open={attendanceOpen}
+          onToggle={(event) => setAttendanceOpen((event.currentTarget as HTMLDetailsElement).open)}
+        >
           <summary>{t("eventSearch.attendance.anyEventType")}</summary>
           <div className="kv">
             {(["in_person", "online", "hybrid"] as const).map((mode) => {
-              const count = data?.facets?.attendanceMode?.[mode] ?? 0;
-              const checked = attendanceMode === mode;
+              const count = disjunctiveFacets.attendanceMode?.[mode] ?? 0;
+              const checked = attendanceModes.includes(mode);
               if (count <= 0 && !checked) {
                 return null;
               }
@@ -902,7 +1022,11 @@ export function EventSearchClient({
                     type="checkbox"
                     checked={checked}
                     onChange={() => {
-                      setAttendanceMode((current) => (current === mode ? "" : mode));
+                      setAttendanceModes((current) => (
+                        current.includes(mode)
+                          ? current.filter((item) => item !== mode)
+                          : [...current, mode]
+                      ));
                       setPage(1);
                     }}
                   />
@@ -912,7 +1036,10 @@ export function EventSearchClient({
             })}
           </div>
         </details>
-        <details open>
+        <details
+          open={countryOpen}
+          onToggle={(event) => setCountryOpen((event.currentTarget as HTMLDetailsElement).open)}
+        >
           <summary>{t("eventSearch.country")}</summary>
           <div className="kv">
             {visibleCountryFacets.map(({ value, count }) => (
@@ -1063,30 +1190,6 @@ export function EventSearchClient({
           </label>
         </div>
         <div className="kv">
-          <span className="meta">{t("eventSearch.sort.label")}</span>
-          <button
-            type="button"
-            className={sort === "startsAtAsc" ? "secondary-btn" : "ghost-btn"}
-            onClick={() => {
-              setSort("startsAtAsc");
-              setPage(1);
-            }}
-          >
-            {t("eventSearch.sort.dateAsc")}
-          </button>
-          <button
-            type="button"
-            className={sort === "startsAtDesc" ? "secondary-btn" : "ghost-btn"}
-            onClick={() => {
-              setSort("startsAtDesc");
-              setPage(1);
-            }}
-          >
-            {t("eventSearch.sort.dateDesc")}
-          </button>
-        </div>
-
-        <div className="kv">
           <button
             type="button"
             className="secondary-btn"
@@ -1099,11 +1202,64 @@ export function EventSearchClient({
       </aside>
 
       <div className="panel cards">
-        <div className="meta">
-          {data
-            ? t("eventSearch.resultsCount", { count: data.totalHits })
-            : t("eventSearch.promptRun")}
+        <div className="results-toolbar">
+          <div className="meta">
+            {data
+              ? t("eventSearch.resultsCount", { count: data.totalHits })
+              : t("eventSearch.promptRun")}
+          </div>
+          <div className="results-toolbar-actions">
+            <button
+              type="button"
+              className={sort === "startsAtAsc" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
+              onClick={() => {
+                setSort("startsAtAsc");
+                setPage(1);
+              }}
+              aria-label={t("eventSearch.sort.dateAsc")}
+              title={t("eventSearch.sort.dateAsc")}
+            >
+              <span aria-hidden>↑</span>
+            </button>
+            <button
+              type="button"
+              className={sort === "startsAtDesc" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
+              onClick={() => {
+                setSort("startsAtDesc");
+                setPage(1);
+              }}
+              aria-label={t("eventSearch.sort.dateDesc")}
+              title={t("eventSearch.sort.dateDesc")}
+            >
+              <span aria-hidden>↓</span>
+            </button>
+            <button
+              type="button"
+              className={view === "list" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
+              onClick={() => setView("list")}
+              aria-label={t("eventSearch.view.list")}
+              title={t("eventSearch.view.list")}
+            >
+              <span aria-hidden>☰</span>
+            </button>
+            <button
+              type="button"
+              className={view === "map" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
+              onClick={() => setView("map")}
+              aria-label={t("eventSearch.view.map")}
+              title={t("eventSearch.view.map")}
+            >
+              <span aria-hidden>⌖</span>
+            </button>
+          </div>
         </div>
+        {view === "map" ? (
+          <LeafletClusterMap
+            queryString={activeQueryString}
+            refreshToken={refreshToken}
+            timeDisplayMode={timeDisplayMode}
+          />
+        ) : null}
         {error && <div className="muted">{error}</div>}
         {selectedFilterChips.length > 0 && (
           <div className="kv">
@@ -1115,13 +1271,7 @@ export function EventSearchClient({
           </div>
         )}
 
-        {view === "map" ? (
-          <LeafletClusterMap
-            queryString={activeQueryString}
-            refreshToken={refreshToken}
-            timeDisplayMode={timeDisplayMode}
-          />
-        ) : (
+        {view === "list" ? (
           data?.hits.map((hit) => {
             const formatted = formatDateTimeRange(
               hit.startsAtUtc,
@@ -1155,8 +1305,21 @@ export function EventSearchClient({
                     : t("common.yourTimezone")}) | {t(`attendanceMode.${hit.event.attendanceMode}`)}
                 </div>
                 <div className="meta">
-                  {hit.location?.city ?? t("eventSearch.locationTbd")}
-                  {hit.location?.country_code ? `, ${getCountryLabel(hit.location.country_code)}` : ""}
+                  {t("eventSearch.locationLabel", {
+                    location: (() => {
+                      if (hit.location?.city || hit.location?.country_code) {
+                        const parts = [
+                          hit.location?.city ?? "",
+                          hit.location?.country_code ? getCountryLabel(hit.location.country_code) : "",
+                        ].filter(Boolean);
+                        return parts.join(", ");
+                      }
+                      if (hit.event.attendanceMode === "online") {
+                        return t("eventSearch.locationOnline");
+                      }
+                      return t("eventSearch.locationTbd");
+                    })(),
+                  })}
                 </div>
                 <div className="meta">
                   {categorySingularLabel}: {categoryLabelById.get(hit.event.practiceCategoryId) ?? hit.event.practiceCategoryId}
@@ -1218,13 +1381,17 @@ export function EventSearchClient({
               </Link>
             );
           })
-        )}
-        {data && (
+        ) : null}
+        {data && view === "list" && (
           <div className="admin-card-actions">
             <button
               className="secondary-btn"
               type="button"
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              onClick={() => {
+                pendingPaginationScrollRef.current = true;
+                skipNextScrollRestoreRef.current = true;
+                setPage((prev) => Math.max(prev - 1, 1));
+              }}
               disabled={loading || currentPage <= 1}
               style={currentPage <= 1 ? { visibility: "hidden" } : undefined}
             >
@@ -1236,7 +1403,11 @@ export function EventSearchClient({
             <button
               className="secondary-btn"
               type="button"
-              onClick={() => setPage((prev) => prev + 1)}
+              onClick={() => {
+                pendingPaginationScrollRef.current = true;
+                skipNextScrollRestoreRef.current = true;
+                setPage((prev) => prev + 1);
+              }}
               disabled={loading || currentPage >= totalPages}
               style={currentPage >= totalPages ? { visibility: "hidden" } : undefined}
             >

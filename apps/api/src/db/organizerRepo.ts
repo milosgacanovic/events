@@ -1,5 +1,5 @@
 import type { CreateOrganizerInput, UpdateOrganizerInput } from "@dr-events/shared";
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 
 import { generateUniqueSlug } from "../utils/slug";
 
@@ -74,13 +74,22 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
   if (filters.roleKeys?.length) {
     values.push(filters.roleKeys);
     whereParts.push(`
-      exists (
-        select 1
-        from event_organizers eo
-        join events e on e.id = eo.event_id and e.status = 'published'
-        join organizer_roles r on r.id = eo.role_id
-        where eo.organizer_id = o.id
-          and r.key = any($${values.length}::text[])
+      (
+        exists (
+          select 1
+          from organizer_profile_roles opr
+          join organizer_roles r on r.id = opr.role_id
+          where opr.organizer_id = o.id
+            and r.key = any($${values.length}::text[])
+        )
+        or exists (
+          select 1
+          from event_organizers eo
+          join events e on e.id = eo.event_id and e.status = 'published'
+          join organizer_roles r on r.id = eo.role_id
+          where eo.organizer_id = o.id
+            and r.key = any($${values.length}::text[])
+        )
       )
     `);
   }
@@ -88,12 +97,20 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
   if (filters.practiceCategoryIds?.length) {
     values.push(filters.practiceCategoryIds);
     whereParts.push(`
-      exists (
-        select 1
-        from event_organizers eo
-        join events e on e.id = eo.event_id and e.status = 'published'
-        where eo.organizer_id = o.id
-          and e.practice_category_id = any($${values.length}::uuid[])
+      (
+        exists (
+          select 1
+          from organizer_practices op
+          where op.organizer_id = o.id
+            and op.practice_id = any($${values.length}::uuid[])
+        )
+        or exists (
+          select 1
+          from event_organizers eo
+          join events e on e.id = eo.event_id and e.status = 'published'
+          where eo.organizer_id = o.id
+            and e.practice_category_id = any($${values.length}::uuid[])
+        )
       )
     `);
   }
@@ -146,10 +163,25 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
     `
       select
         o.*,
-        coalesce(role_meta.role_keys, '{}'::text[]) as role_keys,
+        coalesce(nullif(profile_role_meta.role_keys, '{}'::text[]), role_meta.role_keys, '{}'::text[]) as role_keys,
         coalesce(role_meta.derived_languages, '{}'::text[]) as derived_languages,
-        coalesce(role_meta.practice_category_ids, '{}'::text[]) as practice_category_ids
+        coalesce(
+          nullif(profile_practice_meta.practice_category_ids, '{}'::text[]),
+          role_meta.practice_category_ids,
+          '{}'::text[]
+        ) as practice_category_ids
       from organizers o
+      left join lateral (
+        select array_agg(distinct r.key order by r.key) as role_keys
+        from organizer_profile_roles opr
+        join organizer_roles r on r.id = opr.role_id
+        where opr.organizer_id = o.id
+      ) profile_role_meta on true
+      left join lateral (
+        select array_agg(distinct op.practice_id::text order by op.practice_id::text) as practice_category_ids
+        from organizer_practices op
+        where op.organizer_id = o.id
+      ) profile_practice_meta on true
       left join lateral (
         select
           array_agg(distinct r.key order by r.key) as role_keys,
@@ -181,11 +213,20 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
         from organizers o
         where ${whereSql}
       )
-      select r.key, count(distinct f.id)::text as count
-      from filtered f
-      join event_organizers eo on eo.organizer_id = f.id
-      join organizer_roles r on r.id = eo.role_id
-      group by r.key
+      select role_key as key, count(distinct organizer_id)::text as count
+      from (
+        select f.id as organizer_id, r.key as role_key
+        from filtered f
+        join organizer_profile_roles opr on opr.organizer_id = f.id
+        join organizer_roles r on r.id = opr.role_id
+        union
+        select f.id as organizer_id, r.key as role_key
+        from filtered f
+        join event_organizers eo on eo.organizer_id = f.id
+        join events e on e.id = eo.event_id and e.status = 'published'
+        join organizer_roles r on r.id = eo.role_id
+      ) roles
+      group by role_key
     `,
     values,
   );
@@ -219,12 +260,19 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
         from organizers o
         where ${whereSql}
       )
-      select e.practice_category_id::text as key, count(distinct f.id)::text as count
-      from filtered f
-      join event_organizers eo on eo.organizer_id = f.id
-      join events e on e.id = eo.event_id and e.status = 'published'
-      where e.practice_category_id is not null
-      group by e.practice_category_id::text
+      select practice_key as key, count(distinct organizer_id)::text as count
+      from (
+        select f.id as organizer_id, op.practice_id::text as practice_key
+        from filtered f
+        join organizer_practices op on op.organizer_id = f.id
+        union
+        select f.id as organizer_id, e.practice_category_id::text as practice_key
+        from filtered f
+        join event_organizers eo on eo.organizer_id = f.id
+        join events e on e.id = eo.event_id and e.status = 'published'
+        where e.practice_category_id is not null
+      ) practices
+      group by practice_key
     `,
     values,
   );
@@ -320,6 +368,7 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
     event_id: string;
     event_slug: string;
     event_title: string;
+    cover_image_url: string | null;
   }>(
     `
       select
@@ -330,7 +379,8 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
         eo.status,
         e.id as event_id,
         e.slug as event_slug,
-        e.title as event_title
+        e.title as event_title,
+        e.cover_image_path as cover_image_url
       from event_organizers rel
       join events e on e.id = rel.event_id
       join event_occurrences eo on eo.event_id = e.id
@@ -351,6 +401,7 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
     event_id: string;
     event_slug: string;
     event_title: string;
+    cover_image_url: string | null;
   }>(
     `
       select
@@ -361,7 +412,8 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
         eo.status,
         e.id as event_id,
         e.slug as event_slug,
-        e.title as event_title
+        e.title as event_title,
+        e.cover_image_path as cover_image_url
       from event_organizers rel
       join events e on e.id = rel.event_id
       join event_occurrences eo on eo.event_id = e.id
@@ -402,17 +454,53 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
 
   const practiceCategories = await pool.query<{ practice_category_id: string }>(
     `
-      select distinct e.practice_category_id
-      from event_organizers rel
-      join events e on e.id = rel.event_id
-      where rel.organizer_id = $1
-        and e.status in ('published', 'cancelled')
+      with profile_practices as (
+        select distinct op.practice_id::text as practice_category_id
+        from organizer_practices op
+        where op.organizer_id = $1
+      ),
+      event_practices as (
+        select distinct e.practice_category_id::text as practice_category_id
+        from event_organizers rel
+        join events e on e.id = rel.event_id
+        where rel.organizer_id = $1
+          and e.status in ('published', 'cancelled')
+      )
+      select distinct practice_category_id from profile_practices
+      union
+      select distinct practice_category_id from event_practices
+    `,
+    [organizer.rows[0].id],
+  );
+
+  const roleKeys = await pool.query<{ role_key: string }>(
+    `
+      with profile_roles as (
+        select distinct r.key as role_key
+        from organizer_profile_roles opr
+        join organizer_roles r on r.id = opr.role_id
+        where opr.organizer_id = $1
+      ),
+      event_roles as (
+        select distinct r.key as role_key
+        from event_organizers eo
+        join organizer_roles r on r.id = eo.role_id
+        join events e on e.id = eo.event_id
+        where eo.organizer_id = $1
+          and e.status in ('published', 'cancelled')
+      )
+      select distinct role_key from profile_roles
+      union
+      select distinct role_key from event_roles
     `,
     [organizer.rows[0].id],
   );
 
   return {
-    organizer: organizer.rows[0],
+    organizer: {
+      ...organizer.rows[0],
+      role_keys: roleKeys.rows.map((row) => row.role_key),
+    },
     locations: locations.rows,
     upcomingOccurrences: upcoming.rows,
     pastOccurrences: past.rows,
@@ -423,8 +511,10 @@ export async function getOrganizerBySlug(pool: Pool, slug: string) {
 export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
   const slug = await generateUniqueSlug(pool, "organizers", input.name);
   const imageUrl = input.imageUrl ?? input.avatarPath ?? null;
-
-  const result = await pool.query<OrganizerRow>(
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const result = await client.query<OrganizerRow>(
     `
       insert into organizers (
         slug,
@@ -462,8 +552,17 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
       input.status,
     ],
   );
-
-  return result.rows[0];
+    const created = result.rows[0];
+    await syncOrganizerProfileRoles(client, created.id, input.profileRoleIds);
+    await syncOrganizerPractices(client, created.id, input.practiceCategoryIds);
+    await client.query("commit");
+    return created;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 function buildUpdateStatement(
@@ -514,9 +613,66 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
     fields.slug = await generateUniqueSlug(pool, "organizers", input.name, id);
   }
 
-  const { sql, values } = buildUpdateStatement("organizers", id, fields);
-  const result = await pool.query<OrganizerRow>(sql, values);
-  return result.rows[0] ?? null;
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const { sql, values } = buildUpdateStatement("organizers", id, fields);
+    const result = await client.query<OrganizerRow>(sql, values);
+    const updated = result.rows[0] ?? null;
+    if (!updated) {
+      await client.query("rollback");
+      return null;
+    }
+    await syncOrganizerProfileRoles(client, id, input.profileRoleIds);
+    await syncOrganizerPractices(client, id, input.practiceCategoryIds);
+    await client.query("commit");
+    return updated;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function syncOrganizerProfileRoles(
+  client: PoolClient,
+  organizerId: string,
+  roleIds: string[] | undefined,
+) {
+  if (!roleIds) {
+    return;
+  }
+  await client.query("delete from organizer_profile_roles where organizer_id = $1", [organizerId]);
+  for (let index = 0; index < roleIds.length; index += 1) {
+    await client.query(
+      `
+        insert into organizer_profile_roles (organizer_id, role_id, display_order)
+        values ($1, $2, $3)
+      `,
+      [organizerId, roleIds[index], index],
+    );
+  }
+}
+
+async function syncOrganizerPractices(
+  client: PoolClient,
+  organizerId: string,
+  practiceIds: string[] | undefined,
+) {
+  if (!practiceIds) {
+    return;
+  }
+  await client.query("delete from organizer_practices where organizer_id = $1", [organizerId]);
+  for (let index = 0; index < practiceIds.length; index += 1) {
+    await client.query(
+      `
+        insert into organizer_practices (organizer_id, practice_id, display_order)
+        values ($1, $2, $3)
+      `,
+      [organizerId, practiceIds[index], index],
+    );
+  }
 }
 
 export async function getOrganizerByExternalRef(

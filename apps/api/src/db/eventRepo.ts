@@ -233,10 +233,6 @@ export async function updateEvent(pool: Pool, eventId: string, input: UpdateEven
     status: input.status,
   };
 
-  if (input.title) {
-    fields.slug = await generateUniqueSlug(pool, "events", input.title, eventId);
-  }
-
   const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
   if (!entries.length) {
     const existing = await pool.query<EventSeriesRow>("select * from events where id = $1", [eventId]);

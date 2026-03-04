@@ -48,19 +48,19 @@ export function resolveAdminRateLimit(path: string): number | null {
 
 export function resolvePublicRateLimit(path: string, _baseLimit: number): number | null {
   if (path === "/api/events/search") {
-    return 120;
+    return 300;
   }
   if (path === "/api/organizers/search") {
-    return 120;
+    return 240;
   }
   if (path === "/api/map/clusters") {
-    return 120;
+    return 240;
   }
   if (path === "/api/map/organizer-clusters") {
-    return 120;
+    return 240;
   }
   if (path.startsWith("/api/meta/")) {
-    return 240;
+    return 300;
   }
   return null;
 }

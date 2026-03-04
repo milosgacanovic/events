@@ -321,9 +321,13 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
     name: string;
     description_json: Record<string, unknown>;
     website_url: string | null;
+    external_url: string | null;
     tags: string[];
     languages: string[];
+    image_url: string | null;
     avatar_path: string | null;
+    city: string | null;
+    country_code: string | null;
     status: "draft" | "published" | "archived";
     created_at: string;
     updated_at: string;
@@ -335,9 +339,13 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
         o.name,
         o.description_json,
         o.website_url,
+        o.external_url,
         o.tags,
         o.languages,
+        o.image_url,
         o.avatar_path,
+        o.city,
+        o.country_code,
         o.status,
         o.created_at,
         o.updated_at
@@ -348,5 +356,34 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
     [organizerId],
   );
 
-  return result.rows[0] ?? null;
+  const organizer = result.rows[0];
+  if (!organizer) {
+    return null;
+  }
+  const [profileRoles, profilePractices] = await Promise.all([
+    pool.query<{ role_id: string }>(
+      `
+        select role_id
+        from organizer_profile_roles
+        where organizer_id = $1
+        order by display_order asc
+      `,
+      [organizerId],
+    ),
+    pool.query<{ practice_id: string }>(
+      `
+        select practice_id
+        from organizer_practices
+        where organizer_id = $1
+        order by display_order asc
+      `,
+      [organizerId],
+    ),
+  ]);
+
+  return {
+    ...organizer,
+    profile_role_ids: profileRoles.rows.map((row) => row.role_id),
+    practice_category_ids: profilePractices.rows.map((row) => row.practice_id),
+  };
 }

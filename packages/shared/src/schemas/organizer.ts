@@ -12,6 +12,8 @@ const organizerSchemaBase = z.object({
   imageUrl: z.string().url().nullable().optional(),
   city: z.string().min(1).max(120).nullable().optional(),
   countryCode: z.string().min(2).max(8).nullable().optional(),
+  profileRoleIds: z.array(z.string().uuid()).optional(),
+  practiceCategoryIds: z.array(z.string().uuid()).optional(),
   status: organizerStatusSchema.default("published"),
   externalSource: z.string().max(255).nullable().optional(),
   externalId: z.string().max(255).nullable().optional(),

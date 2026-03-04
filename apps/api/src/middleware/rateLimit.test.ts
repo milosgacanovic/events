@@ -16,7 +16,7 @@ describe("public rate limiter", () => {
   it("returns 429 after max requests for /api/events/search", async () => {
     const app = Fastify();
     const windowMs = 60_000;
-    const maxRequests = 120;
+    const maxRequests = 300;
 
     app.addHook("onRequest", async (request, reply) => {
       const path = request.url.split("?")[0] ?? request.url;
@@ -39,7 +39,7 @@ describe("public rate limiter", () => {
     app.get("/api/events/search", async () => ({ ok: true }));
 
     let status = 200;
-    for (let i = 0; i < 130; i += 1) {
+    for (let i = 0; i < 320; i += 1) {
       const response = await app.inject({
         method: "GET",
         url: "/api/events/search",
@@ -79,6 +79,6 @@ describe("public rate limiter", () => {
   });
 
   it("allows higher public rate limit for /api/map/clusters", () => {
-    expect(resolvePublicRateLimit("/api/map/clusters", 60)).toBe(120);
+    expect(resolvePublicRateLimit("/api/map/clusters", 60)).toBe(240);
   });
 });
