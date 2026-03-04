@@ -187,18 +187,12 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
       });
   }, []);
 
-  if (error) {
-    return <div className="panel">{error}</div>;
-  }
-
-  if (!data) {
-    return <div className="panel">{t("organizerDetail.loading")}</div>;
-  }
-
-  const descriptionSections = extractDescriptionSections(data.organizer.descriptionJson ?? data.organizer.description_json);
-  const descriptionHtmlRaw = data.organizer.descriptionHtml
-    ?? (typeof (data.organizer.descriptionJson as { html?: unknown })?.html === "string"
-      ? (data.organizer.descriptionJson as { html?: string }).html
+  const descriptionSections = extractDescriptionSections(
+    data?.organizer.descriptionJson ?? data?.organizer.description_json ?? {},
+  );
+  const descriptionHtmlRaw = data?.organizer.descriptionHtml
+    ?? (typeof (data?.organizer.descriptionJson as { html?: unknown })?.html === "string"
+      ? (data?.organizer.descriptionJson as { html?: string }).html
       : null);
   const sanitizedDescriptionHtml = useMemo(() => {
     if (descriptionHtmlRaw && descriptionHtmlRaw.trim()) {
@@ -209,6 +203,14 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
     }
     return null;
   }, [descriptionHtmlRaw, descriptionSections.description]);
+
+  if (error) {
+    return <div className="panel">{error}</div>;
+  }
+
+  if (!data) {
+    return <div className="panel">{t("organizerDetail.loading")}</div>;
+  }
   const hasEditorRole = auth.roles.some((role) =>
     role === "dr_events_admin" || role === "dr_events_editor" || role === "admin" || role === "editor"
   );
