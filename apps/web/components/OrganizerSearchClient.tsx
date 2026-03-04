@@ -74,8 +74,10 @@ type TaxonomyResponse = {
 
 export function OrganizerSearchClient({
   initialQuery,
+  initialTaxonomy,
 }: {
   initialQuery?: OrganizerSearchInitialQuery;
+  initialTaxonomy?: TaxonomyResponse | null;
 }) {
   const { locale, t } = useI18n();
   const auth = useKeycloakAuth();
@@ -111,7 +113,7 @@ export function OrganizerSearchClient({
   const [languageFacetCounts, setLanguageFacetCounts] = useState<Record<string, number>>({});
   const [practiceFacetCounts, setPracticeFacetCounts] = useState<Record<string, number>>({});
   const [countryFacetCounts, setCountryFacetCounts] = useState<Record<string, number>>({});
-  const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
+  const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [hostTypeOpen, setHostTypeOpen] = useState((initialQuery?.roleKeys?.length ?? 0) > 0);
   const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);
   const [languageOpen, setLanguageOpen] = useState((initialQuery?.languages?.length ?? 0) > 0);
@@ -146,12 +148,13 @@ export function OrganizerSearchClient({
   );
 
   useEffect(() => {
+    if (initialTaxonomy) return;
     fetchJson<TaxonomyResponse>("/meta/taxonomies")
       .then(setTaxonomy)
       .catch(() => {
         // Keep organizer search usable even if taxonomy metadata fails.
       });
-  }, []);
+  }, [initialTaxonomy]);
 
   const buildQueryString = useCallback((nextPage: number) => {
     const params = new URLSearchParams();

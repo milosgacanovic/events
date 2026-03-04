@@ -1,4 +1,5 @@
 import { OrganizerSearchClient, type OrganizerSearchInitialQuery } from "../../components/OrganizerSearchClient";
+import { apiBase } from "../../lib/api";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -21,7 +22,18 @@ function csvToList(value: string | null): string[] | undefined {
   return items.length ? items : undefined;
 }
 
-export default function HostsPage({
+async function fetchServerJson<T>(path: string): Promise<T | null> {
+  const serverApiBase = process.env.INTERNAL_API_BASE_URL ?? apiBase;
+  const response = await fetch(`${serverApiBase}${path}`, {
+    cache: "no-store",
+  }).catch(() => null);
+  if (!response || !response.ok) {
+    return null;
+  }
+  return response.json() as Promise<T>;
+}
+
+export default async function HostsPage({
   searchParams,
 }: {
   searchParams: SearchParams;
@@ -38,5 +50,8 @@ export default function HostsPage({
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
   };
 
-  return <OrganizerSearchClient initialQuery={initialQuery} />;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const initialTaxonomy = await fetchServerJson<any>("/meta/taxonomies");
+
+  return <OrganizerSearchClient initialQuery={initialQuery} initialTaxonomy={initialTaxonomy} />;
 }

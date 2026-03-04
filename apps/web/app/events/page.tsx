@@ -88,7 +88,8 @@ export async function generateMetadata({
 }
 
 async function fetchServerJson<T>(path: string): Promise<T | null> {
-  const response = await fetch(`${apiBase}${path}`, {
+  const serverApiBase = process.env.INTERNAL_API_BASE_URL ?? apiBase;
+  const response = await fetch(`${serverApiBase}${path}`, {
     cache: "no-store",
   }).catch(() => null);
   if (!response || !response.ok) {
