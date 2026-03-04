@@ -1218,7 +1218,6 @@ export function EventSearchClient({
                 setPage(1);
               }}
               aria-label={t("eventSearch.sort.soonestUpcoming")}
-              title={t("eventSearch.sort.soonestUpcoming")}
             >
               <span aria-hidden className="icon-glyph">↑</span>
             </button>
@@ -1230,7 +1229,6 @@ export function EventSearchClient({
                 setPage(1);
               }}
               aria-label={t("eventSearch.sort.newestPublished")}
-              title={t("eventSearch.sort.newestPublished")}
             >
               <span aria-hidden className="icon-glyph">↓</span>
             </button>
