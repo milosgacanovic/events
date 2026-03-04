@@ -292,7 +292,7 @@ function mergeLegacyOrganizerDescription(
   }
   if (sections.length > 0) {
     return sections
-      .map((section) => `<p><strong>${escapeHtml(section.heading)}</strong></p><p>${escapeHtml(section.value).replace(/\n/g, "<br>")}</p>`)
+      .map((section) => `<p>${escapeHtml(section.heading)}</p><p>${escapeHtml(section.value).replace(/\n/g, "<br>")}</p>`)
       .join("");
   }
   const fallbackCandidates = [source.html, source.text];
