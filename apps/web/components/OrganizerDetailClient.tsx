@@ -206,7 +206,14 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   }
 
   if (!data) {
-    return <div className="panel">{t("organizerDetail.loading")}</div>;
+    return (
+      <section className="panel cards">
+        <h1 className="title-xl">{t("organizerDetail.loading")}</h1>
+        <div className="skeleton-line" />
+        <div className="skeleton-line short" />
+        <div className="skeleton-block" />
+      </section>
+    );
   }
   const hasEditorRole = auth.roles.some((role) =>
     role === "dr_events_admin" || role === "dr_events_editor" || role === "admin" || role === "editor"

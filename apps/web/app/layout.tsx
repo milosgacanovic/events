@@ -46,7 +46,7 @@ export default function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var p='system';try{p=localStorage.getItem('dr-theme')||'system'}catch(e){}var r=p;if(p==='system'){r=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',r);document.documentElement.setAttribute('data-theme-preference',p)})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t;try{t=localStorage.getItem('dr-theme')}catch(e){}if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)})()` }} />
       </head>
       <body>
         <I18nProvider locale={locale} messages={messages}>

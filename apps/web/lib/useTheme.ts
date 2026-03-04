@@ -1,33 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 
-type Preference = "light" | "dark" | "system";
-type Resolved = "light" | "dark";
+type Theme = "light" | "dark";
 
 const STORAGE_KEY = "dr-theme";
 
-function getPreference(): Preference {
-  if (typeof window === "undefined") return "system";
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+function getStored(): Theme | null {
   try {
-    return (localStorage.getItem(STORAGE_KEY) as Preference) || "system";
-  } catch {
-    return "system";
-  }
+    const val = localStorage.getItem(STORAGE_KEY);
+    if (val === "light" || val === "dark") return val;
+  } catch {}
+  return null;
 }
 
-function resolve(pref: Preference): Resolved {
-  if (pref !== "system") return pref;
+function getResolved(): Theme {
   if (typeof window === "undefined") return "light";
+  const stored = getStored();
+  if (stored) return stored;
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
 }
 
-function apply(pref: Preference) {
-  const resolved = resolve(pref);
-  document.documentElement.setAttribute("data-theme", resolved);
-  document.documentElement.setAttribute("data-theme-preference", pref);
+function apply(theme: Theme) {
+  document.documentElement.setAttribute("data-theme", theme);
 }
 
 let listeners: Array<() => void> = [];
@@ -41,35 +41,41 @@ function emit() {
   listeners.forEach((l) => l());
 }
 
-function getSnapshot(): string {
-  if (typeof document === "undefined") return "system|light";
-  const pref =
-    (document.documentElement.getAttribute("data-theme-preference") as Preference) || "system";
-  const resolved =
-    (document.documentElement.getAttribute("data-theme") as Resolved) || "light";
-  return `${pref}|${resolved}`;
+function getSnapshot(): Theme {
+  if (typeof document === "undefined") return "light";
+  return (document.documentElement.getAttribute("data-theme") as Theme) || "light";
 }
 
-function getServerSnapshot(): string {
-  return "system|light";
+function getServerSnapshot(): Theme {
+  return "light";
 }
 
 export function useTheme() {
-  const snap = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const [preference, resolved] = snap.split("|") as [Preference, Resolved];
+  const resolved = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+  // Reapply correct theme after hydration (safety net for FOUC)
+  useIsomorphicLayoutEffect(() => {
+    const correct = getResolved();
+    if (document.documentElement.getAttribute("data-theme") !== correct) {
+      apply(correct);
+      emit();
+    }
+  }, []);
+
+  // Listen for OS preference changes (for users who never explicitly chose)
   useEffect(() => {
-    if (preference !== "system") return;
+    if (getStored()) return; // User made explicit choice, ignore OS changes
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => {
-      apply("system");
+      apply(mq.matches ? "dark" : "light");
       emit();
     };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
-  }, [preference]);
+  }, []);
 
-  const setTheme = useCallback((next: Preference) => {
+  const toggle = useCallback(() => {
+    const next: Theme = getSnapshot() === "dark" ? "light" : "dark";
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {}
@@ -77,11 +83,5 @@ export function useTheme() {
     emit();
   }, []);
 
-  const cycle = useCallback(() => {
-    const order: Preference[] = ["light", "dark", "system"];
-    const idx = order.indexOf(preference);
-    setTheme(order[(idx + 1) % order.length]);
-  }, [preference, setTheme]);
-
-  return { preference, resolved, setTheme, cycle } as const;
+  return { resolved, toggle } as const;
 }

@@ -129,7 +129,7 @@ export function EventDetailClient({
   const [data, setData] = useState<EventDetail | null>(initialData ?? null);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(initialData === null && initialData !== undefined);
+  const [notFound, setNotFound] = useState(false);
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 

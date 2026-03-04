@@ -286,6 +286,7 @@ label.meta {
   border: 1px solid var(--line);
   font: inherit;
   background: var(--surface);
+  color: var(--ink);
 }
 
 .filters button {
@@ -640,6 +641,7 @@ label.meta {
 
 .ghost-btn {
   background: transparent;
+  color: var(--ink);
 }
 
 .admin-grid {
@@ -872,4 +874,26 @@ label.meta {
 
 [data-theme="dark"] .leaflet-control-attribution a {
   color: var(--accent);
+}
+
+/* Dark mode: invert logo */
+[data-theme="dark"] .brand-logo {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Dark mode: darken map tiles */
+[data-theme="dark"] .leaflet-tile-pane {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.skeleton-line,
+.skeleton-block {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
