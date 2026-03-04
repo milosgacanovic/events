@@ -246,6 +246,7 @@ label.meta {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  align-self: start;
 }
 
 .results-toolbar-actions {
