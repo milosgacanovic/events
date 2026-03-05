@@ -889,6 +889,7 @@ label.meta {
 
 /* Dark mode: logo blending */
 [data-theme="dark"] .brand-logo {
+  filter: invert(1);
   mix-blend-mode: screen;
 }
 
