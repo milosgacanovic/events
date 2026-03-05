@@ -41,6 +41,17 @@ npm run bg:cleanup -- blue             # Clean up old color after verification
 
 Architecture: `postgres` + `meilisearch` are shared. Blue (`api:13001`, `web:13000`) and green (`api:13101`, `web:13100`) run simultaneously. Apache switches traffic via include files at `/etc/apache2/sites-available/includes/`.
 
+### Quick Deploy (web-only, ~110s)
+
+For frontend-only changes (CSS, HTML, JS) — skips Docker image rebuild:
+
+```bash
+bash scripts/quick-deploy-web.sh            # Auto-detects active color
+bash scripts/quick-deploy-web.sh blue       # Target specific color
+```
+
+Builds Next.js locally, `docker cp`s the output into the running container, and restarts it. ~110s vs ~210s for full `bg:deploy`. Use `bg:deploy` for dependency or API changes.
+
 ## Architecture
 
 ### Monorepo Structure
