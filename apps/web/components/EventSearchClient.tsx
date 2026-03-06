@@ -953,16 +953,16 @@ export function EventSearchClient({
   const activeFilterCount = selectedFilterChips.length;
 
   const heroCollapsed = !!(
-    initialQuery?.q ||
-    initialQuery?.practiceCategoryIds?.length ||
-    initialQuery?.practiceSubcategoryId ||
-    initialQuery?.eventFormatIds?.length ||
-    initialQuery?.tags?.length ||
-    initialQuery?.languages?.length ||
-    initialQuery?.attendanceModes?.length ||
-    initialQuery?.countryCodes?.length ||
-    initialQuery?.cities?.length ||
-    initialQuery?.eventDates?.length
+    q ||
+    practiceCategoryIds.length ||
+    practiceSubcategoryId ||
+    eventFormatIds.length ||
+    tags.length ||
+    languages.length ||
+    attendanceModes.length ||
+    countryCodes.length ||
+    cities.length ||
+    eventDates.length
   );
 
   const topPracticePills = useMemo(() => {
@@ -984,9 +984,7 @@ export function EventSearchClient({
   return (
     <>
       <div className={heroCollapsed ? "hero hero-collapsed" : "hero"}>
-        {!heroCollapsed && (
-          <h1 className="hero-heading">{t("eventSearch.hero.heading")}</h1>
-        )}
+        <h1 className="hero-heading">{t("eventSearch.hero.heading")}</h1>
         <form className="hero-search-form" onSubmit={(e) => e.preventDefault()}>
           <input
             className="hero-search-input"
@@ -1006,8 +1004,7 @@ export function EventSearchClient({
             {t("eventSearch.search")}
           </button>
         </form>
-        {!heroCollapsed && (
-          <>
+        <div className="hero-collapsible">
             <div className="hero-pills">
               {/* Geo pill */}
               {geo.status === "idle" && (
@@ -1092,8 +1089,7 @@ export function EventSearchClient({
                 {t("eventSearch.hero.statsCount", { count: data.totalHits })}
               </div>
             )}
-          </>
-        )}
+        </div>
       </div>
       <section className={sidebarOpen ? "grid sidebar-open" : "grid"}>
       {sidebarOpen && (
