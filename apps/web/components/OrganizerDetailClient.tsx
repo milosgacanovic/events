@@ -270,24 +270,10 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
     .map((item) => practiceLabelById.get(item))
     .filter((item): item is string => Boolean(item));
   const roleLabels = Array.from(new Set(data.organizer.roleKeys ?? []));
-  const hasGeoLocation = data.locations.some((location) =>
+  const canFollowHost = auth.authenticated && data.locations.some((location) =>
     location.lat !== null && location.lat !== undefined && location.lng !== null && location.lng !== undefined
   );
-  const hasProfileLocation = Boolean(data.organizer.city || countryValue);
-  const canFollowHost = auth.authenticated && (hasGeoLocation || hasProfileLocation);
-  const displayedLocations = data.locations.length > 0
-    ? data.locations
-    : (data.organizer.city || countryValue
-      ? [{
-        id: "profile-fallback",
-        label: null,
-        formatted_address: null,
-        city: data.organizer.city ?? null,
-        country_code: countryValue ?? null,
-        lat: null,
-        lng: null,
-      }]
-      : []);
+  const displayedLocations = data.locations;
 
   async function createAlert() {
     const organizerId = data?.organizer.id;

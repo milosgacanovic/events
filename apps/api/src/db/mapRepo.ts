@@ -317,37 +317,8 @@ export async function fetchOrganizerMapPoints(pool: Pool, input: OrganizerMapFil
         ) ol
         where ol.rn = 1
       ),
-      fallback_points as (
-        select distinct on (fo.organizer_id)
-          fo.organizer_id,
-          eo.geom::geometry as geom
-        from filtered_organizers fo
-        left join latest_profile_points lp on lp.organizer_id = fo.organizer_id
-        join event_organizers rel on rel.organizer_id = fo.organizer_id
-        join events e on e.id = rel.event_id and e.status = 'published'
-        join event_occurrences eo on eo.event_id = e.id
-        where lp.organizer_id is null
-          and eo.status = 'published'
-          and eo.starts_at_utc >= now()
-          and eo.geom is not null
-          and (
-            cardinality($${countryFilterIndex}::text[]) = 0
-            or lower(coalesce(eo.country_code, '')) = any($${countryFilterIndex}::text[])
-          )
-          and (
-            cardinality($${cityFilterIndex}::text[]) = 0
-            or lower(coalesce(eo.city, '')) = any($${cityFilterIndex}::text[])
-          )
-          and st_intersects(
-            eo.geom::geometry,
-            ST_MakeEnvelope($${westIndex}, $${southIndex}, $${eastIndex}, $${northIndex}, 4326)
-          )
-        order by fo.organizer_id, eo.starts_at_utc asc
-      ),
       selected_points as (
         select organizer_id, geom from latest_profile_points
-        union all
-        select organizer_id, geom from fallback_points
       ),
       practice_meta as (
         select
