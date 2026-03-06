@@ -520,6 +520,7 @@ export function EventDetailClient({
               type="button"
               className="event-detail-expand-btn"
               onClick={() => setDescExpanded((v) => !v)}
+              aria-expanded={descExpanded}
             >
               {descExpanded ? t("eventDetail.readLess") : t("eventDetail.readMore")}
             </button>
