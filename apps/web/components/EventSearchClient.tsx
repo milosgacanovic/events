@@ -1102,7 +1102,12 @@ export function EventSearchClient({
         />
       )}
       <aside className="panel filters">
-        <h2 className="title-xl">{t("eventSearch.title")}</h2>
+        <h2 className="title-xl">
+          {t("eventSearch.title")}
+          {data && (
+            <span className="filters-panel-count">{t("eventSearch.resultsCount", { count: data.totalHits })}</span>
+          )}
+        </h2>
         <input
           value={q}
           onChange={(event) => {
@@ -1505,7 +1510,7 @@ export function EventSearchClient({
               }}
               aria-label={t("eventSearch.sort.soonestUpcoming")}
             >
-              <span aria-hidden className="icon-glyph">↑</span>
+              <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 11V3M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
             <button
               type="button"
@@ -1516,7 +1521,7 @@ export function EventSearchClient({
               }}
               aria-label={t("eventSearch.sort.newestPublished")}
             >
-              <span aria-hidden className="icon-glyph">↓</span>
+              <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 3v8M3.5 7.5L7 11l3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
             </div>
             <div className="icon-group with-separator">
@@ -1638,14 +1643,10 @@ export function EventSearchClient({
                       {formatted.primary} · {t(`attendanceMode.${hit.event.attendanceMode}`)}
                     </div>
                     {locationParts && (
-                      <div className="meta" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {locationParts}
-                      </div>
+                      <div className="meta">{locationParts}</div>
                     )}
                     {primaryOrganizer && (
-                      <div className="meta" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {primaryOrganizer.name}
-                      </div>
+                      <div className="meta">{primaryOrganizer.name}</div>
                     )}
                   </div>
                 </div>
@@ -1697,7 +1698,7 @@ export function EventSearchClient({
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         aria-label="Back to top"
       >
-        ↑
+        <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M4 8l4-4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
     </section>
     </>

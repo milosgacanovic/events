@@ -115,6 +115,15 @@ function stripHtml(input: string): string {
   return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+const URL_REGEX = /https?:\/\/[^\s<>"']+[^\s<>"'.,!?)]/g;
+function linkifyHtml(html: string): string {
+  return html.replace(/(<a[\s\S]*?<\/a>)|([^<]+)/g, (match, anchor, text) => {
+    if (anchor) return anchor;
+    if (text) return text.replace(URL_REGEX, (url: string) => `<a href="${url}" target="_blank" rel="noreferrer noopener">${url}</a>`);
+    return match;
+  });
+}
+
 export function EventDetailClient({
   slug,
   initialData,
@@ -131,6 +140,7 @@ export function EventDetailClient({
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
+  const [descExpanded, setDescExpanded] = useState(false);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
   useEffect(() => {
@@ -274,7 +284,7 @@ export function EventDetailClient({
     [data?.event.description_json],
   );
   const sanitizedDescriptionHtml = useMemo(
-    () => (rawDescriptionHtml ? DOMPurify.sanitize(rawDescriptionHtml) : null),
+    () => (rawDescriptionHtml ? linkifyHtml(DOMPurify.sanitize(rawDescriptionHtml)) : null),
     [rawDescriptionHtml],
   );
   const descriptionSummary = useMemo(() => {
@@ -376,197 +386,249 @@ export function EventDetailClient({
   const mapLat = data.defaultLocation?.lat ?? data.occurrences.upcoming[0]?.lat ?? null;
   const mapLng = data.defaultLocation?.lng ?? data.occurrences.upcoming[0]?.lng ?? null;
   const hasGeo = mapLat !== null && mapLng !== null;
+  const isLongDesc = (sanitizedDescriptionHtml?.length ?? 0) > 800;
 
   return (
-    <section className="panel cards">
-      <h1 className="title-xl">{data.event.title}</h1>
-      {eventFormatLabel && <div className="meta">{eventFormatLabel}</div>}
-      {canEdit && (
-        <div>
+    <article className="event-detail panel">
+      {/* Breadcrumb */}
+      <nav className="event-detail-breadcrumb">
+        <Link href="/events">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 4 }}><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {t("nav.events")}
+        </Link>
+      </nav>
+
+      {/* Header */}
+      <div className="event-detail-header">
+        <h1 className="event-detail-title">{data.event.title}</h1>
+        {canEdit && (
           <Link className="secondary-btn" href={`/admin?section=events&id=${encodeURIComponent(data.event.id)}`}>
             {t("eventDetail.editEvent")}
           </Link>
-        </div>
-      )}
-
-      <div className="meta">
-        {whenLabel} ({whenFormatted?.suffixLabel === "event" ? t("common.eventTimezone") : t("common.yourTimezone")}) | {modalityLabel}
-      </div>
-      <label className="toggle-control">
-        <input
-          className="toggle-control-input"
-          type="checkbox"
-          checked={timeDisplayMode === "event"}
-          onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
-        />
-        <span className="toggle-control-track" aria-hidden />
-        <span className="meta">
-          {timeDisplayMode === "event"
-            ? t("eventDetail.timeMode.eventWithZone", { zone: data.event.event_timezone || "UTC" })
-            : t("eventDetail.timeMode.userWithZone", { zone: userTimeZone })}
-        </span>
-      </label>
-      <div className="meta">
-        {categorySingularLabel}: {categoryLabel}
-        {data.event.practice_subcategory_id
-          ? ` / ${subcategoryById.get(data.event.practice_subcategory_id) ?? data.event.practice_subcategory_id}`
-          : ""}
-      </div>
-      <div className="meta">
-        {data.event.attendance_mode === "online" ? t("attendanceMode.online") : locationLabel}
+        )}
       </div>
 
+      {/* Cover image */}
       {coverImageUrl && (
-        <div className="event-cover-shell">
-          <img
-            className="event-cover"
-            src={coverImageUrl}
-            alt={data.event.title}
-            loading="lazy"
-            decoding="async"
+        <img
+          className="event-detail-cover"
+          src={coverImageUrl}
+          alt={data.event.title}
+          loading="eager"
+          decoding="async"
+        />
+      )}
+
+      {/* Book / register CTA */}
+      {externalUrl && (
+        <a className="primary-btn event-detail-cta" href={externalUrl} target="_blank" rel="noreferrer">
+          {t("eventDetail.externalLink")}
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginLeft: 6 }}><path d="M3 11L11 3M11 3H5.5M11 3v5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </a>
+      )}
+
+      {/* Metadata grid */}
+      <div className="event-detail-meta-grid">
+        {data.event.schedule_kind === "single" && whenFormatted && (
+          <div className="event-detail-meta-item">
+            <span className="event-detail-meta-label">{t("eventDetail.when")}</span>
+            <span className="event-detail-meta-value">{whenLabel}</span>
+            <label className="toggle-control toggle-control-sm" style={{ marginTop: 6 }}>
+              <input
+                className="toggle-control-input"
+                type="checkbox"
+                checked={timeDisplayMode === "event"}
+                onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
+              />
+              <span className="toggle-control-track" aria-hidden />
+              <span className="meta" suppressHydrationWarning>
+                {timeDisplayMode === "event"
+                  ? t("eventDetail.timeMode.eventWithZone", { zone: data.event.event_timezone || "UTC" })
+                  : t("eventDetail.timeMode.userWithZone", { zone: userTimeZone })}
+              </span>
+            </label>
+          </div>
+        )}
+        {data.event.attendance_mode !== "online" && (
+          <div className="event-detail-meta-item">
+            <span className="event-detail-meta-label">{t("eventDetail.where")}</span>
+            <span className="event-detail-meta-value">
+              {data.defaultLocation?.city ?? data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd")}
+            </span>
+            {data.defaultLocation?.country_code && (
+              <span className="event-detail-meta-value" style={{ color: "var(--muted)" }}>
+                {getCountryLabel(data.defaultLocation.country_code)}
+              </span>
+            )}
+          </div>
+        )}
+        <div className="event-detail-meta-item">
+          <span className="event-detail-meta-label">{t("eventDetail.attendance")}</span>
+          <span className="event-detail-meta-value">{modalityLabel}</span>
+        </div>
+        <div className="event-detail-meta-item">
+          <span className="event-detail-meta-label">{categorySingularLabel}</span>
+          <span className="event-detail-meta-value">
+            {categoryLabel}
+            {data.event.practice_subcategory_id
+              ? ` / ${subcategoryById.get(data.event.practice_subcategory_id) ?? data.event.practice_subcategory_id}`
+              : ""}
+          </span>
+        </div>
+        {eventFormatLabel && (
+          <div className="event-detail-meta-item">
+            <span className="event-detail-meta-label">{t("eventSearch.eventFormat")}</span>
+            <span className="event-detail-meta-value">{eventFormatLabel}</span>
+          </div>
+        )}
+        {data.event.languages.length > 0 && (
+          <div className="event-detail-meta-item">
+            <span className="event-detail-meta-label">{t("eventDetail.metadata.languages")}</span>
+            <span className="event-detail-meta-value">{data.event.languages.map((l) => getLanguageLabel(l)).join(", ")}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Timezone toggle for recurring events (no When cell in grid) */}
+      {data.event.schedule_kind !== "single" && (
+        <label className="toggle-control toggle-control-sm">
+          <input
+            className="toggle-control-input"
+            type="checkbox"
+            checked={timeDisplayMode === "event"}
+            onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
           />
-        </div>
+          <span className="toggle-control-track" aria-hidden />
+          <span className="meta" suppressHydrationWarning>
+            {timeDisplayMode === "event"
+              ? t("eventDetail.timeMode.eventWithZone", { zone: data.event.event_timezone || "UTC" })
+              : t("eventDetail.timeMode.userWithZone", { zone: userTimeZone })}
+          </span>
+        </label>
       )}
 
-      {isImported && externalUrl && (
-        <div className="import-disclaimer import-disclaimer-top">
-          {t("eventDetail.import.officialBooking")}{" "}
-          <a href={externalUrl} target="_blank" rel="noreferrer">
-            {externalUrl}
-          </a>
-        </div>
-      )}
-
+      {/* Description */}
       {sanitizedDescriptionHtml && (
-        <div>
-          <h3>{t("eventDetail.descriptionLabel")}</h3>
+        <div className="event-detail-section">
+          <h2 className="event-detail-section-title">{t("eventDetail.descriptionLabel")}</h2>
           <div
-            className="meta"
+            className={isLongDesc && !descExpanded ? "event-detail-desc" : "event-detail-desc expanded"}
             dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }}
           />
+          {isLongDesc && (
+            <button
+              type="button"
+              className="event-detail-expand-btn"
+              onClick={() => setDescExpanded((v) => !v)}
+            >
+              {descExpanded ? t("eventDetail.readLess") : t("eventDetail.readMore")}
+            </button>
+          )}
         </div>
       )}
 
-      {isImported && externalUrl && (
-        <div className="import-disclaimer">
-          <div>{t("eventDetail.import.sharedWithCare")}</div>
-          <div>{t("eventDetail.import.sourceLine", { source: transparencySource })}</div>
-          <div>
-            {t("eventDetail.import.officialLink")}{" "}
-            <a href={externalUrl} target="_blank" rel="noreferrer">
-              {externalUrl}
-            </a>
+      {/* Hosts */}
+      {hosts.length > 0 && (
+        <div className="event-detail-section">
+          <h2 className="event-detail-section-title">{t("eventDetail.hosts")}</h2>
+          <div className="card-list">
+            {hosts.map((host) => (
+              <Link className="card host-card-h" key={host.id} href={`/hosts/${host.slug}`}>
+                <div
+                  className="host-card-avatar"
+                  style={{ background: host.avatarPath ? undefined : "var(--surface-skeleton)" }}
+                >
+                  {host.avatarPath ? (
+                    <img src={host.avatarPath} alt={host.name} loading="lazy" decoding="async" />
+                  ) : (
+                    <span className="host-card-avatar-initials" aria-hidden>
+                      {host.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="host-card-body">
+                  <h3 style={{ margin: "0 0 4px" }}>{host.name}</h3>
+                  {host.roles.length > 0 && (
+                    <div className="meta">{host.roles.join(" · ")}</div>
+                  )}
+                </div>
+              </Link>
+            ))}
           </div>
-          <div>{t("eventDetail.import.lastSynced", { value: `${lastSyncedUtc} UTC` })}</div>
-          <div>{t("eventDetail.import.contact")}</div>
         </div>
       )}
 
-      {data.event.schedule_kind === "single" ? (
-        <div>
-          <h3>{t("common.scheduleKind.single")}</h3>
-          <div className="meta">{whenLabel}</div>
-        </div>
-      ) : (
+      {/* Schedule (recurring events only) */}
+      {data.event.schedule_kind !== "single" && (
         <>
-          <div>
-            <h3>{t("eventDetail.upcoming")}</h3>
-            {data.occurrences.upcoming.length === 0 && <div className="meta">{t("eventDetail.noUpcoming")}</div>}
-            {data.occurrences.upcoming.map((item) => {
-              const formatted = formatDateTimeRange(
-                item.starts_at_utc,
-                item.ends_at_utc,
-                data.event.event_timezone,
-                timeDisplayMode,
-              );
-              return (
-                <div className="card" key={item.id}>
-                  <div className="meta">
-                    {formatted.primary} ({formatted.suffixLabel === "event"
-                      ? t("common.eventTimezone")
-                      : t("common.yourTimezone")})
-                  </div>
-                </div>
-              );
-            })}
+          <div className="event-detail-section">
+            <h2 className="event-detail-section-title">{t("eventDetail.upcoming")}</h2>
+            {data.occurrences.upcoming.length === 0 ? (
+              <div className="meta">{t("eventDetail.noUpcoming")}</div>
+            ) : (
+              <div className="event-detail-occurrences">
+                {data.occurrences.upcoming.map((item) => {
+                  const formatted = formatDateTimeRange(
+                    item.starts_at_utc, item.ends_at_utc, data.event.event_timezone, timeDisplayMode,
+                  );
+                  return (
+                    <div className="event-detail-occurrence" key={item.id}>
+                      <span className="meta">{formatted.primary}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <div>
-            <h3>{t("eventDetail.past")}</h3>
-            {data.occurrences.past.length === 0 && <div className="meta">{t("eventDetail.noPast")}</div>}
-            {data.occurrences.past.map((item) => {
-              const formatted = formatDateTimeRange(
-                item.starts_at_utc,
-                item.ends_at_utc,
-                data.event.event_timezone,
-                timeDisplayMode,
-              );
-              return (
-                <div className="card" key={item.id}>
-                  <div className="meta">
-                    {formatted.primary} ({formatted.suffixLabel === "event"
-                      ? t("common.eventTimezone")
-                      : t("common.yourTimezone")})
-                  </div>
-                </div>
-              );
-            })}
+          <div className="event-detail-section">
+            <h2 className="event-detail-section-title">{t("eventDetail.past")}</h2>
+            {data.occurrences.past.length === 0 ? (
+              <div className="meta">{t("eventDetail.noPast")}</div>
+            ) : (
+              <div className="event-detail-occurrences">
+                {data.occurrences.past.map((item) => {
+                  const formatted = formatDateTimeRange(
+                    item.starts_at_utc, item.ends_at_utc, data.event.event_timezone, timeDisplayMode,
+                  );
+                  return (
+                    <div className="event-detail-occurrence" key={item.id}>
+                      <span className="meta">{formatted.primary}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       )}
 
+      {/* Map */}
       {data.event.attendance_mode !== "online" && hasGeo && (
-        <div>
-          <h3>{t("eventDetail.openMap")}</h3>
+        <div className="event-detail-section">
+          <h2 className="event-detail-section-title">{t("eventDetail.openMap")}</h2>
           <EventDetailMap lat={mapLat} lng={mapLng} />
         </div>
       )}
 
-      {(hosts.length > 0 || externalUrl) && (
-        <>
-          <h3>{t("eventDetail.hosts")}</h3>
-          {hosts.length > 0 ? (
-            hosts.map((host) => (
-              <div className="card" key={host.id}>
-                <div className="event-host-row">
-                  {host.avatarPath && <img className="event-host-avatar" src={host.avatarPath} alt={host.name} loading="lazy" />}
-                  <div>
-                    <Link href={`/hosts/${host.slug}`}>{host.name}</Link>
-                    {host.roles.length > 0 && <div className="meta">{host.roles.join(", ")}</div>}
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : externalUrl ? (
-            <div className="card">
-              <a className="secondary-btn" href={externalUrl} target="_blank" rel="noreferrer">
-                {t("eventDetail.externalLink")}
-              </a>
+      {/* Footer */}
+      <footer className="event-detail-footer">
+        {isImported && externalUrl && (
+          <div className="event-detail-disclaimer">
+            <div>{t("eventDetail.import.sharedWithCare")}</div>
+            <div>{t("eventDetail.import.sourceLine", { source: transparencySource })}</div>
+            <div>
+              {t("eventDetail.import.officialLink")}{" "}
+              <a href={externalUrl} target="_blank" rel="noreferrer">{externalUrl}</a>
             </div>
-          ) : null}
-        </>
-      )}
-
-      {externalUrl && hosts.length > 0 && (
-        <div>
-          <a className="secondary-btn" href={externalUrl} target="_blank" rel="noreferrer">
-            {t("eventDetail.externalLink")}
-          </a>
+            <div>{t("eventDetail.import.lastSynced", { value: `${lastSyncedUtc} UTC` })}</div>
+            <div>{t("eventDetail.import.contact")}</div>
+          </div>
+        )}
+        <div className="meta">
+          {t("eventDetail.metadata.importSource", { value: importSource })}
+          {updatedLabel && <> · {t("eventDetail.metadata.lastUpdated", { value: updatedLabel })}</>}
         </div>
-      )}
-
-      <footer className="cards">
-        <div className="meta">{t("eventDetail.metadata.languages")}</div>
-        <div className="kv">
-          {data.event.languages.map((item) => (
-            <span className="tag" key={item}>
-              {getLanguageLabel(item)}
-            </span>
-          ))}
-          {data.event.languages.length === 0 && <span className="meta">{t("common.none")}</span>}
-        </div>
-        <div className="meta">{t("eventDetail.metadata.importSource", { value: importSource })}</div>
-        {updatedLabel && <div className="meta">{t("eventDetail.metadata.lastUpdated", { value: updatedLabel })}</div>}
       </footer>
-    </section>
+    </article>
   );
 }

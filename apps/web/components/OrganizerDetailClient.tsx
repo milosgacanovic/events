@@ -105,6 +105,17 @@ function getDescriptionText(value: unknown): string | null {
   return normalized || null;
 }
 
+const URL_REGEX = /https?:\/\/[^\s<>"']+[^\s<>"'.,!?)]/g;
+
+function linkifyHtml(html: string): string {
+  // Only linkify text outside of existing <a> tags
+  return html.replace(/(<a[\s\S]*?<\/a>)|([^<]+)/g, (match, anchor, text) => {
+    if (anchor) return anchor;
+    if (text) return text.replace(URL_REGEX, (url: string) => `<a href="${url}" target="_blank" rel="noreferrer noopener">${url}</a>`);
+    return match;
+  });
+}
+
 function htmlToText(value: string): string {
   const normalized = value
     .replace(/<br\s*\/?>/gi, "\n")
@@ -195,11 +206,14 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
     ?? (typeof (data?.organizer.descriptionJson as { html?: unknown })?.html === "string"
       ? (data?.organizer.descriptionJson as { html?: string }).html
       : null);
-  const sanitizedDescriptionHtml = descriptionHtmlRaw && descriptionHtmlRaw.trim()
-    ? DOMPurify.sanitize(descriptionHtmlRaw)
-    : descriptionSections.description
-      ? `<p>${DOMPurify.sanitize(descriptionSections.description).replace(/\n/g, "<br>")}</p>`
-      : null;
+  const sanitizedDescriptionHtml = (() => {
+    const raw = descriptionHtmlRaw && descriptionHtmlRaw.trim()
+      ? DOMPurify.sanitize(descriptionHtmlRaw)
+      : descriptionSections.description
+        ? `<p>${DOMPurify.sanitize(descriptionSections.description).replace(/\n/g, "<br>")}</p>`
+        : null;
+    return raw ? linkifyHtml(raw) : null;
+  })();
 
   if (error) {
     return <div className="panel">{error}</div>;
@@ -361,131 +375,138 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
           <div className="meta organizer-description-text" dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }} />
         </div>
       )}
-      <div className="kv">
-        {roleLabels.map((item) => (
-          <span className="tag" key={`role-${item}`}>
-            {`${t("organizerSearch.hostType")}: ${item}`}
-          </span>
-        ))}
-        {data.organizer.languages.map((item) => (
-          <span className="tag" key={item}>
-            {labelForLanguageCode(item, languageNames)}
-          </span>
-        ))}
-        {data.organizer.tags.map((item) => (
-          <span className="tag" key={item}>
-            {item}
-          </span>
-        ))}
-        {practiceLabels.map((item) => (
-          <span className="tag" key={`practice-${item}`}>
-            {`${categorySingularLabel}: ${item}`}
-          </span>
-        ))}
-      </div>
+      <dl className="org-info-grid">
+        {practiceLabels.length > 0 && (
+          <>
+            <dt>{practiceLabels.length === 1 ? (categorySingularLabel) : `${categorySingularLabel}s`}</dt>
+            <dd>{practiceLabels.join(" · ")}</dd>
+          </>
+        )}
+        {roleLabels.length > 0 && (
+          <>
+            <dt>{roleLabels.length === 1 ? t("organizerDetail.role") : t("organizerDetail.roles")}</dt>
+            <dd>{roleLabels.join(" · ")}</dd>
+          </>
+        )}
+        {data.organizer.languages.length > 0 && (
+          <>
+            <dt>{data.organizer.languages.length === 1 ? t("organizerDetail.language") : t("organizerDetail.languages")}</dt>
+            <dd>{data.organizer.languages.map((l) => labelForLanguageCode(l, languageNames)).join(" · ")}</dd>
+          </>
+        )}
+        {displayedLocations.length > 0 && (
+          <>
+            <dt>{displayedLocations.length === 1 ? t("organizerDetail.location") : t("organizerDetail.locations")}</dt>
+            <dd>
+              {displayedLocations.map((loc) => {
+                const locCountry = loc.country_code
+                  ? (regionNames?.of(loc.country_code.toUpperCase()) ?? loc.country_code.toUpperCase())
+                  : null;
+                const label = [loc.city, locCountry].filter(Boolean).join(", ") || loc.formatted_address || t("common.unknown");
+                return <span key={loc.id} style={{ display: "block" }}>{label}</span>;
+              })}
+            </dd>
+          </>
+        )}
+        {data.organizer.tags.length > 0 && (
+          <>
+            <dt>{t("organizerDetail.tags")}</dt>
+            <dd>{data.organizer.tags.join(" · ")}</dd>
+          </>
+        )}
+      </dl>
       {canFollowHost && (
-        <div className="card">
+        <div className="card org-alert-form">
           <h3>{t("organizerDetail.alert.title")}</h3>
           <div className="meta">{t("organizerDetail.alert.description")}</div>
-          <label>
-            {t("organizerDetail.alert.radiusKm")}
-            <input
-              type="number"
-              min={1}
-              max={500}
-              value={radiusKm}
-              onChange={(event) => setRadiusKm(Number(event.target.value) || 50)}
-            />
-          </label>
-          <label>
-            {t("organizerDetail.alert.city")}
-            <input value={alertCity} onChange={(event) => setAlertCity(event.target.value)} />
-          </label>
-          <label>
-            {t("organizerDetail.alert.countryCode")}
-            <input value={alertCountryCode} onChange={(event) => setAlertCountryCode(event.target.value)} />
-          </label>
-          <button className="secondary-btn" type="button" onClick={() => void createAlert()} disabled={savingAlert}>
+          <div className="org-alert-fields">
+            <label className="org-alert-label">
+              <span>{t("organizerDetail.alert.city")}</span>
+              <input value={alertCity} onChange={(event) => setAlertCity(event.target.value)} />
+            </label>
+            <label className="org-alert-label">
+              <span>{t("organizerDetail.alert.countryCode")}</span>
+              <input value={alertCountryCode} onChange={(event) => setAlertCountryCode(event.target.value)} />
+            </label>
+            <label className="org-alert-label">
+              <span>{t("organizerDetail.alert.radiusKm")}</span>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={radiusKm}
+                onChange={(event) => setRadiusKm(Number(event.target.value) || 50)}
+              />
+            </label>
+          </div>
+          <button className="primary-btn" type="button" onClick={() => void createAlert()} disabled={savingAlert}>
             {savingAlert ? t("organizerDetail.alert.saving") : t("organizerDetail.alert.follow")}
           </button>
           {alertStatus && <div className="meta">{alertStatus}</div>}
         </div>
       )}
 
-      <h3>{t("organizerDetail.locations")}</h3>
-      {displayedLocations.length === 0 && <div className="muted">{t("organizerDetail.noLocations")}</div>}
-      {displayedLocations.map((location) => {
-        const mapHref =
-          location.lat !== null &&
-          location.lat !== undefined &&
-          location.lng !== null &&
-          location.lng !== undefined
-            ? `https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=16/${location.lat}/${location.lng}`
-            : null;
-        const locationCountry = location.country_code
-          ? (regionNames?.of(location.country_code.toUpperCase()) ?? location.country_code.toUpperCase())
-          : null;
-        const locationLabelRaw = location.label?.trim() || "";
-        const locationLabel = locationLabelRaw.toLowerCase() === "unknown" ? "" : locationLabelRaw;
-        const locationAddress = location.formatted_address?.trim() || "";
-        const hasCustomTitle = Boolean(locationLabel || locationAddress);
-        const locationTitle = locationLabel
-          || locationAddress
-          || [location.city, locationCountry].filter(Boolean).join(", ")
-          || t("common.unknown");
-
-        return (
-          <div className="card" key={location.id}>
-            <div>{locationTitle}</div>
-            {(location.city || location.country_code) && hasCustomTitle && (
-              <div className="meta">
-                {location.city ?? ""}
-                {locationCountry
-                  ? `${location.city ? ", " : ""}${locationCountry}`
-                  : ""}
+      {data.locations.some((l) => l.lat !== null && l.lng !== null) && (
+        <>
+          <h3>{data.locations.length === 1 ? t("organizerDetail.location") : t("organizerDetail.locations")}</h3>
+          {data.locations.filter((l) => l.lat !== null && l.lng !== null).map((location) => {
+            const mapHref = `https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=16/${location.lat}/${location.lng}`;
+            const locationCountry = location.country_code
+              ? (regionNames?.of(location.country_code.toUpperCase()) ?? location.country_code.toUpperCase())
+              : null;
+            const locationLabelRaw = location.label?.trim() || "";
+            const locationLabel = locationLabelRaw.toLowerCase() === "unknown" ? "" : locationLabelRaw;
+            const locationTitle = locationLabel || location.formatted_address?.trim()
+              || [location.city, locationCountry].filter(Boolean).join(", ")
+              || t("common.unknown");
+            return (
+              <div className="card" key={location.id}>
+                <div>{locationTitle}</div>
+                <div className="meta">
+                  <a href={mapHref} target="_blank" rel="noreferrer">{t("organizerDetail.openMap")}</a>
+                </div>
               </div>
-            )}
-            {mapHref && (
-              <div className="meta">
-                <a href={mapHref} target="_blank" rel="noreferrer">
-                  {t("organizerDetail.openMap")}
-                </a>
-              </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </>
+      )}
 
       <h3>{t("organizerDetail.upcomingEvents")}</h3>
-      {data.upcomingOccurrences.length === 0 && <div className="muted">{t("organizerDetail.noUpcoming")}</div>}
-      {data.upcomingOccurrences.map((item) => (
-        <Link className="card upcoming-event-card" key={item.occurrence_id} href={`/events/${item.event_slug}`}>
-          {item.coverImageUrl && (
-            <div className="upcoming-event-card-thumb-shell">
-              <img
-                className="upcoming-event-card-thumb"
-                src={item.coverImageUrl}
-                alt={item.event_title}
-                loading="lazy"
-                decoding="async"
-              />
+      {data.upcomingOccurrences.length === 0 && <div className="meta">{t("organizerDetail.noUpcoming")}</div>}
+      <div className="card-list">
+        {data.upcomingOccurrences.map((item) => (
+          <Link className="panel event-card-h" key={item.occurrence_id} href={`/events/${item.event_slug}`}>
+            <div className="event-card-main">
+              <div className="event-card-thumb-h" style={{ background: "var(--surface-skeleton)" }}>
+                {item.coverImageUrl && (
+                  <img
+                    src={item.coverImageUrl}
+                    alt={item.event_title}
+                    loading="lazy"
+                    decoding="async"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                )}
+              </div>
+              <div className="event-card-body">
+                <h3 style={{ margin: "0 0 4px", fontSize: "1rem", fontWeight: 600 }}>{item.event_title}</h3>
+                <div className="meta">{new Date(item.starts_at_utc).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</div>
+              </div>
             </div>
-          )}
-          <div className="upcoming-event-card-body">
-            <div>{item.event_title}</div>
-            <div className="meta">{new Date(item.starts_at_utc).toLocaleString(locale)}</div>
-          </div>
-        </Link>
-      ))}
+          </Link>
+        ))}
+      </div>
 
       <h3>{t("organizerDetail.pastEvents")}</h3>
-      {data.pastOccurrences.length === 0 && <div className="muted">{t("organizerDetail.noPast")}</div>}
-      {data.pastOccurrences.map((item) => (
-        <div className="card" key={item.occurrence_id}>
-          <Link href={`/events/${item.event_slug}`}>{item.event_title}</Link>
-          <div className="meta">{new Date(item.starts_at_utc).toLocaleString(locale)}</div>
-        </div>
-      ))}
+      {data.pastOccurrences.length === 0 && <div className="meta">{t("organizerDetail.noPast")}</div>}
+      <div className="org-past-events">
+        {data.pastOccurrences.map((item) => (
+          <Link className="org-past-event-row" key={item.occurrence_id} href={`/events/${item.event_slug}`}>
+            <span>{item.event_title}</span>
+            <span className="meta">{new Date(item.starts_at_utc).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}</span>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }
