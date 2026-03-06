@@ -126,6 +126,8 @@ export function OrganizerSearchClient({
   const [countryOpen, setCountryOpen] = useState((initialQuery?.countryCodes?.length ?? 0) > 0);
   const restoredKeyRef = useRef<string | null>(null);
   const syncingFromUrlRef = useRef(false);
+  const isTypingQRef = useRef(false);
+  const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const roleFacetRequestRef = useRef(0);
   const languageFacetRequestRef = useRef(0);
   const practiceFacetRequestRef = useRef(0);
@@ -295,7 +297,7 @@ export function OrganizerSearchClient({
     const nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
     syncingFromUrlRef.current = true;
-    setQ(nextQ);
+    if (!isTypingQRef.current) setQ(nextQ);
     setRoleKeys(nextRoleKeys);
     setPracticeCategoryIds(nextPracticeCategoryIds);
     setTags(nextTags);
@@ -758,6 +760,9 @@ export function OrganizerSearchClient({
         <input
           value={q}
           onChange={(event) => {
+            isTypingQRef.current = true;
+            if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
+            typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 400);
             setQ(event.target.value);
             setPage(1);
           }}

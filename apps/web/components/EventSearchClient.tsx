@@ -996,6 +996,8 @@ export function EventSearchClient({
               if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
               typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
               setQ(e.target.value);
+              setPage(1);
+              setAccumulatedHits([]);
             }}
             placeholder={t("eventSearch.hero.placeholder")}
             autoComplete="off"
@@ -1115,6 +1117,8 @@ export function EventSearchClient({
             if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
             typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
             setQ(event.target.value);
+            setPage(1);
+            setAccumulatedHits([]);
           }}
           placeholder={t("eventSearch.placeholder.searchTitle")}
         />
