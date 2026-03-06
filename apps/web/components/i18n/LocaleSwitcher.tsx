@@ -15,13 +15,14 @@ export function LocaleSwitcher() {
 
   return (
     <label className="locale-switcher">
-      <span>{t("locale.selectLabel")}</span>
+      <span className="locale-label">{t("locale.selectLabel")}</span>
       <select
         aria-label={t("locale.selectLabel")}
         value={locale}
         onChange={(event) => {
           const nextLocale = event.target.value as AppLocale;
           setLocaleCookie(nextLocale);
+          (event.target as HTMLSelectElement).blur();
           router.refresh();
         }}
       >

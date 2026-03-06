@@ -10,6 +10,7 @@ import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { scrollToTopFast } from "../lib/scroll";
 import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
+import { useGeolocation } from "../lib/useGeolocation";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
@@ -175,6 +176,7 @@ export function EventSearchClient({
   const [showUnlisted, setShowUnlisted] = useState(false);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [loading, setLoading] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SearchResponse | null>(initialResults ?? null);
   const [disjunctiveFacets, setDisjunctiveFacets] = useState<DisjunctiveFacetState>({
@@ -194,12 +196,52 @@ export function EventSearchClient({
   const [languageOpen, setLanguageOpen] = useState((initialQuery?.languages?.length ?? 0) > 0);
   const [attendanceOpen, setAttendanceOpen] = useState((initialQuery?.attendanceModes?.length ?? 0) > 0);
   const [countryOpen, setCountryOpen] = useState((initialQuery?.countryCodes?.length ?? 0) > 0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accumulatedHits, setAccumulatedHits] = useState<SearchResponse["hits"]>(initialResults?.hits ?? []);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const isLoadMoreRef = useRef(false);
+  const isLoadMorePageRef = useRef(false);
   const restoredKeyRef = useRef<string | null>(null);
   const syncingFromUrlRef = useRef(false);
   const facetRequestRef = useRef(0);
   const pendingPaginationScrollRef = useRef(false);
   const skipNextScrollRestoreRef = useRef(false);
+  const isTypingQRef = useRef(false);
+  const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
+  const geo = useGeolocation();
+  const geoAutoApplyRef = useRef(false);
+
+  // Auto-apply geo filter when detection completes
+  useEffect(() => {
+    if (geo.status === "ready" && geoAutoApplyRef.current) {
+      geoAutoApplyRef.current = false;
+      if (geo.filterMode === "city" && geo.city) {
+        setCities([geo.city]);
+        setCountryCodes(geo.countryCode ? [geo.countryCode.toLowerCase()] : []);
+      } else if (geo.filterMode === "country" && geo.countryCode) {
+        setCountryCodes([geo.countryCode.toLowerCase()]);
+        setCities([]);
+      }
+      setPage(1);
+    }
+  }, [geo.status, geo.filterMode, geo.city, geo.countryCode]);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("dr-filters-sidebar-open");
+      if (stored !== null && window.innerWidth > 900) setSidebarOpen(stored === "true");
+    } catch { /* sessionStorage unavailable */ }
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try { sessionStorage.setItem("dr-filters-sidebar-open", String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (initialTaxonomy) {
@@ -453,7 +495,7 @@ export function EventSearchClient({
     const nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
     syncingFromUrlRef.current = true;
-    setQ(nextQ);
+    if (!isTypingQRef.current) setQ(nextQ);
     setPracticeCategoryIds(nextPracticeCategoryIds);
     setPracticeSubcategoryId(nextPracticeSubcategoryId);
     setEventFormatIds(nextEventFormatIds);
@@ -511,8 +553,14 @@ export function EventSearchClient({
 
   const runSearch = useCallback(async (nextPage = page) => {
     const currentQuery = buildQueryString(nextPage);
+    const appendMode = isLoadMoreRef.current;
+    isLoadMoreRef.current = false;
 
-    setLoading(true);
+    if (appendMode) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -520,6 +568,11 @@ export function EventSearchClient({
       const fetchInit = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
       const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`, fetchInit);
       setData(result);
+      if (appendMode) {
+        setAccumulatedHits((prev) => [...prev, ...result.hits]);
+      } else {
+        setAccumulatedHits(result.hits);
+      }
       setDisjunctiveFacets((current) => ({
         ...current,
         eventDate: result.facets?.eventDate ?? {},
@@ -539,13 +592,14 @@ export function EventSearchClient({
       setError(canSeeDetailedErrors && err instanceof Error ? err.message : t("eventSearch.error.searchFailed"));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [buildQueryString, canSeeDetailedErrors, page, t, showUnlisted, auth]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       void runSearch(page);
-    }, 250);
+    }, 400);
 
     return () => {
       clearTimeout(timer);
@@ -596,10 +650,14 @@ export function EventSearchClient({
     if (syncingFromUrlRef.current) {
       return;
     }
+    if (isLoadMorePageRef.current) {
+      isLoadMorePageRef.current = false;
+      return;
+    }
     const timer = setTimeout(() => {
       const queryString = buildUiQueryString();
       router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
-    }, 250);
+    }, 400);
     return () => clearTimeout(timer);
   }, [buildUiQueryString, pathname, router]);
 
@@ -656,6 +714,16 @@ export function EventSearchClient({
   }, []);
 
   useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 800);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !loadingMore) setPendingKey(null);
+  }, [loading, loadingMore]);
+
+  useEffect(() => {
     writeTimeDisplayMode(timeDisplayMode);
   }, [timeDisplayMode]);
 
@@ -674,6 +742,7 @@ export function EventSearchClient({
     setEventDates([]);
     setPage(1);
     setSort("startsAtAsc");
+    setAccumulatedHits([]);
   }
 
   const currentPage = data?.pagination?.page ?? page;
@@ -716,7 +785,7 @@ export function EventSearchClient({
       const count = disjunctiveFacets.practiceCategoryId[category.id] ?? 0;
       return count > 0 || selectedSet.has(category.id);
     });
-    return filtered;
+    return filtered.sort((a, b) => a.label.localeCompare(b.label));
   }, [disjunctiveFacets.practiceCategoryId, practiceCategoryIds, taxonomy]);
   const visibleEventLanguageFacets = useMemo(() => {
     const selectedSet = new Set(languages);
@@ -744,10 +813,18 @@ export function EventSearchClient({
   const selectedFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
 
+    if (q.trim()) {
+      chips.push({
+        key: "q",
+        label: `"${q.trim()}"`,
+        onRemove: () => { setQ(""); setPage(1); },
+      });
+    }
+
     for (const categoryId of practiceCategoryIds) {
       chips.push({
         key: `cat:${categoryId}`,
-        label: `${categorySingularLabel}: ${categoryLabelById.get(categoryId) ?? categoryId}`,
+        label: categoryLabelById.get(categoryId) ?? categoryId,
         onRemove: () => {
           setPracticeCategoryIds((current) => current.filter((item) => item !== categoryId));
           setPage(1);
@@ -758,7 +835,7 @@ export function EventSearchClient({
       const label = taxonomy?.eventFormats?.find((format) => format.id === formatId)?.label ?? formatId;
       chips.push({
         key: `format:${formatId}`,
-        label: `${t("eventSearch.eventFormat")}: ${label}`,
+        label: label,
         onRemove: () => {
           setEventFormatIds((current) => current.filter((item) => item !== formatId));
           setPage(1);
@@ -768,7 +845,7 @@ export function EventSearchClient({
     for (const language of languages) {
       chips.push({
         key: `lang:${language}`,
-        label: `${t("eventSearch.eventLanguage")}: ${getLanguageLabel(language)}`,
+        label: getLanguageLabel(language),
         onRemove: () => {
           setLanguages((current) => current.filter((item) => item !== language));
           setPage(1);
@@ -778,7 +855,7 @@ export function EventSearchClient({
     for (const attendanceMode of attendanceModes) {
       chips.push({
         key: `attendance:${attendanceMode}`,
-        label: `${t("eventSearch.attendance.anyEventType")}: ${t(`eventSearch.attendance.${attendanceMode}`)}`,
+        label: t(`eventSearch.attendance.${attendanceMode}`),
         onRemove: () => {
           setAttendanceModes((current) => current.filter((item) => item !== attendanceMode));
           setPage(1);
@@ -788,7 +865,7 @@ export function EventSearchClient({
     for (const country of countryCodes) {
       chips.push({
         key: `country:${country}`,
-        label: `${t("eventSearch.country")}: ${getCountryLabel(country)}`,
+        label: getCountryLabel(country),
         onRemove: () => {
           setCountryCodes((current) => current.filter((item) => item !== country));
           setPage(1);
@@ -798,7 +875,7 @@ export function EventSearchClient({
     for (const tag of tags) {
       chips.push({
         key: `tag:${tag}`,
-        label: `${t("eventSearch.tags")}: ${tag}`,
+        label: tag,
         onRemove: () => {
           setTags((current) => current.filter((item) => item !== tag));
           setPage(1);
@@ -808,7 +885,7 @@ export function EventSearchClient({
     for (const city of cities) {
       chips.push({
         key: `city:${city}`,
-        label: `${t("eventSearch.placeholder.city")}: ${city}`,
+        label: city,
         onRemove: () => {
           setCities((current) => current.filter((item) => item !== city));
           setPage(1);
@@ -818,7 +895,7 @@ export function EventSearchClient({
     for (const eventDate of eventDates) {
       chips.push({
         key: `date:${eventDate}`,
-        label: `${t("eventSearch.eventDate")}: ${t(`eventSearch.eventDateOption.${eventDate}`)}`,
+        label: t(`eventSearch.eventDateOption.${eventDate}`),
         onRemove: () => {
           setEventDates((current) => current.filter((item) => item !== eventDate));
           setPage(1);
@@ -827,6 +904,7 @@ export function EventSearchClient({
     }
     return chips;
   }, [
+    q,
     categoryLabelById,
     categorySingularLabel,
     countryCodes,
@@ -872,35 +950,227 @@ export function EventSearchClient({
     [citySuggestions, cities],
   );
 
+  const activeFilterCount = selectedFilterChips.length;
+
+  const heroCollapsed = !!(
+    initialQuery?.q ||
+    initialQuery?.practiceCategoryIds?.length ||
+    initialQuery?.practiceSubcategoryId ||
+    initialQuery?.eventFormatIds?.length ||
+    initialQuery?.tags?.length ||
+    initialQuery?.languages?.length ||
+    initialQuery?.attendanceModes?.length ||
+    initialQuery?.countryCodes?.length ||
+    initialQuery?.cities?.length ||
+    initialQuery?.eventDates?.length
+  );
+
+  const topPracticePills = useMemo(() => {
+    if (!taxonomy) return [];
+    return [...taxonomy.practices.categories]
+      .map((cat) => ({
+        id: cat.id,
+        label: cat.label,
+        key: cat.key ?? cat.id,
+        count: disjunctiveFacets.practiceCategoryId[cat.id] ?? 0,
+      }))
+      .filter((cat) => cat.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+  }, [taxonomy, disjunctiveFacets.practiceCategoryId]);
+
+  const thisWeekendCount = disjunctiveFacets.eventDate["this_weekend"] ?? 0;
+
   return (
-    <section className="grid">
+    <>
+      <div className={heroCollapsed ? "hero hero-collapsed" : "hero"}>
+        {!heroCollapsed && (
+          <h1 className="hero-heading">{t("eventSearch.hero.heading")}</h1>
+        )}
+        <form className="hero-search-form" onSubmit={(e) => e.preventDefault()}>
+          <input
+            className="hero-search-input"
+            value={q}
+            onChange={(e) => {
+              isTypingQRef.current = true;
+              if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
+              typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
+              setQ(e.target.value);
+            }}
+            placeholder={t("eventSearch.hero.placeholder")}
+            autoComplete="off"
+          />
+          <button type="submit" className="primary-btn">
+            {t("eventSearch.search")}
+          </button>
+        </form>
+        {!heroCollapsed && (
+          <>
+            <div className="hero-pills">
+              {/* Geo pill */}
+              {geo.status === "idle" && (
+                <button
+                  type="button"
+                  className="hero-pill hero-pill-geo"
+                  onClick={() => { geoAutoApplyRef.current = true; geo.detect(); }}
+                >
+                  {t("eventSearch.hero.nearYou")}
+                </button>
+              )}
+              {geo.status === "detecting" && (
+                <button type="button" className="hero-pill hero-pill-geo" disabled>
+                  {t("eventSearch.hero.detecting")}
+                </button>
+              )}
+              {geo.status === "no_events" && (
+                <span className="hero-pill hero-pill-geo" style={{ opacity: 0.6, cursor: "default" }}>
+                  {t("eventSearch.hero.noEventsNearby")}
+                </span>
+              )}
+              {geo.status === "ready" && geo.countryCode && (
+                <button
+                  type="button"
+                  className={
+                    countryCodes.includes(geo.countryCode.toLowerCase())
+                      ? "hero-pill hero-pill-geo hero-pill-active"
+                      : "hero-pill hero-pill-geo"
+                  }
+                  onClick={() => {
+                    if (geo.filterMode === "city" && geo.city) {
+                      setCities([geo.city]);
+                      setCountryCodes(geo.countryCode ? [geo.countryCode.toLowerCase()] : []);
+                    } else if (geo.countryCode) {
+                      setCountryCodes([geo.countryCode.toLowerCase()]);
+                      setCities([]);
+                    }
+                    setPage(1);
+                  }}
+                >
+                  {t("eventSearch.hero.eventsIn", { city: geo.city ?? geo.countryCode })} <span className="hero-pill-count">({geo.eventCount.toLocaleString()})</span>
+                </button>
+              )}
+              {/* This weekend — right after geo */}
+              {thisWeekendCount > 0 && (
+                <button
+                  type="button"
+                  className={eventDates.includes("this_weekend") ? "hero-pill hero-pill-active" : "hero-pill"}
+                  onClick={() => {
+                    setEventDates((current) =>
+                      current.includes("this_weekend")
+                        ? current.filter((d) => d !== "this_weekend")
+                        : [...current, "this_weekend" as EventDatePreset]
+                    );
+                    setPage(1);
+                  }}
+                >
+                  {t("eventSearch.hero.thisWeekend")} <span className="hero-pill-count">({thisWeekendCount.toLocaleString()})</span>
+                </button>
+              )}
+              {/* Practice category pills */}
+              {topPracticePills.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  className={practiceCategoryIds.includes(cat.id) ? "hero-pill hero-pill-active" : "hero-pill"}
+                  onClick={() => {
+                    setPracticeCategoryIds((current) =>
+                      current.includes(cat.id)
+                        ? current.filter((id) => id !== cat.id)
+                        : [...current, cat.id]
+                    );
+                    setPage(1);
+                  }}
+                >
+                  {cat.label} <span className="hero-pill-count">({cat.count.toLocaleString()})</span>
+                </button>
+              ))}
+            </div>
+            {data && data.totalHits > 0 && (
+              <div className="hero-stats">
+                {t("eventSearch.hero.statsCount", { count: data.totalHits })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <section className={sidebarOpen ? "grid sidebar-open" : "grid"}>
+      {sidebarOpen && (
+        <div
+          className="filters-overlay"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden
+        />
+      )}
       <aside className="panel filters">
         <h2 className="title-xl">{t("eventSearch.title")}</h2>
         <input
           value={q}
-          onChange={(event) => setQ(event.target.value)}
+          onChange={(event) => {
+            isTypingQRef.current = true;
+            if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
+            typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
+            setQ(event.target.value);
+          }}
           placeholder={t("eventSearch.placeholder.searchTitle")}
         />
         <details open={dateOpen} onToggle={(event) => setDateOpen((event.currentTarget as HTMLDetailsElement).open)}>
           <summary>{t("eventSearch.eventDate")}</summary>
           <div className="kv">
             {visibleEventDateFacets.map((item) => (
-              <label className="meta" key={item.key}>
-                <input
-                  type="checkbox"
-                  checked={item.checked}
-                  onChange={() => {
-                    setEventDates((current) => (
-                      current.includes(item.key)
-                        ? current.filter((value) => value !== item.key)
-                        : [...current, item.key]
+              <button
+                type="button"
+                className={"filter-row" + (item.checked ? " filter-row-selected" : "")}
+                key={item.key}
+                onClick={() => {
+                  setPendingKey(`eventDate:${item.key}`);
+                  setEventDates((current) => (
+                    current.includes(item.key)
+                      ? current.filter((value) => value !== item.key)
+                      : [...current, item.key]
+                  ));
+                  setPage(1);
+                }}
+              >
+                <span className="filter-row-icon">{pendingKey === `eventDate:${item.key}` ? <span className="filter-spinner" /> : (item.checked ? "\u2212" : "+")}</span>
+                <span className="filter-row-label">{t(`eventSearch.eventDateOption.${item.key}`)}</span>
+                <span className="filter-row-count">{item.count}</span>
+              </button>
+            ))}
+          </div>
+        </details>
+        <details
+          open={attendanceOpen}
+          onToggle={(event) => setAttendanceOpen((event.currentTarget as HTMLDetailsElement).open)}
+        >
+          <summary>{t("eventSearch.attendance.anyEventType")}</summary>
+          <div className="kv">
+            {(["in_person", "online", "hybrid"] as const).map((mode) => {
+              const count = disjunctiveFacets.attendanceMode?.[mode] ?? 0;
+              const checked = attendanceModes.includes(mode);
+              if (count <= 0 && !checked) {
+                return null;
+              }
+              return (
+                <button
+                  type="button"
+                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                  key={mode}
+                  onClick={() => {
+                    setPendingKey(`attendance:${mode}`);
+                    setAttendanceModes((current) => (
+                      current.includes(mode)
+                        ? current.filter((item) => item !== mode)
+                        : [...current, mode]
                     ));
                     setPage(1);
                   }}
-                />
-                {t(`eventSearch.eventDateOption.${item.key}`)} ({item.count})
-              </label>
-            ))}
+                >
+                  <span className="filter-row-icon">{pendingKey === `attendance:${mode}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                  <span className="filter-row-label">{t(`eventSearch.attendance.${mode}`)}</span>
+                  <span className="filter-row-count">{count}</span>
+                </button>
+              );
+            })}
           </div>
         </details>
         <details
@@ -908,31 +1178,34 @@ export function EventSearchClient({
           onToggle={(event) => setPracticeOpen((event.currentTarget as HTMLDetailsElement).open)}
         >
           <summary>{categorySingularLabel}</summary>
-          <div className="kv">
+          <div className="filter-scroll">
             {visibleCategories.map((category) => {
               const checked = practiceCategoryIds.includes(category.id);
               const count = disjunctiveFacets.practiceCategoryId[category.id] ?? 0;
               return (
-                <label className="meta" key={category.id}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => {
-                      setPracticeCategoryIds((current) => (
-                        current.includes(category.id)
-                          ? current.filter((item) => item !== category.id)
-                          : [...current, category.id]
-                      ));
-                      setPracticeSubcategoryId((current) =>
-                        current && !category.subcategories.some((subcategory) => subcategory.id === current)
-                          ? ""
-                          : current
-                      );
-                      setPage(1);
-                    }}
-                  />
-                  {category.label} ({count})
-                </label>
+                <button
+                  type="button"
+                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                  key={category.id}
+                  onClick={() => {
+                    setPendingKey(`practice:${category.id}`);
+                    setPracticeCategoryIds((current) => (
+                      current.includes(category.id)
+                        ? current.filter((item) => item !== category.id)
+                        : [...current, category.id]
+                    ));
+                    setPracticeSubcategoryId((current) =>
+                      current && !category.subcategories.some((subcategory) => subcategory.id === current)
+                        ? ""
+                        : current
+                    );
+                    setPage(1);
+                  }}
+                >
+                  <span className="filter-row-icon">{pendingKey === `practice:${category.id}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                  <span className="filter-row-label">{category.label}</span>
+                  <span className="filter-row-count">{count}</span>
+                </button>
               );
             })}
           </div>
@@ -968,21 +1241,24 @@ export function EventSearchClient({
                   return null;
                 }
                 return (
-                  <label className="meta" key={format.id}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => {
-                        setEventFormatIds((current) => (
-                          current.includes(format.id)
-                            ? current.filter((item) => item !== format.id)
-                            : [...current, format.id]
-                        ));
-                        setPage(1);
-                      }}
-                    />
-                    {format.label} ({count})
-                  </label>
+                  <button
+                    type="button"
+                    className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                    key={format.id}
+                    onClick={() => {
+                      setPendingKey(`format:${format.id}`);
+                      setEventFormatIds((current) => (
+                        current.includes(format.id)
+                          ? current.filter((item) => item !== format.id)
+                          : [...current, format.id]
+                      ));
+                      setPage(1);
+                    }}
+                  >
+                    <span className="filter-row-icon">{pendingKey === `format:${format.id}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                    <span className="filter-row-label">{format.label}</span>
+                    <span className="filter-row-count">{count}</span>
+                  </button>
                 );
               })}
             </div>
@@ -993,52 +1269,26 @@ export function EventSearchClient({
           onToggle={(event) => setLanguageOpen((event.currentTarget as HTMLDetailsElement).open)}
         >
           <summary>{t("eventSearch.eventLanguage")}</summary>
-          <div className="kv">
-            {visibleEventLanguageFacets.map(([value, count]) => (
-              <label className="meta" key={value}>
-                <input
-                  type="checkbox"
-                  checked={languages.includes(value)}
-                  onChange={() => {
+          <div className="filter-scroll">
+            {[...visibleEventLanguageFacets].sort((a, b) => getLanguageLabel(a[0]).localeCompare(getLanguageLabel(b[0]))).map(([value, count]) => {
+              const checked = languages.includes(value);
+              return (
+                <button
+                  type="button"
+                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                  key={value}
+                  onClick={() => {
+                    setPendingKey(`language:${value}`);
                     setLanguages((current) => (
                       current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
                     ));
                     setPage(1);
                   }}
-                />
-                {getLanguageLabel(value)} ({count})
-              </label>
-            ))}
-          </div>
-        </details>
-        <details
-          open={attendanceOpen}
-          onToggle={(event) => setAttendanceOpen((event.currentTarget as HTMLDetailsElement).open)}
-        >
-          <summary>{t("eventSearch.attendance.anyEventType")}</summary>
-          <div className="kv">
-            {(["in_person", "online", "hybrid"] as const).map((mode) => {
-              const count = disjunctiveFacets.attendanceMode?.[mode] ?? 0;
-              const checked = attendanceModes.includes(mode);
-              if (count <= 0 && !checked) {
-                return null;
-              }
-              return (
-                <label className="meta" key={mode}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => {
-                      setAttendanceModes((current) => (
-                        current.includes(mode)
-                          ? current.filter((item) => item !== mode)
-                          : [...current, mode]
-                      ));
-                      setPage(1);
-                    }}
-                  />
-                  {t(`eventSearch.attendance.${mode}`)} ({count})
-                </label>
+                >
+                  <span className="filter-row-icon">{pendingKey === `language:${value}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                  <span className="filter-row-label">{getLanguageLabel(value)}</span>
+                  <span className="filter-row-count">{count}</span>
+                </button>
               );
             })}
           </div>
@@ -1048,13 +1298,16 @@ export function EventSearchClient({
           onToggle={(event) => setCountryOpen((event.currentTarget as HTMLDetailsElement).open)}
         >
           <summary>{t("eventSearch.country")}</summary>
-          <div className="kv">
-            {visibleCountryFacets.map(({ value, count }) => (
-              <label className="meta" key={value}>
-                <input
-                  type="checkbox"
-                  checked={countryCodes.includes(value)}
-                  onChange={() => {
+          <div className="filter-scroll">
+            {[...visibleCountryFacets].sort((a, b) => getCountryLabel(a.value).localeCompare(getCountryLabel(b.value))).map(({ value, count }) => {
+              const checked = countryCodes.includes(value);
+              return (
+                <button
+                  type="button"
+                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                  key={value}
+                  onClick={() => {
+                    setPendingKey(`country:${value}`);
                     setCountryCodes((current) => (
                       current.includes(value)
                         ? current.filter((item) => item !== value)
@@ -1062,10 +1315,13 @@ export function EventSearchClient({
                     ));
                     setPage(1);
                   }}
-                />
-                {getCountryLabel(value)} ({count})
-              </label>
-            ))}
+                >
+                  <span className="filter-row-icon">{pendingKey === `country:${value}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                  <span className="filter-row-label">{getCountryLabel(value)}</span>
+                  <span className="filter-row-count">{count}</span>
+                </button>
+              );
+            })}
           </div>
         </details>
         <div className="autocomplete-wrap">
@@ -1189,7 +1445,7 @@ export function EventSearchClient({
               onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
             />
             <span className="toggle-control-track" aria-hidden />
-            <span className="meta">
+            <span className="meta" suppressHydrationWarning>
               {timeDisplayMode === "event"
                 ? t("eventSearch.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
                 : t("eventSearch.timeMode.userWithZone", { zone: userTimeZone })}
@@ -1209,21 +1465,31 @@ export function EventSearchClient({
             {" Show unlisted"}
           </label>
         )}
-        <div className="kv">
+        <div className="filters-mobile-footer">
           <button
             type="button"
-            className="secondary-btn"
-            onClick={clearFilters}
-            disabled={loading}
+            className="primary-btn"
+            onClick={() => setSidebarOpen(false)}
           >
-            {t("eventSearch.clearFilters")}
+            {t("eventSearch.applyFilters")}
           </button>
         </div>
       </aside>
 
       <div className="panel cards">
         <div className="results-toolbar">
-          <div className="meta">
+          <button
+            type="button"
+            className="secondary-btn filters-toggle-btn"
+            onClick={toggleSidebar}
+            aria-expanded={sidebarOpen}
+          >
+            {t("eventSearch.filtersButton")}
+            {activeFilterCount > 0 && (
+              <span className="filters-badge">{activeFilterCount}</span>
+            )}
+          </button>
+          <div className="meta results-count">
             {data
               ? t("eventSearch.resultsCount", { count: data.totalHits })
               : t("eventSearch.promptRun")}
@@ -1291,17 +1557,21 @@ export function EventSearchClient({
         ) : null}
         {error && <div className="muted">{error}</div>}
         {selectedFilterChips.length > 0 && (
-          <div className="kv">
+          <div className="filter-chips">
             {selectedFilterChips.map((chip) => (
-              <button className="tag" key={chip.key} type="button" onClick={chip.onRemove}>
+              <button className="tag filter-chip" key={chip.key} type="button" onClick={chip.onRemove}>
                 {chip.label} ×
               </button>
             ))}
+            <button className="tag filter-chip-clear" type="button" onClick={clearFilters}>
+              {t("eventSearch.clearFilters")}
+            </button>
           </div>
         )}
 
+        <div className="card-list">
         {view === "list" ? (
-          data?.hits.map((hit) => {
+          accumulatedHits.map((hit) => {
             const formatted = formatDateTimeRange(
               hit.startsAtUtc,
               hit.endsAtUtc,
@@ -1309,147 +1579,127 @@ export function EventSearchClient({
               timeDisplayMode,
             );
 
+            const catKey = categoryKeyById.get(hit.event.practiceCategoryId) ?? "other";
+            const catLabel = categoryLabelById.get(hit.event.practiceCategoryId);
+            const locationParts = (() => {
+              if (hit.location?.city || hit.location?.country_code) {
+                return [
+                  hit.location?.city ?? "",
+                  hit.location?.country_code ? getCountryLabel(hit.location.country_code) : "",
+                ].filter(Boolean).join(", ");
+              }
+              if (hit.event.attendanceMode === "online") return t("eventSearch.locationOnline");
+              return t("eventSearch.locationTbd");
+            })();
+            const primaryOrganizer = hit.organizers?.[0];
+            const extraPills = [
+              ...hit.event.languages.map((l) => getLanguageLabel(l)),
+              ...hit.event.tags,
+            ];
+            const visiblePills = extraPills.slice(0, 3);
+            const overflowCount = extraPills.length - visiblePills.length;
+
             return (
               <Link
-                className="card"
+                className="card event-card-h"
                 key={hit.occurrenceId}
                 href={`/events/${hit.event.slug}`}
                 onClick={persistScroll}
               >
-                {hit.event.coverImageUrl && (
-                  <div className="event-card-thumb-shell">
-                    <img
-                      className="event-card-thumb"
-                      src={hit.event.coverImageUrl}
-                      alt={hit.event.title}
-                      loading="lazy"
-                      decoding="async"
-                    />
+                <div className="event-card-main">
+                  <div
+                    className="event-card-thumb-h"
+                    style={{ background: hit.event.coverImageUrl ? undefined : `var(--category-${catKey}, var(--surface-skeleton))` }}
+                  >
+                    {hit.event.coverImageUrl ? (
+                      <img
+                        className="event-card-thumb"
+                        src={hit.event.coverImageUrl}
+                        alt={hit.event.title}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <img className="event-card-fallback-logo" src="/logo.jpg" alt="" aria-hidden />
+                    )}
+                  </div>
+                  <div className="event-card-body">
+                    <h3>
+                      {hit.event.title}
+                      {hit.event.visibility === "unlisted" && (
+                        <span className="tag" style={{ marginLeft: "0.5em", fontSize: "0.75em" }}>Unlisted</span>
+                      )}
+                    </h3>
+                    <div
+                      className="meta"
+                      title={formatted.suffixLabel === "event" ? t("common.eventTimezone") : t("common.yourTimezone")}
+                      suppressHydrationWarning
+                    >
+                      {formatted.primary} · {t(`attendanceMode.${hit.event.attendanceMode}`)}
+                    </div>
+                    {locationParts && (
+                      <div className="meta" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {locationParts}
+                      </div>
+                    )}
+                    {primaryOrganizer && (
+                      <div className="meta" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {primaryOrganizer.name}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {(catLabel || visiblePills.length > 0) && (
+                  <div className="kv event-card-pills">
+                    {catLabel && (
+                      <span
+                        className="tag tag-practice"
+                      >
+                        {catLabel}
+                      </span>
+                    )}
+                    {visiblePills.map((pill, i) => (
+                      <span className="tag" key={i}>{pill}</span>
+                    ))}
+                    {overflowCount > 0 && (
+                      <span className="tag muted">+{overflowCount}</span>
+                    )}
                   </div>
                 )}
-                <h3>
-                  {hit.event.title}
-                  {hit.event.visibility === "unlisted" && (
-                    <span className="tag" style={{ marginLeft: "0.5em", fontSize: "0.75em" }}>Unlisted</span>
-                  )}
-                </h3>
-                <div className="meta">
-                  {formatted.primary} ({formatted.suffixLabel === "event"
-                    ? t("common.eventTimezone")
-                    : t("common.yourTimezone")}) | {t(`attendanceMode.${hit.event.attendanceMode}`)}
-                </div>
-                <div className="meta">
-                  {t("eventSearch.locationLabel", {
-                    location: (() => {
-                      if (hit.location?.city || hit.location?.country_code) {
-                        const parts = [
-                          hit.location?.city ?? "",
-                          hit.location?.country_code ? getCountryLabel(hit.location.country_code) : "",
-                        ].filter(Boolean);
-                        return parts.join(", ");
-                      }
-                      if (hit.event.attendanceMode === "online") {
-                        return t("eventSearch.locationOnline");
-                      }
-                      return t("eventSearch.locationTbd");
-                    })(),
-                  })}
-                </div>
-                <div className="meta">
-                  {categorySingularLabel}: {categoryLabelById.get(hit.event.practiceCategoryId) ?? hit.event.practiceCategoryId}
-                  {hit.event.practiceSubcategoryId
-                    ? ` / ${subcategoryLabelById.get(hit.event.practiceSubcategoryId) ?? hit.event.practiceSubcategoryId}`
-                    : ""}
-                </div>
-                {(hit.organizers?.length ?? 0) > 0 && (
-                  <div className="meta">
-                    {(() => {
-                      const roleBuckets = new Map<string, string[]>();
-                      for (const organizer of hit.organizers ?? []) {
-                        const roles = organizer.roles?.filter(Boolean) ?? [];
-                        if (roles.length === 0) {
-                          const bucket = roleBuckets.get("host") ?? [];
-                          bucket.push(organizer.name);
-                          roleBuckets.set("host", bucket);
-                          continue;
-                        }
-                        for (const role of roles) {
-                          const bucket = roleBuckets.get(role) ?? [];
-                          bucket.push(organizer.name);
-                          roleBuckets.set(role, bucket);
-                        }
-                      }
-                      const parts: string[] = [];
-
-                      for (const [role, names] of roleBuckets.entries()) {
-                        const uniqueNames = Array.from(new Set(names));
-                        if (uniqueNames.length === 0) {
-                          continue;
-                        }
-                        let prefix = `${role}:`;
-                        if (role === "teacher") {
-                          prefix = t("eventSearch.teacherPrefix");
-                        } else if (role === "organizer") {
-                          prefix = t("eventSearch.organizerPrefix");
-                        } else if (role === "host") {
-                          prefix = t("eventSearch.hostPrefix");
-                        }
-                        parts.push(`${prefix} ${uniqueNames.join(", ")}`);
-                      }
-                      return parts.join(" | ");
-                    })()}
-                  </div>
-                )}
-                <div className="kv">
-                  {hit.event.languages.map((item) => (
-                    <span className="tag" key={item}>
-                      {getLanguageLabel(item)}
-                    </span>
-                  ))}
-                  {hit.event.tags.map((item) => (
-                    <span className="tag" key={item}>
-                      {item}
-                    </span>
-                  ))}
-                </div>
               </Link>
             );
           })
         ) : null}
-        {data && view === "list" && (
-          <div className="admin-card-actions">
+        </div>
+        {data && view === "list" && currentPage < totalPages && (
+          <div className="load-more-section">
             <button
-              className="secondary-btn"
+              className="secondary-btn load-more-btn"
               type="button"
               onClick={() => {
-                pendingPaginationScrollRef.current = true;
-                skipNextScrollRestoreRef.current = true;
-                setPage((prev) => Math.max(prev - 1, 1));
-              }}
-              disabled={loading || currentPage <= 1}
-              style={currentPage <= 1 ? { visibility: "hidden" } : undefined}
-            >
-              {t("common.pagination.previous")}
-            </button>
-            <div className="meta">
-              {t("common.pagination.pageOf", { page: currentPage, totalPages })}
-            </div>
-            <button
-              className="secondary-btn"
-              type="button"
-              onClick={() => {
-                pendingPaginationScrollRef.current = true;
-                skipNextScrollRestoreRef.current = true;
+                isLoadMoreRef.current = true;
+                isLoadMorePageRef.current = true;
                 setPage((prev) => prev + 1);
               }}
-              disabled={loading || currentPage >= totalPages}
-              style={currentPage >= totalPages ? { visibility: "hidden" } : undefined}
+              disabled={loadingMore}
             >
-              {t("common.pagination.next")}
+              {loadingMore ? t("eventSearch.searching") : t("common.pagination.loadMore")}
             </button>
+            <div className="meta">
+              {t("common.pagination.showingOf", { shown: accumulatedHits.length, total: data.totalHits })}
+            </div>
           </div>
         )}
       </div>
+      <button
+        className={showBackToTop ? "back-to-top visible" : "back-to-top"}
+        type="button"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        aria-label="Back to top"
+      >
+        ↑
+      </button>
     </section>
+    </>
   );
 }

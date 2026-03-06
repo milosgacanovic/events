@@ -106,7 +106,13 @@ export function OrganizerSearchClient({
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [showArchived, setShowArchived] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accumulatedItems, setAccumulatedItems] = useState<OrganizerSearchResponse["items"]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const isLoadMoreRef = useRef(false);
+  const isLoadMorePageRef = useRef(false);
   const [loading, setLoading] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<OrganizerSearchResponse | null>(null);
   const [roleFacetCounts, setRoleFacetCounts] = useState<Record<string, number>>({});
@@ -146,6 +152,21 @@ export function OrganizerSearchClient({
       ),
     [],
   );
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("dr-filters-sidebar-open");
+      if (stored !== null) setSidebarOpen(stored === "true");
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try { sessionStorage.setItem("dr-filters-sidebar-open", String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (initialTaxonomy) return;
@@ -301,6 +322,10 @@ export function OrganizerSearchClient({
     if (countryCodes.length > 0) setCountryOpen(true);
   }, [countryCodes.length]);
 
+  useEffect(() => {
+    if (!loading && !loadingMore) setPendingKey(null);
+  }, [loading, loadingMore]);
+
   const scrollStorageKey = useMemo(() => {
     const query = buildUiQueryString();
     return `search-scroll:${pathname}${query ? `?${query}` : ""}`;
@@ -320,7 +345,14 @@ export function OrganizerSearchClient({
   }, [scrollStorageKey]);
 
   const runSearch = useCallback(async (nextPage = page) => {
-    setLoading(true);
+    const appendMode = isLoadMoreRef.current;
+    isLoadMoreRef.current = false;
+
+    if (appendMode) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -331,11 +363,17 @@ export function OrganizerSearchClient({
         headers ? { headers } : undefined,
       );
       setData(result);
+      if (appendMode) {
+        setAccumulatedItems((prev) => [...prev, ...result.items]);
+      } else {
+        setAccumulatedItems(result.items);
+      }
       setPage(nextPage);
     } catch (err) {
       setError(canSeeDetailedErrors && err instanceof Error ? err.message : t("organizerSearch.error.searchFailed"));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [buildQueryString, canSeeDetailedErrors, page, t, showArchived, auth]);
 
@@ -421,6 +459,10 @@ export function OrganizerSearchClient({
 
   useEffect(() => {
     if (syncingFromUrlRef.current) {
+      return;
+    }
+    if (isLoadMorePageRef.current) {
+      isLoadMorePageRef.current = false;
       return;
     }
     const timer = setTimeout(() => {
@@ -600,7 +642,7 @@ export function OrganizerSearchClient({
     for (const role of roleKeys) {
       chips.push({
         key: `role:${role}`,
-        label: `${t("organizerSearch.hostType")}: ${role}`,
+        label: role,
         onRemove: () => {
           setRoleKeys((current) => current.filter((item) => item !== role));
           setPage(1);
@@ -610,7 +652,7 @@ export function OrganizerSearchClient({
     for (const practiceId of practiceCategoryIds) {
       chips.push({
         key: `practice:${practiceId}`,
-        label: `${categorySingularLabel}: ${practiceLabelById.get(practiceId) ?? practiceId}`,
+        label: practiceLabelById.get(practiceId) ?? practiceId,
         onRemove: () => {
           setPracticeCategoryIds((current) => current.filter((item) => item !== practiceId));
           setPage(1);
@@ -620,7 +662,7 @@ export function OrganizerSearchClient({
     for (const language of languages) {
       chips.push({
         key: `lang:${language}`,
-        label: `${t("organizerSearch.hostLanguage")}: ${getLanguageLabel(language)}`,
+        label: getLanguageLabel(language),
         onRemove: () => {
           setLanguages((current) => current.filter((item) => item !== language));
           setPage(1);
@@ -630,7 +672,7 @@ export function OrganizerSearchClient({
     for (const country of countryCodes) {
       chips.push({
         key: `country:${country}`,
-        label: `${t("organizerSearch.country")}: ${getCountryLabel(country)}`,
+        label: getCountryLabel(country),
         onRemove: () => {
           setCountryCodes((current) => current.filter((item) => item !== country));
           setPage(1);
@@ -640,7 +682,7 @@ export function OrganizerSearchClient({
     for (const tag of tags) {
       chips.push({
         key: `tag:${tag}`,
-        label: `${t("organizerSearch.tags")}: ${tag}`,
+        label: tag,
         onRemove: () => {
           setTags((current) => current.filter((item) => item !== tag));
           setPage(1);
@@ -650,7 +692,7 @@ export function OrganizerSearchClient({
     for (const city of cities) {
       chips.push({
         key: `city:${city}`,
-        label: `${t("organizerSearch.cityLabel")}: ${formatCityLabel(city)}`,
+        label: formatCityLabel(city),
         onRemove: () => {
           setCities((current) => current.filter((item) => item !== city));
           setPage(1);
@@ -701,10 +743,16 @@ export function OrganizerSearchClient({
     setCities([]);
     setCityQuery("");
     setPage(1);
+    setAccumulatedItems([]);
   }
 
+  const activeFilterCount = selectedChips.length;
+
   return (
-    <section className="grid">
+    <section className={sidebarOpen ? "grid sidebar-open" : "grid"}>
+      {sidebarOpen && (
+        <div className="filters-overlay" onClick={() => setSidebarOpen(false)} aria-hidden />
+      )}
       <aside className="panel filters">
         <h2 className="title-xl">{t("organizerSearch.title")}</h2>
         <input
@@ -722,21 +770,27 @@ export function OrganizerSearchClient({
         >
           <summary>{t("organizerSearch.hostType")}</summary>
           <div className="kv">
-            {visibleRoleFacets.map(([value, count]) => (
-              <label className="meta" key={`role-${value}`}>
-                <input
-                  type="checkbox"
-                  checked={roleKeys.includes(value)}
-                  onChange={() => {
+            {visibleRoleFacets.map(([value, count]) => {
+              const checked = roleKeys.includes(value);
+              return (
+                <button
+                  type="button"
+                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                  key={`role-${value}`}
+                  onClick={() => {
+                    setPendingKey(`role:${value}`);
                     setRoleKeys((current) => (
                       current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
                     ));
                     setPage(1);
                   }}
-                />
-                {value} ({count})
-              </label>
-            ))}
+                >
+                  <span className="filter-row-icon">{pendingKey === `role:${value}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                  <span className="filter-row-label">{value}</span>
+                  <span className="filter-row-count">{count}</span>
+                </button>
+              );
+            })}
           </div>
         </details>
 
@@ -746,30 +800,35 @@ export function OrganizerSearchClient({
             onToggle={(event) => setPracticeOpen((event.currentTarget as HTMLDetailsElement).open)}
           >
             <summary>{categorySingularLabel}</summary>
-            <div className="kv">
+            <div className="filter-scroll">
               {taxonomy?.practices.categories
                 .filter((category) => {
                   const count = practiceCounts.get(category.id) ?? 0;
                   return count > 0 || practiceCategoryIds.includes(category.id);
                 })
+                .sort((a, b) => a.label.localeCompare(b.label))
                 .map((category) => {
                   const count = practiceCounts.get(category.id) ?? 0;
+                  const checked = practiceCategoryIds.includes(category.id);
                   return (
-                    <label className="meta" key={`practice-${category.id}`}>
-                      <input
-                        type="checkbox"
-                        checked={practiceCategoryIds.includes(category.id)}
-                        onChange={() => {
-                          setPracticeCategoryIds((current) => (
-                            current.includes(category.id)
-                              ? current.filter((item) => item !== category.id)
-                              : [...current, category.id]
-                          ));
-                          setPage(1);
-                        }}
-                      />
-                      {category.label} ({count})
-                    </label>
+                    <button
+                      type="button"
+                      className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                      key={`practice-${category.id}`}
+                      onClick={() => {
+                        setPendingKey(`practice:${category.id}`);
+                        setPracticeCategoryIds((current) => (
+                          current.includes(category.id)
+                            ? current.filter((item) => item !== category.id)
+                            : [...current, category.id]
+                        ));
+                        setPage(1);
+                      }}
+                    >
+                      <span className="filter-row-icon">{pendingKey === `practice:${category.id}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                      <span className="filter-row-label">{category.label}</span>
+                      <span className="filter-row-count">{count}</span>
+                    </button>
                   );
                 })}
             </div>
@@ -781,22 +840,28 @@ export function OrganizerSearchClient({
           onToggle={(event) => setLanguageOpen((event.currentTarget as HTMLDetailsElement).open)}
         >
           <summary>{t("organizerSearch.hostLanguage")}</summary>
-          <div className="kv">
-            {visibleLanguageFacets.map(([value, count]) => (
-              <label className="meta" key={`lang-${value}`}>
-                <input
-                  type="checkbox"
-                  checked={languages.includes(value)}
-                  onChange={() => {
+          <div className="filter-scroll">
+            {[...visibleLanguageFacets].sort((a, b) => getLanguageLabel(a[0]).localeCompare(getLanguageLabel(b[0]))).map(([value, count]) => {
+              const checked = languages.includes(value);
+              return (
+                <button
+                  type="button"
+                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                  key={`lang-${value}`}
+                  onClick={() => {
+                    setPendingKey(`lang:${value}`);
                     setLanguages((current) => (
                       current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
                     ));
                     setPage(1);
                   }}
-                />
-                {getLanguageLabel(value)} ({count})
-              </label>
-            ))}
+                >
+                  <span className="filter-row-icon">{pendingKey === `lang:${value}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                  <span className="filter-row-label">{getLanguageLabel(value)}</span>
+                  <span className="filter-row-count">{count}</span>
+                </button>
+              );
+            })}
           </div>
         </details>
 
@@ -805,22 +870,28 @@ export function OrganizerSearchClient({
           onToggle={(event) => setCountryOpen((event.currentTarget as HTMLDetailsElement).open)}
         >
           <summary>{t("organizerSearch.country")}</summary>
-          <div className="kv">
-            {visibleCountryFacets.map(([value, count]) => (
-              <label className="meta" key={`country-${value}`}>
-                <input
-                  type="checkbox"
-                  checked={countryCodes.includes(value)}
-                  onChange={() => {
+          <div className="filter-scroll">
+            {[...visibleCountryFacets].sort((a, b) => getCountryLabel(a[0]).localeCompare(getCountryLabel(b[0]))).map(([value, count]) => {
+              const checked = countryCodes.includes(value);
+              return (
+                <button
+                  type="button"
+                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                  key={`country-${value}`}
+                  onClick={() => {
+                    setPendingKey(`country:${value}`);
                     setCountryCodes((current) => (
                       current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
                     ));
                     setPage(1);
                   }}
-                />
-                {getCountryLabel(value)} ({count})
-              </label>
-            ))}
+                >
+                  <span className="filter-row-icon">{pendingKey === `country:${value}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                  <span className="filter-row-label">{getCountryLabel(value)}</span>
+                  <span className="filter-row-count">{count}</span>
+                </button>
+              );
+            })}
           </div>
         </details>
 
@@ -951,16 +1022,31 @@ export function OrganizerSearchClient({
             {" Show archived"}
           </label>
         )}
-        <div className="kv">
-          <button type="button" className="secondary-btn" onClick={clearFilters} disabled={loading}>
-            {t("eventSearch.clearFilters")}
+        <div className="filters-mobile-footer">
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={() => setSidebarOpen(false)}
+          >
+            {t("eventSearch.applyFilters")}
           </button>
         </div>
       </aside>
 
       <div className="panel cards">
         <div className="results-toolbar">
-          <div className="meta">
+          <button
+            type="button"
+            className="secondary-btn filters-toggle-btn"
+            onClick={toggleSidebar}
+            aria-expanded={sidebarOpen}
+          >
+            {t("eventSearch.filtersButton")}
+            {activeFilterCount > 0 && (
+              <span className="filters-badge">{activeFilterCount}</span>
+            )}
+          </button>
+          <div className="meta results-count">
             {data
               ? t("organizerSearch.totalCount", { count: data.total })
               : t("organizerSearch.promptRun")}
@@ -998,12 +1084,15 @@ export function OrganizerSearchClient({
         {error && <div className="muted">{error}</div>}
 
         {selectedChips.length > 0 && (
-          <div className="kv">
+          <div className="filter-chips">
             {selectedChips.map((chip) => (
-              <button className="tag" key={chip.key} type="button" onClick={chip.onRemove}>
+              <button className="tag filter-chip" key={chip.key} type="button" onClick={chip.onRemove}>
                 {chip.label} ×
               </button>
             ))}
+            <button className="tag filter-chip-clear" type="button" onClick={clearFilters}>
+              {t("eventSearch.clearFilters")}
+            </button>
           </div>
         )}
 
@@ -1011,93 +1100,79 @@ export function OrganizerSearchClient({
           <HostLeafletClusterMap queryString={activeQueryString} />
         ) : null}
 
-        {view === "list" && data?.items.map((item) => (
-          <Link className="card" key={item.id} href={`/hosts/${item.slug}`} onClick={persistScroll}>
-            <div className="organizer-thumb-shell">
-              {(item.imageUrl ?? item.avatar_path) ? (
-                <img
-                  className="organizer-thumb"
-                  src={(item.imageUrl ?? item.avatar_path) as string}
-                  alt={item.name}
-                  loading="lazy"
-                  decoding="async"
-                />
-              ) : (
-                <span className="organizer-thumb-placeholder" aria-hidden>
-                  {item.name.charAt(0).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <h3>
-              {item.name}
-              {item.status === "archived" && (
-                <span className="tag" style={{ marginLeft: "0.5em", fontSize: "0.75em" }}>Archived</span>
-              )}
-            </h3>
-            <div className="meta">
-              {item.city ?? ""}
-              {(item.countryCode ?? item.country_code)
-                ? ` ${getCountryLabel((item.countryCode ?? item.country_code) as string)}`
-                : ""}
-            </div>
-            {(item.practiceCategoryIds?.length ?? 0) > 0 && (
-              <div className="meta">
-                {categorySingularLabel}: {item.practiceCategoryIds
-                  ?.map((id) => practiceLabelById.get(id) ?? id)
-                  .join(", ")}
+        <div className="card-list">
+        {view === "list" && accumulatedItems.map((item) => {
+          const primaryCatId = item.practiceCategoryIds?.[0];
+          const primaryCatKey = primaryCatId ? (practiceKeyById.get(primaryCatId) ?? "other") : "other";
+          const locationParts = [
+            item.city ?? "",
+            (item.countryCode ?? item.country_code) ? getCountryLabel((item.countryCode ?? item.country_code) as string) : "",
+          ].filter(Boolean).join(", ");
+          const primaryRole = item.roleKeys?.[0] ?? item.roleKey ?? null;
+          const primaryPractice = primaryCatId ? practiceLabelById.get(primaryCatId) : null;
+          const pills = item.languages.map((l) => getLanguageLabel(l));
+          const imageUrl = item.imageUrl || item.avatar_path || null;
+          return (
+            <Link className="card host-card-h" key={item.id} href={`/hosts/${item.slug}`} onClick={persistScroll}>
+              <div
+                className="host-card-avatar"
+                style={{ background: imageUrl ? undefined : `var(--category-${primaryCatKey}, var(--surface-skeleton))` }}
+              >
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={item.name}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <span className="host-card-avatar-initials" aria-hidden>
+                    {item.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
-            )}
-            {(item.roleKeys?.length ?? 0) > 0 && (
-              <div className="meta">{Array.from(new Set(item.roleKeys ?? [])).join(", ")}</div>
-            )}
-            {(item.websiteUrl ?? item.website_url) && (
-              <div className="meta">
-                {(item.websiteUrl ?? item.website_url) as string}
+              <div className="host-card-body">
+                <h3 style={{ margin: "0 0 4px" }}>
+                  {item.name}
+                  {item.status === "archived" && (
+                    <span className="tag" style={{ marginLeft: "0.5em", fontSize: "0.75em" }}>Archived</span>
+                  )}
+                </h3>
+                {locationParts && <div className="meta">{locationParts}</div>}
+                {(primaryPractice || primaryRole) && (
+                  <div className="meta">
+                    {[primaryPractice, primaryRole].filter(Boolean).join(" · ")}
+                  </div>
+                )}
+                {pills.length > 0 && (
+                  <div className="kv event-card-pills" style={{ marginTop: "auto" }}>
+                    {pills.map((pill, i) => (
+                      <span className="tag" key={i}>{pill}</span>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-            <div className="kv">
-              {item.languages.map((language) => (
-                <span className="tag" key={language}>
-                  {getLanguageLabel(language)}
-                </span>
-              ))}
-              {item.tags.map((tag) => (
-                <span className="tag" key={tag}>
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </Link>
-        ))}
-        {view === "list" && data && (
-          <div className="admin-card-actions">
+            </Link>
+          );
+        })}
+        </div>
+        {data && view === "list" && currentPage < totalPages && (
+          <div className="load-more-section">
             <button
-              className="secondary-btn"
+              className="secondary-btn load-more-btn"
               type="button"
               onClick={() => {
-                void runSearch(currentPage - 1);
-                scrollToTopFast(160);
+                isLoadMoreRef.current = true;
+                isLoadMorePageRef.current = true;
+                setPage((prev) => prev + 1);
               }}
-              disabled={loading || currentPage <= 1}
-              style={currentPage <= 1 ? { visibility: "hidden" } : undefined}
+              disabled={loadingMore}
             >
-              {t("common.pagination.previous")}
+              {loadingMore ? t("eventSearch.searching") : t("common.pagination.loadMore")}
             </button>
             <div className="meta">
-              {t("common.pagination.pageOf", { page: currentPage, totalPages })}
+              {t("common.pagination.showingOf", { shown: accumulatedItems.length, total: data.total })}
             </div>
-            <button
-              className="secondary-btn"
-              type="button"
-              onClick={() => {
-                void runSearch(currentPage + 1);
-                scrollToTopFast(160);
-              }}
-              disabled={loading || currentPage >= totalPages}
-              style={currentPage >= totalPages ? { visibility: "hidden" } : undefined}
-            >
-              {t("common.pagination.next")}
-            </button>
           </div>
         )}
       </div>
