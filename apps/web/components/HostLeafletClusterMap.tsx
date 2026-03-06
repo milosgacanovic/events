@@ -258,6 +258,7 @@ export function HostLeafletClusterMap({
           setMapReady(true);
           window.setTimeout(() => {
             mapRef.current?.invalidateSize();
+            scheduleRefresh();
           }, 80);
         }}
       >

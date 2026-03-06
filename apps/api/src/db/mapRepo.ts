@@ -311,8 +311,8 @@ export async function fetchOrganizerMapPoints(pool: Pool, input: OrganizerMapFil
               or lower(coalesce(ol.city, '')) = any($${cityFilterIndex}::text[])
             )
             and st_intersects(
-              ol.geom,
-              ST_MakeEnvelope($${westIndex}, $${southIndex}, $${eastIndex}, $${northIndex}, 4326)::geography
+              ol.geom::geometry,
+              ST_MakeEnvelope($${westIndex}, $${southIndex}, $${eastIndex}, $${northIndex}, 4326)
             )
         ) ol
         where ol.rn = 1
