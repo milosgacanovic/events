@@ -69,9 +69,7 @@ function mapOrganizerSearchItem(item: Record<string, unknown>) {
     (typeof item.image_url === "string" ? item.image_url : null)
     ?? (typeof item.avatar_path === "string" ? item.avatar_path : null);
 
-  const organizerLanguages = sanitizeLanguageCodes(item.languages);
-  const derivedLanguages = sanitizeLanguageCodes(item.derived_languages);
-  const effectiveLanguages = organizerLanguages.length > 0 ? organizerLanguages : derivedLanguages;
+  const effectiveLanguages = sanitizeLanguageCodes(item.languages);
 
   return {
     ...item,

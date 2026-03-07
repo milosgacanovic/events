@@ -218,177 +218,97 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
 
   const { whereSql, values } = buildOrganizerWhere(input);
 
-  const rows = await pool.query<
-    OrganizerRow & {
-      role_keys: string[];
-      derived_languages: string[];
-      practice_category_ids: string[];
-    }
-  >(
-    `
-      select
-        o.*,
-        coalesce(nullif(profile_role_meta.role_keys, '{}'::text[]), role_meta.role_keys, '{}'::text[]) as role_keys,
-        coalesce(role_meta.derived_languages, '{}'::text[]) as derived_languages,
-        coalesce(
-          nullif(profile_practice_meta.practice_category_ids, '{}'::text[]),
-          role_meta.practice_category_ids,
-          '{}'::text[]
-        ) as practice_category_ids
-      from organizers o
-      left join lateral (
-        select array_agg(distinct r.key order by r.key) as role_keys
-        from organizer_profile_roles opr
-        join organizer_roles r on r.id = opr.role_id
-        where opr.organizer_id = o.id
-      ) profile_role_meta on true
-      left join lateral (
-        select array_agg(distinct op.practice_id::text order by op.practice_id::text) as practice_category_ids
-        from organizer_practices op
-        where op.organizer_id = o.id
-      ) profile_practice_meta on true
-      left join lateral (
-        select
-          array_agg(distinct r.key order by r.key) as role_keys,
-          array_remove(array_agg(distinct lower(ev_lang.language)), null) as derived_languages,
-          array_agg(distinct e.practice_category_id::text order by e.practice_category_id::text) as practice_category_ids
-        from event_organizers eo
-        join organizer_roles r on r.id = eo.role_id
-        join events e on e.id = eo.event_id and e.status = 'published'
-        left join lateral unnest(e.languages) ev_lang(language) on true
-        where eo.organizer_id = o.id
-      ) role_meta on true
-      where ${whereSql}
-      order by o.name asc
-      limit $${values.length + 1}
-      offset $${values.length + 2}
-    `,
-    [...values, pageSize, offset],
-  );
-
-  const totalResult = await pool.query<{ count: string }>(
-    `select count(*)::text as count from organizers o where ${whereSql}`,
-    values,
-  );
-
-  const roleFacet = await pool.query<{ key: string; count: string }>(
-    `
-      with filtered as (
-        select o.id
-        from organizers o
-        where ${whereSql}
-      )
-      select role_key as key, count(distinct organizer_id)::text as count
-      from (
-        select f.id as organizer_id, r.key as role_key
-        from filtered f
-        join organizer_profile_roles opr on opr.organizer_id = f.id
-        join organizer_roles r on r.id = opr.role_id
-        union
-        select f.id as organizer_id, r.key as role_key
-        from filtered f
-        join event_organizers eo on eo.organizer_id = f.id
-        join events e on e.id = eo.event_id and e.status = 'published'
-        join organizer_roles r on r.id = eo.role_id
-      ) roles
-      group by role_key
-    `,
-    values,
-  );
-
-  const languageFacet = await pool.query<{ language: string; count: string }>(
-    `
-      with filtered as (
-        select coalesce(nullif(o.languages, '{}'::text[]), role_meta.derived_languages, '{}'::text[]) as languages
-        from organizers o
-        left join lateral (
-          select array_remove(array_agg(distinct lower(ev_lang.language)), null) as derived_languages
-          from event_organizers eo
-          join events e on e.id = eo.event_id and e.status = 'published'
-          left join lateral unnest(e.languages) ev_lang(language) on true
-          where eo.organizer_id = o.id
-        ) role_meta on true
-        where ${whereSql}
-      )
-      select language, count(*)::text as count
-      from filtered f
-      cross join unnest(f.languages) language
-      group by language
-    `,
-    values,
-  );
-
-  const practiceFacet = await pool.query<{ key: string; count: string }>(
-    `
-      with filtered as (
-        select o.id
-        from organizers o
-        where ${whereSql}
-      )
-      select practice_key as key, count(distinct organizer_id)::text as count
-      from (
-        select f.id as organizer_id, op.practice_id::text as practice_key
-        from filtered f
-        join organizer_practices op on op.organizer_id = f.id
-        union
-        select f.id as organizer_id, e.practice_category_id::text as practice_key
-        from filtered f
-        join event_organizers eo on eo.organizer_id = f.id
-        join events e on e.id = eo.event_id and e.status = 'published'
-        where e.practice_category_id is not null
-      ) practices
-      group by practice_key
-    `,
-    values,
-  );
-
-  const countryFacet = await pool.query<{ country_code: string; count: string }>(
-    `
-      with filtered as (
-        select o.id
-        from organizers o
-        where ${whereSql}
-      )
-      select lower(o.country_code) as country_code, count(distinct f.id)::text as count
-      from filtered f
-      join organizers o on o.id = f.id
-      where o.country_code is not null
-      group by lower(o.country_code)
-    `,
-    values,
-  );
-
-  const cityFacet = await pool.query<{ city: string; count: string }>(
-    `
-      with filtered as (
-        select o.id
-        from organizers o
-        where ${whereSql}
-      )
-      select lower(o.city) as city, count(distinct f.id)::text as count
-      from filtered f
-      join organizers o on o.id = f.id
-      where o.city is not null
-        and o.city <> ''
-      group by lower(o.city)
-    `,
-    values,
-  );
-
-  const tagFacet = await pool.query<{ tag: string; count: string }>(
-    `
-      with filtered as (
-        select o.tags
-        from organizers o
-        where ${whereSql}
-      )
-      select tag, count(*)::text as count
-      from filtered f
-      cross join unnest(f.tags) tag
-      group by tag
-    `,
-    values,
-  );
+  const [rows, totalResult, roleFacet, languageFacet, practiceFacet, countryFacet, cityFacet, tagFacet] =
+    await Promise.all([
+      pool.query<OrganizerRow & { role_keys: string[]; practice_category_ids: string[] }>(
+        `
+          select
+            o.*,
+            coalesce(profile_role_meta.role_keys, '{}'::text[]) as role_keys,
+            coalesce(profile_practice_meta.practice_category_ids, '{}'::text[]) as practice_category_ids
+          from organizers o
+          left join lateral (
+            select array_agg(distinct r.key order by r.key) as role_keys
+            from organizer_profile_roles opr
+            join organizer_roles r on r.id = opr.role_id
+            where opr.organizer_id = o.id
+          ) profile_role_meta on true
+          left join lateral (
+            select array_agg(distinct op.practice_id::text order by op.practice_id::text) as practice_category_ids
+            from organizer_practices op
+            where op.organizer_id = o.id
+          ) profile_practice_meta on true
+          where ${whereSql}
+          order by o.name asc
+          limit $${values.length + 1}
+          offset $${values.length + 2}
+        `,
+        [...values, pageSize, offset],
+      ),
+      pool.query<{ count: string }>(
+        `select count(*)::text as count from organizers o where ${whereSql}`,
+        values,
+      ),
+      pool.query<{ key: string; count: string }>(
+        `
+          with filtered as (select o.id from organizers o where ${whereSql})
+          select r.key, count(distinct opr.organizer_id)::text as count
+          from filtered f
+          join organizer_profile_roles opr on opr.organizer_id = f.id
+          join organizer_roles r on r.id = opr.role_id
+          group by r.key
+        `,
+        values,
+      ),
+      pool.query<{ language: string; count: string }>(
+        `
+          with filtered as (select o.languages from organizers o where ${whereSql})
+          select language, count(*)::text as count
+          from filtered f
+          cross join unnest(f.languages) language
+          group by language
+        `,
+        values,
+      ),
+      pool.query<{ key: string; count: string }>(
+        `
+          with filtered as (select o.id from organizers o where ${whereSql})
+          select op.practice_id::text as key, count(distinct op.organizer_id)::text as count
+          from filtered f
+          join organizer_practices op on op.organizer_id = f.id
+          group by op.practice_id
+        `,
+        values,
+      ),
+      pool.query<{ country_code: string; count: string }>(
+        `
+          select lower(o.country_code) as country_code, count(*)::text as count
+          from organizers o
+          where ${whereSql} and o.country_code is not null
+          group by lower(o.country_code)
+        `,
+        values,
+      ),
+      pool.query<{ city: string; count: string }>(
+        `
+          select lower(o.city) as city, count(*)::text as count
+          from organizers o
+          where ${whereSql} and o.city is not null and o.city <> ''
+          group by lower(o.city)
+        `,
+        values,
+      ),
+      pool.query<{ tag: string; count: string }>(
+        `
+          with filtered as (select o.tags from organizers o where ${whereSql})
+          select tag, count(*)::text as count
+          from filtered f
+          cross join unnest(f.tags) tag
+          group by tag
+        `,
+        values,
+      ),
+    ]);
 
   return {
     items: rows.rows,
