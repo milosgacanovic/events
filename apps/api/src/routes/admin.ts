@@ -3,6 +3,7 @@ import { DateTime } from "luxon";
 import { z } from "zod";
 
 import { runAlertsDry } from "../db/alertRepo";
+import { OCCURRENCES_INDEX } from "../services/meiliService";
 import {
   createEventFormat,
   createOrganizerRole,
@@ -202,6 +203,24 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         practiceCategory: uiLabels.categoryPlural,
       },
     };
+  });
+
+  app.post("/admin/events/reindex", async (request) => {
+    await app.requireAdmin(request);
+    // Fire-and-forget — returns immediately; reindex runs in background
+    setImmediate(async () => {
+      try {
+        const docs = await app.meiliService.fetchOccurrenceDocs(app.db);
+        const index = app.meiliService.client.index(OCCURRENCES_INDEX);
+        const deleteTask = await index.deleteAllDocuments();
+        await app.meiliService.client.waitForTask(deleteTask.taskUid, { timeOutMs: 120000 });
+        const BATCH = 500;
+        for (let i = 0; i < docs.length; i += BATCH) {
+          await index.addDocuments(docs.slice(i, i + BATCH));
+        }
+      } catch { /* logged by Fastify */ }
+    });
+    return { ok: true, message: "Reindex started in background" };
   });
 
   app.get("/admin/alerts/run-dry", async (request) => {

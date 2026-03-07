@@ -739,7 +739,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       await setEventDefaultLocation(app.db, params.data.id, normalizedInput.locationId ?? null);
     }
 
-    if (previousEvent && event.status === "published") {
+    const skipSearch = z.object({ skipSearch: z.coerce.boolean().default(false) })
+      .safeParse(request.query).data?.skipSearch ?? false;
+
+    if (!skipSearch && previousEvent && event.status === "published") {
       const scheduleChanged = hasScheduleShapeChanges(previousEvent, event);
       const locationChanged = normalizedInput.locationId !== undefined &&
         normalizedInput.locationId !== (previousLocation?.id ?? null);
@@ -765,8 +768,11 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: params.error.flatten() };
     }
 
+    const skipSearch = z.object({ skipSearch: z.coerce.boolean().default(false) })
+      .safeParse(request.query).data?.skipSearch ?? false;
+
     try {
-      await publishEvent(app.db, app.meiliService, params.data.id);
+      await publishEvent(app.db, app.meiliService, params.data.id, skipSearch);
     } catch (error) {
       if (error instanceof Error && error.message === "event_expired_for_publish") {
         reply.code(400);

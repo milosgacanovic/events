@@ -17,6 +17,7 @@ export async function regenerateOccurrences(
   pool: Pool,
   meiliService: MeilisearchService,
   eventId: string,
+  skipSearch = false,
 ): Promise<void> {
   const eventWithLocation = await getEventByIdWithLocation(pool, eventId);
 
@@ -39,14 +40,17 @@ export async function regenerateOccurrences(
     generated,
   );
 
-  await meiliService.upsertOccurrencesForEvent(pool, eventId).catch(() => {});
-  clearSearchCache();
+  if (!skipSearch) {
+    await meiliService.upsertOccurrencesForEvent(pool, eventId).catch(() => {});
+    clearSearchCache();
+  }
 }
 
 export async function publishEvent(
   pool: Pool,
   meiliService: MeilisearchService,
   eventId: string,
+  skipSearch = false,
 ): Promise<void> {
   const event = await getEventById(pool, eventId);
   if (
@@ -58,7 +62,7 @@ export async function publishEvent(
   }
 
   await setEventStatus(pool, eventId, "published");
-  await regenerateOccurrences(pool, meiliService, eventId);
+  await regenerateOccurrences(pool, meiliService, eventId, skipSearch);
 }
 
 export async function unpublishEvent(
