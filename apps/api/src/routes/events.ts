@@ -22,7 +22,7 @@ import { findOrCreateUserBySub } from "../db/userRepo";
 import { cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
-import { getSearchCache, setSearchCache } from "../services/searchCache";
+import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 import {
   buildEventDateRangeMap,
   EVENT_DATE_PRESETS,
@@ -746,6 +746,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
       if (scheduleChanged || locationChanged) {
         await regenerateOccurrences(app.db, app.meiliService, params.data.id);
+      } else {
+        // Metadata change (languages, tags, title, etc.) — resync without regenerating occurrences
+        await app.meiliService.upsertOccurrencesForEvent(app.db, params.data.id).catch(() => {});
+        clearSearchCache();
       }
     }
 
