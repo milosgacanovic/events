@@ -11,6 +11,7 @@ import { getEventById, setEventOrganizersByRoleKey } from "../db/eventRepo";
 import { createLocation } from "../db/locationRepo";
 import {
   createOrganizer,
+  deleteOrganizer,
   getOrganizerByExternalRef,
   updateOrganizer,
 } from "../db/organizerRepo";
@@ -329,6 +330,34 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       };
     }
     return { ok: true };
+  });
+
+  app.delete("/admin/organizers/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const { found, affectedEventIds } = await deleteOrganizer(app.db, params.data.id);
+    if (!found) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    // Resync affected events in Meilisearch (organizer names may have changed)
+    if (affectedEventIds.length > 0) {
+      await Promise.all(
+        affectedEventIds.map((eventId) =>
+          app.meiliService.upsertOccurrencesForEvent(app.db, eventId).catch(() => {}),
+        ),
+      );
+      clearSearchCache();
+    }
+
+    reply.code(204);
   });
 };
 

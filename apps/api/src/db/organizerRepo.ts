@@ -869,6 +869,32 @@ async function syncOrganizerPractices(
   }
 }
 
+export async function deleteOrganizer(
+  pool: Pool,
+  id: string,
+): Promise<{ found: boolean; affectedEventIds: string[] }> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const affected = await client.query<{ event_id: string }>(
+      `select event_id from event_organizers where organizer_id = $1`,
+      [id],
+    );
+    const affectedEventIds = affected.rows.map((r) => r.event_id);
+    const result = await client.query(
+      `delete from organizers where id = $1 returning id`,
+      [id],
+    );
+    await client.query("commit");
+    return { found: (result.rowCount ?? 0) > 0, affectedEventIds };
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getOrganizerByExternalRef(
   pool: Pool,
   externalSource: string,
