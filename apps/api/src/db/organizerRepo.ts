@@ -224,8 +224,12 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
         `
           select
             o.*,
-            coalesce(profile_role_meta.role_keys, '{}'::text[]) as role_keys,
-            coalesce(profile_practice_meta.practice_category_ids, '{}'::text[]) as practice_category_ids
+            coalesce(nullif(profile_role_meta.role_keys, '{}'::text[]), role_meta.role_keys, '{}'::text[]) as role_keys,
+            coalesce(
+              nullif(profile_practice_meta.practice_category_ids, '{}'::text[]),
+              role_meta.practice_category_ids,
+              '{}'::text[]
+            ) as practice_category_ids
           from organizers o
           left join lateral (
             select array_agg(distinct r.key order by r.key) as role_keys
@@ -238,6 +242,15 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
             from organizer_practices op
             where op.organizer_id = o.id
           ) profile_practice_meta on true
+          left join lateral (
+            select
+              array_agg(distinct r.key order by r.key) as role_keys,
+              array_agg(distinct e.practice_category_id::text order by e.practice_category_id::text) as practice_category_ids
+            from event_organizers eo
+            join organizer_roles r on r.id = eo.role_id
+            join events e on e.id = eo.event_id and e.status = 'published'
+            where eo.organizer_id = o.id
+          ) role_meta on true
           where ${whereSql}
           order by o.name asc
           limit $${values.length + 1}
@@ -252,11 +265,20 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
       pool.query<{ key: string; count: string }>(
         `
           with filtered as (select o.id from organizers o where ${whereSql})
-          select r.key, count(distinct opr.organizer_id)::text as count
-          from filtered f
-          join organizer_profile_roles opr on opr.organizer_id = f.id
-          join organizer_roles r on r.id = opr.role_id
-          group by r.key
+          select role_key as key, count(distinct organizer_id)::text as count
+          from (
+            select f.id as organizer_id, r.key as role_key
+            from filtered f
+            join organizer_profile_roles opr on opr.organizer_id = f.id
+            join organizer_roles r on r.id = opr.role_id
+            union
+            select f.id as organizer_id, r.key as role_key
+            from filtered f
+            join event_organizers eo on eo.organizer_id = f.id
+            join events e on e.id = eo.event_id and e.status = 'published'
+            join organizer_roles r on r.id = eo.role_id
+          ) roles
+          group by role_key
         `,
         values,
       ),
@@ -273,10 +295,19 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
       pool.query<{ key: string; count: string }>(
         `
           with filtered as (select o.id from organizers o where ${whereSql})
-          select op.practice_id::text as key, count(distinct op.organizer_id)::text as count
-          from filtered f
-          join organizer_practices op on op.organizer_id = f.id
-          group by op.practice_id
+          select practice_key as key, count(distinct organizer_id)::text as count
+          from (
+            select f.id as organizer_id, op.practice_id::text as practice_key
+            from filtered f
+            join organizer_practices op on op.organizer_id = f.id
+            union
+            select f.id as organizer_id, e.practice_category_id::text as practice_key
+            from filtered f
+            join event_organizers eo on eo.organizer_id = f.id
+            join events e on e.id = eo.event_id and e.status = 'published'
+            where e.practice_category_id is not null
+          ) practices
+          group by practice_key
         `,
         values,
       ),
