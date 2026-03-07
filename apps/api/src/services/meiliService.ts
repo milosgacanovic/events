@@ -201,7 +201,6 @@ export class MeilisearchService {
 
   async deleteOccurrencesByEventId(eventId: string): Promise<void> {
     const index = this.client.index(OCCURRENCES_INDEX);
-    await (index as unknown as { deleteDocumentsByFilter: (filter: string) => Promise<unknown> })
-      .deleteDocumentsByFilter(`event_id = ${JSON.stringify(eventId)}`);
+    await index.deleteDocuments({ filter: `event_id = ${JSON.stringify(eventId)}` });
   }
 }
