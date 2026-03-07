@@ -1,39 +1,42 @@
+import { MeiliSearch } from "meilisearch";
 import { Pool } from "pg";
 
 import { config } from "../config";
-import { MeilisearchService } from "../services/meiliService";
+import { MeilisearchService, OCCURRENCES_INDEX } from "../services/meiliService";
 
-const CONCURRENCY = 20;
+const BATCH_SIZE = 500;
 
 async function main() {
   const pool = new Pool({ connectionString: config.DATABASE_URL });
 
   try {
     const meiliService = new MeilisearchService(config.MEILI_URL, config.MEILI_MASTER_KEY);
-    // Skip ensureIndex() — index already exists with correct settings.
-    // Calling it triggers async settings rebuilds that block addDocuments.
+    const client = new MeiliSearch({ host: config.MEILI_URL, apiKey: config.MEILI_MASTER_KEY });
+    const index = client.index(OCCURRENCES_INDEX);
 
-    const result = await pool.query<{ id: string }>(
-      `SELECT id FROM events WHERE status = 'published' ORDER BY created_at`,
-    );
-
-    const ids = result.rows.map((r) => r.id);
-    const total = ids.length;
+    // Step 1: Delete all documents at once and wait for completion
     // eslint-disable-next-line no-console
-    console.log(`Reindexing ${total} published events (concurrency=${CONCURRENCY})...`);
+    console.log("Deleting all existing documents...");
+    const deleteTask = await index.deleteAllDocuments();
+    await client.waitForTask(deleteTask.taskUid, { timeOutMs: 120000 });
+    // eslint-disable-next-line no-console
+    console.log("Deleted.");
 
-    let done = 0;
-    for (let i = 0; i < ids.length; i += CONCURRENCY) {
-      const batch = ids.slice(i, i + CONCURRENCY);
-      await Promise.all(
-        batch.map((id) => meiliService.upsertOccurrencesForEvent(pool, id).catch((err: unknown) => {
-          // eslint-disable-next-line no-console
-          console.error(`  Failed event ${id}:`, err);
-        })),
-      );
-      done += batch.length;
+    // Step 2: Fetch all occurrence docs from DB in one query
+    // eslint-disable-next-line no-console
+    console.log("Fetching all occurrence docs from DB...");
+    const docs = await meiliService.fetchOccurrenceDocs(pool);
+    // eslint-disable-next-line no-console
+    console.log(`Fetched ${docs.length} occurrence docs.`);
+
+    // Step 3: Add in batches of BATCH_SIZE
+    let added = 0;
+    for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+      const batch = docs.slice(i, i + BATCH_SIZE);
+      await index.addDocuments(batch);
+      added += batch.length;
       // eslint-disable-next-line no-console
-      console.log(`  ${done}/${total}`);
+      console.log(`  ${added}/${docs.length}`);
     }
 
     // eslint-disable-next-line no-console

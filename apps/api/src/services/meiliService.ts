@@ -67,6 +67,7 @@ export class MeilisearchService {
       "city",
       "has_geo",
       "visibility",
+      "event_id",
     ]);
     await index.updateSortableAttributes(["starts_at_utc", "starts_at_ts", "published_at", "published_at_ts"]);
     await index.updatePagination({ maxTotalHits: 50000 });
@@ -81,7 +82,7 @@ export class MeilisearchService {
     }
   }
 
-  private async fetchOccurrenceDocs(pool: Pool, eventId?: string): Promise<OccurrenceDoc[]> {
+  async fetchOccurrenceDocs(pool: Pool, eventId?: string): Promise<OccurrenceDoc[]> {
     const query = `
       select
         eo.id as occurrence_id,
@@ -191,16 +192,16 @@ export class MeilisearchService {
     const docs = await this.fetchOccurrenceDocs(pool, eventId);
     const index = this.client.index(OCCURRENCES_INDEX);
 
-    if (docs.length === 0) {
-      await this.deleteOccurrencesByEventId(eventId);
-      return;
-    }
+    await this.deleteOccurrencesByEventId(eventId);
 
-    await index.addDocuments(docs);
+    if (docs.length > 0) {
+      await index.addDocuments(docs);
+    }
   }
 
   async deleteOccurrencesByEventId(eventId: string): Promise<void> {
     const index = this.client.index(OCCURRENCES_INDEX);
-    await index.deleteDocuments({ filter: `event_id = ${JSON.stringify(eventId)}` });
+    const task = await index.deleteDocuments({ filter: `event_id = ${JSON.stringify(eventId)}` });
+    await this.client.waitForTask(task.taskUid, { timeOutMs: 30000 });
   }
 }
