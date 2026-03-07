@@ -106,7 +106,7 @@ export function OrganizerSearchClient({
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [showArchived, setShowArchived] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [accumulatedItems, setAccumulatedItems] = useState<OrganizerSearchResponse["items"]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const isLoadMoreRef = useRef(false);
@@ -157,7 +157,7 @@ export function OrganizerSearchClient({
 
   useEffect(() => {
     try {
-      const stored = sessionStorage.getItem("dr-filters-sidebar-open");
+      const stored = sessionStorage.getItem("dr-host-filters-sidebar-open");
       if (stored !== null) setSidebarOpen(stored === "true");
     } catch { /* ignore */ }
   }, []);
@@ -165,7 +165,7 @@ export function OrganizerSearchClient({
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => {
       const next = !prev;
-      try { sessionStorage.setItem("dr-filters-sidebar-open", String(next)); } catch { /* ignore */ }
+      try { sessionStorage.setItem("dr-host-filters-sidebar-open", String(next)); } catch { /* ignore */ }
       return next;
     });
   }, []);
