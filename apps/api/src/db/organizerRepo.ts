@@ -869,6 +869,43 @@ async function syncOrganizerPractices(
   }
 }
 
+export async function getOrganizerRelated(pool: Pool, id: string) {
+  const [events, locations, roles, practices, alerts] = await Promise.all([
+    pool.query<{ event_id: string; slug: string; title: string; status: string }>(
+      `select eo.event_id, e.slug, e.title, e.status
+       from event_organizers eo
+       join events e on e.id = eo.event_id
+       where eo.organizer_id = $1
+       order by e.title`,
+      [id],
+    ),
+    pool.query<{ id: string; label: string | null; city: string | null; country_code: string | null }>(
+      `select id, label, city, country_code from organizer_locations where organizer_id = $1 order by is_primary desc, created_at`,
+      [id],
+    ),
+    pool.query<{ key: string; label: string }>(
+      `select r.key, r.label from organizer_profile_roles opr join organizer_roles r on r.id = opr.role_id where opr.organizer_id = $1`,
+      [id],
+    ),
+    pool.query<{ practice_id: string }>(
+      `select practice_id::text from organizer_practices where organizer_id = $1`,
+      [id],
+    ),
+    pool.query<{ count: string }>(
+      `select count(*)::text as count from user_alerts where organizer_id = $1`,
+      [id],
+    ),
+  ]);
+
+  return {
+    events: events.rows.map((r) => ({ eventId: r.event_id, slug: r.slug, title: r.title, status: r.status })),
+    locations: locations.rows,
+    roles: roles.rows,
+    practices: practices.rows.map((r) => r.practice_id),
+    alertCount: Number(alerts.rows[0]?.count ?? 0),
+  };
+}
+
 export async function deleteOrganizer(
   pool: Pool,
   id: string,

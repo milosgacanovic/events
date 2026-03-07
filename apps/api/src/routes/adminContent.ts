@@ -13,6 +13,7 @@ import {
   createOrganizer,
   deleteOrganizer,
   getOrganizerByExternalRef,
+  getOrganizerRelated,
   updateOrganizer,
 } from "../db/organizerRepo";
 import { geocodeSearch } from "../services/geocodeService";
@@ -339,6 +340,22 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     if (!params.success) {
       reply.code(400);
       return { error: params.error.flatten() };
+    }
+
+    const query = z.object({ dry: z.coerce.boolean().default(false) }).safeParse(request.query);
+
+    if (query.success && query.data.dry) {
+      const related = await getOrganizerRelated(app.db, params.data.id);
+      // If organizer doesn't exist, all lists will be empty — signal not_found
+      const exists = await app.db.query<{ id: string }>(
+        `select id from organizers where id = $1`,
+        [params.data.id],
+      );
+      if (!exists.rowCount) {
+        reply.code(404);
+        return { error: "not_found" };
+      }
+      return { dryRun: true, related };
     }
 
     const { found, affectedEventIds } = await deleteOrganizer(app.db, params.data.id);
