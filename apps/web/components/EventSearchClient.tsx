@@ -1596,7 +1596,7 @@ export function EventSearchClient({
               if (hit.event.attendanceMode === "online") return t("eventSearch.locationOnline");
               return t("eventSearch.locationTbd");
             })();
-            const primaryOrganizer = hit.organizers?.[0];
+            const organizerNames = hit.organizers?.map((o) => o.name).join(", ");
             const extraPills = [
               ...hit.event.languages.map((l) => getLanguageLabel(l)),
               ...hit.event.tags,
@@ -1645,8 +1645,8 @@ export function EventSearchClient({
                     {locationParts && (
                       <div className="meta">{locationParts}</div>
                     )}
-                    {primaryOrganizer && (
-                      <div className="meta">{primaryOrganizer.name}</div>
+                    {organizerNames && (
+                      <div className="meta">{organizerNames}</div>
                     )}
                   </div>
                 </div>

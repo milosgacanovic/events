@@ -483,7 +483,7 @@ export function EventDetailClient({
         )}
         {data.event.languages.length > 0 && (
           <div className="event-detail-meta-item">
-            <span className="event-detail-meta-label">{t("eventDetail.metadata.languages")}</span>
+            <span className="event-detail-meta-label">{data.event.languages.length === 1 ? t("eventDetail.metadata.language") : t("eventDetail.metadata.languages")}</span>
             <span className="event-detail-meta-value">{data.event.languages.map((l) => getLanguageLabel(l)).join(", ")}</span>
           </div>
         )}
@@ -531,24 +531,24 @@ export function EventDetailClient({
       {/* Hosts */}
       {hosts.length > 0 && (
         <div className="event-detail-section">
-          <h2 className="event-detail-section-title">{t("eventDetail.hosts")}</h2>
-          <div className="card-list">
+          <h2 className="event-detail-section-title">{hosts.length === 1 ? t("eventDetail.host") : t("eventDetail.hosts")}</h2>
+          <div className="event-hosts-grid">
             {hosts.map((host) => (
-              <Link className="card host-card-h" key={host.id} href={`/hosts/${host.slug}`}>
+              <Link className="card event-host-card" key={host.id} href={`/hosts/${host.slug}`}>
                 <div
-                  className="host-card-avatar"
+                  className="event-host-avatar"
                   style={{ background: host.avatarPath ? undefined : "var(--surface-skeleton)" }}
                 >
                   {host.avatarPath ? (
                     <img src={host.avatarPath} alt={host.name} loading="lazy" decoding="async" />
                   ) : (
                     <span className="host-card-avatar-initials" aria-hidden>
-                      {host.name.charAt(0).toUpperCase()}
+                      {host.name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")}
                     </span>
                   )}
                 </div>
-                <div className="host-card-body">
-                  <h3 style={{ margin: "0 0 4px" }}>{host.name}</h3>
+                <div className="event-host-body">
+                  <div className="event-host-name">{host.name}</div>
                   {host.roles.length > 0 && (
                     <div className="meta">{host.roles.join(" · ")}</div>
                   )}

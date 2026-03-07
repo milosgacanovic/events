@@ -1132,7 +1132,7 @@ export function OrganizerSearchClient({
                   />
                 ) : (
                   <span className="host-card-avatar-initials" aria-hidden>
-                    {item.name.charAt(0).toUpperCase()}
+                    {item.name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")}
                   </span>
                 )}
               </div>

@@ -322,7 +322,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
           {organizerImage ? (
             <img src={organizerImage} alt={data.organizer.name} loading="lazy" decoding="async" />
           ) : (
-            <span className="organizer-thumb-placeholder">{data.organizer.name.charAt(0).toUpperCase()}</span>
+            <span className="organizer-thumb-placeholder">{data.organizer.name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")}</span>
           )}
         </div>
         <div className="cards">
@@ -432,30 +432,6 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
         </div>
       )}
 
-      {data.locations.some((l) => l.lat !== null && l.lng !== null) && (
-        <>
-          <h3>{data.locations.length === 1 ? t("organizerDetail.location") : t("organizerDetail.locations")}</h3>
-          {data.locations.filter((l) => l.lat !== null && l.lng !== null).map((location) => {
-            const mapHref = `https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=16/${location.lat}/${location.lng}`;
-            const locationCountry = location.country_code
-              ? (regionNames?.of(location.country_code.toUpperCase()) ?? location.country_code.toUpperCase())
-              : null;
-            const locationLabelRaw = location.label?.trim() || "";
-            const locationLabel = locationLabelRaw.toLowerCase() === "unknown" ? "" : locationLabelRaw;
-            const locationTitle = locationLabel || location.formatted_address?.trim()
-              || [location.city, locationCountry].filter(Boolean).join(", ")
-              || t("common.unknown");
-            return (
-              <div className="card" key={location.id}>
-                <div>{locationTitle}</div>
-                <div className="meta">
-                  <a href={mapHref} target="_blank" rel="noreferrer">{t("organizerDetail.openMap")}</a>
-                </div>
-              </div>
-            );
-          })}
-        </>
-      )}
 
       <h3>{t("organizerDetail.upcomingEvents")}</h3>
       {data.upcomingOccurrences.length === 0 && <div className="meta">{t("organizerDetail.noUpcoming")}</div>}
