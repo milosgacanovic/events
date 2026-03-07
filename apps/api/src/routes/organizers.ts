@@ -8,7 +8,7 @@ import {
   searchOrganizers,
   updateOrganizer,
 } from "../db/organizerRepo";
-import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
+import { clearSearchCache, debouncedClearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 
 const querySchema = z.object({
   q: z.string().optional(),
@@ -264,7 +264,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const organizer = await createOrganizer(app.db, parsed.data);
-    clearSearchCache();
+    debouncedClearSearchCache();
     reply.code(201);
     return organizer;
   });
@@ -290,7 +290,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: "not_found" };
     }
 
-    clearSearchCache();
+    debouncedClearSearchCache();
 
     return organizer;
   });

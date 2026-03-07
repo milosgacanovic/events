@@ -38,3 +38,15 @@ export function setSearchCache(
 export function clearSearchCache(): void {
   cache.clear();
 }
+
+let debouncedClearTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function debouncedClearSearchCache(delayMs = 5000): void {
+  if (debouncedClearTimer !== null) {
+    return;
+  }
+  debouncedClearTimer = setTimeout(() => {
+    debouncedClearTimer = null;
+    cache.clear();
+  }, delayMs);
+}

@@ -85,6 +85,8 @@ retry_curl "${PUBLIC_URL}/api/health" 20 2
 retry_curl "${PUBLIC_URL}/events" 20 2
 retry_curl "${PUBLIC_URL}/sitemap.xml" 20 2
 
+echo "Stopping previous color ($active_color) ..."
+prev_compose="$REPO_ROOT/deploy/docker/docker-compose.${active_color}.yml"
+docker compose -f "$BASE_COMPOSE" -f "$prev_compose" stop "api_${active_color}" "web_${active_color}"
+
 echo "Blue/green deploy complete. Active color: $inactive_color"
-echo "Previous color kept warm for rollback: $active_color"
-echo "Rollback command: $SCRIPT_DIR/bg-rollback.sh"

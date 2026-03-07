@@ -22,6 +22,7 @@ services:
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change_me}
       MEILI_NO_ANALYTICS: "true"
+      RAYON_NUM_THREADS: "2"
     ports:
       - "17700:7700"
     volumes:

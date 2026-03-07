@@ -211,6 +211,15 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
   };
 }
 
+type FacetsRow = {
+  role_facets: Record<string, number> | null;
+  language_facets: Record<string, number> | null;
+  practice_facets: Record<string, number> | null;
+  country_facets: Record<string, number> | null;
+  city_facets: Record<string, number> | null;
+  tag_facets: Record<string, number> | null;
+};
+
 export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) {
   const page = Math.max(input.page, 1);
   const pageSize = Math.min(Math.max(input.pageSize, 1), 50);
@@ -218,150 +227,95 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
 
   const { whereSql, values } = buildOrganizerWhere(input);
 
-  const [rows, totalResult, roleFacet, languageFacet, practiceFacet, countryFacet, cityFacet, tagFacet] =
-    await Promise.all([
-      pool.query<OrganizerRow & { role_keys: string[]; practice_category_ids: string[] }>(
-        `
-          select
-            o.*,
-            coalesce(nullif(profile_role_meta.role_keys, '{}'::text[]), role_meta.role_keys, '{}'::text[]) as role_keys,
-            coalesce(
-              nullif(profile_practice_meta.practice_category_ids, '{}'::text[]),
-              role_meta.practice_category_ids,
-              '{}'::text[]
-            ) as practice_category_ids
-          from organizers o
-          left join lateral (
-            select array_agg(distinct r.key order by r.key) as role_keys
-            from organizer_profile_roles opr
-            join organizer_roles r on r.id = opr.role_id
-            where opr.organizer_id = o.id
-          ) profile_role_meta on true
-          left join lateral (
-            select array_agg(distinct op.practice_id::text order by op.practice_id::text) as practice_category_ids
-            from organizer_practices op
-            where op.organizer_id = o.id
-          ) profile_practice_meta on true
-          left join lateral (
-            select
-              array_agg(distinct r.key order by r.key) as role_keys,
-              array_agg(distinct e.practice_category_id::text order by e.practice_category_id::text) as practice_category_ids
-            from event_organizers eo
-            join organizer_roles r on r.id = eo.role_id
-            join events e on e.id = eo.event_id and e.status = 'published'
-            where eo.organizer_id = o.id
-          ) role_meta on true
+  // Two parallel queries: page rows (with total count) + all facets combined
+  const [rows, facetsResult] = await Promise.all([
+    pool.query<OrganizerRow & { total_count: string; role_keys: string[]; practice_category_ids: string[] }>(
+      `
+        select
+          o.*,
+          page.total_count,
+          coalesce(nullif(profile_role_meta.role_keys, '{}'::text[]), role_meta.role_keys, '{}'::text[]) as role_keys,
+          coalesce(
+            nullif(profile_practice_meta.practice_category_ids, '{}'::text[]),
+            role_meta.practice_category_ids,
+            '{}'::text[]
+          ) as practice_category_ids
+        from (
+          select id, count(*) over() as total_count from organizers o
           where ${whereSql}
           order by o.name asc
           limit $${values.length + 1}
           offset $${values.length + 2}
-        `,
-        [...values, pageSize, offset],
-      ),
-      pool.query<{ count: string }>(
-        `select count(*)::text as count from organizers o where ${whereSql}`,
-        values,
-      ),
-      pool.query<{ key: string; count: string }>(
-        `
-          with filtered as (select o.id from organizers o where ${whereSql})
-          select role_key as key, count(distinct organizer_id)::text as count
-          from (
-            select f.id as organizer_id, r.key as role_key
-            from filtered f
-            join organizer_profile_roles opr on opr.organizer_id = f.id
-            join organizer_roles r on r.id = opr.role_id
-            union
-            select f.id as organizer_id, r.key as role_key
-            from filtered f
-            join event_organizers eo on eo.organizer_id = f.id
-            join events e on e.id = eo.event_id and e.status = 'published'
-            join organizer_roles r on r.id = eo.role_id
-          ) roles
-          group by role_key
-        `,
-        values,
-      ),
-      pool.query<{ language: string; count: string }>(
-        `
-          with filtered as (select o.languages from organizers o where ${whereSql})
-          select language, count(*)::text as count
-          from filtered f
-          cross join unnest(f.languages) language
-          group by language
-        `,
-        values,
-      ),
-      pool.query<{ key: string; count: string }>(
-        `
-          with filtered as (select o.id from organizers o where ${whereSql})
-          select practice_key as key, count(distinct organizer_id)::text as count
-          from (
-            select f.id as organizer_id, op.practice_id::text as practice_key
-            from filtered f
-            join organizer_practices op on op.organizer_id = f.id
-            union
-            select f.id as organizer_id, e.practice_category_id::text as practice_key
-            from filtered f
-            join event_organizers eo on eo.organizer_id = f.id
-            join events e on e.id = eo.event_id and e.status = 'published'
-            where e.practice_category_id is not null
-          ) practices
-          group by practice_key
-        `,
-        values,
-      ),
-      pool.query<{ country_code: string; count: string }>(
-        `
-          select lower(o.country_code) as country_code, count(*)::text as count
+        ) page
+        join organizers o on o.id = page.id
+        left join lateral (
+          select array_agg(distinct r.key order by r.key) as role_keys
+          from organizer_profile_roles opr
+          join organizer_roles r on r.id = opr.role_id
+          where opr.organizer_id = o.id
+        ) profile_role_meta on true
+        left join lateral (
+          select array_agg(distinct op.practice_id::text order by op.practice_id::text) as practice_category_ids
+          from organizer_practices op
+          where op.organizer_id = o.id
+        ) profile_practice_meta on true
+        left join lateral (
+          select
+            array_agg(distinct r.key order by r.key) as role_keys,
+            array_agg(distinct e.practice_category_id::text order by e.practice_category_id::text) as practice_category_ids
+          from event_organizers eo
+          join organizer_roles r on r.id = eo.role_id
+          join events e on e.id = eo.event_id and e.status = 'published'
+          where eo.organizer_id = o.id
+        ) role_meta on true
+        order by o.name asc
+      `,
+      [...values, pageSize, offset],
+    ),
+    pool.query<FacetsRow>(
+      `
+        with filtered as (
+          select o.id, o.languages, o.tags, o.country_code, o.city
           from organizers o
-          where ${whereSql} and o.country_code is not null
-          group by lower(o.country_code)
-        `,
-        values,
-      ),
-      pool.query<{ city: string; count: string }>(
-        `
-          select lower(o.city) as city, count(*)::text as count
-          from organizers o
-          where ${whereSql} and o.city is not null and o.city <> ''
-          group by lower(o.city)
-        `,
-        values,
-      ),
-      pool.query<{ tag: string; count: string }>(
-        `
-          with filtered as (select o.tags from organizers o where ${whereSql})
-          select tag, count(*)::text as count
+          where ${whereSql}
+        ),
+        eo_data as (
+          select eo.organizer_id, r.key as role_key, e.practice_category_id::text as practice_id
           from filtered f
-          cross join unnest(f.tags) tag
-          group by tag
-        `,
-        values,
-      ),
-    ]);
+          join event_organizers eo on eo.organizer_id = f.id
+          join events e on e.id = eo.event_id and e.status = 'published'
+          join organizer_roles r on r.id = eo.role_id
+        )
+        select
+          (select coalesce(json_object_agg(role_key, cnt), '{}') from (select role_key, count(distinct organizer_id) as cnt from eo_data group by role_key) x) as role_facets,
+          (select coalesce(json_object_agg(language, cnt), '{}') from (select language, count(*) as cnt from filtered cross join unnest(languages) as language group by language) x) as language_facets,
+          (select coalesce(json_object_agg(practice_id, cnt), '{}') from (select practice_id, count(distinct organizer_id) as cnt from eo_data where practice_id is not null group by practice_id) x) as practice_facets,
+          (select coalesce(json_object_agg(cc, cnt), '{}') from (select lower(country_code) as cc, count(*) as cnt from filtered where country_code is not null group by lower(country_code)) x) as country_facets,
+          (select coalesce(json_object_agg(city, cnt), '{}') from (select lower(city) as city, count(*) as cnt from filtered where city is not null and city <> '' group by lower(city)) x) as city_facets,
+          (select coalesce(json_object_agg(tag, cnt), '{}') from (select tag, count(*) as cnt from filtered cross join unnest(tags) as tag group by tag) x) as tag_facets
+      `,
+      values,
+    ),
+  ]);
+
+  const totalCount = Number(rows.rows[0]?.total_count ?? "0");
+  const facets = facetsResult.rows[0] ?? {};
 
   return {
     items: rows.rows,
-    total: Number(totalResult.rows[0]?.count ?? "0"),
+    total: totalCount,
     facets: {
-      roleKey: Object.fromEntries(roleFacet.rows.map((row) => [row.key, Number(row.count)])),
-      languages: Object.fromEntries(
-        languageFacet.rows.map((row) => [row.language, Number(row.count)]),
-      ),
-      practiceCategoryId: Object.fromEntries(
-        practiceFacet.rows.map((row) => [row.key, Number(row.count)]),
-      ),
-      tags: Object.fromEntries(tagFacet.rows.map((row) => [row.tag, Number(row.count)])),
-      countryCode: Object.fromEntries(
-        countryFacet.rows.map((row) => [row.country_code, Number(row.count)]),
-      ),
-      city: Object.fromEntries(cityFacet.rows.map((row) => [row.city, Number(row.count)])),
+      roleKey: (facets.role_facets ?? {}) as Record<string, number>,
+      languages: (facets.language_facets ?? {}) as Record<string, number>,
+      practiceCategoryId: (facets.practice_facets ?? {}) as Record<string, number>,
+      tags: (facets.tag_facets ?? {}) as Record<string, number>,
+      countryCode: (facets.country_facets ?? {}) as Record<string, number>,
+      city: (facets.city_facets ?? {}) as Record<string, number>,
     },
     pagination: {
       page,
       pageSize,
-      totalPages: Math.max(Math.ceil(Number(totalResult.rows[0]?.count ?? "0") / pageSize), 1),
+      totalPages: Math.max(Math.ceil(totalCount / pageSize), 1),
     },
   };
 }

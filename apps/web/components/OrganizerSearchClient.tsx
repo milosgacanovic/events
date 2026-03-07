@@ -128,9 +128,6 @@ export function OrganizerSearchClient({
   const syncingFromUrlRef = useRef(false);
   const isTypingQRef = useRef(false);
   const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const roleFacetRequestRef = useRef(0);
-  const languageFacetRequestRef = useRef(0);
-  const practiceFacetRequestRef = useRef(0);
   const cityInputRef = useRef<HTMLInputElement | null>(null);
   const practiceLabelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -193,55 +190,6 @@ export function OrganizerSearchClient({
     params.set("pageSize", "20");
     return params.toString();
   }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, showArchived]);
-
-  const buildPracticeFacetQueryString = useCallback(() => {
-    const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
-    if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
-    if (tags.length) params.set("tags", tags.join(","));
-    if (languages.length) params.set("languages", languages.join(","));
-    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (cities.length) params.set("city", cities.join(","));
-    params.set("page", "1");
-    params.set("pageSize", "1");
-    return params.toString();
-  }, [q, roleKeys, tags, languages, countryCodes, cities]);
-  const buildRoleFacetQueryString = useCallback(() => {
-    const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
-    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
-    if (tags.length) params.set("tags", tags.join(","));
-    if (languages.length) params.set("languages", languages.join(","));
-    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (cities.length) params.set("city", cities.join(","));
-    params.set("page", "1");
-    params.set("pageSize", "1");
-    return params.toString();
-  }, [q, practiceCategoryIds, tags, languages, countryCodes, cities]);
-  const buildLanguageFacetQueryString = useCallback(() => {
-    const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
-    if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
-    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
-    if (tags.length) params.set("tags", tags.join(","));
-    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (cities.length) params.set("city", cities.join(","));
-    params.set("page", "1");
-    params.set("pageSize", "1");
-    return params.toString();
-  }, [q, roleKeys, practiceCategoryIds, tags, countryCodes, cities]);
-  const buildCountryFacetQueryString = useCallback(() => {
-    const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
-    if (roleKeys.length) params.set("roleKey", roleKeys.join(","));
-    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
-    if (tags.length) params.set("tags", tags.join(","));
-    if (languages.length) params.set("languages", languages.join(","));
-    if (cities.length) params.set("city", cities.join(","));
-    params.set("page", "1");
-    params.set("pageSize", "1");
-    return params.toString();
-  }, [q, roleKeys, practiceCategoryIds, tags, languages, cities]);
 
   const buildUiQueryString = useCallback(() => {
     const params = new URLSearchParams();
@@ -371,6 +319,10 @@ export function OrganizerSearchClient({
         setAccumulatedItems(result.items);
       }
       setPage(nextPage);
+      setPracticeFacetCounts(result.facets?.practiceCategoryId ?? {});
+      setRoleFacetCounts(result.facets?.roleKey ?? {});
+      setLanguageFacetCounts(result.facets?.languages ?? {});
+      setCountryFacetCounts(result.facets?.countryCode ?? {});
     } catch (err) {
       setError(canSeeDetailedErrors && err instanceof Error ? err.message : t("organizerSearch.error.searchFailed"));
     } finally {
@@ -385,79 +337,6 @@ export function OrganizerSearchClient({
     }, 250);
     return () => clearTimeout(timer);
   }, [runSearch, page]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const requestId = practiceFacetRequestRef.current + 1;
-      practiceFacetRequestRef.current = requestId;
-      void fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildPracticeFacetQueryString()}`)
-        .then((response) => {
-          if (requestId !== practiceFacetRequestRef.current) {
-            return;
-          }
-          setPracticeFacetCounts(response.facets?.practiceCategoryId ?? {});
-        })
-        .catch(() => {
-          if (requestId !== practiceFacetRequestRef.current) {
-            return;
-          }
-          setPracticeFacetCounts({});
-        });
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [buildPracticeFacetQueryString]);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const requestId = roleFacetRequestRef.current + 1;
-      roleFacetRequestRef.current = requestId;
-      void fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildRoleFacetQueryString()}`)
-        .then((response) => {
-          if (requestId !== roleFacetRequestRef.current) {
-            return;
-          }
-          setRoleFacetCounts(response.facets?.roleKey ?? {});
-        })
-        .catch(() => {
-          if (requestId !== roleFacetRequestRef.current) {
-            return;
-          }
-          setRoleFacetCounts({});
-        });
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [buildRoleFacetQueryString]);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const requestId = languageFacetRequestRef.current + 1;
-      languageFacetRequestRef.current = requestId;
-      void fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildLanguageFacetQueryString()}`)
-        .then((response) => {
-          if (requestId !== languageFacetRequestRef.current) {
-            return;
-          }
-          setLanguageFacetCounts(response.facets?.languages ?? {});
-        })
-        .catch(() => {
-          if (requestId !== languageFacetRequestRef.current) {
-            return;
-          }
-          setLanguageFacetCounts({});
-        });
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [buildLanguageFacetQueryString]);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildCountryFacetQueryString()}`)
-        .then((response) => {
-          setCountryFacetCounts(response.facets?.countryCode ?? {});
-        })
-        .catch(() => {
-          setCountryFacetCounts({});
-        });
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [buildCountryFacetQueryString]);
 
   useEffect(() => {
     if (syncingFromUrlRef.current) {
