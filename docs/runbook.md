@@ -1,5 +1,7 @@
 # Runbook
 
+> **PRODUCTION WARNING**: This runbook covers the live production site at `https://events.danceresource.org`. All deploy and rollback operations affect real users. Verify every step before proceeding.
+
 ## Services
 - Postgres + PostGIS
 - Meilisearch
@@ -26,7 +28,7 @@
 
 ### First-time setup on server
 1. Install updated Apache vhost config from:
-   - `deploy/apache/beta.events.danceresource.org.conf`
+   - `deploy/apache/events.danceresource.org.conf`
 2. Initialize active includes (defaults to blue):
    - `npm run bg:init:apache`
    - Optional explicit color: `npm run bg:init:apache -- green`
@@ -41,15 +43,15 @@
    - `npm run bg:deploy -- main`
 3. Verify:
    - `npm run bg:active`
-   - `curl -fsS https://beta.events.danceresource.org/api/health`
-   - `curl -fsSI https://beta.events.danceresource.org/events`
-   - `curl -fsSI https://beta.events.danceresource.org/sitemap.xml`
+   - `curl -fsS https://events.danceresource.org/api/health`
+   - `curl -fsSI https://events.danceresource.org/events`
+   - `curl -fsSI https://events.danceresource.org/sitemap.xml`
 
 ### Rollback (one command)
 - `npm run bg:rollback`
 - Then verify:
   - `npm run bg:active`
-  - `curl -fsS https://beta.events.danceresource.org/api/health`
+  - `curl -fsS https://events.danceresource.org/api/health`
 
 ### Cleanup old color after observation window
 - Stop old color stack only after release is stable:
@@ -96,11 +98,11 @@
 - Keycloak client settings must be:
   - `Client authentication`: `Off` (public client)
   - `Standard flow`: enabled
-  - `Valid redirect URIs`: include `https://beta.events.danceresource.org/auth/keycloak/callback` and `https://beta.events.danceresource.org/silent-check-sso.html` (or `https://beta.events.danceresource.org/*`)
-  - `Web origins`: `https://beta.events.danceresource.org`
-- Redirect URI used by login: `https://beta.events.danceresource.org/auth/keycloak/callback`
-- Logout redirect URI: `https://beta.events.danceresource.org/admin`
-- Silent SSO page: `https://beta.events.danceresource.org/silent-check-sso.html`
+  - `Valid redirect URIs`: include `https://events.danceresource.org/auth/keycloak/callback` and `https://events.danceresource.org/silent-check-sso.html` (or `https://events.danceresource.org/*`)
+  - `Web origins`: `https://events.danceresource.org`
+- Redirect URI used by login: `https://events.danceresource.org/auth/keycloak/callback`
+- Logout redirect URI: `https://events.danceresource.org/admin`
+- Silent SSO page: `https://events.danceresource.org/silent-check-sso.html`
 - Admin and callback routes inject Keycloak config from server runtime env (`KEYCLOAK_REALM`/`KEYCLOAK_CLIENT_ID` and `NEXT_PUBLIC_KEYCLOAK_*`), so stale client bundles do not lock SSO config.
 - Required env values:
   - `KEYCLOAK_ISSUER=https://sso.danceresource.org/realms/<REALM>`
@@ -161,3 +163,63 @@
   - `DELETE /api/profile/alerts/:id`
 - Admin dry-run endpoint:
   - `GET /api/admin/alerts/run-dry`
+
+## Old Mobilizon Archive (`old.events.danceresource.org`)
+
+The previous Mobilizon-based site is preserved as a password-protected archive at `old.events.danceresource.org`.
+
+### Setup
+
+1. **SSL cert**:
+   ```bash
+   certbot certonly --apache -d old.events.danceresource.org
+   ```
+2. **Install vhost** from `deploy/apache/old.events.danceresource.org.conf`
+   - Port `8082` is already set — matches the host-mapped port in `/opt/docker-mobilizon/docker-compose.yml`
+3. **Create htpasswd file**:
+   ```bash
+   htpasswd -c /etc/apache2/.htpasswd-old-events <username>
+   ```
+4. **Enable site**:
+   ```bash
+   a2ensite old.events.danceresource.org.conf
+   apachectl configtest && apachectl graceful
+   ```
+5. Update Mobilizon config to use `old.events.danceresource.org` and restart its containers.
+6. Once verified, optionally stop Mobilizon containers.
+
+## Domain Migration Checklist
+
+Steps to promote `beta.events.danceresource.org` → `events.danceresource.org`:
+
+### DNS
+- [ ] Point `events.danceresource.org` A record to this server
+- [ ] Point `old.events.danceresource.org` A record to this server
+
+### SSL certificates
+```bash
+certbot certonly --apache -d events.danceresource.org
+certbot certonly --apache -d old.events.danceresource.org
+```
+
+### Apache
+```bash
+# Install new vhosts from deploy/apache/
+a2ensite events.danceresource.org.conf old.events.danceresource.org.conf
+# beta vhost is already updated to redirect → events.danceresource.org
+apachectl configtest && apachectl graceful
+```
+
+### Keycloak (admin console)
+- [ ] Add `https://events.danceresource.org/*` to **Valid redirect URIs**
+- [ ] Add `https://events.danceresource.org` to **Web origins**
+- [ ] Optionally remove old `beta.events.danceresource.org` entries after confirming SSO works
+
+### Verification
+```bash
+curl -fsS https://events.danceresource.org/api/health        # → 200
+curl -fsSI https://events.danceresource.org/events           # → 200
+curl -fsSI https://beta.events.danceresource.org/events      # → 302 to events.danceresource.org
+curl -u <user>:<pass> https://old.events.danceresource.org/  # → old Mobilizon site
+npm run bg:deploy -- main                                     # smoke checks pass
+```

@@ -234,7 +234,7 @@ export function LeafletClusterMap({
               fillOpacity: 0.8,
               weight: 1,
             }}
-            radius={isCluster ? Math.min(28, 10 + Math.log(pointCount) * 6) : 7}
+            radius={isCluster ? Math.min(20, 8 + Math.log(pointCount) * 4) : 6}
           >
             <Tooltip>{tooltipLabel}</Tooltip>
           </CircleMarker>

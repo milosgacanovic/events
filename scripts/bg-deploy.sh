@@ -8,7 +8,7 @@ cd "$REPO_ROOT"
 REF="${1:-main}"
 GIT_REMOTE="${GIT_REMOTE:-origin}"
 ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
-PUBLIC_URL="${PUBLIC_URL:-https://beta.events.danceresource.org}"
+PUBLIC_URL="${PUBLIC_URL:-https://events.danceresource.org}"
 CURL_BIN="${CURL_BIN:-curl}"
 
 BASE_COMPOSE="$REPO_ROOT/deploy/docker/docker-compose.base.yml"

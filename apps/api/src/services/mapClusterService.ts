@@ -60,7 +60,7 @@ export async function buildClusters(
   }
 
   const supercluster = new Supercluster<PointProps, { cluster: true; point_count: number }>({
-    radius: 56,
+    radius: 80,
     maxZoom: 20,
   });
   supercluster.load(features);
@@ -147,7 +147,7 @@ export async function buildOrganizerClusters(
   }
 
   const supercluster = new Supercluster<OrganizerPointProps, { cluster: true; point_count: number }>({
-    radius: 56,
+    radius: 80,
     maxZoom: 20,
   });
   supercluster.load(features);

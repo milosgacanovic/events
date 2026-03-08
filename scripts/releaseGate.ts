@@ -135,7 +135,7 @@ async function runMeiliParity(client: Client): Promise<GateCheck> {
 }
 
 async function runApiQuicksearch(): Promise<GateCheck> {
-  const apiBase = process.env.RELEASE_GATE_API_BASE ?? "https://beta.events.danceresource.org/api";
+  const apiBase = process.env.RELEASE_GATE_API_BASE ?? "https://events.danceresource.org/api";
   const response = await fetch(`${apiBase.replace(/\/$/, "")}/events/search?page=1&pageSize=1`);
   if (!response.ok) {
     return {

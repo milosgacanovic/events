@@ -28,13 +28,15 @@ npm run occurrences:refresh -w @dr-events/api  # Refresh recurring event horizon
 npm run build                          # Build all packages
 ```
 
-## Blue/Green Deploy (beta)
+## Blue/Green Deploy
+
+> **Production URL**: `https://events.danceresource.org` — this is the live site. Deploy carefully.
 
 ```bash
 npm run release:gate                   # Pre-deploy checks
 npm run bg:deploy -- main              # Deploy to inactive color
 npm run bg:active                      # Check active color
-curl -fsS https://beta.events.danceresource.org/api/health
+curl -fsS https://events.danceresource.org/api/health
 npm run bg:rollback                    # Fast rollback if needed
 npm run bg:cleanup -- blue             # Clean up old color after verification
 ```
