@@ -88,6 +88,7 @@ async function loadEventOrganizers(
   const result = await db.query<{
     event_id: string;
     organizer_id: string;
+    organizer_slug: string;
     organizer_name: string;
     role_key: string | null;
   }>(
@@ -95,6 +96,7 @@ async function loadEventOrganizers(
       select
         eo.event_id::text as event_id,
         o.id::text as organizer_id,
+        o.slug as organizer_slug,
         o.name as organizer_name,
         r.key as role_key
       from event_organizers eo
@@ -106,12 +108,13 @@ async function loadEventOrganizers(
     [eventIds],
   );
 
-  const byEvent = new Map<string, Map<string, { id: string; name: string; roles: Set<string> }>>();
+  const byEvent = new Map<string, Map<string, { id: string; slug: string; name: string; roles: Set<string> }>>();
 
   for (const row of result.rows) {
-    const eventBucket = byEvent.get(row.event_id) ?? new Map<string, { id: string; name: string; roles: Set<string> }>();
+    const eventBucket = byEvent.get(row.event_id) ?? new Map<string, { id: string; slug: string; name: string; roles: Set<string> }>();
     const organizer = eventBucket.get(row.organizer_id) ?? {
       id: row.organizer_id,
+      slug: row.organizer_slug,
       name: row.organizer_name,
       roles: new Set<string>(),
     };
@@ -127,6 +130,7 @@ async function loadEventOrganizers(
       eventId,
       Array.from(organizers.values()).map((organizer) => ({
         id: organizer.id,
+        slug: organizer.slug,
         name: organizer.name,
         avatarUrl: null,
         roles: Array.from(organizer.roles),

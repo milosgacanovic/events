@@ -432,7 +432,9 @@ export function EventDetailClient({
         {data.event.schedule_kind === "single" && whenFormatted && (
           <div className="event-detail-meta-item">
             <span className="event-detail-meta-label">{t("eventDetail.when")}</span>
-            <span className="event-detail-meta-value">{whenLabel}</span>
+            <span className="event-detail-meta-value">
+              {data.event.attendance_mode !== "online" ? `${whenLabel} · ${modalityLabel}` : whenLabel}
+            </span>
             <label className="toggle-control toggle-control-sm" style={{ marginTop: 6 }}>
               <input
                 className="toggle-control-input"
@@ -449,23 +451,38 @@ export function EventDetailClient({
             </label>
           </div>
         )}
-        {data.event.attendance_mode !== "online" && (
-          <div className="event-detail-meta-item">
-            <span className="event-detail-meta-label">{t("eventDetail.where")}</span>
-            <span className="event-detail-meta-value">
-              {data.defaultLocation?.city ?? data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd")}
-            </span>
-            {data.defaultLocation?.country_code && (
-              <span className="event-detail-meta-value" style={{ color: "var(--muted)" }}>
-                {getCountryLabel(data.defaultLocation.country_code)}
+        <div className="event-detail-meta-item">
+          <span className="event-detail-meta-label">{t("eventDetail.where")}</span>
+          {data.event.attendance_mode === "online" ? (
+            <span className="event-detail-meta-value">{modalityLabel}</span>
+          ) : (
+            <>
+              <span className="event-detail-meta-value">
+                {data.defaultLocation?.city ?? data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd")}
               </span>
-            )}
+              {data.defaultLocation?.country_code && (
+                <span className="event-detail-meta-value" style={{ color: "var(--muted)" }}>
+                  {getCountryLabel(data.defaultLocation.country_code)}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+        {hosts.length > 0 && (
+          <div className="event-detail-meta-item">
+            <span className="event-detail-meta-label">
+              {hosts.length === 1 ? t("eventDetail.host") : t("eventDetail.hosts")}
+            </span>
+            <span className="event-detail-meta-value">
+              {hosts.map((host, i) => (
+                <span key={host.id}>
+                  {i > 0 && ", "}
+                  <Link href={`/hosts/${host.slug}`}>{host.name}</Link>
+                </span>
+              ))}
+            </span>
           </div>
         )}
-        <div className="event-detail-meta-item">
-          <span className="event-detail-meta-label">{t("eventDetail.attendance")}</span>
-          <span className="event-detail-meta-value">{modalityLabel}</span>
-        </div>
         <div className="event-detail-meta-item">
           <span className="event-detail-meta-label">{categorySingularLabel}</span>
           <span className="event-detail-meta-value">
@@ -528,36 +545,6 @@ export function EventDetailClient({
         </div>
       )}
 
-      {/* Hosts */}
-      {hosts.length > 0 && (
-        <div className="event-detail-section">
-          <h2 className="event-detail-section-title">{hosts.length === 1 ? t("eventDetail.host") : t("eventDetail.hosts")}</h2>
-          <div className="event-hosts-grid">
-            {hosts.map((host) => (
-              <Link className="card event-host-card" key={host.id} href={`/hosts/${host.slug}`}>
-                <div
-                  className="event-host-avatar"
-                  style={{ background: host.avatarPath ? undefined : "var(--surface-skeleton)" }}
-                >
-                  {host.avatarPath ? (
-                    <img src={host.avatarPath} alt={host.name} loading="lazy" decoding="async" />
-                  ) : (
-                    <span className="host-card-avatar-initials" aria-hidden>
-                      {host.name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")}
-                    </span>
-                  )}
-                </div>
-                <div className="event-host-body">
-                  <div className="event-host-name">{host.name}</div>
-                  {host.roles.length > 0 && (
-                    <div className="meta">{host.roles.join(" · ")}</div>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Schedule (recurring events only) */}
       {data.event.schedule_kind !== "single" && (
