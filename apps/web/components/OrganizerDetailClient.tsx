@@ -207,6 +207,15 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
       ? (data?.organizer.descriptionJson as { html?: string }).html
       : null);
   const sanitizedDescriptionHtml = (() => {
+    if (typeof window === "undefined") {
+      // SSR: skip sanitize, client re-renders immediately after hydration
+      const raw = descriptionHtmlRaw && descriptionHtmlRaw.trim()
+        ? descriptionHtmlRaw
+        : descriptionSections.description
+          ? `<p>${descriptionSections.description.replace(/\n/g, "<br>")}</p>`
+          : null;
+      return raw ? linkifyHtml(raw) : null;
+    }
     const raw = descriptionHtmlRaw && descriptionHtmlRaw.trim()
       ? DOMPurify.sanitize(descriptionHtmlRaw)
       : descriptionSections.description

@@ -107,7 +107,16 @@ function getDescriptionHtml(value: unknown): string | null {
     return null;
   }
 
-  const trimmed = html.trim();
+  let trimmed = html.trim();
+  // Fix double-encoded entities from importer bug (e.g. &lt;br&gt; → <br>)
+  if (trimmed.includes("&lt;")) {
+    trimmed = trimmed
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, "&");
+  }
   return trimmed || null;
 }
 
@@ -283,10 +292,11 @@ export function EventDetailClient({
     () => getDescriptionHtml(data?.event.description_json),
     [data?.event.description_json],
   );
-  const sanitizedDescriptionHtml = useMemo(
-    () => (rawDescriptionHtml ? linkifyHtml(DOMPurify.sanitize(rawDescriptionHtml)) : null),
-    [rawDescriptionHtml],
-  );
+  const sanitizedDescriptionHtml = useMemo(() => {
+    if (!rawDescriptionHtml) return null;
+    if (typeof window === "undefined") return rawDescriptionHtml; // SSR: skip sanitize, client re-renders
+    return linkifyHtml(DOMPurify.sanitize(rawDescriptionHtml));
+  }, [rawDescriptionHtml]);
   const descriptionSummary = useMemo(() => {
     if (!sanitizedDescriptionHtml) {
       return null;
