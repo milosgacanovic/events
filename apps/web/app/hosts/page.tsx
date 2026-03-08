@@ -1,4 +1,4 @@
-import { OrganizerSearchClient, type OrganizerSearchInitialQuery } from "../../components/OrganizerSearchClient";
+import { OrganizerSearchClient, type OrganizerSearchInitialQuery, type OrganizerSearchResponse } from "../../components/OrganizerSearchClient";
 import { apiBase } from "../../lib/api";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -39,6 +39,7 @@ export default async function HostsPage({
   searchParams: SearchParams;
 }) {
   const pageNumber = Number(getSingle(searchParams, "page") ?? "1");
+  const page = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
   const initialQuery: OrganizerSearchInitialQuery = {
     q: getSingle(searchParams, "q") ?? undefined,
     roleKeys: csvToList(getSingle(searchParams, "roleKey")),
@@ -47,11 +48,34 @@ export default async function HostsPage({
     countryCodes: csvToList(getSingle(searchParams, "countryCode")),
     cities: csvToList(getSingle(searchParams, "city")),
     view: getSingle(searchParams, "view") === "map" ? "map" : "list",
-    page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
+    page,
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const initialTaxonomy = await fetchServerJson<any>("/meta/taxonomies");
+  const params = new URLSearchParams();
+  if (initialQuery.q) params.set("q", initialQuery.q);
+  if (initialQuery.roleKeys?.length) params.set("roleKey", initialQuery.roleKeys.join(","));
+  const practiceParam = getSingle(searchParams, "practice");
+  const practiceCategoryIdParam = getSingle(searchParams, "practiceCategoryId");
+  if (practiceCategoryIdParam) params.set("practiceCategoryId", practiceCategoryIdParam);
+  if (practiceParam) params.set("practice", practiceParam);
+  if (initialQuery.tags?.length) params.set("tags", initialQuery.tags.join(","));
+  if (initialQuery.languages?.length) params.set("languages", initialQuery.languages.join(","));
+  if (initialQuery.countryCodes?.length) params.set("countryCode", initialQuery.countryCodes.join(","));
+  if (initialQuery.cities?.length) params.set("city", initialQuery.cities.join(","));
+  params.set("page", String(page));
+  params.set("pageSize", "20");
 
-  return <OrganizerSearchClient initialQuery={initialQuery} initialTaxonomy={initialTaxonomy} />;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [initialTaxonomy, initialResults] = await Promise.all([
+    fetchServerJson<any>("/meta/taxonomies"),
+    fetchServerJson<OrganizerSearchResponse>(`/organizers/search?${params.toString()}`),
+  ]);
+
+  return (
+    <OrganizerSearchClient
+      initialQuery={initialQuery}
+      initialTaxonomy={initialTaxonomy}
+      initialResults={initialResults}
+    />
+  );
 }

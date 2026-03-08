@@ -11,7 +11,7 @@ import { scrollToTopFast } from "../lib/scroll";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
-type OrganizerSearchResponse = {
+export type OrganizerSearchResponse = {
   items: Array<{
     id: string;
     slug: string;
@@ -75,9 +75,11 @@ type TaxonomyResponse = {
 export function OrganizerSearchClient({
   initialQuery,
   initialTaxonomy,
+  initialResults,
 }: {
   initialQuery?: OrganizerSearchInitialQuery;
   initialTaxonomy?: TaxonomyResponse | null;
+  initialResults?: OrganizerSearchResponse | null;
 }) {
   const { locale, t } = useI18n();
   const auth = useKeycloakAuth();
@@ -107,18 +109,18 @@ export function OrganizerSearchClient({
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [showArchived, setShowArchived] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [accumulatedItems, setAccumulatedItems] = useState<OrganizerSearchResponse["items"]>([]);
+  const [accumulatedItems, setAccumulatedItems] = useState<OrganizerSearchResponse["items"]>(initialResults?.items ?? []);
   const [loadingMore, setLoadingMore] = useState(false);
   const isLoadMoreRef = useRef(false);
   const isLoadMorePageRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<OrganizerSearchResponse | null>(null);
-  const [roleFacetCounts, setRoleFacetCounts] = useState<Record<string, number>>({});
-  const [languageFacetCounts, setLanguageFacetCounts] = useState<Record<string, number>>({});
-  const [practiceFacetCounts, setPracticeFacetCounts] = useState<Record<string, number>>({});
-  const [countryFacetCounts, setCountryFacetCounts] = useState<Record<string, number>>({});
+  const [data, setData] = useState<OrganizerSearchResponse | null>(initialResults ?? null);
+  const [roleFacetCounts, setRoleFacetCounts] = useState<Record<string, number>>(initialResults?.facets?.roleKey ?? {});
+  const [languageFacetCounts, setLanguageFacetCounts] = useState<Record<string, number>>(initialResults?.facets?.languages ?? {});
+  const [practiceFacetCounts, setPracticeFacetCounts] = useState<Record<string, number>>(initialResults?.facets?.practiceCategoryId ?? {});
+  const [countryFacetCounts, setCountryFacetCounts] = useState<Record<string, number>>(initialResults?.facets?.countryCode ?? {});
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [hostTypeOpen, setHostTypeOpen] = useState((initialQuery?.roleKeys?.length ?? 0) > 0);
   const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);

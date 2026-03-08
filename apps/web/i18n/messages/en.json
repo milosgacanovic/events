@@ -81,6 +81,7 @@
   "eventSearch.locationLabel": "Location: {location}",
   "eventSearch.locationOnline": "Online",
   "eventSearch.locationTbd": "TBD",
+  "eventSearch.includePast": "In the past",
   "eventSearch.error.searchFailed": "Search failed",
   "eventDetail.loading": "Loading event...",
   "eventDetail.error.fetchFailed": "Failed to load event.",

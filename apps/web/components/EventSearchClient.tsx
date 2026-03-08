@@ -99,6 +99,7 @@ export type EventSearchInitialQuery = {
   sort?: "startsAtAsc" | "startsAtDesc";
   view?: "list" | "map";
   page?: number;
+  includePast?: boolean;
 };
 
 type EventDatePreset =
@@ -173,6 +174,7 @@ export function EventSearchClient({
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
+  const [includePast, setIncludePast] = useState(initialQuery?.includePast ?? false);
   const [showUnlisted, setShowUnlisted] = useState(false);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [loading, setLoading] = useState(false);
@@ -208,6 +210,8 @@ export function EventSearchClient({
   const pendingPaginationScrollRef = useRef(false);
   const skipNextScrollRestoreRef = useRef(false);
   const isTypingQRef = useRef(false);
+  const tagInputRef = useRef<HTMLInputElement>(null);
+  const cityInputRef = useRef<HTMLInputElement>(null);
   const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
   const geo = useGeolocation();
@@ -364,6 +368,10 @@ export function EventSearchClient({
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
     params.set("tz", userTimeZone);
     params.set("sort", sort);
+    if (includePast) {
+      params.set("includePast", "true");
+      params.set("to", new Date().toISOString());
+    }
     if (showUnlisted) params.set("showUnlisted", "true");
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
@@ -381,6 +389,7 @@ export function EventSearchClient({
     eventDates,
     userTimeZone,
     sort,
+    includePast,
     showUnlisted,
   ]);
 
@@ -405,6 +414,7 @@ export function EventSearchClient({
     if (sort !== "startsAtAsc") params.set("sort", sort);
     if (view !== "list") params.set("view", view);
     if (page > 1) params.set("page", String(page));
+    if (includePast) params.set("includePast", "true");
     return params.toString();
   }, [
     q,
@@ -420,6 +430,7 @@ export function EventSearchClient({
     sort,
     view,
     page,
+    includePast,
     categoryKeyById,
     eventFormatKeyById,
   ]);
@@ -438,6 +449,10 @@ export function EventSearchClient({
     if (exclude !== "country" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
+    if (includePast) {
+      params.set("includePast", "true");
+      params.set("to", new Date().toISOString());
+    }
     params.set("tz", userTimeZone);
     params.set("skipEventDateFacet", "true");
     params.set("page", "1");
@@ -454,6 +469,7 @@ export function EventSearchClient({
     countryCodes,
     cities,
     eventDates,
+    includePast,
     userTimeZone,
   ]);
 
@@ -493,6 +509,7 @@ export function EventSearchClient({
     const nextView = searchParams.get("view") === "map" ? "map" : "list";
     const parsedPage = Number(searchParams.get("page") ?? "1");
     const nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const nextIncludePast = searchParams.get("includePast") === "true";
 
     syncingFromUrlRef.current = true;
     if (!isTypingQRef.current) setQ(nextQ);
@@ -508,6 +525,7 @@ export function EventSearchClient({
     setSort(nextSort);
     setView(nextView);
     setPage(nextPage);
+    setIncludePast(nextIncludePast);
     window.setTimeout(() => {
       syncingFromUrlRef.current = false;
     }, 0);
@@ -740,6 +758,7 @@ export function EventSearchClient({
     setCities([]);
     setCityQuery("");
     setEventDates([]);
+    setIncludePast(false);
     setPage(1);
     setSort("startsAtAsc");
     setAccumulatedHits([]);
@@ -875,7 +894,7 @@ export function EventSearchClient({
     for (const tag of tags) {
       chips.push({
         key: `tag:${tag}`,
-        label: tag,
+        label: toTitleCase(tag),
         onRemove: () => {
           setTags((current) => current.filter((item) => item !== tag));
           setPage(1);
@@ -885,7 +904,7 @@ export function EventSearchClient({
     for (const city of cities) {
       chips.push({
         key: `city:${city}`,
-        label: city,
+        label: toTitleCase(city),
         onRemove: () => {
           setCities((current) => current.filter((item) => item !== city));
           setPage(1);
@@ -900,6 +919,13 @@ export function EventSearchClient({
           setEventDates((current) => current.filter((item) => item !== eventDate));
           setPage(1);
         },
+      });
+    }
+    if (includePast) {
+      chips.push({
+        key: "includePast",
+        label: t("eventSearch.includePast"),
+        onRemove: () => { setIncludePast(false); setPage(1); },
       });
     }
     return chips;
@@ -918,6 +944,7 @@ export function EventSearchClient({
     tags,
     cities,
     eventDates,
+    includePast,
     taxonomy?.eventFormats,
   ]);
 
@@ -929,6 +956,10 @@ export function EventSearchClient({
     setTags((current) => (current.includes(value) ? current : [...current, value]));
     setTagQuery("");
     setPage(1);
+  }
+
+  function toTitleCase(str: string): string {
+    return str.replace(/\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
   }
 
   function addCityFromInput(rawValue: string) {
@@ -962,7 +993,8 @@ export function EventSearchClient({
     attendanceModes.length ||
     countryCodes.length ||
     cities.length ||
-    eventDates.length
+    eventDates.length ||
+    includePast
   );
 
   const topPracticePills = useMemo(() => {
@@ -1141,6 +1173,20 @@ export function EventSearchClient({
                 <span className="filter-row-count">{item.count}</span>
               </button>
             ))}
+            <button
+              type="button"
+              className={"filter-row" + (includePast ? " filter-row-selected" : "")}
+              onClick={() => {
+                const next = !includePast;
+                setIncludePast(next);
+                setSort(next ? "startsAtDesc" : "startsAtAsc");
+                setPage(1);
+              }}
+            >
+              <span className="filter-row-icon">{includePast ? "\u2212" : "+"}</span>
+              <span className="filter-row-label">{t("eventSearch.includePast")}</span>
+              <span className="filter-row-count" />
+            </button>
           </div>
         </details>
         <details
@@ -1331,6 +1377,7 @@ export function EventSearchClient({
         </details>
         <div className="autocomplete-wrap">
           <input
+            ref={cityInputRef}
             value={cityQuery}
             onFocus={() => setCitySuggestionsOpen(true)}
             onBlur={() => window.setTimeout(() => setCitySuggestionsOpen(false), 120)}
@@ -1345,6 +1392,7 @@ export function EventSearchClient({
                 const exact = visibleCitySuggestions.find((item) => item.city.toLowerCase() === query.toLowerCase());
                 addCityFromInput(exact?.city ?? query);
                 setCitySuggestionsOpen(false);
+                cityInputRef.current?.blur();
               }
             }}
             placeholder={t("eventSearch.placeholder.city")}
@@ -1360,9 +1408,10 @@ export function EventSearchClient({
                   onClick={() => {
                     addCityFromInput(item.city);
                     setCitySuggestionsOpen(false);
+                    cityInputRef.current?.blur();
                   }}
                 >
-                  {item.city} ({item.count})
+                  {toTitleCase(item.city)} ({item.count})
                 </button>
               ))}
             </div>
@@ -1380,13 +1429,14 @@ export function EventSearchClient({
                   setPage(1);
                 }}
               >
-                {item} ×
+                {toTitleCase(item)} ×
               </button>
             ))}
           </div>
         )}
         <div className="autocomplete-wrap">
           <input
+            ref={tagInputRef}
             value={tagQuery}
             onFocus={() => setTagSuggestionsOpen(true)}
             onBlur={() => window.setTimeout(() => setTagSuggestionsOpen(false), 120)}
@@ -1401,6 +1451,7 @@ export function EventSearchClient({
                 const exact = visibleTagSuggestions.find((item) => item.tag.toLowerCase() === query);
                 addTagFromInput(exact?.tag ?? query);
                 setTagSuggestionsOpen(false);
+                tagInputRef.current?.blur();
               }
             }}
             placeholder={t("eventSearch.tags")}
@@ -1416,9 +1467,10 @@ export function EventSearchClient({
                   onClick={() => {
                     addTagFromInput(item.tag);
                     setTagSuggestionsOpen(false);
+                    tagInputRef.current?.blur();
                   }}
                 >
-                  {item.tag} ({item.count})
+                  {toTitleCase(item.tag)} ({item.count})
                 </button>
               ))}
             </div>
@@ -1436,7 +1488,7 @@ export function EventSearchClient({
                   setPage(1);
                 }}
               >
-                {item} ×
+                {toTitleCase(item)} ×
               </button>
             ))}
           </div>

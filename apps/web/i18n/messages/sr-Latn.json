@@ -81,6 +81,7 @@
   "eventSearch.locationLabel": "Lokacija: {location}",
   "eventSearch.locationOnline": "Onlajn",
   "eventSearch.locationTbd": "Nije određena",
+  "eventSearch.includePast": "U prošlosti",
   "eventSearch.error.searchFailed": "Pretraga nije uspela",
   "eventDetail.loading": "Učitavanje događaja...",
   "eventDetail.error.fetchFailed": "Neuspešno učitavanje događaja.",

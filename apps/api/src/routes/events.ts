@@ -222,10 +222,10 @@ function buildMeiliFilters(input: {
   } else if (input.eventFormatIds && input.eventFormatIds.length > 1) {
     filters.push(`(${input.eventFormatIds.map((value) => `event_format_id = ${JSON.stringify(value)}`).join(" OR ")})`);
   }
-  if (input.tags.length) {
-    for (const tag of input.tags) {
-      filters.push(`tags = ${JSON.stringify(tag)}`);
-    }
+  if (input.tags.length === 1) {
+    filters.push(`tags = ${JSON.stringify(input.tags[0])}`);
+  } else if (input.tags.length > 1) {
+    filters.push(`(${input.tags.map((tag) => `tags = ${JSON.stringify(tag)}`).join(" OR ")})`);
   }
   if (input.languages.length === 1) {
     filters.push(`languages = ${JSON.stringify(input.languages[0])}`);
