@@ -546,6 +546,37 @@ export function EventDetailClient({
       )}
 
 
+      {/* Hosts */}
+      {hosts.length > 0 && (
+        <div className="event-detail-section">
+          <h2 className="event-detail-section-title">{hosts.length === 1 ? t("eventDetail.host") : t("eventDetail.hosts")}</h2>
+          <div className="event-hosts-grid">
+            {hosts.map((host) => (
+              <Link className="card event-host-card" key={host.id} href={`/hosts/${host.slug}`}>
+                <div
+                  className="event-host-avatar"
+                  style={{ background: host.avatarPath ? undefined : "var(--surface-skeleton)" }}
+                >
+                  {host.avatarPath ? (
+                    <img src={host.avatarPath} alt={host.name} loading="lazy" decoding="async" />
+                  ) : (
+                    <span className="host-card-avatar-initials" aria-hidden>
+                      {host.name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")}
+                    </span>
+                  )}
+                </div>
+                <div className="event-host-body">
+                  <div className="event-host-name">{host.name}</div>
+                  {host.roles.length > 0 && (
+                    <div className="meta">{host.roles.join(" · ")}</div>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Schedule (recurring events only) */}
       {data.event.schedule_kind !== "single" && (
         <>
