@@ -344,12 +344,12 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
           )}
           <div className="organizer-profile-actions">
             {websiteUrl && (
-              <a className="secondary-btn" href={websiteUrl} target="_blank" rel="noreferrer">
+              <a className="primary-btn" href={websiteUrl} target="_blank" rel="noreferrer">
                 {t("organizerDetail.website")}
               </a>
             )}
             {externalUrl && (
-              <a className="secondary-btn" href={externalUrl} target="_blank" rel="noreferrer">
+              <a className="primary-btn" href={externalUrl} target="_blank" rel="noreferrer">
                 {t("organizerDetail.officialPage")}
               </a>
             )}
@@ -367,7 +367,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
       {sanitizedDescriptionHtml && (
         <div>
           <h3>{t("organizerDetail.descriptionLabel")}</h3>
-          <div className="meta organizer-description-text" dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }} />
+          <div className="organizer-description-text" dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }} />
         </div>
       )}
       <dl className="org-info-grid">

@@ -219,12 +219,13 @@ export function HostLeafletClusterMap({
               },
             }}
             pathOptions={{
-              color: isCluster ? "#0f7a6a" : "#e07a2f",
-              fillColor: isCluster ? "#0f7a6a" : "#e07a2f",
-              fillOpacity: 0.8,
-              weight: 1,
+              color: isCluster ? "#408657" : "#0f8a4a",
+              fillColor: isCluster ? "#408657" : "#0f8a4a",
+              fillOpacity: isCluster ? 0.5 : 1,
+              opacity: isCluster ? 0.45 : 1,
+              weight: isCluster ? 2 : 1,
             }}
-            radius={isCluster ? Math.min(20, 8 + Math.log(pointCount) * 4) : 6}
+            radius={isCluster ? Math.min(20, 8 + Math.log(pointCount) * 4) : 7}
           >
             <Tooltip>
               {isCluster
