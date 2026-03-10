@@ -2005,6 +2005,13 @@ label.meta {
     animation: overlay-appear 200ms ease both;
   }
 
+  .filters .autocomplete-menu {
+    position: static;
+    box-shadow: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    max-height: none;
+  }
+
   .filters-mobile-footer {
     display: block;
     position: sticky;
