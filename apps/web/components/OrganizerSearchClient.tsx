@@ -108,9 +108,10 @@ export function OrganizerSearchClient({
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [showArchived, setShowArchived] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    typeof window !== "undefined" && window.innerWidth > 900
-  );
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  useEffect(() => {
+    if (window.innerWidth > 900) setSidebarOpen(true);
+  }, []);
   const [accumulatedItems, setAccumulatedItems] = useState<OrganizerSearchResponse["items"]>(initialResults?.items ?? []);
   const [loadingMore, setLoadingMore] = useState(false);
   const isLoadMoreRef = useRef(false);
