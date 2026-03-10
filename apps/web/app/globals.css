@@ -177,6 +177,7 @@ main {
   max-width: 1100px;
   margin: 0 auto;
   padding: 24px 16px 48px;
+  overflow-x: clip;
 }
 
 .topbar {
@@ -547,13 +548,18 @@ label.meta {
   align-items: center;
   gap: 10px;
   cursor: pointer;
+  position: relative;
 }
 
 .toggle-control-input {
   position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
   opacity: 0;
-  width: 0;
-  height: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .toggle-control-track {
@@ -1943,11 +1949,6 @@ label.meta {
 }
 
 @media (max-width: 900px) {
-  html,
-  body {
-    overflow-x: clip;
-  }
-
   .hero {
     width: auto;
     margin-left: -16px;
@@ -1956,10 +1957,14 @@ label.meta {
 
   .grid {
     flex-direction: column;
+    overflow-x: clip;
   }
 
   /* Mobile: sidebar becomes a bottom drawer */
-  .grid > .filters,
+  .grid > .filters {
+    display: none;
+  }
+
   .sidebar-open .filters {
     display: grid;
     position: fixed;
@@ -1976,14 +1981,8 @@ label.meta {
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     border-bottom: none;
     padding-bottom: 0 !important;
-    transform: translateY(100%);
-    transition: transform var(--transition-normal);
-    pointer-events: none;
-  }
-
-  .sidebar-open .filters {
-    transform: translateY(0);
     pointer-events: auto;
+    animation: drawer-slide-up var(--transition-normal) ease both;
   }
 
   /* Drag handle */
@@ -2299,6 +2298,11 @@ label.meta {
 @keyframes overlay-appear {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+@keyframes drawer-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 
 /* 5. Hero search — subtle lift on focus (done in :focus rule below) */
