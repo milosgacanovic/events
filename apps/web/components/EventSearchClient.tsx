@@ -551,22 +551,24 @@ export function EventSearchClient({
   }, [countryCodes.length]);
 
   const scrollStorageKey = useMemo(() => {
-    const query = buildUiQueryString();
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    params.sort();
+    const query = params.toString();
     return `search-scroll:${pathname}${query ? `?${query}` : ""}`;
-  }, [buildUiQueryString, pathname]);
+  }, [searchParams, pathname]);
 
   const persistScroll = useCallback(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    sessionStorage.setItem(
-      scrollStorageKey,
-      JSON.stringify({
-        y: window.scrollY,
-        ts: Date.now(),
-      }),
-    );
+    try {
+      sessionStorage.setItem(
+        scrollStorageKey,
+        JSON.stringify({ y: window.scrollY, ts: Date.now() }),
+      );
+    } catch { /* sessionStorage unavailable (e.g. Safari ITP) */ }
   }, [scrollStorageKey]);
 
   const runSearch = useCallback(async (nextPage = page) => {
@@ -674,10 +676,11 @@ export function EventSearchClient({
     }
     const timer = setTimeout(() => {
       const queryString = buildUiQueryString();
-      router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+      const url = queryString ? `${pathname}?${queryString}` : pathname;
+      window.history.replaceState(window.history.state, "", url);
     }, 400);
     return () => clearTimeout(timer);
-  }, [buildUiQueryString, pathname, router]);
+  }, [buildUiQueryString, pathname]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -689,12 +692,20 @@ export function EventSearchClient({
       return;
     }
 
+    // Wait until search results are loaded before restoring scroll
+    if (!data) {
+      return;
+    }
+
     if (restoredKeyRef.current === scrollStorageKey) {
       return;
     }
     restoredKeyRef.current = scrollStorageKey;
 
-    const raw = sessionStorage.getItem(scrollStorageKey);
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(scrollStorageKey);
+    } catch { /* sessionStorage unavailable (e.g. Safari ITP) */ }
     if (!raw) {
       return;
     }
@@ -707,12 +718,17 @@ export function EventSearchClient({
       if (Date.now() - parsed.ts > 30 * 60 * 1000) {
         return;
       }
-      const { y } = parsed;
-      window.setTimeout(() => window.scrollTo(0, y), 0);
+      const scrollY = parsed.y;
+      // Use rAF to ensure DOM has rendered with the new data
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollY);
+        });
+      });
     } catch {
       // ignore invalid persisted scroll data
     }
-  }, [scrollStorageKey]);
+  }, [scrollStorageKey, data]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

@@ -108,7 +108,7 @@ export function OrganizerSearchClient({
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [showArchived, setShowArchived] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accumulatedItems, setAccumulatedItems] = useState<OrganizerSearchResponse["items"]>(initialResults?.items ?? []);
   const [loadingMore, setLoadingMore] = useState(false);
   const isLoadMoreRef = useRef(false);
@@ -637,7 +637,12 @@ export function OrganizerSearchClient({
         <div className="filters-overlay" onClick={() => setSidebarOpen(false)} aria-hidden />
       )}
       <aside className="panel filters">
-        <h2 className="title-xl">{t("organizerSearch.title")}</h2>
+        <h2 className="title-xl">
+          {t("organizerSearch.title")}
+          {data && (
+            <span className="filters-panel-count">{t("organizerSearch.totalCount", { count: data.total })}</span>
+          )}
+        </h2>
         <input
           value={q}
           onChange={(event) => {

@@ -489,6 +489,7 @@ main {
   text-align: left;
   padding: 8px 10px;
   border: none;
+  font-size: 1rem;
   border-bottom: 1px solid var(--border-warm);
   background: transparent;
   cursor: pointer;
@@ -772,6 +773,7 @@ label.meta {
 .grid > .panel.cards {
   flex: 1;
   min-width: 0;
+  overflow-x: hidden;
 }
 
 .filters {
@@ -1307,6 +1309,8 @@ label.meta {
 .organizer-description-text a,
 .event-detail-desc a {
   color: var(--accent);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .org-info-grid {
@@ -1482,6 +1486,8 @@ label.meta {
   position: relative;
   max-height: 300px;
   overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .event-detail-desc::after {
@@ -1725,7 +1731,7 @@ label.meta {
   border: 1px solid var(--tag-border);
   border-radius: 999px;
   padding: 4px 8px;
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: var(--ink);
 }
 
@@ -1937,6 +1943,17 @@ label.meta {
 }
 
 @media (max-width: 900px) {
+  html,
+  body {
+    overflow-x: clip;
+  }
+
+  .hero {
+    width: auto;
+    margin-left: -16px;
+    margin-right: -16px;
+  }
+
   .grid {
     flex-direction: column;
   }
@@ -2032,6 +2049,15 @@ label.meta {
 }
 
 @media (max-width: 600px) {
+  html {
+    border-top: none;
+  }
+
+
+  main {
+    padding: 16px 16px 48px;
+  }
+
   .event-detail-meta-grid {
     grid-template-columns: 1fr;
   }
@@ -2057,11 +2083,13 @@ label.meta {
 
   /* Mobile: show hamburger + user icon, hide desktop nav + actions */
   .hamburger-wrap {
-    display: block;
+    display: flex;
+    align-items: center;
   }
 
   .user-menu-wrap {
-    display: block;
+    display: flex;
+    align-items: center;
   }
 
   .nav {
@@ -2085,6 +2113,7 @@ label.meta {
   .results-toolbar {
     flex-wrap: wrap;
     gap: 14px;
+    justify-content: flex-start;
   }
 
   .icon-group.with-separator {
