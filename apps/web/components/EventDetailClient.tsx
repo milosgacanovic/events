@@ -3,6 +3,7 @@
 import DOMPurify from "dompurify";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { fetchJson } from "../lib/api";
@@ -143,7 +144,11 @@ export function EventDetailClient({
   initialTaxonomy?: TaxonomyResponse | null;
 }) {
   const { locale, t } = useI18n();
+  const router = useRouter();
   const auth = useKeycloakAuth();
+  const [cameFromSearch] = useState(() => {
+    try { return !!sessionStorage.getItem("search-cache-snapshot"); } catch { return false; }
+  });
   const [data, setData] = useState<EventDetail | null>(initialData ?? null);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [error, setError] = useState<string | null>(null);
@@ -402,10 +407,20 @@ export function EventDetailClient({
     <article className="event-detail panel">
       {/* Breadcrumb */}
       <nav className="event-detail-breadcrumb">
-        <Link href="/events">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 4 }}><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          {t("nav.events")}
-        </Link>
+        {cameFromSearch ? (
+          <a
+            href="/events"
+            onClick={(e) => { e.preventDefault(); router.back(); }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 4 }}><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            {t("nav.events")}
+          </a>
+        ) : (
+          <Link href="/events">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 4 }}><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            {t("nav.events")}
+          </Link>
+        )}
       </nav>
 
       {/* Header */}

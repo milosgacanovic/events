@@ -204,6 +204,11 @@ export function EventSearchClient({
   const [showBackToTop, setShowBackToTop] = useState(false);
   const isLoadMoreRef = useRef(false);
   const isLoadMorePageRef = useRef(false);
+  const skipSearchAfterRestoreRef = useRef(false);
+  const cacheRestoreInProgressRef = useRef(false);
+  const cachedScrollYRef = useRef<number | null>(null);
+  const lastRestoredKeyRef = useRef<string | null>(null);
+  const cacheRestoredPageRef = useRef<number | null>(null);
   const restoredKeyRef = useRef<string | null>(null);
   const syncingFromUrlRef = useRef(false);
   const facetRequestRef = useRef(0);
@@ -231,6 +236,12 @@ export function EventSearchClient({
       setPage(1);
     }
   }, [geo.status, geo.filterMode, geo.city, geo.countryCode]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.history.scrollRestoration !== "manual") {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -527,8 +538,14 @@ export function EventSearchClient({
     const nextSort = searchParams.get("sort") === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc";
     const nextView = searchParams.get("view") === "map" ? "map" : "list";
     const parsedPage = Number(searchParams.get("page") ?? "1");
-    const nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    let nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
     const nextIncludePast = searchParams.get("includePast") === "true";
+
+    // If cache restored a page beyond what the URL has, preserve it
+    if (cacheRestoredPageRef.current !== null) {
+      nextPage = cacheRestoredPageRef.current;
+      cacheRestoredPageRef.current = null;
+    }
 
     syncingFromUrlRef.current = true;
     if (!isTypingQRef.current) setQ(nextQ);
@@ -590,6 +607,30 @@ export function EventSearchClient({
     } catch { /* sessionStorage unavailable (e.g. Safari ITP) */ }
   }, [scrollStorageKey]);
 
+  const onNavigateAway = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      // Compute key from current URL (not stale searchParams) to match what back-nav will see
+      const url = new URL(window.location.href);
+      const params = new URLSearchParams(url.search);
+      params.delete("page");
+      params.sort();
+      const query = params.toString();
+      const key = `search-scroll:${url.pathname}${query ? `?${query}` : ""}`;
+
+      const snapshot = {
+        key,
+        y: window.scrollY,
+        ts: Date.now(),
+        accumulatedHits,
+        page,
+        totalHits: data?.totalHits ?? 0,
+        disjunctiveFacets,
+      };
+      sessionStorage.setItem("search-cache-snapshot", JSON.stringify(snapshot));
+    } catch { /* ignore */ }
+  }, [accumulatedHits, page, data?.totalHits, disjunctiveFacets]);
+
   const runSearch = useCallback(async (nextPage = page) => {
     const currentQuery = buildQueryString(nextPage);
     const appendMode = isLoadMoreRef.current;
@@ -636,6 +677,59 @@ export function EventSearchClient({
   }, [buildQueryString, canSeeDetailedErrors, page, t, showUnlisted, auth]);
 
   useEffect(() => {
+    // Try restoring from snapshot saved by onNavigateAway (event card click)
+    if (lastRestoredKeyRef.current !== scrollStorageKey) {
+      try {
+        const raw = sessionStorage.getItem("search-cache-snapshot");
+        if (raw) {
+          const cached = JSON.parse(raw) as {
+            key?: string;
+            y?: number;
+            ts?: number;
+            accumulatedHits?: SearchResponse["hits"];
+            page?: number;
+            totalHits?: number;
+            disjunctiveFacets?: DisjunctiveFacetState;
+          };
+          const age = Date.now() - (cached.ts ?? 0);
+          if (
+            cached.key === scrollStorageKey &&
+            cached.accumulatedHits?.length &&
+            typeof cached.ts === "number" &&
+            age < 30 * 60 * 1000
+          ) {
+            sessionStorage.removeItem("search-cache-snapshot");
+            lastRestoredKeyRef.current = scrollStorageKey;
+            cacheRestoredPageRef.current = cached.page ?? 1;
+            cacheRestoreInProgressRef.current = true;
+            cachedScrollYRef.current = cached.y ?? null;
+            setAccumulatedHits(cached.accumulatedHits);
+            setPage(cached.page ?? 1);
+            isLoadMorePageRef.current = true;
+            skipSearchAfterRestoreRef.current = true;
+            setData({
+              hits: cached.accumulatedHits.slice(-20),
+              totalHits: cached.totalHits ?? 0,
+              pagination: {
+                page: cached.page ?? 1,
+                pageSize: 20,
+                totalPages: Math.ceil((cached.totalHits ?? 0) / 20),
+              },
+            });
+            if (cached.disjunctiveFacets) {
+              setDisjunctiveFacets(cached.disjunctiveFacets);
+            }
+            return;
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (skipSearchAfterRestoreRef.current) {
+      skipSearchAfterRestoreRef.current = false;
+      return;
+    }
+
     const timer = setTimeout(() => {
       void runSearch(page);
     }, 400);
@@ -643,7 +737,7 @@ export function EventSearchClient({
     return () => {
       clearTimeout(timer);
     };
-  }, [runSearch, page]);
+  }, [runSearch, page, scrollStorageKey]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -721,31 +815,20 @@ export function EventSearchClient({
     }
     restoredKeyRef.current = scrollStorageKey;
 
-    let raw: string | null = null;
-    try {
-      raw = sessionStorage.getItem(scrollStorageKey);
-    } catch { /* sessionStorage unavailable (e.g. Safari ITP) */ }
-    if (!raw) {
-      return;
+    // Only restore scroll from cache restore ref (set during cache restore flow)
+    let scrollY: number | null = null;
+    if (cachedScrollYRef.current !== null) {
+      scrollY = cachedScrollYRef.current;
+      cachedScrollYRef.current = null;
+      cacheRestoreInProgressRef.current = false;
+      // scroll position from cache restore
     }
 
-    try {
-      const parsed = JSON.parse(raw) as { y?: number; ts?: number };
-      if (typeof parsed.y !== "number" || typeof parsed.ts !== "number") {
-        return;
-      }
-      if (Date.now() - parsed.ts > 30 * 60 * 1000) {
-        return;
-      }
-      const scrollY = parsed.y;
-      // Use rAF to ensure DOM has rendered with the new data
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          window.scrollTo(0, scrollY);
-        });
-      });
-    } catch {
-      // ignore invalid persisted scroll data
+    if (scrollY != null && scrollY > 0) {
+      // Delay scroll restore to let hero collapse and layout settle after state updates
+      setTimeout(() => {
+        window.scrollTo(0, scrollY);
+      }, 50);
     }
   }, [scrollStorageKey, data]);
 
@@ -780,6 +863,10 @@ export function EventSearchClient({
     writeTimeDisplayMode(timeDisplayMode);
   }, [timeDisplayMode]);
 
+  const clearSearchCache = useCallback(() => {
+    try { sessionStorage.removeItem("search-cache-snapshot"); } catch { /* ignore */ }
+  }, []);
+
   function clearFilters() {
     setQ("");
     setPracticeCategoryIds([]);
@@ -797,6 +884,7 @@ export function EventSearchClient({
     setPage(1);
     setSort("startsAtAsc");
     setAccumulatedHits([]);
+    clearSearchCache();
   }
 
   const currentPage = data?.pagination?.page ?? page;
@@ -1063,6 +1151,7 @@ export function EventSearchClient({
               setQ(e.target.value);
               setPage(1);
               setAccumulatedHits([]);
+              clearSearchCache();
             }}
             placeholder={t("eventSearch.hero.placeholder")}
             autoComplete="off"
@@ -1182,6 +1271,7 @@ export function EventSearchClient({
             setQ(event.target.value);
             setPage(1);
             setAccumulatedHits([]);
+            clearSearchCache();
           }}
           placeholder={t("eventSearch.placeholder.searchTitle")}
         />
@@ -1696,7 +1786,7 @@ export function EventSearchClient({
                 className="card event-card-h"
                 key={hit.occurrenceId}
                 href={`/events/${hit.event.slug}`}
-                onClick={persistScroll}
+                onClick={onNavigateAway}
               >
                 <div className="event-card-main">
                   <div
