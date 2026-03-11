@@ -373,36 +373,44 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
             <span className="organizer-thumb-placeholder">{data.organizer.name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")}</span>
           )}
         </div>
-        <div className="cards">
-          <h1 className="title-xl">{data.organizer.name}</h1>
-          {(data.organizer.city || countryLabel) && (
-            <div className="meta">
-              {data.organizer.city ?? ""}
-              {countryLabel ? `${data.organizer.city ? ", " : ""}${countryLabel}` : ""}
+        <div className="organizer-profile-body">
+          <div className="organizer-profile-info">
+            <h1 className="title-xl">{data.organizer.name}</h1>
+            {(data.organizer.city || countryLabel) && (
+              <div className="meta">
+                {data.organizer.city ?? ""}
+                {countryLabel ? `${data.organizer.city ? ", " : ""}${countryLabel}` : ""}
+              </div>
+            )}
+            {(practiceEntries.length > 0 || roleLabels.length > 0) && (
+              <div className="organizer-profile-meta-line">
+                {[...practiceEntries.map((e) => e.label), ...roleLabels].join(" · ")}
+              </div>
+            )}
+            <div className="organizer-profile-actions">
+              {websiteUrl && (
+                <a className="primary-btn" href={websiteUrl} target="_blank" rel="noreferrer">
+                  {t("organizerDetail.website")}
+                </a>
+              )}
+              {externalUrl && (
+                <a className="primary-btn" href={externalUrl} target="_blank" rel="noreferrer">
+                  {t("organizerDetail.officialPage")}
+                </a>
+              )}
+              {canEdit && (
+                <Link
+                  className="secondary-btn"
+                  href={`/admin?section=organizers&id=${encodeURIComponent(data.organizer.id)}`}
+                >
+                  {t("organizerDetail.editHost")}
+                </Link>
+              )}
             </div>
-          )}
-          <div className="organizer-profile-actions">
-            {websiteUrl && (
-              <a className="primary-btn" href={websiteUrl} target="_blank" rel="noreferrer">
-                {t("organizerDetail.website")}
-              </a>
-            )}
-            {externalUrl && (
-              <a className="primary-btn" href={externalUrl} target="_blank" rel="noreferrer">
-                {t("organizerDetail.officialPage")}
-              </a>
-            )}
-            {canEdit && (
-              <Link
-                className="secondary-btn"
-                href={`/admin?section=organizers&id=${encodeURIComponent(data.organizer.id)}`}
-              >
-                {t("organizerDetail.editHost")}
-              </Link>
-            )}
           </div>
         </div>
       </div>
+      <hr className="organizer-section-divider" />
       {sanitizedDescriptionHtml && (
         <div>
           <h3>{t("organizerDetail.descriptionLabel")}</h3>

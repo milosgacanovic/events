@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "../lib/api";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { scrollToTopFast } from "../lib/scroll";
+import { useGeolocation } from "../lib/useGeolocation";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
@@ -83,6 +84,8 @@ export function OrganizerSearchClient({
 }) {
   const { locale, t } = useI18n();
   const auth = useKeycloakAuth();
+  const authRef = useRef(auth);
+  authRef.current = auth;
   const isEditor = auth.authenticated && auth.roles.some((role) =>
     role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
   );
@@ -110,11 +113,33 @@ export function OrganizerSearchClient({
   const [showArchived, setShowArchived] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   useEffect(() => {
-    if (window.innerWidth > 900) setSidebarOpen(true);
+    try {
+      const stored = sessionStorage.getItem("dr-filters-sidebar-open");
+      if (stored !== null && window.innerWidth > 900) setSidebarOpen(stored === "true");
+    } catch { /* sessionStorage unavailable */ }
   }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isMobile = window.innerWidth <= 900;
+    if (isMobile && sidebarOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      return () => {
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [sidebarOpen]);
   const [accumulatedItems, setAccumulatedItems] = useState<OrganizerSearchResponse["items"]>(initialResults?.items ?? []);
   const [loadingMore, setLoadingMore] = useState(false);
   const isLoadMoreRef = useRef(false);
+  const isFirstSearchRef = useRef(true);
   const isLoadMorePageRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -140,6 +165,9 @@ export function OrganizerSearchClient({
   const isTypingQRef = useRef(false);
   const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cityInputRef = useRef<HTMLInputElement | null>(null);
+  const geo = useGeolocation();
+  const geoAutoApplyRef = useRef(false);
+  const [geoHostInfo, setGeoHostInfo] = useState<{ filterMode: "city" | "country"; count: number } | null>(null);
   const practiceLabelById = useMemo(() => {
     const map = new Map<string, string>();
     for (const category of taxonomy?.practices.categories ?? []) {
@@ -164,7 +192,11 @@ export function OrganizerSearchClient({
   );
 
   const toggleSidebar = useCallback(() => {
-    setSidebarOpen((prev) => !prev);
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try { sessionStorage.setItem("dr-filters-sidebar-open", String(next)); } catch { /* ignore */ }
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -172,6 +204,25 @@ export function OrganizerSearchClient({
       window.history.scrollRestoration = "manual";
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isMobile = window.innerWidth <= 900;
+    if (isMobile && sidebarOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      return () => {
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [sidebarOpen]);
 
   useEffect(() => {
     if (initialTaxonomy) return;
@@ -293,6 +344,50 @@ export function OrganizerSearchClient({
     if (countryCodes.length > 0) setCountryOpen(true);
   }, [countryCodes.length]);
 
+  // Resolve host counts for geo pill (city-first, fallback to country)
+  useEffect(() => {
+    if (geo.status !== "ready" || !geo.countryCode) {
+      setGeoHostInfo(null);
+      return;
+    }
+    let cancelled = false;
+    async function resolveHostGeo() {
+      if (geo.city) {
+        try {
+          const qs = new URLSearchParams({ city: geo.city, countryCode: geo.countryCode!.toLowerCase(), pageSize: "1", page: "1" });
+          const result = await fetchJson<OrganizerSearchResponse>(`/organizers/search?${qs}`);
+          if (!cancelled && (result.total ?? 0) > 0) {
+            setGeoHostInfo({ filterMode: "city", count: result.total });
+            return;
+          }
+        } catch { /* ignore */ }
+      }
+      if (cancelled) return;
+      try {
+        const qs = new URLSearchParams({ countryCode: geo.countryCode!.toLowerCase(), pageSize: "1", page: "1" });
+        const result = await fetchJson<OrganizerSearchResponse>(`/organizers/search?${qs}`);
+        if (!cancelled) setGeoHostInfo({ filterMode: "country", count: result.total ?? 0 });
+      } catch { /* ignore */ }
+    }
+    void resolveHostGeo();
+    return () => { cancelled = true; };
+  }, [geo.status, geo.city, geo.countryCode]);
+
+  // Auto-apply geo filter when user clicked "Near you" — waits for geoHostInfo
+  useEffect(() => {
+    if (geo.status === "ready" && geoAutoApplyRef.current && geoHostInfo && geoHostInfo.count > 0) {
+      geoAutoApplyRef.current = false;
+      if (geoHostInfo.filterMode === "city" && geo.city) {
+        setCities([geo.city]);
+        setCountryCodes(geo.countryCode ? [geo.countryCode.toLowerCase()] : []);
+      } else if (geoHostInfo.filterMode === "country" && geo.countryCode) {
+        setCountryCodes([geo.countryCode.toLowerCase()]);
+        setCities([]);
+      }
+      setPage(1);
+    }
+  }, [geo.status, geoHostInfo, geo.city, geo.countryCode]);
+
   useEffect(() => {
     if (!loading && !loadingMore) setPendingKey(null);
   }, [loading, loadingMore]);
@@ -355,13 +450,15 @@ export function OrganizerSearchClient({
 
     if (appendMode) {
       setLoadingMore(true);
+    } else if (isFirstSearchRef.current) {
+      isFirstSearchRef.current = false;
     } else {
       setLoading(true);
     }
     setError(null);
 
     try {
-      const token = (showArchived && auth.authenticated) ? await auth.getToken() : null;
+      const token = (showArchived && authRef.current.authenticated) ? await authRef.current.getToken() : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
       const result = await fetchJson<OrganizerSearchResponse>(
         `/organizers/search?${buildQueryString(nextPage)}`,
@@ -380,7 +477,7 @@ export function OrganizerSearchClient({
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [buildQueryString, canSeeDetailedErrors, page, t, showArchived, auth]);
+  }, [buildQueryString, canSeeDetailedErrors, page, t, showArchived]);
 
   useEffect(() => {
     // Try restoring from snapshot saved by onNavigateAway (host card click)
@@ -432,6 +529,7 @@ export function OrganizerSearchClient({
       return;
     }
 
+    if (!isFirstSearchRef.current && !isLoadMoreRef.current) setLoading(true);
     const timer = setTimeout(() => {
       void runSearch(page);
     }, 250);
@@ -726,16 +824,6 @@ export function OrganizerSearchClient({
     [citySuggestions, cities],
   );
 
-  function addTagFromInput(rawValue: string) {
-    const value = rawValue.trim().toLowerCase();
-    if (!value) {
-      return;
-    }
-    setTags((current) => (current.includes(value) ? current : [...current, value]));
-    setTagQuery("");
-    setPage(1);
-  }
-
   function addCityFromInput(rawValue: string) {
     const value = rawValue.trim();
     if (!value) {
@@ -758,13 +846,111 @@ export function OrganizerSearchClient({
     setCities([]);
     setCityQuery("");
     setPage(1);
-    setAccumulatedItems([]);
     clearSearchCache();
   }
 
   const activeFilterCount = selectedChips.length;
 
+  const heroCollapsed = !!(q || practiceCategoryIds.length || roleKeys.length ||
+    tags.length || languages.length || countryCodes.length || cities.length);
+
+  const topPracticePills = useMemo(() => {
+    if (!taxonomy) return [];
+    return [...taxonomy.practices.categories]
+      .map((cat) => ({ id: cat.id, label: cat.label, count: practiceFacetCounts[cat.id] ?? 0 }))
+      .filter((cat) => cat.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+  }, [taxonomy, practiceFacetCounts]);
+
   return (
+    <>
+    <div className={heroCollapsed ? "hero hero-collapsed" : "hero"}>
+      <h1 className="hero-heading">{t("organizerSearch.hero.heading")}</h1>
+      <form className="hero-search-form" onSubmit={(e) => e.preventDefault()}>
+        <input
+          className="hero-search-input"
+          value={q}
+          onChange={(e) => {
+            isTypingQRef.current = true;
+            if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
+            typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
+            setQ(e.target.value);
+            setPage(1);
+            clearSearchCache();
+          }}
+          placeholder={t("organizerSearch.hero.placeholder")}
+          autoComplete="off"
+        />
+        <button type="submit" className="primary-btn">{t("organizerSearch.search")}</button>
+      </form>
+      <div className="hero-collapsible">
+        <div className="hero-pills">
+          {geo.status === "idle" && (
+            <button type="button" className="hero-pill hero-pill-geo"
+              onClick={() => { geoAutoApplyRef.current = true; geo.detect(); }}>
+              {t("organizerSearch.hero.nearYou")}
+            </button>
+          )}
+          {(geo.status === "detecting" || (geo.status === "ready" && geoHostInfo === null)) && (
+            <button type="button" className="hero-pill hero-pill-geo" disabled>
+              {t("organizerSearch.hero.detecting")}
+            </button>
+          )}
+          {(geo.status === "no_events" || (geo.status === "ready" && geoHostInfo !== null && geoHostInfo.count === 0)) && (
+            <span className="hero-pill hero-pill-geo" style={{ opacity: 0.6, cursor: "default" }}>
+              {t("organizerSearch.hero.noHostsNearby")}
+            </span>
+          )}
+          {geo.status === "ready" && geoHostInfo !== null && geoHostInfo.count > 0 && geo.countryCode && (
+            <button
+              type="button"
+              className={
+                (geoHostInfo.filterMode === "city" && geo.city && cities.includes(geo.city)) ||
+                (geoHostInfo.filterMode === "country" && countryCodes.includes(geo.countryCode.toLowerCase()))
+                  ? "hero-pill hero-pill-geo hero-pill-active"
+                  : "hero-pill hero-pill-geo"
+              }
+              onClick={() => {
+                if (geoHostInfo.filterMode === "city" && geo.city) {
+                  setCities([geo.city]);
+                  setCountryCodes(geo.countryCode ? [geo.countryCode.toLowerCase()] : []);
+                } else if (geo.countryCode) {
+                  setCountryCodes([geo.countryCode.toLowerCase()]);
+                  setCities([]);
+                }
+                setPage(1);
+              }}
+            >
+              {t("organizerSearch.hero.hostsIn", {
+                city: geoHostInfo.filterMode === "city" ? (geo.city ?? geo.countryCode) : getCountryLabel(geo.countryCode),
+              })}
+              {" "}<span className="hero-pill-count">({geoHostInfo.count.toLocaleString()})</span>
+            </button>
+          )}
+          {topPracticePills.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              className={practiceCategoryIds.includes(cat.id) ? "hero-pill hero-pill-active" : "hero-pill"}
+              onClick={() => {
+                setPracticeCategoryIds((current) =>
+                  current.includes(cat.id) ? current.filter((id) => id !== cat.id) : [...current, cat.id]
+                );
+                setPage(1);
+              }}
+            >
+              {cat.label} <span className="hero-pill-count">({cat.count.toLocaleString()})</span>
+            </button>
+          ))}
+        </div>
+        {data && data.total > 0 && (
+          <div className="hero-stats">
+            {t("organizerSearch.totalCount", { count: data.total })}
+          </div>
+        )}
+      </div>
+    </div>
     <section className={sidebarOpen ? "grid sidebar-open" : "grid"}>
       {sidebarOpen && (
         <div className="filters-overlay" onClick={() => setSidebarOpen(false)} aria-hidden />
@@ -776,18 +962,6 @@ export function OrganizerSearchClient({
             <span className="filters-panel-count">{t("organizerSearch.totalCount", { count: data.total })}</span>
           )}
         </h2>
-        <input
-          value={q}
-          onChange={(event) => {
-            isTypingQRef.current = true;
-            if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
-            typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 400);
-            setQ(event.target.value);
-            setPage(1);
-            clearSearchCache();
-          }}
-          placeholder={t("organizerSearch.placeholder.searchName")}
-        />
 
         <details
           open={hostTypeOpen}
@@ -978,64 +1152,6 @@ export function OrganizerSearchClient({
           </div>
         )}
 
-        {/* Tags filter hidden
-        <div className="autocomplete-wrap">
-          <input
-            value={tagQuery}
-            onFocus={() => setTagSuggestionsOpen(true)}
-            onBlur={() => window.setTimeout(() => setTagSuggestionsOpen(false), 120)}
-            onChange={(event) => setTagQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                const query = tagQuery.trim().toLowerCase();
-                if (!query) {
-                  return;
-                }
-                const exact = visibleTagSuggestions.find((item) => item.tag.toLowerCase() === query);
-                addTagFromInput(exact?.tag ?? query);
-                setTagSuggestionsOpen(false);
-              }
-            }}
-            placeholder={t("organizerSearch.tags")}
-          />
-          {tagSuggestionsOpen && visibleTagSuggestions.length > 0 && (
-            <div className="autocomplete-menu">
-              {visibleTagSuggestions.slice(0, 10).map((item) => (
-                <button
-                  type="button"
-                  className="autocomplete-option"
-                  key={item.tag}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    addTagFromInput(item.tag);
-                    setTagSuggestionsOpen(false);
-                  }}
-                >
-                  {item.tag} ({item.count})
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        {tags.length > 0 && (
-          <div className="kv">
-            {tags.map((item) => (
-              <button
-                className="tag"
-                key={item}
-                type="button"
-                onClick={() => {
-                  setTags((current) => current.filter((tag) => tag !== item));
-                  setPage(1);
-                }}
-              >
-                {item} ×
-              </button>
-            ))}
-          </div>
-        )}
-        */}
         {isEditor && (
           <label className="meta">
             <input
@@ -1127,6 +1243,12 @@ export function OrganizerSearchClient({
           <HostLeafletClusterMap queryString={activeQueryString} />
         ) : null}
 
+        <div className="cards-content">
+          {loading && !loadingMore && accumulatedItems.length > 0 && (
+            <div className="cards-loading-overlay">
+              <div className="filter-spinner" />
+            </div>
+          )}
         <div className="card-list">
         {view === "list" && accumulatedItems.map((item) => {
           const primaryCatId = item.practiceCategoryIds?.[0];
@@ -1183,6 +1305,7 @@ export function OrganizerSearchClient({
           );
         })}
         </div>
+        </div>
         {data && view === "list" && currentPage < totalPages && (
           <div className="load-more-section">
             <button
@@ -1204,5 +1327,6 @@ export function OrganizerSearchClient({
         )}
       </div>
     </section>
+    </>
   );
 }

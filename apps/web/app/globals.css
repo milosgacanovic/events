@@ -1273,35 +1273,56 @@ label.meta {
 }
 
 .organizer-avatar-shell {
-  width: 160px;
-  height: 160px;
-  border-radius: 12px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
   overflow: hidden;
   background: var(--surface-alt);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  flex: 0 0 160px;
+  border: 3px solid var(--bg);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  flex: 0 0 140px;
 }
 
 .organizer-avatar-shell img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .organizer-profile-header {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   align-items: flex-start;
-  flex-wrap: wrap;
+}
+
+.organizer-profile-body {
+  flex: 1;
+}
+
+.organizer-profile-info {
+  flex: 1;
+}
+
+.organizer-profile-meta-line {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.organizer-section-divider {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 16px 0 0;
 }
 
 .organizer-profile-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-top: 10px;
 }
 
 .organizer-description {
@@ -1321,7 +1342,7 @@ label.meta {
 
 .org-info-grid {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: max-content 1fr max-content 1fr;
   gap: 8px 20px;
   margin: 0;
   padding: 14px 0;
@@ -1351,6 +1372,57 @@ label.meta {
 .org-info-grid dd a:hover,
 .event-detail-meta-value a:hover {
   text-decoration: underline;
+}
+
+/* Add to calendar */
+.cal-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.cal-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--accent);
+  letter-spacing: normal;
+  font-weight: 500;
+  text-transform: none;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+.cal-trigger:hover {
+  opacity: 1;
+}
+.cal-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  min-width: 180px;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+.cal-dropdown button {
+  background: none;
+  border: none;
+  padding: 8px 14px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.cal-dropdown button:hover {
+  background: var(--surface-hover, rgba(0,0,0,0.05));
 }
 
 .org-alert-form h3 {
@@ -1758,6 +1830,9 @@ label.meta {
 .title-xl {
   font-family: "Space Grotesk", sans-serif;
   margin: 0 0 10px;
+}
+
+.filters .title-xl {
   display: flex;
   align-items: baseline;
 }
@@ -1966,7 +2041,31 @@ label.meta {
 
   .grid {
     flex-direction: column;
-    overflow-x: clip;
+    align-items: stretch;
+    margin-left: -16px;
+    margin-right: -16px;
+  }
+
+  /* Cards panel: edge-to-edge, no outer box on mobile */
+  .grid > .panel.cards {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Re-add horizontal padding to every direct child except the map */
+  .grid > .panel.cards > *:not(.map-shell) {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Map: truly full-width on mobile */
+  .grid .leaflet-map {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
 
   /* Mobile: sidebar becomes a bottom drawer */
@@ -2047,9 +2146,26 @@ label.meta {
   }
 
   .organizer-avatar-shell {
-    width: 120px;
-    height: 120px;
-    flex-basis: 120px;
+    width: 164px;
+    height: 164px;
+    flex: 0 0 164px;
+  }
+
+  .organizer-profile-header {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .organizer-profile-body {
+    text-align: center;
+  }
+
+  .organizer-profile-actions {
+    justify-content: center;
+  }
+
+  .org-info-grid {
+    grid-template-columns: max-content 1fr;
   }
 
   .upcoming-event-card {
@@ -2347,6 +2463,51 @@ label.meta {
 .filter-chip {
   animation: chip-appear 150ms ease both;
   transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+/* Sidebar filter selected-value chips */
+.kv button.tag {
+  animation: chip-appear 150ms ease both;
+}
+
+/* Top-bar filter-chips row — slide down when first chip added */
+@keyframes chips-row-appear {
+  from { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; }
+  to   { opacity: 1; max-height: 80px; }
+}
+.filter-chips {
+  animation: chips-row-appear 200ms ease both;
+  overflow: hidden;
+}
+
+/* Loading overlay for stale card results */
+.cards-content {
+  position: relative;
+}
+.cards-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 40px;
+  animation: overlay-appear 200ms ease both;
+}
+.cards-loading-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  opacity: 0.65;
+}
+.cards-loading-overlay .filter-spinner {
+  position: relative;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
 }
 
 /* Back-to-top fade transition */

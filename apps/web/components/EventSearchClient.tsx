@@ -146,6 +146,8 @@ export function EventSearchClient({
 }) {
   const { locale, t } = useI18n();
   const auth = useKeycloakAuth();
+  const authRef = useRef(auth);
+  authRef.current = auth;
   const isEditor = auth.authenticated && auth.roles.some((role) =>
     role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
   );
@@ -203,6 +205,7 @@ export function EventSearchClient({
   const [loadingMore, setLoadingMore] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const isLoadMoreRef = useRef(false);
+  const isFirstSearchRef = useRef(true);
   const isLoadMorePageRef = useRef(false);
   const skipSearchAfterRestoreRef = useRef(false);
   const cacheRestoreInProgressRef = useRef(false);
@@ -638,13 +641,15 @@ export function EventSearchClient({
 
     if (appendMode) {
       setLoadingMore(true);
+    } else if (isFirstSearchRef.current) {
+      isFirstSearchRef.current = false;
     } else {
       setLoading(true);
     }
     setError(null);
 
     try {
-      const token = (showUnlisted && auth.authenticated) ? await auth.getToken() : null;
+      const token = (showUnlisted && authRef.current.authenticated) ? await authRef.current.getToken() : null;
       const fetchInit = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
       const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`, fetchInit);
       setData(result);
@@ -674,7 +679,7 @@ export function EventSearchClient({
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [buildQueryString, canSeeDetailedErrors, page, t, showUnlisted, auth]);
+  }, [buildQueryString, canSeeDetailedErrors, page, t, showUnlisted]);
 
   useEffect(() => {
     // Try restoring from snapshot saved by onNavigateAway (event card click)
@@ -730,6 +735,7 @@ export function EventSearchClient({
       return;
     }
 
+    if (!isFirstSearchRef.current && !isLoadMoreRef.current) setLoading(true);
     const timer = setTimeout(() => {
       void runSearch(page);
     }, 400);
@@ -883,7 +889,6 @@ export function EventSearchClient({
     setIncludePast(false);
     setPage(1);
     setSort("startsAtAsc");
-    setAccumulatedHits([]);
     clearSearchCache();
   }
 
@@ -1150,7 +1155,6 @@ export function EventSearchClient({
               typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
               setQ(e.target.value);
               setPage(1);
-              setAccumulatedHits([]);
               clearSearchCache();
             }}
             placeholder={t("eventSearch.hero.placeholder")}
@@ -1270,7 +1274,6 @@ export function EventSearchClient({
             typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
             setQ(event.target.value);
             setPage(1);
-            setAccumulatedHits([]);
             clearSearchCache();
           }}
           placeholder={t("eventSearch.placeholder.searchTitle")}
@@ -1730,13 +1733,6 @@ export function EventSearchClient({
             </div>
           </div>
         </div>
-        {view === "map" ? (
-          <LeafletClusterMap
-            queryString={activeQueryString}
-            refreshToken={refreshToken}
-            timeDisplayMode={timeDisplayMode}
-          />
-        ) : null}
         {error && <div className="muted">{error}</div>}
         {selectedFilterChips.length > 0 && (
           <div className="filter-chips">
@@ -1750,7 +1746,20 @@ export function EventSearchClient({
             </button>
           </div>
         )}
+        {view === "map" ? (
+          <LeafletClusterMap
+            queryString={activeQueryString}
+            refreshToken={refreshToken}
+            timeDisplayMode={timeDisplayMode}
+          />
+        ) : null}
 
+        <div className="cards-content">
+          {loading && !loadingMore && accumulatedHits.length > 0 && (
+            <div className="cards-loading-overlay">
+              <div className="filter-spinner" />
+            </div>
+          )}
         <div className="card-list">
         {view === "list" ? (
           accumulatedHits.map((hit) => {
@@ -1848,6 +1857,7 @@ export function EventSearchClient({
             );
           })
         ) : null}
+        </div>
         </div>
         {data && view === "list" && currentPage < totalPages && (
           <div className="load-more-section">

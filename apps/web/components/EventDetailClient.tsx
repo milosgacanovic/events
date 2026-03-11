@@ -4,7 +4,7 @@ import DOMPurify from "dompurify";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
@@ -123,7 +123,81 @@ function getDescriptionHtml(value: unknown): string | null {
 }
 
 function stripHtml(input: string): string {
-  return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return input
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatDateForGoogle(utcString: string): string {
+  return new Date(utcString).toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+}
+
+function formatDateForIcs(utcString: string, timezone: string): string {
+  const date = new Date(utcString);
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  return `${get("year")}${get("month")}${get("day")}T${hour}${get("minute")}${get("second")}`;
+}
+
+function escapeIcsText(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+
+function buildIcsContent(params: {
+  title: string;
+  startUtc: string;
+  endUtc: string;
+  timezone: string;
+  location: string;
+  description: string;
+  url: string;
+  uid: string;
+}): string {
+  const dtstart = formatDateForIcs(params.startUtc, params.timezone);
+  const dtend = formatDateForIcs(params.endUtc, params.timezone);
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//DanceResource//Events//EN",
+    "BEGIN:VEVENT",
+    `UID:${params.uid}@danceresource.org`,
+    `DTSTART;TZID=${params.timezone}:${dtstart}`,
+    `DTEND;TZID=${params.timezone}:${dtend}`,
+    `SUMMARY:${escapeIcsText(params.title)}`,
+    `LOCATION:${escapeIcsText(params.location)}`,
+    `DESCRIPTION:${escapeIcsText(params.description)}`,
+    `URL:${params.url}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ];
+  return lines.join("\r\n");
+}
+
+function downloadIcs(content: string, filename: string): void {
+  const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 const URL_REGEX = /https?:\/\/[^\s<>"']+[^\s<>"'.,!?)]/g;
@@ -156,6 +230,8 @@ export function EventDetailClient({
   const [notFound, setNotFound] = useState(false);
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
   const [descExpanded, setDescExpanded] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
+  const calRef = useRef<HTMLDivElement>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
   useEffect(() => {
@@ -322,6 +398,28 @@ export function EventDetailClient({
     return stripped.length > 160 ? `${stripped.slice(0, 160)}...` : stripped;
   }, [sanitizedDescriptionHtml]);
 
+  const calDescriptionBody = useMemo(() => {
+    if (!sanitizedDescriptionHtml) return "";
+    const text = stripHtml(sanitizedDescriptionHtml);
+    if (text.length <= 200) return text;
+    // Forward search: find first sentence end at or after 200 chars, within 300
+    const sentenceEnd = /[.!?](?:\s|$)/g;
+    let breakAt = -1;
+    let m;
+    while ((m = sentenceEnd.exec(text)) !== null) {
+      const pos = m.index + 1; // include punctuation, exclude trailing space
+      if (pos >= 200 && pos <= 300) { breakAt = pos; break; }
+      if (m.index >= 300) break;
+    }
+    // Fallback: last sentence end before 300
+    if (breakAt === -1) {
+      const slice = text.slice(0, 300);
+      const last = Math.max(slice.lastIndexOf(". "), slice.lastIndexOf("! "), slice.lastIndexOf("? "));
+      breakAt = last > 0 ? last + 1 : Math.min(text.length, 300);
+    }
+    return text.slice(0, breakAt).trimEnd();
+  }, [sanitizedDescriptionHtml]);
+
   useEffect(() => {
     if (!data) {
       return;
@@ -341,6 +439,17 @@ export function EventDetailClient({
   useEffect(() => {
     writeTimeDisplayMode(timeDisplayMode);
   }, [timeDisplayMode]);
+
+  useEffect(() => {
+    if (!calOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (calRef.current && !calRef.current.contains(e.target as Node)) {
+        setCalOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [calOpen]);
 
   if (notFound) {
     return (
@@ -412,6 +521,43 @@ export function EventDetailClient({
   const hasGeo = mapLat !== null && mapLng !== null;
   const isLongDesc = (sanitizedDescriptionHtml?.length ?? 0) > 800;
 
+  const calEventTitle = data?.event.title ?? "";
+  const calStartUtc = data?.event.single_start_at ?? null;
+  const calEndUtc = data?.event.single_end_at ?? null;
+  const calTimezone = data?.event.event_timezone ?? "UTC";
+  const calLocation = data?.defaultLocation
+    ? [data.defaultLocation.city, data.defaultLocation.country_code ? getCountryLabel(data.defaultLocation.country_code) : null].filter(Boolean).join(", ")
+    : "";
+  const calUrl = typeof window !== "undefined" ? window.location.href : `https://events.danceresource.org/events/${data?.event.id ?? ""}`;
+  const calGoogleDetails = calDescriptionBody ? `${calUrl}\n\n${calDescriptionBody}` : calUrl;
+  const calUid = data?.event.id ?? "";
+
+  function handleGoogleCalendar() {
+    if (!calStartUtc || !calEndUtc) return;
+    const start = formatDateForGoogle(calStartUtc);
+    const end = formatDateForGoogle(calEndUtc);
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calEventTitle)}&dates=${start}/${end}&location=${encodeURIComponent(calLocation)}&details=${encodeURIComponent(calGoogleDetails)}`;
+    window.open(url, "_blank", "noreferrer");
+    setCalOpen(false);
+  }
+
+  function handleDownloadIcs() {
+    if (!calStartUtc || !calEndUtc) return;
+    const content = buildIcsContent({
+      title: calEventTitle,
+      startUtc: calStartUtc,
+      endUtc: calEndUtc,
+      timezone: calTimezone,
+      location: calLocation,
+      description: calDescriptionBody,
+      url: calUrl,
+      uid: calUid,
+    });
+    const filename = calEventTitle.replace(/[^a-z0-9]/gi, "-").toLowerCase().slice(0, 40) + ".ics";
+    downloadIcs(content, filename);
+    setCalOpen(false);
+  }
+
   return (
     <article className="event-detail panel">
       {/* Breadcrumb */}
@@ -465,7 +611,32 @@ export function EventDetailClient({
       <div className="event-detail-meta-grid">
         {data.event.schedule_kind === "single" && whenFormatted && (
           <div className="event-detail-meta-item">
-            <span className="event-detail-meta-label">{t("eventDetail.when")}</span>
+            <span className="event-detail-meta-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {t("eventDetail.when")}
+              <span className="cal-wrap" ref={calRef}>
+                <button
+                  type="button"
+                  className="cal-trigger"
+                  onClick={() => setCalOpen((v) => !v)}
+                  aria-label="Add to calendar"
+                  aria-expanded={calOpen}
+                >
+                  <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 3 }}>
+                    <rect x="1" y="2" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+                    <path d="M1 6h12" stroke="currentColor" strokeWidth="1.4"/>
+                    <path d="M4 1v2M10 1v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  </svg>
+                  Add to calendar
+                </button>
+                {calOpen && (
+                  <div className="cal-dropdown" role="menu">
+                    <button type="button" role="menuitem" onClick={handleGoogleCalendar}>Google Calendar</button>
+                    <button type="button" role="menuitem" onClick={handleDownloadIcs}>Apple Calendar (.ics)</button>
+                    <button type="button" role="menuitem" onClick={handleDownloadIcs}>Outlook (.ics)</button>
+                  </div>
+                )}
+              </span>
+            </span>
             <span className="event-detail-meta-value">
               {whenLabel}
             </span>

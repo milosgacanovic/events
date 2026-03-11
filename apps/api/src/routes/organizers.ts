@@ -97,9 +97,7 @@ function mapOrganizerDetail(result: Record<string, unknown>) {
     (typeof organizer.image_url === "string" ? organizer.image_url : null)
     ?? (typeof organizer.avatar_path === "string" ? organizer.avatar_path : null);
 
-  const organizerLanguages = sanitizeLanguageCodes(organizer.languages);
-  const derivedLanguages = sanitizeLanguageCodes(result.derivedLanguages);
-  const effectiveLanguages = organizerLanguages.length > 0 ? organizerLanguages : derivedLanguages;
+  const effectiveLanguages = sanitizeLanguageCodes(organizer.languages);
 
   const upcomingOccurrences = Array.isArray(result.upcomingOccurrences)
     ? result.upcomingOccurrences.map((item) => {
@@ -233,25 +231,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: "not_found" };
     }
 
-    const derivedLanguages = result.upcomingOccurrences.length > 0
-      ? await app.db.query<{ language: string }>(
-        `
-          select distinct lower(ev.language) as language
-          from event_organizers rel
-          join events e on e.id = rel.event_id
-          left join lateral unnest(e.languages) as ev(language) on true
-          where rel.organizer_id = $1
-            and e.status = 'published'
-            and ev.language is not null
-        `,
-        [result.organizer.id],
-      ).then((queryResult) => queryResult.rows.map((row) => row.language))
-      : [];
-
-    return mapOrganizerDetail({
-      ...(result as unknown as Record<string, unknown>),
-      derivedLanguages,
-    });
+    return mapOrganizerDetail(result as unknown as Record<string, unknown>);
   });
 
   app.post("/organizers", async (request, reply) => {

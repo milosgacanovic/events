@@ -121,40 +121,18 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
 
   if (filters.languages?.length) {
     values.push(filters.languages);
-    whereParts.push(`
-      (
-        o.languages && $${values.length}::text[]
-        or exists (
-          select 1
-          from event_organizers eo
-          join events e on e.id = eo.event_id
-          where eo.organizer_id = o.id
-            and e.status = 'published'
-            and e.languages && $${values.length}::text[]
-        )
-      )
-    `);
+    whereParts.push(`o.languages && $${values.length}::text[]`);
   }
 
   if (filters.roleKeys?.length) {
     values.push(filters.roleKeys);
     whereParts.push(`
-      (
-        exists (
-          select 1
-          from organizer_profile_roles opr
-          join organizer_roles r on r.id = opr.role_id
-          where opr.organizer_id = o.id
-            and r.key = any($${values.length}::text[])
-        )
-        or exists (
-          select 1
-          from event_organizers eo
-          join events e on e.id = eo.event_id and e.status = 'published'
-          join organizer_roles r on r.id = eo.role_id
-          where eo.organizer_id = o.id
-            and r.key = any($${values.length}::text[])
-        )
+      exists (
+        select 1
+        from organizer_profile_roles opr
+        join organizer_roles r on r.id = opr.role_id
+        where opr.organizer_id = o.id
+          and r.key = any($${values.length}::text[])
       )
     `);
   }
@@ -162,20 +140,11 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
   if (filters.practiceCategoryIds?.length) {
     values.push(filters.practiceCategoryIds);
     whereParts.push(`
-      (
-        exists (
-          select 1
-          from organizer_practices op
-          where op.organizer_id = o.id
-            and op.practice_id = any($${values.length}::uuid[])
-        )
-        or exists (
-          select 1
-          from event_organizers eo
-          join events e on e.id = eo.event_id and e.status = 'published'
-          where eo.organizer_id = o.id
-            and e.practice_category_id = any($${values.length}::uuid[])
-        )
+      exists (
+        select 1
+        from organizer_practices op
+        where op.organizer_id = o.id
+          and op.practice_id = any($${values.length}::uuid[])
       )
     `);
   }
@@ -199,10 +168,16 @@ function buildOrganizerWhere(filters: Omit<OrganizerSearchInput, "page" | "pageS
     .filter(Boolean);
   if (normalizedCities.length === 1) {
     values.push(normalizedCities[0]);
-    whereParts.push(`lower(o.city) = $${values.length}`);
+    whereParts.push(`(lower(o.city) = $${values.length} or exists (
+      select 1 from organizer_locations ol
+      where ol.organizer_id = o.id and lower(ol.city) = $${values.length}
+    ))`);
   } else if (normalizedCities.length > 1) {
     values.push(normalizedCities);
-    whereParts.push(`lower(o.city) = any($${values.length}::text[])`);
+    whereParts.push(`(lower(o.city) = any($${values.length}::text[]) or exists (
+      select 1 from organizer_locations ol
+      where ol.organizer_id = o.id and lower(ol.city) = any($${values.length}::text[])
+    ))`);
   }
 
   return {
@@ -234,12 +209,8 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
         select
           o.*,
           page.total_count,
-          coalesce(nullif(profile_role_meta.role_keys, '{}'::text[]), role_meta.role_keys, '{}'::text[]) as role_keys,
-          coalesce(
-            nullif(profile_practice_meta.practice_category_ids, '{}'::text[]),
-            role_meta.practice_category_ids,
-            '{}'::text[]
-          ) as practice_category_ids
+          coalesce(profile_role_meta.role_keys, '{}'::text[]) as role_keys,
+          coalesce(profile_practice_meta.practice_category_ids, '{}'::text[]) as practice_category_ids
         from (
           select id, count(*) over() as total_count from organizers o
           where ${whereSql}
@@ -259,15 +230,6 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
           from organizer_practices op
           where op.organizer_id = o.id
         ) profile_practice_meta on true
-        left join lateral (
-          select
-            array_agg(distinct r.key order by r.key) as role_keys,
-            array_agg(distinct e.practice_category_id::text order by e.practice_category_id::text) as practice_category_ids
-          from event_organizers eo
-          join organizer_roles r on r.id = eo.role_id
-          join events e on e.id = eo.event_id and e.status = 'published'
-          where eo.organizer_id = o.id
-        ) role_meta on true
         order by o.name asc
       `,
       [...values, pageSize, offset],
@@ -279,17 +241,21 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
           from organizers o
           where ${whereSql}
         ),
-        eo_data as (
-          select eo.organizer_id, r.key as role_key, e.practice_category_id::text as practice_id
+        profile_role_data as (
+          select opr.organizer_id, r.key as role_key
           from filtered f
-          join event_organizers eo on eo.organizer_id = f.id
-          join events e on e.id = eo.event_id and e.status = 'published'
-          join organizer_roles r on r.id = eo.role_id
+          join organizer_profile_roles opr on opr.organizer_id = f.id
+          join organizer_roles r on r.id = opr.role_id
+        ),
+        profile_practice_data as (
+          select op.organizer_id, op.practice_id::text as practice_id
+          from filtered f
+          join organizer_practices op on op.organizer_id = f.id
         )
         select
-          (select coalesce(json_object_agg(role_key, cnt), '{}') from (select role_key, count(distinct organizer_id) as cnt from eo_data group by role_key) x) as role_facets,
+          (select coalesce(json_object_agg(role_key, cnt), '{}') from (select role_key, count(distinct organizer_id) as cnt from profile_role_data group by role_key) x) as role_facets,
           (select coalesce(json_object_agg(language, cnt), '{}') from (select language, count(*) as cnt from filtered cross join unnest(languages) as language group by language) x) as language_facets,
-          (select coalesce(json_object_agg(practice_id, cnt), '{}') from (select practice_id, count(distinct organizer_id) as cnt from eo_data where practice_id is not null group by practice_id) x) as practice_facets,
+          (select coalesce(json_object_agg(practice_id, cnt), '{}') from (select practice_id, count(distinct organizer_id) as cnt from profile_practice_data where practice_id is not null group by practice_id) x) as practice_facets,
           (select coalesce(json_object_agg(cc, cnt), '{}') from (select lower(country_code) as cc, count(*) as cnt from filtered where country_code is not null group by lower(country_code)) x) as country_facets,
           (select coalesce(json_object_agg(city, cnt), '{}') from (select lower(city) as city, count(*) as cnt from filtered where city is not null and city <> '' group by lower(city)) x) as city_facets,
           (select coalesce(json_object_agg(tag, cnt), '{}') from (select tag, count(*) as cnt from filtered cross join unnest(tags) as tag group by tag) x) as tag_facets
@@ -444,44 +410,19 @@ export async function getOrganizerBySlug(
 
   const practiceCategories = await pool.query<{ practice_category_id: string }>(
     `
-      with profile_practices as (
-        select distinct op.practice_id::text as practice_category_id
-        from organizer_practices op
-        where op.organizer_id = $1
-      ),
-      event_practices as (
-        select distinct e.practice_category_id::text as practice_category_id
-        from event_organizers rel
-        join events e on e.id = rel.event_id
-        where rel.organizer_id = $1
-          and e.status in ('published', 'cancelled')
-      )
-      select distinct practice_category_id from profile_practices
-      union
-      select distinct practice_category_id from event_practices
+      select op.practice_id::text as practice_category_id
+      from organizer_practices op
+      where op.organizer_id = $1
     `,
     [organizer.rows[0].id],
   );
 
   const roleKeys = await pool.query<{ role_key: string }>(
     `
-      with profile_roles as (
-        select distinct r.key as role_key
-        from organizer_profile_roles opr
-        join organizer_roles r on r.id = opr.role_id
-        where opr.organizer_id = $1
-      ),
-      event_roles as (
-        select distinct r.key as role_key
-        from event_organizers eo
-        join organizer_roles r on r.id = eo.role_id
-        join events e on e.id = eo.event_id
-        where eo.organizer_id = $1
-          and e.status in ('published', 'cancelled')
-      )
-      select distinct role_key from profile_roles
-      union
-      select distinct role_key from event_roles
+      select r.key as role_key
+      from organizer_profile_roles opr
+      join organizer_roles r on r.id = opr.role_id
+      where opr.organizer_id = $1
     `,
     [organizer.rows[0].id],
   );
