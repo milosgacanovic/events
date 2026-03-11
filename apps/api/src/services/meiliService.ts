@@ -173,7 +173,7 @@ export class MeilisearchService {
         practice_category_id: row.practice_category_id,
         practice_subcategory_id: row.practice_subcategory_id,
         event_format_id: row.event_format_id,
-        tags: row.tags,
+        tags: row.tags.map((t: string) => t.toLowerCase()),
         languages: row.languages,
         visibility: row.visibility,
         organizer_ids: row.organizer_ids,

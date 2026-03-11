@@ -320,7 +320,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const timezone = resolveSafeTimeZone(parsed.data.tz);
     const eventDateRangeMap = buildEventDateRangeMap(timezone, now);
     const selectedEventDateRanges = eventDatePresets.map((preset) => eventDateRangeMap[preset]);
-    const tags = csvToList(parsed.data.tags);
+    const tags = csvToList(parsed.data.tags).map((t) => t.toLowerCase());
     const languages = csvToList(parsed.data.languages);
     const rawAttendanceModes = csvToList(parsed.data.attendanceMode);
     const attendanceModes = rawAttendanceModes.filter(

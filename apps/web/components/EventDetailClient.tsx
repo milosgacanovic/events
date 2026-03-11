@@ -59,6 +59,7 @@ export type EventDetail = {
     practice_category_id: string;
     practice_subcategory_id: string | null;
     event_format_id: string | null;
+    tags: string[];
   };
   organizers: Array<{
     organizer_id: string;
@@ -249,6 +250,14 @@ export function EventDetailClient({
     const map = new Map<string, string>();
     for (const category of taxonomy?.practices.categories ?? []) {
       map.set(category.id, category.label);
+    }
+    return map;
+  }, [taxonomy]);
+
+  const categoryKeyById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const category of taxonomy?.practices.categories ?? []) {
+      if (category.key) map.set(category.id, category.key);
     }
     return map;
   }, [taxonomy]);
@@ -458,7 +467,7 @@ export function EventDetailClient({
           <div className="event-detail-meta-item">
             <span className="event-detail-meta-label">{t("eventDetail.when")}</span>
             <span className="event-detail-meta-value">
-              {data.event.attendance_mode !== "online" ? `${whenLabel} · ${modalityLabel}` : whenLabel}
+              {whenLabel}
             </span>
             <label className="toggle-control toggle-control-sm" style={{ marginTop: 6 }}>
               <input
@@ -483,11 +492,15 @@ export function EventDetailClient({
           ) : (
             <>
               <span className="event-detail-meta-value">
-                {data.defaultLocation?.city ?? data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd")}
+                {data.defaultLocation?.city && data.defaultLocation?.country_code ? (
+                  <Link href={`/events?city=${encodeURIComponent(data.defaultLocation.city.toLowerCase())}&countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit", textDecoration: "none" }}>{data.defaultLocation.city}</Link>
+                ) : (
+                  data.defaultLocation?.city ?? data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd")
+                )}
               </span>
               {data.defaultLocation?.country_code && (
                 <span className="event-detail-meta-value" style={{ color: "var(--muted)" }}>
-                  {getCountryLabel(data.defaultLocation.country_code)}
+                  <Link href={`/events?countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit", textDecoration: "none" }}>{getCountryLabel(data.defaultLocation.country_code)}</Link>
                 </span>
               )}
             </>
@@ -511,7 +524,7 @@ export function EventDetailClient({
         <div className="event-detail-meta-item">
           <span className="event-detail-meta-label">{categorySingularLabel}</span>
           <span className="event-detail-meta-value">
-            {categoryLabel}
+            <Link href={categoryKeyById.get(data.event.practice_category_id) ? `/events?practice=${categoryKeyById.get(data.event.practice_category_id)}` : `/events?practiceCategoryId=${data.event.practice_category_id}`}>{categoryLabel}</Link>
             {data.event.practice_subcategory_id
               ? ` / ${subcategoryById.get(data.event.practice_subcategory_id) ?? data.event.practice_subcategory_id}`
               : ""}
@@ -520,13 +533,33 @@ export function EventDetailClient({
         {eventFormatLabel && (
           <div className="event-detail-meta-item">
             <span className="event-detail-meta-label">{t("eventSearch.eventFormat")}</span>
-            <span className="event-detail-meta-value">{eventFormatLabel}</span>
+            <span className="event-detail-meta-value"><Link href={`/events?eventFormatId=${data.event.event_format_id}`}>{eventFormatLabel}</Link></span>
           </div>
         )}
+        <div className="event-detail-meta-item">
+          <span className="event-detail-meta-label">{t("eventDetail.attendance")}</span>
+          <span className="event-detail-meta-value">
+            <Link href={`/events?attendanceMode=${data.event.attendance_mode}`}>{modalityLabel}</Link>
+          </span>
+        </div>
         {data.event.languages.length > 0 && (
           <div className="event-detail-meta-item">
             <span className="event-detail-meta-label">{data.event.languages.length === 1 ? t("eventDetail.metadata.language") : t("eventDetail.metadata.languages")}</span>
-            <span className="event-detail-meta-value">{data.event.languages.map((l) => getLanguageLabel(l)).join(", ")}</span>
+            <span className="event-detail-meta-value">
+              {data.event.languages.map((l, i) => (
+                <span key={l}>{i > 0 && ", "}<Link href={`/events?languages=${l}`}>{getLanguageLabel(l)}</Link></span>
+              ))}
+            </span>
+          </div>
+        )}
+        {(data.event.tags?.length ?? 0) > 0 && (
+          <div className="event-detail-meta-item">
+            <span className="event-detail-meta-label">{t("organizerDetail.tags")}</span>
+            <span className="event-detail-meta-value">
+              {data.event.tags.map((tag, i) => (
+                <span key={tag}>{i > 0 && " · "}<Link href={`/events?tags=${encodeURIComponent(tag)}`}>{tag}</Link></span>
+              ))}
+            </span>
           </div>
         )}
       </div>

@@ -130,7 +130,13 @@ export function OrganizerSearchClient({
   const [languageOpen, setLanguageOpen] = useState((initialQuery?.languages?.length ?? 0) > 0);
   const [countryOpen, setCountryOpen] = useState((initialQuery?.countryCodes?.length ?? 0) > 0);
   const restoredKeyRef = useRef<string | null>(null);
+  const skipSearchAfterRestoreRef = useRef(false);
+  const cacheRestoreInProgressRef = useRef(false);
+  const cachedScrollYRef = useRef<number | null>(null);
+  const lastRestoredKeyRef = useRef<string | null>(null);
+  const cacheRestoredPageRef = useRef<number | null>(null);
   const syncingFromUrlRef = useRef(false);
+  const facetRequestRef = useRef(0);
   const isTypingQRef = useRef(false);
   const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cityInputRef = useRef<HTMLInputElement | null>(null);
@@ -162,6 +168,12 @@ export function OrganizerSearchClient({
   }, []);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.history.scrollRestoration !== "manual") {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
+
+  useEffect(() => {
     if (initialTaxonomy) return;
     fetchJson<TaxonomyResponse>("/meta/taxonomies")
       .then(setTaxonomy)
@@ -182,6 +194,21 @@ export function OrganizerSearchClient({
     if (showArchived) params.set("showArchived", "true");
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
+    return params.toString();
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, showArchived]);
+
+  const buildFacetQueryString = useCallback((exclude: "roleKey" | "practiceCategoryId" | "languages" | "countryCode") => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (exclude !== "roleKey" && roleKeys.length) params.set("roleKey", roleKeys.join(","));
+    if (exclude !== "practiceCategoryId" && practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+    if (tags.length) params.set("tags", tags.join(","));
+    if (exclude !== "languages" && languages.length) params.set("languages", languages.join(","));
+    if (exclude !== "countryCode" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
+    if (cities.length) params.set("city", cities.join(","));
+    if (showArchived) params.set("showArchived", "true");
+    params.set("page", "1");
+    params.set("pageSize", "1");
     return params.toString();
   }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, showArchived]);
 
@@ -271,9 +298,12 @@ export function OrganizerSearchClient({
   }, [loading, loadingMore]);
 
   const scrollStorageKey = useMemo(() => {
-    const query = buildUiQueryString();
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    params.sort();
+    const query = params.toString();
     return `search-scroll:${pathname}${query ? `?${query}` : ""}`;
-  }, [buildUiQueryString, pathname]);
+  }, [searchParams, pathname]);
 
   const persistScroll = useCallback(() => {
     if (typeof window === "undefined") {
@@ -287,6 +317,37 @@ export function OrganizerSearchClient({
       }),
     );
   }, [scrollStorageKey]);
+
+  const clearSearchCache = useCallback(() => {
+    try { sessionStorage.removeItem("search-cache-snapshot"); } catch { /* ignore */ }
+  }, []);
+
+  const onNavigateAway = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      const params = new URLSearchParams(url.search);
+      params.delete("page");
+      params.sort();
+      const query = params.toString();
+      const key = `search-scroll:${url.pathname}${query ? `?${query}` : ""}`;
+      const snapshot = {
+        key,
+        y: window.scrollY,
+        ts: Date.now(),
+        accumulatedItems,
+        page,
+        total: data?.total ?? 0,
+        facets: {
+          roleKey: roleFacetCounts,
+          practiceCategoryId: practiceFacetCounts,
+          languages: languageFacetCounts,
+          countryCode: countryFacetCounts,
+        },
+      };
+      sessionStorage.setItem("search-cache-snapshot", JSON.stringify(snapshot));
+    } catch { /* ignore */ }
+  }, [accumulatedItems, page, data?.total, roleFacetCounts, practiceFacetCounts, languageFacetCounts, countryFacetCounts]);
 
   const runSearch = useCallback(async (nextPage = page) => {
     const appendMode = isLoadMoreRef.current;
@@ -313,10 +374,6 @@ export function OrganizerSearchClient({
         setAccumulatedItems(result.items);
       }
       setPage(nextPage);
-      setPracticeFacetCounts(result.facets?.practiceCategoryId ?? {});
-      setRoleFacetCounts(result.facets?.roleKey ?? {});
-      setLanguageFacetCounts(result.facets?.languages ?? {});
-      setCountryFacetCounts(result.facets?.countryCode ?? {});
     } catch (err) {
       setError(canSeeDetailedErrors && err instanceof Error ? err.message : t("organizerSearch.error.searchFailed"));
     } finally {
@@ -326,11 +383,60 @@ export function OrganizerSearchClient({
   }, [buildQueryString, canSeeDetailedErrors, page, t, showArchived, auth]);
 
   useEffect(() => {
+    // Try restoring from snapshot saved by onNavigateAway (host card click)
+    if (lastRestoredKeyRef.current !== scrollStorageKey) {
+      try {
+        const raw = sessionStorage.getItem("search-cache-snapshot");
+        if (raw) {
+          const cached = JSON.parse(raw) as {
+            key?: string;
+            y?: number;
+            ts?: number;
+            accumulatedItems?: OrganizerSearchResponse["items"];
+            page?: number;
+            total?: number;
+          };
+          const age = Date.now() - (cached.ts ?? 0);
+          if (
+            cached.key === scrollStorageKey &&
+            cached.accumulatedItems?.length &&
+            typeof cached.ts === "number" &&
+            age < 30 * 60 * 1000
+          ) {
+            sessionStorage.removeItem("search-cache-snapshot");
+            lastRestoredKeyRef.current = scrollStorageKey;
+            cacheRestoredPageRef.current = cached.page ?? 1;
+            cacheRestoreInProgressRef.current = true;
+            cachedScrollYRef.current = cached.y ?? null;
+            setAccumulatedItems(cached.accumulatedItems);
+            setPage(cached.page ?? 1);
+            isLoadMorePageRef.current = true;
+            skipSearchAfterRestoreRef.current = true;
+            setData({
+              items: cached.accumulatedItems.slice(-20),
+              total: cached.total ?? 0,
+              pagination: {
+                page: cached.page ?? 1,
+                pageSize: 20,
+                totalPages: Math.ceil((cached.total ?? 0) / 20),
+              },
+            });
+            return;
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (skipSearchAfterRestoreRef.current) {
+      skipSearchAfterRestoreRef.current = false;
+      return;
+    }
+
     const timer = setTimeout(() => {
       void runSearch(page);
     }, 250);
     return () => clearTimeout(timer);
-  }, [runSearch, page]);
+  }, [runSearch, page, scrollStorageKey]);
 
   useEffect(() => {
     if (syncingFromUrlRef.current) {
@@ -342,13 +448,18 @@ export function OrganizerSearchClient({
     }
     const timer = setTimeout(() => {
       const queryString = buildUiQueryString();
-      router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+      const url = queryString ? `${pathname}?${queryString}` : pathname;
+      window.history.replaceState(window.history.state, "", url);
     }, 250);
     return () => clearTimeout(timer);
-  }, [buildUiQueryString, pathname, router]);
+  }, [buildUiQueryString, pathname]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!data) {
       return;
     }
 
@@ -356,6 +467,16 @@ export function OrganizerSearchClient({
       return;
     }
     restoredKeyRef.current = scrollStorageKey;
+
+    if (cachedScrollYRef.current !== null) {
+      const scrollY = cachedScrollYRef.current;
+      cachedScrollYRef.current = null;
+      cacheRestoreInProgressRef.current = false;
+      if (scrollY > 0) {
+        setTimeout(() => window.scrollTo(0, scrollY), 50);
+      }
+      return;
+    }
 
     const raw = sessionStorage.getItem(scrollStorageKey);
     if (!raw) {
@@ -370,12 +491,11 @@ export function OrganizerSearchClient({
       if (Date.now() - parsed.ts > 30 * 60 * 1000) {
         return;
       }
-      const { y } = parsed;
-      window.setTimeout(() => window.scrollTo(0, y), 0);
+      window.setTimeout(() => window.scrollTo(0, parsed.y as number), 0);
     } catch {
       // ignore invalid persisted scroll data
     }
-  }, [scrollStorageKey]);
+  }, [scrollStorageKey, data]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -389,6 +509,26 @@ export function OrganizerSearchClient({
       window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, [persistScroll]);
+
+  useEffect(() => {
+    const requestId = facetRequestRef.current + 1;
+    facetRequestRef.current = requestId;
+    const timer = setTimeout(() => {
+      void Promise.all([
+        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("roleKey")}`),
+        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("practiceCategoryId")}`),
+        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("languages")}`),
+        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("countryCode")}`),
+      ]).then(([roleResult, practiceResult, languageResult, countryResult]) => {
+        if (requestId !== facetRequestRef.current) return;
+        setRoleFacetCounts(roleResult?.facets?.roleKey ?? {});
+        setPracticeFacetCounts(practiceResult?.facets?.practiceCategoryId ?? {});
+        setLanguageFacetCounts(languageResult?.facets?.languages ?? {});
+        setCountryFacetCounts(countryResult?.facets?.countryCode ?? {});
+      }).catch(() => { /* keep existing counts on error */ });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [buildFacetQueryString]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -619,6 +759,7 @@ export function OrganizerSearchClient({
     setCityQuery("");
     setPage(1);
     setAccumulatedItems([]);
+    clearSearchCache();
   }
 
   const activeFilterCount = selectedChips.length;
@@ -643,6 +784,7 @@ export function OrganizerSearchClient({
             typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 400);
             setQ(event.target.value);
             setPage(1);
+            clearSearchCache();
           }}
           placeholder={t("organizerSearch.placeholder.searchName")}
         />
@@ -836,6 +978,7 @@ export function OrganizerSearchClient({
           </div>
         )}
 
+        {/* Tags filter hidden
         <div className="autocomplete-wrap">
           <input
             value={tagQuery}
@@ -892,6 +1035,7 @@ export function OrganizerSearchClient({
             ))}
           </div>
         )}
+        */}
         {isEditor && (
           <label className="meta">
             <input
@@ -996,7 +1140,7 @@ export function OrganizerSearchClient({
           const pills = item.languages.map((l) => getLanguageLabel(l));
           const imageUrl = item.imageUrl || item.avatar_path || null;
           return (
-            <Link className="card host-card-h" key={item.id} href={`/hosts/${item.slug}`} onClick={persistScroll}>
+            <Link className="card host-card-h" key={item.id} href={`/hosts/${item.slug}`} onClick={onNavigateAway}>
               <div
                 className="host-card-avatar"
                 style={{ background: imageUrl ? undefined : `var(--category-${primaryCatKey}, var(--surface-skeleton))` }}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import DOMPurify from "dompurify";
 import { useEffect, useState } from "react";
 
@@ -64,6 +65,7 @@ type TaxonomyResponse = {
   practices: {
     categories: Array<{
       id: string;
+      key?: string;
       label: string;
     }>;
   };
@@ -170,7 +172,11 @@ function extractDescriptionSections(value: unknown): DescriptionSections {
 
 export function OrganizerDetailClient({ slug }: { slug: string }) {
   const { locale, t } = useI18n();
+  const router = useRouter();
   const auth = useKeycloakAuth();
+  const [cameFromSearch] = useState(() => {
+    try { return !!sessionStorage.getItem("search-cache-snapshot"); } catch { return false; }
+  });
   const [data, setData] = useState<OrganizerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
@@ -224,13 +230,35 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
     return raw ? linkifyHtml(raw) : null;
   })();
 
+  const breadcrumb = (
+    <nav className="event-detail-breadcrumb">
+      {cameFromSearch ? (
+        <a href="/hosts" onClick={(e) => { e.preventDefault(); router.back(); }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 4 }}><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {t("nav.organizers")}
+        </a>
+      ) : (
+        <Link href="/hosts">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 4 }}><path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {t("nav.organizers")}
+        </Link>
+      )}
+    </nav>
+  );
+
   if (error) {
-    return <div className="panel">{error}</div>;
+    return (
+      <section className="panel cards">
+        {breadcrumb}
+        <div className="panel">{error}</div>
+      </section>
+    );
   }
 
   if (!data) {
     return (
       <section className="panel cards">
+        {breadcrumb}
         <h1 className="title-xl">{t("organizerDetail.loading")}</h1>
         <div className="skeleton-line" />
         <div className="skeleton-line short" />
@@ -278,6 +306,16 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   const practiceLabels = (data.practiceCategoryIds ?? [])
     .map((item) => practiceLabelById.get(item))
     .filter((item): item is string => Boolean(item));
+  const practiceKeyById = (() => {
+    const map = new Map<string, string>();
+    for (const category of taxonomy?.practices.categories ?? []) {
+      if (category.key) map.set(category.id, category.key);
+    }
+    return map;
+  })();
+  const practiceEntries = (data.practiceCategoryIds ?? [])
+    .map((id) => ({ id, key: practiceKeyById.get(id), label: practiceLabelById.get(id) }))
+    .filter((e): e is { id: string; key: string; label: string } => Boolean(e.label && e.key));
   const roleLabels = Array.from(new Set(data.organizer.roleKeys ?? []));
   const canFollowHost = auth.authenticated && data.locations.some((location) =>
     location.lat !== null && location.lat !== undefined && location.lng !== null && location.lng !== undefined
@@ -326,6 +364,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
 
   return (
     <section className="panel cards">
+      {breadcrumb}
       <div className="organizer-profile-header">
         <div className="organizer-avatar-shell" aria-hidden={!organizerImage}>
           {organizerImage ? (
@@ -371,22 +410,34 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
         </div>
       )}
       <dl className="org-info-grid">
-        {practiceLabels.length > 0 && (
+        {practiceEntries.length > 0 && (
           <>
-            <dt>{practiceLabels.length === 1 ? (categorySingularLabel) : `${categorySingularLabel}s`}</dt>
-            <dd>{practiceLabels.join(" · ")}</dd>
+            <dt>{practiceEntries.length === 1 ? (categorySingularLabel) : `${categorySingularLabel}s`}</dt>
+            <dd>
+              {practiceEntries.map((e, i) => (
+                <span key={e.id}>{i > 0 && " · "}<Link href={`/hosts?practice=${e.key}`}>{e.label}</Link></span>
+              ))}
+            </dd>
           </>
         )}
         {roleLabels.length > 0 && (
           <>
             <dt>{roleLabels.length === 1 ? t("organizerDetail.role") : t("organizerDetail.roles")}</dt>
-            <dd>{roleLabels.join(" · ")}</dd>
+            <dd>
+              {roleLabels.map((key, i) => (
+                <span key={key}>{i > 0 && " · "}<Link href={`/hosts?roleKey=${key}`}>{key}</Link></span>
+              ))}
+            </dd>
           </>
         )}
         {data.organizer.languages.length > 0 && (
           <>
             <dt>{data.organizer.languages.length === 1 ? t("organizerDetail.language") : t("organizerDetail.languages")}</dt>
-            <dd>{data.organizer.languages.map((l) => labelForLanguageCode(l, languageNames)).join(" · ")}</dd>
+            <dd>
+              {data.organizer.languages.map((code, i) => (
+                <span key={code}>{i > 0 && " · "}<Link href={`/hosts?languages=${code}`}>{labelForLanguageCode(code, languageNames)}</Link></span>
+              ))}
+            </dd>
           </>
         )}
         {displayedLocations.length > 0 && (
@@ -397,8 +448,19 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
                 const locCountry = loc.country_code
                   ? (regionNames?.of(loc.country_code.toUpperCase()) ?? loc.country_code.toUpperCase())
                   : null;
+                if (loc.city && loc.country_code) {
+                  return (
+                    <span key={loc.id} style={{ display: "block" }}>
+                      <Link href={`/hosts?city=${encodeURIComponent(loc.city.toLowerCase())}&countryCode=${loc.country_code}`}>{loc.city}</Link>
+                      {", "}
+                      <Link href={`/hosts?countryCode=${loc.country_code}`} style={{ color: "var(--muted)" }}>{locCountry}</Link>
+                    </span>
+                  );
+                }
                 const label = [loc.city, locCountry].filter(Boolean).join(", ") || loc.formatted_address || t("common.unknown");
-                return <span key={loc.id} style={{ display: "block" }}>{label}</span>;
+                return loc.country_code
+                  ? <Link key={loc.id} href={`/hosts?countryCode=${loc.country_code}`} style={{ display: "block" }}>{label}</Link>
+                  : <span key={loc.id} style={{ display: "block" }}>{label}</span>;
               })}
             </dd>
           </>
