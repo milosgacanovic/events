@@ -135,13 +135,6 @@ function getDescriptionHtml(value: unknown): string | null {
   }
   // Strip "DESCRIPTION " field-label artifact injected by some scrapers
   trimmed = trimmed.replace(/^((?:<[^>]+>)*)\s*DESCRIPTION\s+/i, "$1");
-  // Strip "Source: …" and "Imported by DanceResource.org" lines injected by the importer
-  trimmed = trimmed
-    .replace(/<[^>]+>[^<]*source:\s*[^<]*<\/[^>]+>/gi, "")
-    .replace(/<[^>]+>[^<]*imported\s+by\s+danceresource[^<]*<\/[^>]+>/gi, "")
-    .replace(/source:\s*[^\n<]*/gi, "")
-    .replace(/imported\s+by\s+danceresource[^\n<]*/gi, "")
-    .trim();
   return trimmed || null;
 }
 
