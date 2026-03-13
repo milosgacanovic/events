@@ -14,6 +14,7 @@ import { useGeolocation } from "../lib/useGeolocation";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
+
 export type SearchResponse = {
   hits: Array<{
     occurrenceId: string;
@@ -100,6 +101,8 @@ export type EventSearchInitialQuery = {
   view?: "list" | "map";
   page?: number;
   includePast?: boolean;
+  dateFrom?: string;
+  dateTo?: string;
 };
 
 type EventDatePreset =
@@ -177,6 +180,8 @@ export function EventSearchClient({
   );
   const [cities, setCities] = useState<string[]>(initialQuery?.cities ?? []);
   const [eventDates, setEventDates] = useState<EventDatePreset[]>(initialQuery?.eventDates ?? []);
+  const [customFrom, setCustomFrom] = useState<string>(initialQuery?.dateFrom ?? "");
+  const [customTo, setCustomTo] = useState<string>(initialQuery?.dateTo ?? "");
   const [cityQuery, setCityQuery] = useState("");
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
@@ -199,7 +204,8 @@ export function EventSearchClient({
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
-  const [dateOpen, setDateOpen] = useState((initialQuery?.eventDates?.length ?? 0) > 0);
+  const [dateOpen, setDateOpen] = useState((initialQuery?.eventDates?.length ?? 0) > 0 || !!(initialQuery?.dateFrom) || !!(initialQuery?.dateTo));
+  const [dateRangeOpen, setDateRangeOpen] = useState(!!(initialQuery?.dateFrom) || !!(initialQuery?.dateTo));
   const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);
   const [eventFormatOpen, setEventFormatOpen] = useState((initialQuery?.eventFormatIds?.length ?? 0) > 0);
   const [languageOpen, setLanguageOpen] = useState((initialQuery?.languages?.length ?? 0) > 0);
@@ -401,6 +407,8 @@ export function EventSearchClient({
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
+    if (customFrom) params.set("from", `${customFrom}T00:00:00.000Z`);
+    if (customTo) params.set("to", `${customTo}T23:59:59.999Z`);
     params.set("tz", userTimeZone);
     params.set("sort", sort);
     if (includePast) {
@@ -422,6 +430,8 @@ export function EventSearchClient({
     countryCodes,
     cities,
     eventDates,
+    customFrom,
+    customTo,
     userTimeZone,
     sort,
     includePast,
@@ -446,6 +456,8 @@ export function EventSearchClient({
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
+    if (customFrom) params.set("dateFrom", customFrom);
+    if (customTo) params.set("dateTo", customTo);
     if (sort !== "startsAtAsc") params.set("sort", sort);
     if (view !== "list") params.set("view", view);
     if (page > 1) params.set("page", String(page));
@@ -462,6 +474,8 @@ export function EventSearchClient({
     countryCodes,
     cities,
     eventDates,
+    customFrom,
+    customTo,
     sort,
     view,
     page,
@@ -507,6 +521,28 @@ export function EventSearchClient({
     includePast,
     userTimeZone,
   ]);
+
+  const handleCustomFrom = useCallback((value: string) => {
+    if (value && customTo && value > customTo) {
+      setCustomFrom(customTo);
+      setCustomTo(value);
+    } else {
+      setCustomFrom(value);
+    }
+    if (value) setEventDates([]);
+    setPage(1);
+  }, [customTo]);
+
+  const handleCustomTo = useCallback((value: string) => {
+    if (value && customFrom && value < customFrom) {
+      setCustomTo(customFrom);
+      setCustomFrom(value);
+    } else {
+      setCustomTo(value);
+    }
+    if (value) setEventDates([]);
+    setPage(1);
+  }, [customFrom]);
 
   useEffect(() => {
     const readCsv = (key: string) =>
@@ -888,6 +924,9 @@ export function EventSearchClient({
     setCities([]);
     setCityQuery("");
     setEventDates([]);
+    setCustomFrom("");
+    setCustomTo("");
+    setDateRangeOpen(false);
     setIncludePast(false);
     setPage(1);
     setSort("startsAtAsc");
@@ -1052,6 +1091,19 @@ export function EventSearchClient({
         },
       });
     }
+    if (customFrom || customTo) {
+      const fromLabel = customFrom ? new Date(`${customFrom}T12:00:00Z`).toLocaleDateString(locale, { month: "short", day: "numeric" }) : "";
+      const toLabel = customTo ? new Date(`${customTo}T12:00:00Z`).toLocaleDateString(locale, { month: "short", day: "numeric" }) : "";
+      const label = customFrom && customTo
+        ? `${fromLabel} – ${toLabel}`
+        : customFrom ? `${t("eventSearch.dateFrom")} ${fromLabel}`
+        : `${t("eventSearch.dateTo")} ${toLabel}`;
+      chips.push({
+        key: "customRange",
+        label,
+        onRemove: () => { setCustomFrom(""); setCustomTo(""); setPage(1); },
+      });
+    }
     if (includePast) {
       chips.push({
         key: "includePast",
@@ -1075,6 +1127,9 @@ export function EventSearchClient({
     cities,
     eventDates,
     includePast,
+    customFrom,
+    customTo,
+    locale,
     taxonomy?.eventFormats,
   ]);
 
@@ -1106,6 +1161,15 @@ export function EventSearchClient({
     () => tagSuggestions.filter((item) => !tags.includes(item.tag)),
     [tagSuggestions, tags],
   );
+  const dateFormatHint = useMemo(() => {
+    try {
+      const parts = new Intl.DateTimeFormat(locale, { year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(2013, 10, 25));
+      return parts.map((p) => p.type === "year" ? "yyyy" : p.type === "month" ? "mm" : p.type === "day" ? "dd" : p.value).join("");
+    } catch {
+      return "dd/mm/yyyy";
+    }
+  }, [locale]);
+
   const visibleCitySuggestions = useMemo(
     () => citySuggestions.filter((item) => !cities.some((city) => city.toLowerCase() === item.city.toLowerCase())),
     [citySuggestions, cities],
@@ -1124,6 +1188,8 @@ export function EventSearchClient({
     countryCodes.length ||
     cities.length ||
     eventDates.length ||
+    customFrom ||
+    customTo ||
     includePast
   );
 
@@ -1221,6 +1287,8 @@ export function EventSearchClient({
                         ? current.filter((d) => d !== "this_weekend")
                         : [...current, "this_weekend" as EventDatePreset]
                     );
+                    setCustomFrom("");
+                    setCustomTo("");
                     setPage(1);
                   }}
                 >
@@ -1295,6 +1363,8 @@ export function EventSearchClient({
                       ? current.filter((value) => value !== item.key)
                       : [...current, item.key]
                   ));
+                  setCustomFrom("");
+                  setCustomTo("");
                   setPage(1);
                 }}
               >
@@ -1305,11 +1375,61 @@ export function EventSearchClient({
             ))}
             <button
               type="button"
+              className={"filter-row" + ((customFrom || customTo) ? " filter-row-selected" : "")}
+              onClick={() => {
+                if (dateRangeOpen) {
+                  setDateRangeOpen(false);
+                  setCustomFrom("");
+                  setCustomTo("");
+                  setPage(1);
+                } else {
+                  setDateRangeOpen(true);
+                }
+              }}
+            >
+              <span className="filter-row-icon">{dateRangeOpen ? "\u2212" : "+"}</span>
+              <span className="filter-row-label">{t("eventSearch.dateRange")}</span>
+              <span className="filter-row-count" />
+            </button>
+            {dateRangeOpen && (
+              <div className="date-range-inputs">
+                <label className="date-range-label">
+                  <span>{t("eventSearch.dateFrom")}</span>
+                  <div className="date-input-wrap">
+                    <input
+                      type="date"
+                      className="date-range-input"
+                      value={customFrom}
+                      max={customTo || undefined}
+                      onChange={(e) => handleCustomFrom(e.target.value)}
+                    />
+                    {!customFrom && <span className="date-input-placeholder">{dateFormatHint}</span>}
+                  </div>
+                </label>
+                <label className="date-range-label">
+                  <span>{t("eventSearch.dateTo")}</span>
+                  <div className="date-input-wrap">
+                    <input
+                      type="date"
+                      className="date-range-input"
+                      value={customTo}
+                      min={customFrom || undefined}
+                      onChange={(e) => handleCustomTo(e.target.value)}
+                    />
+                    {!customTo && <span className="date-input-placeholder">{dateFormatHint}</span>}
+                  </div>
+                </label>
+              </div>
+            )}
+            <button
+              type="button"
               className={"filter-row" + (includePast ? " filter-row-selected" : "")}
               onClick={() => {
                 const next = !includePast;
                 setIncludePast(next);
                 setSort(next ? "startsAtDesc" : "startsAtAsc");
+                setCustomFrom("");
+                setCustomTo("");
                 setPage(1);
               }}
             >

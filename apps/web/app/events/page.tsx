@@ -127,6 +127,8 @@ export default async function EventsPage({
     eventDates: csvToList(getSingle(searchParams, "eventDate"))
       .map((item) => item.toLowerCase())
       .filter((item): item is NonNullable<EventSearchInitialQuery["eventDates"]>[number] => eventDateAllowed.has(item)),
+    dateFrom: getSingle(searchParams, "dateFrom") ?? undefined,
+    dateTo: getSingle(searchParams, "dateTo") ?? undefined,
     sort: sortParam === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc",
     view: viewParam === "map" ? "map" : "list",
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,

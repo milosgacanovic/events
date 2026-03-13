@@ -1755,6 +1755,73 @@ label.meta {
   margin-top: 8px;
 }
 
+/* ── Date range inputs ─── */
+.date-range-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 10px 8px 14px;
+  border-left: 2px solid var(--line);
+  margin-left: 16px;
+  margin-bottom: 2px;
+}
+
+.date-range-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.date-range-input {
+  flex: 1;
+  max-width: 140px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  color-scheme: light;
+}
+
+[data-theme="dark"] .date-range-input {
+  color-scheme: dark;
+}
+
+.date-range-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.date-input-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 140px;
+}
+
+.date-input-wrap .date-range-input {
+  max-width: 100%;
+  width: 100%;
+}
+
+
+.date-input-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: 0.02em;
+}
+
 /* ── Filter row (replaces checkboxes) ─── */
 .filter-row {
   display: flex;
