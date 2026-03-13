@@ -201,12 +201,22 @@ function downloadIcs(content: string, filename: string): void {
 }
 
 const URL_REGEX = /https?:\/\/[^\s<>"']+[^\s<>"'.,!?)]/g;
+function getRoleLabel(key: string, t: (k: string) => string): string {
+  const translated = t(`roleType.${key}`);
+  return translated === `roleType.${key}` ? key : translated;
+}
+
 function linkifyHtml(html: string): string {
   return html.replace(/(<a[\s\S]*?<\/a>)|([^<]+)/g, (match, anchor, text) => {
     if (anchor) return anchor;
     if (text) return text.replace(URL_REGEX, (url: string) => `<a href="${url}" target="_blank" rel="noreferrer noopener">${url}</a>`);
     return match;
   });
+}
+
+function getFormatLabel(key: string, label: string, t: (k: string) => string): string {
+  const translated = t(`eventFormat.${key}`);
+  return translated === `eventFormat.${key}` ? label : translated;
 }
 
 export function EventDetailClient({
@@ -296,7 +306,7 @@ export function EventDetailClient({
     >();
 
     for (const row of data.organizers) {
-      const role = row.role_label || row.role_key;
+      const role = getRoleLabel(row.role_key, t) || row.role_label || row.role_key;
       const existing = byId.get(row.organizer_id);
 
       if (existing) {
@@ -317,10 +327,7 @@ export function EventDetailClient({
     return Array.from(byId.values());
   }, [data]);
 
-  const categorySingularLabel =
-    taxonomy?.uiLabels.categorySingular ??
-    taxonomy?.uiLabels.practiceCategory ??
-    t("common.category");
+  const categorySingularLabel = t("admin.placeholder.categorySingular");
 
   const categoryById = useMemo(() => {
     const map = new Map<string, string>();
@@ -351,6 +358,13 @@ export function EventDetailClient({
     const map = new Map<string, string>();
     for (const format of taxonomy?.eventFormats ?? []) {
       map.set(format.id, format.label);
+    }
+    return map;
+  }, [taxonomy]);
+  const eventFormatKeyById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const format of taxonomy?.eventFormats ?? []) {
+      map.set(format.id, format.key);
     }
     return map;
   }, [taxonomy]);
@@ -480,7 +494,11 @@ export function EventDetailClient({
 
   const categoryLabel = categoryById.get(data.event.practice_category_id) ?? data.event.practice_category_id;
   const eventFormatLabel = data.event.event_format_id
-    ? eventFormatById.get(data.event.event_format_id) ?? data.event.event_format_id
+    ? (() => {
+        const key = eventFormatKeyById.get(data.event.event_format_id!);
+        const label = eventFormatById.get(data.event.event_format_id!) ?? data.event.event_format_id!;
+        return key ? getFormatLabel(key, label, t) : label;
+      })()
     : null;
   const whenFormatted = data.event.single_start_at && data.event.single_end_at
     ? formatDateTimeRange(
@@ -618,7 +636,7 @@ export function EventDetailClient({
                   type="button"
                   className="cal-trigger"
                   onClick={() => setCalOpen((v) => !v)}
-                  aria-label="Add to calendar"
+                  aria-label={t("eventDetail.addToCalendar")}
                   aria-expanded={calOpen}
                 >
                   <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 3 }}>
@@ -626,7 +644,7 @@ export function EventDetailClient({
                     <path d="M1 6h12" stroke="currentColor" strokeWidth="1.4"/>
                     <path d="M4 1v2M10 1v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                   </svg>
-                  Add to calendar
+                  {t("eventDetail.addToCalendar")}
                 </button>
                 {calOpen && (
                   <div className="cal-dropdown" role="menu">

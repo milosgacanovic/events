@@ -170,6 +170,11 @@ function extractDescriptionSections(value: unknown): DescriptionSections {
   };
 }
 
+function getRoleLabel(key: string, t: (k: string) => string): string {
+  const translated = t(`roleType.${key}`);
+  return translated === `roleType.${key}` ? key : translated;
+}
+
 export function OrganizerDetailClient({ slug }: { slug: string }) {
   const { locale, t } = useI18n();
   const router = useRouter();
@@ -299,10 +304,8 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
     }
     return map;
   })();
-  const categorySingularLabel =
-    taxonomy?.uiLabels?.categorySingular ??
-    taxonomy?.uiLabels?.practiceCategory ??
-    t("common.category");
+  const categorySingularLabel = t("admin.placeholder.categorySingular");
+  const categoryPluralLabel = t("admin.placeholder.categoryPlural");
   const practiceLabels = (data.practiceCategoryIds ?? [])
     .map((item) => practiceLabelById.get(item))
     .filter((item): item is string => Boolean(item));
@@ -384,7 +387,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
             )}
             {(practiceEntries.length > 0 || roleLabels.length > 0) && (
               <div className="organizer-profile-meta-line">
-                {[...practiceEntries.map((e) => e.label), ...roleLabels].join(" · ")}
+                {[...practiceEntries.map((e) => e.label), ...roleLabels.map((k) => getRoleLabel(k, t))].join(" · ")}
               </div>
             )}
             <div className="organizer-profile-actions">
@@ -420,7 +423,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
       <dl className="org-info-grid">
         {practiceEntries.length > 0 && (
           <>
-            <dt>{practiceEntries.length === 1 ? (categorySingularLabel) : `${categorySingularLabel}s`}</dt>
+            <dt>{practiceEntries.length === 1 ? categorySingularLabel : categoryPluralLabel}</dt>
             <dd>
               {practiceEntries.map((e, i) => (
                 <span key={e.id}>{i > 0 && " · "}<Link href={`/hosts?practice=${e.key}`}>{e.label}</Link></span>
@@ -433,7 +436,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
             <dt>{roleLabels.length === 1 ? t("organizerDetail.role") : t("organizerDetail.roles")}</dt>
             <dd>
               {roleLabels.map((key, i) => (
-                <span key={key}>{i > 0 && " · "}<Link href={`/hosts?roleKey=${key}`}>{key}</Link></span>
+                <span key={key}>{i > 0 && " · "}<Link href={`/hosts?roleKey=${key}`}>{getRoleLabel(key, t)}</Link></span>
               ))}
             </dd>
           </>

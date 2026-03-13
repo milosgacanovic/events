@@ -73,6 +73,11 @@ type TaxonomyResponse = {
   };
 };
 
+function getRoleLabel(key: string, t: (k: string) => string): string {
+  const translated = t(`roleType.${key}`);
+  return translated === `roleType.${key}` ? key : translated;
+}
+
 export function OrganizerSearchClient({
   initialQuery,
   initialTaxonomy,
@@ -694,10 +699,7 @@ export function OrganizerSearchClient({
     }
     return normalized.replace(/(^|[\s-])([a-z])/g, (_match, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`);
   }, []);
-  const categorySingularLabel =
-    taxonomy?.uiLabels?.categorySingular ??
-    taxonomy?.uiLabels?.practiceCategory ??
-    "";
+  const categorySingularLabel = t("admin.placeholder.categorySingular");
   const visibleRoleFacets = useMemo(() => {
     const selectedSet = new Set(roleKeys);
     const merged = new Map<string, number>();
@@ -755,7 +757,7 @@ export function OrganizerSearchClient({
     for (const role of roleKeys) {
       chips.push({
         key: `role:${role}`,
-        label: role,
+        label: getRoleLabel(role, t),
         onRemove: () => {
           setRoleKeys((current) => current.filter((item) => item !== role));
           setPage(1);
@@ -813,7 +815,7 @@ export function OrganizerSearchClient({
       });
     }
     return chips;
-  }, [categorySingularLabel, cities, countryCodes, formatCityLabel, getCountryLabel, getLanguageLabel, languages, practiceCategoryIds, practiceLabelById, roleKeys, t, tags]);
+  }, [cities, countryCodes, formatCityLabel, getCountryLabel, getLanguageLabel, languages, practiceCategoryIds, practiceLabelById, roleKeys, t, tags]);
 
   const visibleTagSuggestions = useMemo(
     () => tagSuggestions.filter((item) => !tags.includes(item.tag)),
@@ -985,7 +987,7 @@ export function OrganizerSearchClient({
                   }}
                 >
                   <span className="filter-row-icon">{pendingKey === `role:${value}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
-                  <span className="filter-row-label">{value}</span>
+                  <span className="filter-row-label">{getRoleLabel(value, t)}</span>
                   <span className="filter-row-count">{count}</span>
                 </button>
               );
@@ -1290,7 +1292,7 @@ export function OrganizerSearchClient({
                 {locationParts && <div className="meta">{locationParts}</div>}
                 {(primaryPractice || primaryRole) && (
                   <div className="meta">
-                    {[primaryPractice, primaryRole].filter(Boolean).join(" · ")}
+                    {[primaryPractice, primaryRole ? getRoleLabel(primaryRole, t) : null].filter(Boolean).join(" · ")}
                   </div>
                 )}
                 {pills.length > 0 && (

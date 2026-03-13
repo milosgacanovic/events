@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 import { localeCookieName, supportedLocales, type AppLocale } from "../../lib/i18n/config";
@@ -12,11 +13,23 @@ function setLocaleCookie(locale: AppLocale) {
 export function LocaleSwitcher() {
   const router = useRouter();
   const { locale, t } = useI18n();
+  const sizerRef = useRef<HTMLSpanElement>(null);
+  const selectRef = useRef<HTMLSelectElement>(null);
+
+  useEffect(() => {
+    if (sizerRef.current && selectRef.current) {
+      selectRef.current.style.width = `${sizerRef.current.offsetWidth + 24}px`;
+    }
+  }, [locale]);
 
   return (
     <label className="locale-switcher">
+      <span ref={sizerRef} className="locale-switcher-sizer" aria-hidden="true">
+        {t(`locale.${locale}`)}
+      </span>
       <span className="locale-label">{t("locale.selectLabel")}</span>
       <select
+        ref={selectRef}
         aria-label={t("locale.selectLabel")}
         value={locale}
         onChange={(event) => {

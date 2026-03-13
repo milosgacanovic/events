@@ -135,6 +135,11 @@ type DisjunctiveFacetState = {
   eventDate: Record<string, number>;
 };
 
+function getFormatLabel(key: string, label: string, t: (k: string) => string): string {
+  const translated = t(`eventFormat.${key}`);
+  return translated === `eventFormat.${key}` ? label : translated;
+}
+
 export function EventSearchClient({
   initialResults,
   initialTaxonomy,
@@ -292,10 +297,7 @@ export function EventSearchClient({
       });
   }, [initialTaxonomy]);
 
-  const categorySingularLabel =
-    taxonomy?.uiLabels.categorySingular ??
-    taxonomy?.uiLabels.practiceCategory ??
-    "";
+  const categorySingularLabel = t("admin.placeholder.categorySingular");
 
   const categoryLabelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -979,7 +981,8 @@ export function EventSearchClient({
       });
     }
     for (const formatId of eventFormatIds) {
-      const label = taxonomy?.eventFormats?.find((format) => format.id === formatId)?.label ?? formatId;
+      const fmt = taxonomy?.eventFormats?.find((format) => format.id === formatId);
+      const label = fmt ? getFormatLabel(fmt.key, fmt.label, t) : formatId;
       chips.push({
         key: `format:${formatId}`,
         label: label,
@@ -1060,7 +1063,6 @@ export function EventSearchClient({
   }, [
     q,
     categoryLabelById,
-    categorySingularLabel,
     countryCodes,
     eventFormatIds,
     getCountryLabel,
@@ -1435,7 +1437,7 @@ export function EventSearchClient({
                     }}
                   >
                     <span className="filter-row-icon">{pendingKey === `format:${format.id}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
-                    <span className="filter-row-label">{format.label}</span>
+                    <span className="filter-row-label">{getFormatLabel(format.key, format.label, t)}</span>
                     <span className="filter-row-count">{count}</span>
                   </button>
                 );

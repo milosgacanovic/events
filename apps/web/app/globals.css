@@ -449,6 +449,15 @@ main {
   background: transparent;
 }
 
+.locale-switcher-sizer {
+  position: absolute;
+  visibility: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  font: inherit;
+  font-size: 0.92rem;
+}
+
 .locale-switcher select {
   border: none;
   border-radius: 0;
