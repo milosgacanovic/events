@@ -9,8 +9,10 @@ import { apiBase } from "../../../lib/api";
 
 type EventDetailResponse = EventDetail;
 
+const serverApiBase = process.env.INTERNAL_API_BASE_URL?.replace(/\/$/, "") ?? apiBase;
+
 async function fetchServerJson<T>(path: string): Promise<T | null> {
-  const response = await fetch(`${apiBase}${path}`, { cache: "no-store" }).catch(() => null);
+  const response = await fetch(`${serverApiBase}${path}`, { cache: "no-store" }).catch(() => null);
   if (!response || !response.ok) {
     return null;
   }
