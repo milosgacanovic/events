@@ -25,7 +25,11 @@ function stripHtml(input: string): string {
     .replace(/[\r\n]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/^DESCRIPTION\s+/i, "");
+    .replace(/^DESCRIPTION\s+/i, "")
+    .replace(/source:\s*[^\n.]*/gi, "")
+    .replace(/imported\s+by\s+danceresource[^\n.]*/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function formatEventDateRange(startIso: string, endIso: string | null, tz: string): string {
