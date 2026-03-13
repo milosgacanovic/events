@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 
 import { apiBase } from "./api";
 
-const siteBase = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://beta.events.danceresource.org";
+const siteBase = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://events.danceresource.org";
 const configuredServerApiBase = process.env.INTERNAL_API_BASE_URL?.replace(/\/$/, "");
 const absoluteApiBase = apiBase.startsWith("http")
   ? apiBase.replace(/\/$/, "")
@@ -115,6 +115,40 @@ const getAllEventSitemapItemsCached = unstable_cache(async (): Promise<EventSite
 
 export async function getEventSitemapItems(): Promise<EventSitemapItem[]> {
   return getAllEventSitemapItemsCached();
+}
+
+type OrganizerSearchResponse = {
+  items: Array<{ slug: string; updatedAt?: string | null }>;
+  pagination?: { page: number; totalPages: number };
+};
+
+const getAllOrganizerSitemapItemsCached = unstable_cache(async (): Promise<EventSitemapItem[]> => {
+  const itemsBySlug = new Map<string, string | undefined>();
+  let page = 1;
+  while (true) {
+    const params = new URLSearchParams({ page: String(page), pageSize: "200" });
+    let result: OrganizerSearchResponse | null = null;
+    for (const base of getServerApiBaseCandidates()) {
+      const response = await fetch(`${base}/organizers/search?${params.toString()}`, {
+        next: { revalidate: 600 },
+      }).catch(() => null);
+      if (response?.ok) {
+        result = await response.json();
+        break;
+      }
+    }
+    if (!result?.items.length) break;
+    for (const item of result.items) {
+      if (item.slug) itemsBySlug.set(item.slug, normalizeIsoDate(item.updatedAt ?? undefined));
+    }
+    if (page >= (result.pagination?.totalPages ?? 1)) break;
+    page++;
+  }
+  return Array.from(itemsBySlug.entries()).map(([slug, lastmod]) => ({ slug, lastmod }));
+}, ["organizers-sitemap-items"], { revalidate: 600 });
+
+export async function getOrganizerSitemapItems(): Promise<EventSitemapItem[]> {
+  return getAllOrganizerSitemapItemsCached();
 }
 
 export function getSiteBase(): string {

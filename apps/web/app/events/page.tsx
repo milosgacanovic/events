@@ -82,6 +82,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { canonical, noindex } = buildCanonical(searchParams);
   return {
+    title: "Find Conscious Dance Events Worldwide | DanceResource",
+    description: "Discover ecstatic dance, 5Rhythms, contact improvisation and other conscious dance events near you or online. Global calendar updated daily.",
     alternates: { canonical },
     robots: noindex ? { index: false, follow: true } : { index: true, follow: true },
   };

@@ -6,7 +6,7 @@ export async function GET() {
   const siteBase = getSiteBase();
   const items = await getEventSitemapItems();
   const chunkCount = Math.max(Math.ceil(items.length / EVENT_SITEMAP_CHUNK_SIZE), 1);
-  const locations = [`${siteBase}/sitemap-pages.xml`];
+  const locations = [`${siteBase}/sitemap-pages.xml`, `${siteBase}/sitemap-hosts.xml`];
 
   for (let page = 1; page <= chunkCount; page += 1) {
     locations.push(`${siteBase}/sitemap-events-${page}.xml`);

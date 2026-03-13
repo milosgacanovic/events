@@ -25,6 +25,7 @@ export function generateMetadata(): Metadata {
   const messages = getMessages(locale);
 
   return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://events.danceresource.org"),
     title: messages["meta.title"] ?? fallbackTitle,
     description: messages["meta.description"] ?? fallbackDescription,
     icons: {

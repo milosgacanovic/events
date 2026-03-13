@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { OrganizerSearchClient, type OrganizerSearchInitialQuery, type OrganizerSearchResponse } from "../../components/OrganizerSearchClient";
 import { apiBase } from "../../lib/api";
 
@@ -31,6 +33,23 @@ async function fetchServerJson<T>(path: string): Promise<T | null> {
     return null;
   }
   return response.json() as Promise<T>;
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}): Promise<Metadata> {
+  const hasFilters = ["q", "roleKey", "practice", "practiceCategoryId", "tags", "languages", "countryCode", "city"]
+    .some((key) => getSingle(searchParams, key));
+  return {
+    title: "Find Dance Teachers & Hosts | DanceResource",
+    description: "Browse conscious dance teachers, DJs, organizers and event hosts worldwide. Filter by practice, location and language.",
+    alternates: { canonical: "/hosts" },
+    robots: hasFilters
+      ? { index: false, follow: true }
+      : { index: true, follow: true },
+  };
 }
 
 export default async function HostsPage({
