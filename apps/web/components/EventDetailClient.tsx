@@ -557,13 +557,10 @@ export function EventDetailClient({
   );
   const canEdit = auth.ready && auth.authenticated && hasEditorRole;
   const lastSyncedRaw = data.event.lastSyncedAt ?? data.event.updated_at;
-  const lastSyncedUtc = new Date(lastSyncedRaw).toLocaleString(locale, {
+  const lastSyncedUtc = new Date(lastSyncedRaw).toLocaleDateString(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
     timeZone: "UTC",
   });
   const mapLat = data.defaultLocation?.lat ?? data.occurrences.upcoming[0]?.lat ?? null;
@@ -985,12 +982,11 @@ export function EventDetailClient({
         {isImported && externalUrl && (
           <div className="event-detail-disclaimer">
             <div>{t("eventDetail.import.sharedWithCare")}</div>
-            <div>{t("eventDetail.import.sourceLine")}</div>
             <div>
               {t("eventDetail.import.officialLink")}{" "}
               <a href={externalUrl} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>{externalUrl}</a>
             </div>
-            <div>{t("eventDetail.import.lastSynced", { value: `${lastSyncedUtc} UTC` })}</div>
+            <div>{t("eventDetail.import.lastSynced", { value: lastSyncedUtc })}</div>
             <div>
               {t("eventDetail.import.contactPrefix")}{" "}
               <a href="mailto:hello@danceresource.org" style={{ color: "var(--accent)" }}>hello@danceresource.org</a>
