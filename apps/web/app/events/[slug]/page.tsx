@@ -20,7 +20,39 @@ async function fetchServerJson<T>(path: string): Promise<T | null> {
 }
 
 function stripHtml(input: string): string {
-  return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return input
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^DESCRIPTION\s+/i, "");
+}
+
+function formatEventDateRange(startIso: string, endIso: string | null, tz: string): string {
+  try {
+    const s = new Date(startIso);
+    const e = endIso ? new Date(endIso) : null;
+    const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en", { timeZone: tz, ...o });
+    const sDay = fmt({ day: "numeric" }).format(s);
+    const sMon = fmt({ month: "short" }).format(s);
+    const sYr  = fmt({ year: "numeric" }).format(s);
+    if (!e) return `${sDay} ${sMon} ${sYr}`;
+    const eDay = fmt({ day: "numeric" }).format(e);
+    const eMon = fmt({ month: "short" }).format(e);
+    const eYr  = fmt({ year: "numeric" }).format(e);
+    if (sYr === eYr && sMon === eMon) {
+      return sDay === eDay ? `${sDay} ${sMon} ${sYr}` : `${sDay}–${eDay} ${sMon} ${sYr}`;
+    }
+    if (sYr === eYr) return `${sDay} ${sMon} – ${eDay} ${eMon} ${sYr}`;
+    return `${sDay} ${sMon} ${sYr} – ${eDay} ${eMon} ${eYr}`;
+  } catch {
+    return "";
+  }
+}
+
+function countryName(code: string): string {
+  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code; }
+  catch { return code; }
 }
 
 export async function generateMetadata({
@@ -28,7 +60,10 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
-  const detail = await fetchServerJson<EventDetailResponse>(`/events/${params.slug}`);
+  const [detail, taxonomy] = await Promise.all([
+    fetchServerJson<EventDetailResponse>(`/events/${params.slug}`),
+    fetchServerJson<TaxonomyResponse>("/meta/taxonomies"),
+  ]);
   if (!detail) {
     return {
       title: "Event not found | DanceResource",
@@ -40,19 +75,53 @@ export async function generateMetadata({
   const descriptionJson = (detail.event.description_json ?? {}) as { html?: string };
   const rawHtml = descriptionJson.html ?? "";
   const text = stripHtml(rawHtml);
-  const description = text ? (text.length > 160 ? `${text.slice(0, 160)}...` : text) : "DanceResource event details";
   const image = detail.event.coverImageUrl ?? detail.event.cover_image_path ?? undefined;
   const isPast = (detail.occurrences.upcoming?.length ?? 0) === 0;
   const sourceUrl = detail.event.externalUrl ?? detail.event.external_url ?? null;
 
+  // Structured summary line: "4–6 Sep 2026 · Belgrade, Serbia · 5Rhythms Workshop"
+  const tz = detail.event.event_timezone || "UTC";
+  const startIso = detail.event.single_start_at ?? detail.occurrences.upcoming[0]?.starts_at_utc ?? null;
+  const endIso   = detail.event.single_end_at   ?? detail.occurrences.upcoming[0]?.ends_at_utc   ?? null;
+  const datePart = startIso ? formatEventDateRange(startIso, endIso, tz) : "";
+  const locationPart = detail.event.attendance_mode === "online"
+    ? "Online"
+    : [
+        detail.defaultLocation?.city,
+        detail.defaultLocation?.country_code ? countryName(detail.defaultLocation.country_code) : null,
+      ].filter(Boolean).join(", ");
+  const practiceLabel = taxonomy?.practices.categories.find(
+    (c) => c.id === detail.event.practice_category_id,
+  )?.label ?? "";
+  const formatLabel = taxonomy?.eventFormats?.find(
+    (f) => f.id === detail.event.event_format_id,
+  )?.label ?? "";
+  const practicePart = [practiceLabel, formatLabel].filter(Boolean).join(" ");
+  const structuredLine = [datePart, locationPart, practicePart].filter(Boolean).join(" · ");
+
+  // Compose OG description: structured line first, then body text if budget allows
+  const budget = 200 - structuredLine.length;
+  let ogDescription: string;
+  if (structuredLine && text && budget > 20) {
+    const snippet = text.length > budget - 1 ? `${text.slice(0, budget - 1)}…` : text;
+    ogDescription = `${structuredLine}\n${snippet}`;
+  } else if (structuredLine) {
+    ogDescription = structuredLine;
+  } else {
+    ogDescription = text || "DanceResource event details";
+  }
+
+  // Short description for <title> fallback (plain text, no structured line)
+  const titleDescription = text ? (text.length > 160 ? `${text.slice(0, 160)}...` : text) : ogDescription;
+
   return {
     title: `${detail.event.title} | DanceResource`,
-    description,
+    description: titleDescription,
     robots: isPast ? { index: false, follow: true } : { index: true, follow: true },
     alternates: { canonical: sourceUrl ?? `/events/${params.slug}` },
     openGraph: {
       title: detail.event.title,
-      description,
+      description: ogDescription,
       url: `/events/${params.slug}`,
       siteName: "DanceResource",
       type: "website",
@@ -61,7 +130,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: detail.event.title,
-      description,
+      description: ogDescription,
       images: image ? [image] : undefined,
     },
   };

@@ -133,6 +133,8 @@ function getDescriptionHtml(value: unknown): string | null {
       .replace(/&#39;/g, "'")
       .replace(/&amp;/g, "&");
   }
+  // Strip "DESCRIPTION " field-label artifact injected by some scrapers
+  trimmed = trimmed.replace(/^((?:<[^>]+>)*)\s*DESCRIPTION\s+/i, "$1");
   return trimmed || null;
 }
 
@@ -983,19 +985,18 @@ export function EventDetailClient({
         {isImported && externalUrl && (
           <div className="event-detail-disclaimer">
             <div>{t("eventDetail.import.sharedWithCare")}</div>
-            <div>{t("eventDetail.import.sourceLine", { source: transparencySource })}</div>
+            <div>{t("eventDetail.import.sourceLine")}</div>
             <div>
               {t("eventDetail.import.officialLink")}{" "}
-              <a href={externalUrl} target="_blank" rel="noreferrer">{externalUrl}</a>
+              <a href={externalUrl} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>{externalUrl}</a>
             </div>
             <div>{t("eventDetail.import.lastSynced", { value: `${lastSyncedUtc} UTC` })}</div>
-            <div>{t("eventDetail.import.contact")}</div>
+            <div>
+              {t("eventDetail.import.contactPrefix")}{" "}
+              <a href="mailto:hello@danceresource.org" style={{ color: "var(--accent)" }}>hello@danceresource.org</a>
+            </div>
           </div>
         )}
-        <div className="meta">
-          {t("eventDetail.metadata.importSource", { value: importSource })}
-          {updatedLabel && <> · {t("eventDetail.metadata.lastUpdated", { value: updatedLabel })}</>}
-        </div>
       </footer>
     </article>
   );
