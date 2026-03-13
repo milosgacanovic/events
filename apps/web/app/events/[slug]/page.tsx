@@ -51,7 +51,7 @@ function formatEventDateRange(startIso: string, endIso: string | null, tz: strin
 }
 
 function countryName(code: string): string {
-  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code; }
+  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(code.toUpperCase()) ?? code; }
   catch { return code; }
 }
 
