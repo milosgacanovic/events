@@ -813,6 +813,11 @@ label.meta {
   opacity: 1;
 }
 
+.sidebar-no-transition .filters {
+  transition: none !important;
+  animation: none !important;
+}
+
 .filters-overlay {
   display: none;
 }

@@ -117,12 +117,26 @@ export function OrganizerSearchClient({
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [showArchived, setShowArchived] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarSkipTransition, setSidebarSkipTransition] = useState(false);
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem("dr-filters-sidebar-open");
-      if (stored !== null && window.innerWidth > 900) setSidebarOpen(stored === "true");
+      if (stored !== null && window.innerWidth > 900) {
+        if (stored === "true") {
+          setSidebarSkipTransition(true);
+          setSidebarOpen(true);
+        } else {
+          setSidebarOpen(false);
+        }
+      }
     } catch { /* sessionStorage unavailable */ }
   }, []);
+
+  useEffect(() => {
+    if (!sidebarSkipTransition) return;
+    const raf = requestAnimationFrame(() => setSidebarSkipTransition(false));
+    return () => cancelAnimationFrame(raf);
+  }, [sidebarSkipTransition]);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const isMobile = window.innerWidth <= 900;
@@ -953,7 +967,7 @@ export function OrganizerSearchClient({
         )}
       </div>
     </div>
-    <section className={sidebarOpen ? "grid sidebar-open" : "grid"}>
+    <section className={["grid", sidebarOpen && "sidebar-open", sidebarSkipTransition && "sidebar-no-transition"].filter(Boolean).join(" ")}>
       {sidebarOpen && (
         <div className="filters-overlay" onClick={() => setSidebarOpen(false)} aria-hidden />
       )}

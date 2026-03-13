@@ -212,6 +212,7 @@ export function EventSearchClient({
   const [attendanceOpen, setAttendanceOpen] = useState((initialQuery?.attendanceModes?.length ?? 0) > 0);
   const [countryOpen, setCountryOpen] = useState((initialQuery?.countryCodes?.length ?? 0) > 0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarSkipTransition, setSidebarSkipTransition] = useState(false);
   const [accumulatedHits, setAccumulatedHits] = useState<SearchResponse["hits"]>(initialResults?.hits ?? []);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -260,9 +261,22 @@ export function EventSearchClient({
   useEffect(() => {
     try {
       const stored = sessionStorage.getItem("dr-filters-sidebar-open");
-      if (stored !== null && window.innerWidth > 900) setSidebarOpen(stored === "true");
+      if (stored !== null && window.innerWidth > 900) {
+        if (stored === "true") {
+          setSidebarSkipTransition(true);
+          setSidebarOpen(true);
+        } else {
+          setSidebarOpen(false);
+        }
+      }
     } catch { /* sessionStorage unavailable */ }
   }, []);
+
+  useEffect(() => {
+    if (!sidebarSkipTransition) return;
+    const raf = requestAnimationFrame(() => setSidebarSkipTransition(false));
+    return () => cancelAnimationFrame(raf);
+  }, [sidebarSkipTransition]);
 
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => {
@@ -1321,7 +1335,7 @@ export function EventSearchClient({
             )}
         </div>
       </div>
-      <section className={sidebarOpen ? "grid sidebar-open" : "grid"}>
+      <section className={["grid", sidebarOpen && "sidebar-open", sidebarSkipTransition && "sidebar-no-transition"].filter(Boolean).join(" ")}>
       {sidebarOpen && (
         <div
           className="filters-overlay"
