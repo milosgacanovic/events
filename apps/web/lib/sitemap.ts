@@ -60,9 +60,9 @@ function normalizeIsoDate(value: string | undefined): string | undefined {
   return date.toISOString();
 }
 
-async function fetchEventPage(page: number): Promise<EventSearchResponse | null> {
+async function fetchEventPage(page: number, from: string): Promise<EventSearchResponse | null> {
   const params = new URLSearchParams({
-    includePast: "true",
+    from,
     to: EVENT_QUERY_TO,
     sort: "publishedAtDesc",
     page: String(page),
@@ -82,7 +82,8 @@ async function fetchEventPage(page: number): Promise<EventSearchResponse | null>
 
 const getAllEventSitemapItemsCached = unstable_cache(async (): Promise<EventSitemapItem[]> => {
   const itemsBySlug = new Map<string, string | undefined>();
-  const firstPage = await fetchEventPage(1);
+  const from = new Date().toISOString();
+  const firstPage = await fetchEventPage(1, from);
   const totalPages = Math.max(firstPage?.pagination?.totalPages ?? 1, 1);
 
   for (const hit of firstPage?.hits ?? []) {
@@ -96,7 +97,7 @@ const getAllEventSitemapItemsCached = unstable_cache(async (): Promise<EventSite
   }
 
   for (let page = 2; page <= totalPages; page += 1) {
-    const payload = await fetchEventPage(page);
+    const payload = await fetchEventPage(page, from);
     for (const hit of payload?.hits ?? []) {
       const slug = hit.event.slug?.trim();
       if (!slug) {

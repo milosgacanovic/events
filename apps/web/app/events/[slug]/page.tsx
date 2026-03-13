@@ -40,17 +40,27 @@ export async function generateMetadata({
   const text = stripHtml(rawHtml);
   const description = text ? (text.length > 160 ? `${text.slice(0, 160)}...` : text) : "DanceResource event details";
   const image = detail.event.coverImageUrl ?? detail.event.cover_image_path ?? undefined;
+  const isPast = (detail.occurrences.upcoming?.length ?? 0) === 0;
+  const sourceUrl = detail.event.externalUrl ?? detail.event.external_url ?? null;
 
   return {
     title: `${detail.event.title} | DanceResource`,
     description,
-    alternates: { canonical: `/events/${params.slug}` },
+    robots: isPast ? { index: false, follow: true } : { index: true, follow: true },
+    alternates: { canonical: sourceUrl ?? `/events/${params.slug}` },
     openGraph: {
       title: detail.event.title,
       description,
       url: `/events/${params.slug}`,
+      siteName: "DanceResource",
       type: "website",
-      images: image ? [{ url: image }] : undefined,
+      images: image ? [{ url: image, alt: detail.event.title }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: detail.event.title,
+      description,
+      images: image ? [image] : undefined,
     },
   };
 }
