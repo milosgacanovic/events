@@ -4,10 +4,14 @@ export const TIME_DISPLAY_MODE_STORAGE_KEY = "dr-events-time-display-mode";
 
 export function readTimeDisplayMode(): TimeDisplayMode {
   if (typeof window === "undefined") {
-    return "user";
+    return "event";
   }
   const value = window.localStorage.getItem(TIME_DISPLAY_MODE_STORAGE_KEY);
-  return value === "event" ? "event" : "user";
+  return value === "user" ? "user" : "event";
+}
+
+export function formatTimeZone(tz: string): string {
+  return tz.replace(/_/g, " ");
 }
 
 export function writeTimeDisplayMode(mode: TimeDisplayMode): void {

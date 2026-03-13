@@ -9,9 +9,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "../lib/api";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
-import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
+import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
+
+const SHORTENER_BLOCKLIST = new Set([
+  "bit.ly", "tinyurl.com", "t.co", "lnkd.in", "linktr.ee",
+  "rebrand.ly", "ow.ly", "buff.ly", "short.io", "cutt.ly",
+]);
+
+function getBookingDomain(url: string): string | null {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    return SHORTENER_BLOCKLIST.has(hostname) ? null : hostname;
+  } catch {
+    return null;
+  }
+}
 
 export type TaxonomyResponse = {
   uiLabels: {
@@ -241,6 +255,8 @@ export function EventDetailClient({
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
   const [descExpanded, setDescExpanded] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+  const [copied, setCopied] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
@@ -455,6 +471,20 @@ export function EventDetailClient({
   }, [timeDisplayMode]);
 
   useEffect(() => {
+    setCanNativeShare(typeof navigator !== "undefined" && !!navigator.share);
+  }, []);
+
+  const handleCopyLink = useCallback(async () => {
+    await navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, []);
+
+  const handleNativeShare = useCallback(() => {
+    navigator.share({ title: document.title, url: window.location.href }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (!calOpen) return;
     function handleClick(e: MouseEvent) {
       if (calRef.current && !calRef.current.contains(e.target as Node)) {
@@ -594,6 +624,37 @@ export function EventDetailClient({
             {t("nav.events")}
           </Link>
         )}
+        <div className="breadcrumb-share">
+          {canNativeShare ? (
+            <button type="button" className="breadcrumb-share-btn" onClick={handleNativeShare}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1v8M3.5 4.5L7 1l3.5 3.5M2 10v2.5h10V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              {t("eventDetail.shareNative")}
+            </button>
+          ) : (
+            <>
+              <a className="breadcrumb-share-btn" href={`https://x.com/intent/post?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}&text=${encodeURIComponent(typeof document !== "undefined" ? document.title : "")}`} target="_blank" rel="noopener noreferrer">
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 1l5.2 6.6L1 13h1.6l4.4-5.1L11 13h2.5L8 6.1 13 1h-1.6L7.4 5.7 3.5 1H1Z" fill="currentColor"/></svg>
+                X
+              </a>
+              <a className="breadcrumb-share-btn" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer">
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9.5 1H8a3 3 0 0 0-3 3v1.5H3.5V8H5v5.5h2.5V8H9l.5-2.5H7.5V4a.5.5 0 0 1 .5-.5H9.5V1Z" fill="currentColor"/></svg>
+                Facebook
+              </a>
+              <a className="breadcrumb-share-btn" href={`https://wa.me/?text=${encodeURIComponent(typeof document !== "undefined" ? document.title : "")}%20${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer">
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1a6 6 0 0 1 5.196 9L13 13l-3.13-.824A6 6 0 1 1 7 1Z" stroke="currentColor" strokeWidth="1.3"/><path d="M5 5.5c.5 1 1.5 2.5 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                WhatsApp
+              </a>
+              <button type="button" className="breadcrumb-share-btn" onClick={handleCopyLink}>
+                {copied ? (
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 7l3.5 3.5L12 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                ) : (
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="4" y="4" width="8" height="9" rx="1" stroke="currentColor" strokeWidth="1.3"/><path d="M2 10V2h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                )}
+                {copied ? t("eventDetail.shareCopied") : t("eventDetail.shareCopy")}
+              </button>
+            </>
+          )}
+        </div>
       </nav>
 
       {/* Header */}
@@ -618,11 +679,16 @@ export function EventDetailClient({
       )}
 
       {/* Book / register CTA */}
-      {externalUrl && (
+      {externalUrl ? (
         <a className="primary-btn event-detail-cta" href={externalUrl} target="_blank" rel="noreferrer">
-          {t("eventDetail.externalLink")}
+          {(() => {
+            const domain = getBookingDomain(externalUrl);
+            return domain ? t("eventDetail.externalLinkOn", { domain }) : t("eventDetail.externalLink");
+          })()}
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ verticalAlign: "middle", marginLeft: 6 }}><path d="M3 11L11 3M11 3H5.5M11 3v5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </a>
+      ) : (
+        <p className="event-detail-no-booking">{t("eventDetail.noExternalLink")}</p>
       )}
 
       {/* Metadata grid */}
@@ -667,9 +733,27 @@ export function EventDetailClient({
               />
               <span className="toggle-control-track" aria-hidden />
               <span className="meta" suppressHydrationWarning>
-                {timeDisplayMode === "event"
-                  ? t("eventDetail.timeMode.eventWithZone", { zone: data.event.event_timezone || "UTC" })
-                  : t("eventDetail.timeMode.userWithZone", { zone: userTimeZone })}
+                {timeDisplayMode === "event" ? (
+                  <>
+                    {t("eventDetail.timeMode.event")}{" "}
+                    {(() => {
+                      const tz = data.event.event_timezone;
+                      const unknown = !tz || tz === "UTC";
+                      return unknown ? (
+                        <span style={{ opacity: 0.6 }}>
+                          (<span style={{ color: "var(--warning-ink)" }}>{t("common.timezoneUnknown")}</span>)
+                        </span>
+                      ) : (
+                        <span style={{ opacity: 0.6 }}>({formatTimeZone(tz)})</span>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <>
+                    {t("eventDetail.timeMode.user")}{" "}
+                    <span style={{ opacity: 0.6 }}>({formatTimeZone(userTimeZone)})</span>
+                  </>
+                )}
               </span>
             </label>
           </div>
@@ -764,9 +848,27 @@ export function EventDetailClient({
           />
           <span className="toggle-control-track" aria-hidden />
           <span className="meta" suppressHydrationWarning>
-            {timeDisplayMode === "event"
-              ? t("eventDetail.timeMode.eventWithZone", { zone: data.event.event_timezone || "UTC" })
-              : t("eventDetail.timeMode.userWithZone", { zone: userTimeZone })}
+            {timeDisplayMode === "event" ? (
+              <>
+                {t("eventDetail.timeMode.event")}{" "}
+                {(() => {
+                  const tz = data.event.event_timezone;
+                  const unknown = !tz || tz === "UTC";
+                  return unknown ? (
+                    <span style={{ opacity: 0.6 }}>
+                      (<span style={{ color: "var(--warning-ink)" }}>{t("common.timezoneUnknown")}</span>)
+                    </span>
+                  ) : (
+                    <span style={{ opacity: 0.6 }}>({formatTimeZone(tz)})</span>
+                  );
+                })()}
+              </>
+            ) : (
+              <>
+                {t("eventDetail.timeMode.user")}{" "}
+                <span style={{ opacity: 0.6 }}>({formatTimeZone(userTimeZone)})</span>
+              </>
+            )}
           </span>
         </label>
       )}

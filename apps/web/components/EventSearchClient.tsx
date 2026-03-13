@@ -9,7 +9,7 @@ import { fetchJson } from "../lib/api";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { scrollToTopFast } from "../lib/scroll";
-import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
+import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useGeolocation } from "../lib/useGeolocation";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
@@ -1633,9 +1633,10 @@ export function EventSearchClient({
             />
             <span className="toggle-control-track" aria-hidden />
             <span className="meta" suppressHydrationWarning>
-              {timeDisplayMode === "event"
-                ? t("eventSearch.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
-                : t("eventSearch.timeMode.userWithZone", { zone: userTimeZone })}
+              <span>{timeDisplayMode === "event" ? t("eventSearch.timeMode.event") : t("eventSearch.timeMode.user")}</span>
+              <span className="toggle-tz-secondary">
+                ({timeDisplayMode === "event" ? t("common.eventTimezone") : formatTimeZone(userTimeZone)})
+              </span>
             </span>
           </label>
         </div>
@@ -1789,8 +1790,8 @@ export function EventSearchClient({
               ...hit.event.languages.map((l) => getLanguageLabel(l)),
               ...hit.event.tags,
             ];
-            const visiblePills = extraPills.slice(0, 3);
-            const overflowCount = extraPills.length - visiblePills.length;
+            const visiblePills = extraPills;
+            const overflowCount = 0;
 
             return (
               <Link

@@ -840,6 +840,19 @@ label.meta {
   margin-left: auto;
 }
 
+.toggle-tz-secondary {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+@media (min-width: 901px) {
+  .filters-panel-count {
+    display: none;
+  }
+}
+
 .filters-badge {
   position: absolute;
   top: -6px;
@@ -1076,10 +1089,14 @@ label.meta {
 .event-card-pills,
 .kv.event-card-pills {
   display: flex;
-  flex-wrap: nowrap;
-  overflow: hidden;
+  flex-wrap: wrap;
   margin-top: 0;
-  gap: 6px;
+  gap: 5px;
+}
+
+.event-card-pills .tag {
+  font-size: 0.78rem;
+  padding: 3px 7px;
 }
 
 /* Horizontal host card — animates on mount */
@@ -1498,6 +1515,9 @@ label.meta {
 }
 
 .event-detail-breadcrumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 0.88rem;
 }
 
@@ -1507,6 +1527,32 @@ label.meta {
 }
 
 .event-detail-breadcrumb a:hover {
+  color: var(--ink);
+}
+
+.breadcrumb-share {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.breadcrumb-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.breadcrumb-share-btn:hover {
   color: var(--ink);
 }
 
@@ -1536,6 +1582,12 @@ label.meta {
   display: block;
   text-align: center;
   text-decoration: none;
+}
+
+.event-detail-no-booking {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
 }
 
 .event-detail-meta-grid {
@@ -1829,6 +1881,7 @@ label.meta {
   padding: 4px 8px;
   font-size: 1rem;
   color: var(--ink);
+  white-space: nowrap;
 }
 
 .tag-practice {
