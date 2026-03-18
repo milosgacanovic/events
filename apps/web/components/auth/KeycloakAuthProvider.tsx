@@ -247,6 +247,10 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
           return;
         }
 
+        try {
+          sessionStorage.setItem("auth_return_path", window.location.pathname + window.location.search);
+        } catch {}
+
         await keycloakRef.current.login({
           redirectUri: `${window.location.origin}${loginRedirectPath}`,
         });
@@ -257,7 +261,7 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
         }
 
         await keycloakRef.current.logout({
-          redirectUri: `${window.location.origin}${logoutRedirectPath}`,
+          redirectUri: window.location.href,
         });
       },
       getToken: async () => {

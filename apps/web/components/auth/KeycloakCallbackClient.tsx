@@ -16,7 +16,15 @@ export function KeycloakCallbackClient() {
       return;
     }
 
-    router.replace("/admin");
+    let returnPath = "/admin";
+    try {
+      const saved = sessionStorage.getItem("auth_return_path");
+      if (saved && saved.startsWith("/") && !saved.startsWith("/auth")) {
+        returnPath = saved;
+        sessionStorage.removeItem("auth_return_path");
+      }
+    } catch {}
+    router.replace(returnPath);
   }, [ready, authenticated, router]);
 
   if (!ready) {
