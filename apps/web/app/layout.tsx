@@ -24,13 +24,29 @@ export function generateMetadata(): Metadata {
   const locale = resolveLocale();
   const messages = getMessages(locale);
 
+  const image = "https://wiki.danceresource.org/images/9/99/Danceresource.org_logo.png";
+  const title = messages["meta.title"] ?? fallbackTitle;
+  const description = messages["meta.description"] ?? fallbackDescription;
   return {
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://events.danceresource.org"),
-    title: messages["meta.title"] ?? fallbackTitle,
-    description: messages["meta.description"] ?? fallbackDescription,
+    title,
+    description,
     icons: {
       icon: "/favicon.ico",
       shortcut: "/favicon.ico",
+    },
+    openGraph: {
+      title,
+      description,
+      siteName: "DanceResource Events",
+      type: "website",
+      images: [{ url: image }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
     },
   };
 }
@@ -48,8 +64,10 @@ export default function RootLayout({
     <html lang={locale} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `(function(){var t;try{t=localStorage.getItem('dr-theme')}catch(e){}if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-KFG8MVPC');` }} />
       </head>
       <body>
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KFG8MVPC" height="0" width="0" style={{ display: "none", visibility: "hidden" }} /></noscript>
         <I18nProvider locale={locale} messages={messages}>
           <KeycloakAuthProvider config={keycloakConfig}>
             <AppShell>{children}</AppShell>
