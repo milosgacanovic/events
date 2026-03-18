@@ -81,11 +81,28 @@ export async function generateMetadata({
   searchParams: SearchParams;
 }): Promise<Metadata> {
   const { canonical, noindex } = buildCanonical(searchParams);
+  const image = "https://wiki.danceresource.org/images/9/99/Danceresource.org_logo.png";
+  const title = "Find Conscious Dance Events Worldwide | DanceResource";
+  const description = "Discover ecstatic dance, 5Rhythms, contact improvisation and other conscious dance events near you or online. Global calendar updated daily.";
   return {
-    title: "Find Conscious Dance Events Worldwide | DanceResource",
-    description: "Discover ecstatic dance, 5Rhythms, contact improvisation and other conscious dance events near you or online. Global calendar updated daily.",
+    title,
+    description,
     alternates: { canonical },
     robots: noindex ? { index: false, follow: true } : { index: true, follow: true },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "DanceResource Events",
+      type: "website",
+      images: [{ url: image }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
   };
 }
 

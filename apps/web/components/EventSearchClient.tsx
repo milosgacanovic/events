@@ -764,6 +764,7 @@ export function EventSearchClient({
             setPage(cached.page ?? 1);
             isLoadMorePageRef.current = true;
             skipSearchAfterRestoreRef.current = true;
+            isFirstSearchRef.current = false;
             setData({
               hits: cached.accumulatedHits.slice(-20),
               totalHits: cached.totalHits ?? 0,

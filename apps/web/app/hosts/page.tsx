@@ -42,13 +42,30 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const hasFilters = ["q", "roleKey", "practice", "practiceCategoryId", "tags", "languages", "countryCode", "city"]
     .some((key) => getSingle(searchParams, key));
+  const image = "https://wiki.danceresource.org/images/9/99/Danceresource.org_logo.png";
+  const title = "Find Dance Teachers & Hosts | DanceResource";
+  const description = "Browse conscious dance teachers, DJs, organizers and event hosts worldwide. Filter by practice, location and language.";
   return {
-    title: "Find Dance Teachers & Hosts | DanceResource",
-    description: "Browse conscious dance teachers, DJs, organizers and event hosts worldwide. Filter by practice, location and language.",
+    title,
+    description,
     alternates: { canonical: "/hosts" },
     robots: hasFilters
       ? { index: false, follow: true }
       : { index: true, follow: true },
+    openGraph: {
+      title,
+      description,
+      url: "/hosts",
+      siteName: "DanceResource Events",
+      type: "website",
+      images: [{ url: image }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
   };
 }
 

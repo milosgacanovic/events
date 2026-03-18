@@ -41,7 +41,9 @@ export async function regenerateOccurrences(
   );
 
   if (!skipSearch) {
-    await meiliService.upsertOccurrencesForEvent(pool, eventId).catch(() => {});
+    await meiliService.upsertOccurrencesForEvent(pool, eventId).catch((err) => {
+      console.error(`[regenerateOccurrences] Failed to sync Meilisearch for event ${eventId}:`, err);
+    });
     clearSearchCache();
   }
 }
@@ -72,7 +74,9 @@ export async function unpublishEvent(
 ): Promise<void> {
   await setEventStatus(pool, eventId, "draft");
   await deleteOccurrencesForEvent(pool, eventId);
-  await meiliService.deleteOccurrencesByEventId(eventId).catch(() => {});
+  await meiliService.deleteOccurrencesByEventId(eventId).catch((err) => {
+    console.error(`[unpublishEvent] Failed to delete Meilisearch docs for event ${eventId}:`, err);
+  });
   clearSearchCache();
 }
 
@@ -91,6 +95,14 @@ export async function refreshRecurringOccurrences(
 ): Promise<void> {
   const horizon = defaultOccurrenceHorizon();
   const recurring = await getRecurringPublishedEvents(pool);
+
+  // Clean up old occurrences from DB before syncing to Meilisearch, so the
+  // subsequent upsert sees the authoritative post-cleanup state and stale
+  // occurrence documents are not re-added to the search index.
+  const cleanupBefore = DateTime.utc().minus({ days: 30 });
+  await pool.query(`delete from event_occurrences where starts_at_utc < $1::timestamptz`, [
+    cleanupBefore.toISO(),
+  ]);
 
   for (const event of recurring) {
     const eventWithLocation = await getEventByIdWithLocation(pool, event.id);
@@ -112,12 +124,10 @@ export async function refreshRecurringOccurrences(
       generated,
     );
 
-    await meiliService.upsertOccurrencesForEvent(pool, event.id).catch(() => {});
+    await meiliService.upsertOccurrencesForEvent(pool, event.id).catch((err) => {
+      console.error(`[refreshRecurringOccurrences] Failed to sync Meilisearch for event ${event.id}:`, err);
+    });
   }
 
-  const cleanupBefore = DateTime.utc().minus({ days: 30 });
-  await pool.query(`delete from event_occurrences where starts_at_utc < $1::timestamptz`, [
-    cleanupBefore.toISO(),
-  ]);
   clearSearchCache();
 }

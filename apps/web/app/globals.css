@@ -1636,6 +1636,7 @@ label.meta {
 }
 
 .event-detail-desc {
+  line-height: 1.7;
   position: relative;
   max-height: 300px;
   overflow: hidden;
@@ -2694,4 +2695,38 @@ img[loading="lazy"] {
 .skeleton-line,
 .skeleton-block {
   animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Site-wide footer ─────────────────────────────────────── */
+.site-footer {
+  background: var(--dr-footer-bg);
+  border-top: 1px solid var(--line);
+  padding: 20px 16px 24px;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--dr-text-muted);
+  line-height: 1.8;
+}
+
+.site-footer a {
+  color: var(--dr-text-secondary);
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
+.site-footer-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 4px;
+}
+
+.site-footer-sep {
+  color: var(--dr-text-muted);
+  opacity: 0.6;
+  padding: 0 2px;
 }

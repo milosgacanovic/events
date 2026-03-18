@@ -91,6 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [config.clientId, config.loginRedirectPath, config.realm, config.url]);
 
   return (
+    <>
     <main>
       <header className="topbar">
         {/* Mobile: hamburger menu */}
@@ -255,5 +256,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       {children}
     </main>
+    <footer className="site-footer">
+      <div className="site-footer-line">
+        © 2026 DanceResource
+        <span className="site-footer-sep">·</span>
+        <a href="mailto:hello@danceresource.org">Contact</a>
+        <span className="site-footer-sep">·</span>
+        <a href="mailto:hello@danceresource.org">List or manage your event</a>
+        <span className="site-footer-sep">·</span>
+        <a href="https://www.danceresource.org" target="_blank" rel="noopener noreferrer">DanceResource.org</a>
+      </div>
+      <div className="site-footer-line">
+        Content shared with care under{" "}
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>
+      </div>
+    </footer>
+    </>
   );
 }
