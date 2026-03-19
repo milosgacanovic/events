@@ -1953,13 +1953,11 @@ label.meta {
   border-radius: 999px;
   padding: 4px 8px;
   font-size: 1rem;
-  font-weight: 500;
   color: var(--ink);
   white-space: nowrap;
 }
 
 .tag-practice {
-  font-weight: 500;
   border-width: 1.5px;
 }
 
@@ -2705,7 +2703,7 @@ img[loading="lazy"] {
   padding: 20px 16px 24px;
   text-align: center;
   font-size: 1rem;
-  color: var(--dr-text-muted);
+  color: var(--dr-text-secondary);
   line-height: 1.8;
 }
 
