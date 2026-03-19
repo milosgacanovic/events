@@ -112,7 +112,12 @@ const URL_REGEX = /https?:\/\/[^\s<>"']+[^\s<>"'.,!?)]/g;
 function linkifyHtml(html: string): string {
   // Only linkify text outside of existing <a> tags
   return html.replace(/(<a[\s\S]*?<\/a>)|([^<]+)/g, (match, anchor, text) => {
-    if (anchor) return anchor;
+    if (anchor) {
+      return anchor
+        .replace(/\btarget=["'][^"']*["']/i, '')
+        .replace(/\brel=["'][^"']*["']/i, '')
+        .replace(/^<a\b/, '<a target="_blank" rel="noopener noreferrer"');
+    }
     if (text) return text.replace(URL_REGEX, (url: string) => `<a href="${url}" target="_blank" rel="noreferrer noopener">${url}</a>`);
     return match;
   });
@@ -459,7 +464,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
                 const locCountry = loc.country_code
                   ? (regionNames?.of(loc.country_code.toUpperCase()) ?? loc.country_code.toUpperCase())
                   : null;
-                if (loc.city && loc.country_code) {
+                if (loc.city && !loc.city.includes(',') && loc.country_code) {
                   return (
                     <span key={loc.id} style={{ display: "block" }}>
                       <Link href={`/hosts?city=${encodeURIComponent(loc.city.toLowerCase())}&countryCode=${loc.country_code}`}>{loc.city}</Link>

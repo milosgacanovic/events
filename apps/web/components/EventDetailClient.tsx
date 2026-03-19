@@ -803,7 +803,7 @@ export function EventDetailClient({
           ) : (
             <>
               <span className="event-detail-meta-value">
-                {data.defaultLocation?.city && data.defaultLocation?.country_code ? (
+                {data.defaultLocation?.city && !data.defaultLocation.city.includes(',') && data.defaultLocation?.country_code ? (
                   <Link href={`/events?city=${encodeURIComponent(data.defaultLocation.city.toLowerCase())}&countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit", textDecoration: "none" }}>{data.defaultLocation.city}</Link>
                 ) : (
                   data.defaultLocation?.city ?? data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd")
