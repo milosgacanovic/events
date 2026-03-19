@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import Keycloak from "keycloak-js";
 import type { KeycloakClientConfig } from "../../lib/keycloakConfig";
 import { useI18n } from "../i18n/I18nProvider";
+import { pushDataLayer } from "../../lib/gtm";
 
 type MessageValues = Record<string, string | number | boolean | null | undefined>;
 type Translate = (key: string, values?: MessageValues) => string;
@@ -233,6 +234,13 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
       }
     };
   }, [keycloakUrl, keycloakRealm, keycloakClientId, t]);
+
+  // Push auth state once after Keycloak initialises
+  useEffect(() => {
+    if (!ready) return;
+    pushDataLayer({ user_authenticated: authenticated });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

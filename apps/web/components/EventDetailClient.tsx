@@ -12,6 +12,7 @@ import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
+import { pushDataLayer } from "../lib/gtm";
 
 const SHORTENER_BLOCKLIST = new Set([
   "bit.ly", "tinyurl.com", "t.co", "lnkd.in", "linktr.ee",
@@ -476,15 +477,43 @@ export function EventDetailClient({
     setCanNativeShare(typeof navigator !== "undefined" && !!navigator.share);
   }, []);
 
+  useEffect(() => {
+    if (!data) return;
+    const firstUpcoming = data.occurrences?.upcoming?.[0];
+    const eventDate =
+      firstUpcoming?.starts_at_utc?.slice(0, 10) ??
+      data.event.single_start_at?.slice(0, 10) ??
+      null;
+    const catLabel =
+      taxonomy?.practices.categories.find(
+        (c) => c.id === data.event.practice_category_id,
+      )?.label ?? null;
+    const location =
+      data.defaultLocation?.city ??
+      (data.event.attendance_mode === "online" ? "online" : null);
+    pushDataLayer({
+      event: "event_detail_view",
+      page_type: "event_detail",
+      event_title: data.event.title,
+      event_date: eventDate,
+      event_category: catLabel,
+      event_location: location,
+      event_attendance_mode: data.event.attendance_mode,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.event.id]);
+
   const handleCopyLink = useCallback(async () => {
     await navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, []);
+    pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "copy_link" });
+  }, [data?.event.title]);
 
   const handleNativeShare = useCallback(() => {
     navigator.share({ title: document.title, url: window.location.href }).catch(() => {});
-  }, []);
+    pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "native" });
+  }, [data?.event.title]);
 
   useEffect(() => {
     if (!calOpen) return;
@@ -631,15 +660,15 @@ export function EventDetailClient({
             </button>
           ) : (
             <>
-              <a className="breadcrumb-share-btn" href={`https://x.com/intent/post?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}&text=${encodeURIComponent(typeof document !== "undefined" ? document.title : "")}`} target="_blank" rel="noopener noreferrer">
+              <a className="breadcrumb-share-btn" href={`https://x.com/intent/post?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}&text=${encodeURIComponent(typeof document !== "undefined" ? document.title : "")}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "twitter" })}>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 1l5.2 6.6L1 13h1.6l4.4-5.1L11 13h2.5L8 6.1 13 1h-1.6L7.4 5.7 3.5 1H1Z" fill="currentColor"/></svg>
                 X
               </a>
-              <a className="breadcrumb-share-btn" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer">
+              <a className="breadcrumb-share-btn" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "facebook" })}>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9.5 1H8a3 3 0 0 0-3 3v1.5H3.5V8H5v5.5h2.5V8H9l.5-2.5H7.5V4a.5.5 0 0 1 .5-.5H9.5V1Z" fill="currentColor"/></svg>
                 Facebook
               </a>
-              <a className="breadcrumb-share-btn" href={`https://wa.me/?text=${encodeURIComponent(typeof document !== "undefined" ? document.title : "")}%20${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer">
+              <a className="breadcrumb-share-btn" href={`https://wa.me/?text=${encodeURIComponent(typeof document !== "undefined" ? document.title : "")}%20${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "whatsapp" })}>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1a6 6 0 0 1 5.196 9L13 13l-3.13-.824A6 6 0 1 1 7 1Z" stroke="currentColor" strokeWidth="1.3"/><path d="M5 5.5c.5 1 1.5 2.5 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
                 WhatsApp
               </a>
@@ -679,7 +708,7 @@ export function EventDetailClient({
 
       {/* Book / register CTA */}
       {externalUrl ? (
-        <a className="primary-btn event-detail-cta" href={externalUrl} target="_blank" rel="noreferrer">
+        <a className="primary-btn event-detail-cta" href={externalUrl} target="_blank" rel="noreferrer" onClick={() => pushDataLayer({ event: "register_click", event_title: data.event.title, funnel_step: 1 })}>
           {(() => {
             const domain = getBookingDomain(externalUrl);
             return domain ? t("eventDetail.externalLinkOn", { domain }) : t("eventDetail.externalLink");

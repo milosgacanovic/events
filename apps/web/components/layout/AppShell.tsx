@@ -9,6 +9,7 @@ import { useI18n } from "../i18n/I18nProvider";
 import { LocaleSwitcher } from "../i18n/LocaleSwitcher";
 import { getKeycloakClientConfig } from "../../lib/keycloakConfig";
 import { useTheme } from "../../lib/useTheme";
+import { pushDataLayer } from "../../lib/gtm";
 
 function ThemeIcon({ resolved }: { resolved: string }) {
   if (resolved === "dark") {
@@ -80,6 +81,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setHamburgerOpen(false);
     setUserDropdownOpen(false);
   }, [pathname]);
+
+  function handleLogin() {
+    pushDataLayer({
+      event: "login_intent",
+      login_source_page: window.location.pathname,
+      login_context: "header_nav",
+    });
+    void auth.login();
+  }
 
   const config = getKeycloakClientConfig();
   const registerUrl = useMemo(() => {
@@ -178,7 +188,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ) : (
             <div className="header-auth-pills">
-              <button className="header-auth-pill" type="button" onClick={() => void auth.login()}>
+              <button className="header-auth-pill" type="button" onClick={handleLogin}>
                 {t("nav.login")}
               </button>
               {registerUrl && (
@@ -230,7 +240,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </>
               ) : auth.ready ? (
                 <>
-                  <button className="dropdown-item" type="button" onClick={() => void auth.login()}>
+                  <button className="dropdown-item" type="button" onClick={handleLogin}>
                     {t("nav.login")}
                   </button>
                   {registerUrl && (

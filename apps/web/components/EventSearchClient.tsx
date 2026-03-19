@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
+import { pushDataLayer } from "../lib/gtm";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { scrollToTopFast } from "../lib/scroll";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
@@ -226,6 +227,7 @@ export function EventSearchClient({
   const cacheRestoredPageRef = useRef<number | null>(null);
   const restoredKeyRef = useRef<string | null>(null);
   const syncingFromUrlRef = useRef(false);
+  const filterTrackMountedRef = useRef(false);
   const facetRequestRef = useRef(0);
   const pendingPaginationScrollRef = useRef(false);
   const skipNextScrollRestoreRef = useRef(false);
@@ -705,6 +707,7 @@ export function EventSearchClient({
       const fetchInit = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
       const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`, fetchInit);
       setData(result);
+      pushDataLayer({ event: "event_listing_view", page_type: "event_listing", total_results: result.totalHits, current_page: page });
       if (appendMode) {
         setAccumulatedHits((prev) => [...prev, ...result.hits]);
       } else {
@@ -850,8 +853,23 @@ export function EventSearchClient({
       const queryString = buildUiQueryString();
       const url = queryString ? `${pathname}?${queryString}` : pathname;
       window.history.replaceState(window.history.state, "", url);
+      // Track filter changes — fires after 400ms debounce, skipping initial render
+      if (filterTrackMountedRef.current) {
+        pushDataLayer({
+          event: "event_filter",
+          filter_q: q || null,
+          filter_categories: practiceCategoryIds.join(",") || null,
+          filter_formats: eventFormatIds.join(",") || null,
+          filter_attendance: attendanceModes.join(",") || null,
+          filter_countries: countryCodes.join(",") || null,
+          filter_dates: eventDates.join(",") || null,
+        });
+      } else {
+        filterTrackMountedRef.current = true;
+      }
     }, 400);
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildUiQueryString, pathname]);
 
   useEffect(() => {
@@ -1933,7 +1951,11 @@ export function EventSearchClient({
                 className="card event-card-h"
                 key={hit.occurrenceId}
                 href={`/events/${hit.event.slug}`}
-                onClick={onNavigateAway}
+                onClick={() => {
+                  const idx = accumulatedHits.findIndex((h) => h.event.slug === hit.event.slug);
+                  pushDataLayer({ event: "event_card_click", event_title: hit.event.title, position: idx + 1 });
+                  onNavigateAway();
+                }}
               >
                 <div className="event-card-main">
                   <div

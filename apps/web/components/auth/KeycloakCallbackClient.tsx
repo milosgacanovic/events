@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { useI18n } from "../i18n/I18nProvider";
 import { useKeycloakAuth } from "./KeycloakAuthProvider";
+import { pushDataLayer } from "../../lib/gtm";
 
 export function KeycloakCallbackClient() {
   const { t } = useI18n();
@@ -24,6 +25,14 @@ export function KeycloakCallbackClient() {
         sessionStorage.removeItem("auth_return_path");
       }
     } catch {}
+
+    if (authenticated) {
+      pushDataLayer({
+        event: "login_complete",
+        login_return_to: returnPath,
+      });
+    }
+
     router.replace(returnPath);
   }, [ready, authenticated, router]);
 
