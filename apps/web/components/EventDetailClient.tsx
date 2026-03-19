@@ -225,7 +225,12 @@ function getRoleLabel(key: string, t: (k: string) => string): string {
 
 function linkifyHtml(html: string): string {
   return html.replace(/(<a[\s\S]*?<\/a>)|([^<]+)/g, (match, anchor, text) => {
-    if (anchor) return anchor;
+    if (anchor) {
+      return anchor
+        .replace(/\btarget=["'][^"']*["']/i, '')
+        .replace(/\brel=["'][^"']*["']/i, '')
+        .replace(/^<a\b/, '<a target="_blank" rel="noopener noreferrer"');
+    }
     if (text) return text.replace(URL_REGEX, (url: string) => `<a href="${url}" target="_blank" rel="noreferrer noopener">${url}</a>`);
     return match;
   });
@@ -259,6 +264,7 @@ export function EventDetailClient({
   const [descExpanded, setDescExpanded] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
+  const [shareExpanded, setShareExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
@@ -653,12 +659,7 @@ export function EventDetailClient({
           </Link>
         )}
         <div className="breadcrumb-share">
-          {canNativeShare ? (
-            <button type="button" className="breadcrumb-share-btn" onClick={handleNativeShare}>
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1v8M3.5 4.5L7 1l3.5 3.5M2 10v2.5h10V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              {t("eventDetail.shareNative")}
-            </button>
-          ) : (
+          {(!canNativeShare && shareExpanded) ? (
             <>
               <a className="breadcrumb-share-btn" href={`https://x.com/intent/post?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}&text=${encodeURIComponent(typeof document !== "undefined" ? document.title : "")}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "twitter" })}>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 1l5.2 6.6L1 13h1.6l4.4-5.1L11 13h2.5L8 6.1 13 1h-1.6L7.4 5.7 3.5 1H1Z" fill="currentColor"/></svg>
@@ -681,6 +682,15 @@ export function EventDetailClient({
                 {copied ? t("eventDetail.shareCopied") : t("eventDetail.shareCopy")}
               </button>
             </>
+          ) : (
+            <button
+              type="button"
+              className="breadcrumb-share-btn"
+              onClick={canNativeShare ? handleNativeShare : () => setShareExpanded(true)}
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1v8M3.5 4.5L7 1l3.5 3.5M2 10v2.5h10V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              {t("eventDetail.shareNative")}
+            </button>
           )}
         </div>
       </nav>
