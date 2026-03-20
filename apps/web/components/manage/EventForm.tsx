@@ -65,9 +65,8 @@ export function EventForm({
       try {
         const [tax, orgs] = await Promise.all([
           fetch(`${apiBase}/meta/taxonomies`, { cache: "no-store" }).then((r) => r.json()) as Promise<TaxonomyResponse>,
-          fetch(`${apiBase}/organizers/search?page=1&pageSize=200`, { cache: "no-store" })
-            .then((r) => r.json())
-            .then((d: { items: Array<{ id: string; name: string }> }) => d.items),
+          authorizedGet<{ items: Array<{ id: string; name: string }> }>(getToken, "/admin/organizers?page=1&pageSize=100")
+            .then((d) => d.items),
         ]);
         setTaxonomy(tax);
         setOrganizerOptions(orgs);
