@@ -2,18 +2,19 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useRef } from "react";
 
 // Stable extension array — created once at module level so TipTap v3's
 // reactive useEditor never sees a reference change and never recreates.
+// StarterKit v3 bundles Link and Underline — configure them there to avoid
+// duplicate extension warnings.
 const extensions = [
-  StarterKit.configure({ heading: { levels: [1, 2] } }),
-  Underline,
-  Link.configure({ openOnClick: false }),
+  StarterKit.configure({
+    heading: { levels: [1, 2] },
+    link: { openOnClick: false },
+  }),
   Image,
   Placeholder.configure({ placeholder: "Write a description..." }),
 ];

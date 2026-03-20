@@ -49,15 +49,15 @@ export async function listManagedEvents(
   }
 
   if (input.time === "upcoming") {
-    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at > now())`);
+    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
   } else if (input.time === "past") {
-    whereParts.push(`not exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at > now())`);
+    whereParts.push(`not exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
   }
 
   const extraWhere = whereParts.length ? `and ${whereParts.join(" and ")}` : "";
 
   const sortMap: Record<string, string> = {
-    upcoming: "next_occ.starts_at asc nulls last",
+    upcoming: "next_occ.starts_at_utc asc nulls last",
     edited: "e.updated_at desc",
     created: "e.created_at desc",
     title: "e.title asc",
@@ -111,7 +111,7 @@ export async function listManagedEvents(
           ef.label as event_format_label,
           loc_sub.city as location_city,
           loc_sub.country_code as location_country,
-          next_occ.starts_at as next_occurrence,
+          next_occ.starts_at_utc as next_occurrence,
           hosts_sub.host_names,
           u.display_name as created_by_name
         from events e
@@ -132,10 +132,10 @@ export async function listManagedEvents(
           where eo.event_id = e.id
         ) hosts_sub on true
         left join lateral (
-          select oc.starts_at
+          select oc.starts_at_utc
           from event_occurrences oc
-          where oc.event_id = e.id and oc.starts_at > now()
-          order by oc.starts_at
+          where oc.event_id = e.id and oc.starts_at_utc > now()
+          order by oc.starts_at_utc
           limit 1
         ) next_occ on true
         left join users u on u.id = e.created_by_user_id
@@ -341,7 +341,7 @@ export async function getDashboardStats(
         left join host_users hu on hu.organizer_id = eo.organizer_id and hu.user_id = $1
         left join event_users eu on eu.event_id = e.id and eu.user_id = $1
         where (e.created_by_user_id = $1 or hu.id is not null or eu.id is not null)
-          and oc.starts_at > now()
+          and oc.starts_at_utc > now()
           and e.status = 'published'
       `,
       [userId],
