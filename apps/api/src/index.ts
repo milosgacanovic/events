@@ -18,10 +18,13 @@ import metaRoutes from "./routes/meta";
 import metricsRoute from "./routes/metrics";
 import organizerRoutes from "./routes/organizers";
 import profileRoutes from "./routes/profile";
+import applicationRoutes from "./routes/applications";
+import manageRoutes from "./routes/manage";
 import uploadRoutes from "./routes/uploads";
 import { getEventsExternalRefSchemaStatus } from "./db/startupChecks";
 import { checkRateLimit, resolveAdminRateLimit, resolvePublicRateLimit } from "./middleware/rateLimit";
 import { AuthService } from "./services/authService";
+import { KeycloakAdminService } from "./services/keycloakAdminService";
 import { MeilisearchService } from "./services/meiliService";
 import { loggerConfig } from "./utils/logger";
 
@@ -41,8 +44,20 @@ async function buildServer() {
     clientId: config.KEYCLOAK_CLIENT_ID,
   });
 
+  const keycloakAdminService =
+    config.KEYCLOAK_ADMIN_URL && config.KEYCLOAK_ADMIN_CLIENT_ID &&
+    config.KEYCLOAK_ADMIN_CLIENT_SECRET && config.KEYCLOAK_REALM
+      ? new KeycloakAdminService({
+          adminUrl: config.KEYCLOAK_ADMIN_URL,
+          clientId: config.KEYCLOAK_ADMIN_CLIENT_ID,
+          clientSecret: config.KEYCLOAK_ADMIN_CLIENT_SECRET,
+          realm: config.KEYCLOAK_REALM,
+        })
+      : null;
+
   app.decorate("db", pool);
   app.decorate("meiliService", meiliService);
+  app.decorate("keycloakAdmin", keycloakAdminService);
 
   const externalRefSchemaStatus = await getEventsExternalRefSchemaStatus(pool);
   app.log.info(
@@ -170,6 +185,8 @@ async function buildServer() {
     await api.register(mapRoutes);
     await api.register(geocodeRoutes);
     await api.register(adminRoutes);
+    await api.register(applicationRoutes);
+    await api.register(manageRoutes);
     await api.register(uploadRoutes);
   }, { prefix: "/api" });
 

@@ -56,7 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const userMobileRef = useRef<HTMLDivElement>(null);
   const userDesktopRef = useRef<HTMLDivElement>(null);
 
-  const canOpenAdmin = auth.roles.some((role) =>
+  const canOpenManage = auth.roles.some((role) =>
     role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
   );
 
@@ -126,9 +126,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link href="/hosts" className={"dropdown-item" + (pathname.startsWith("/hosts") ? " active" : "")}>
                 {t("nav.organizers")}
               </Link>
-              {canOpenAdmin && (
-                <Link href="/admin" className={"dropdown-item" + (pathname.startsWith("/admin") ? " active" : "")}>
-                  {t("nav.admin")}
+              {canOpenManage ? (
+                <Link href="/manage" className={"dropdown-item" + (pathname.startsWith("/manage") ? " active" : "")}>
+                  Manage
+                </Link>
+              ) : auth.authenticated ? null : (
+                <Link href="/manage/apply" className="dropdown-item">
+                  Post your event
                 </Link>
               )}
               <a className="dropdown-item" href="https://danceresource.org" target="_blank" rel="noopener noreferrer">DanceResource</a>
@@ -150,9 +154,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/hosts" className={pathname.startsWith("/hosts") ? "active" : ""}>
             {t("nav.organizers")}
           </Link>
-          {canOpenAdmin && (
-            <Link href="/admin" className={pathname.startsWith("/admin") ? "active" : ""}>
-              {t("nav.admin")}
+          {canOpenManage ? (
+            <Link href="/manage" className={pathname.startsWith("/manage") ? "active" : ""}>
+              Manage
+            </Link>
+          ) : auth.authenticated ? null : (
+            <Link href="/manage/apply" className="accent-link">
+              Post your event
             </Link>
           )}
           <a href="https://danceresource.org" target="_blank" rel="noopener noreferrer">DanceResource</a>
@@ -272,7 +280,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <span className="site-footer-sep">·</span>
         <a href="mailto:hello@danceresource.org">Contact</a>
         <span className="site-footer-sep">·</span>
-        <a href="mailto:hello@danceresource.org">List or manage your event</a>
+        <Link href={canOpenManage ? "/manage/events/new" : "/manage/apply"}>Post your event</Link>
         <span className="site-footer-sep">·</span>
         <a href="https://www.danceresource.org" target="_blank" rel="noopener noreferrer">DanceResource.org</a>
       </div>

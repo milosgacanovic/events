@@ -1,6 +1,6 @@
 # Constitution Gap Report (2026-03-03)
 
-Scope: Evidence-based audit against [`constitution.md`](/opt/events/constitution.md) with no feature/code changes.
+Scope: Evidence-based audit against [`constitution.md`](/opt/events/docs/constitution.md) with no feature/code changes.
 
 ## 1) Purpose and Hard Scope Boundary — 🟨 PARTIAL
 - Evidence:

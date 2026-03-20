@@ -8,12 +8,28 @@ import {
   createEventFormat,
   createOrganizerRole,
   createPractice,
+  deleteEventFormat,
+  deleteOrganizerRole,
+  deletePractice,
   listEventFormats,
+  reorderEventFormats,
+  reorderOrganizerRoles,
+  reorderPractices,
   updateEventFormat,
   updateOrganizerRole,
   updatePractice,
 } from "../db/taxonomyRepo";
+import {
+  getUserLinkedEvents,
+  getUserLinkedHosts,
+  listUsersWithRoles,
+  linkUserToHost,
+  unlinkUserFromHost,
+  linkUserToEvent,
+  unlinkUserFromEvent,
+} from "../db/userManageRepo";
 import { getUiLabels, updateUiLabels } from "../db/uiLabelRepo";
+import { resolveUserId } from "../middleware/ownership";
 
 const createPracticeSchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
@@ -46,7 +62,37 @@ const updateUiLabelsSchema = z.object({
   categoryPlural: z.string().min(1).optional(),
 });
 
+const reorderBodySchema = z.array(z.object({
+  id: z.string().uuid(),
+  sortOrder: z.number().int(),
+})).min(1);
+
 const adminRoutes: FastifyPluginAsync = async (app) => {
+  // --- Taxonomy reorder endpoints (before /:id to avoid param collision) ---
+  app.patch("/admin/practices/reorder", async (request, reply) => {
+    await app.requireAdmin(request);
+    const parsed = reorderBodySchema.safeParse(request.body);
+    if (!parsed.success) { reply.code(400); return { error: parsed.error.flatten() }; }
+    await reorderPractices(app.db, parsed.data);
+    return { ok: true };
+  });
+
+  app.patch("/admin/event-formats/reorder", async (request, reply) => {
+    await app.requireAdmin(request);
+    const parsed = reorderBodySchema.safeParse(request.body);
+    if (!parsed.success) { reply.code(400); return { error: parsed.error.flatten() }; }
+    await reorderEventFormats(app.db, parsed.data);
+    return { ok: true };
+  });
+
+  app.patch("/admin/organizer-roles/reorder", async (request, reply) => {
+    await app.requireAdmin(request);
+    const parsed = reorderBodySchema.safeParse(request.body);
+    if (!parsed.success) { reply.code(400); return { error: parsed.error.flatten() }; }
+    await reorderOrganizerRoles(app.db, parsed.data);
+    return { ok: true };
+  });
+
   app.post("/admin/practices", async (request, reply) => {
     await app.requireAdmin(request);
 
@@ -203,6 +249,153 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         practiceCategory: uiLabels.categoryPlural,
       },
     };
+  });
+
+  // --- Taxonomy DELETE endpoints ---
+  app.delete("/admin/practices/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const result = await deletePractice(app.db, params.data.id);
+    if (result.conflict) { reply.code(409); return { error: result.conflict }; }
+    if (!result.deleted) { reply.code(404); return { error: "not_found" }; }
+    reply.code(204);
+  });
+
+  app.delete("/admin/event-formats/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const result = await deleteEventFormat(app.db, params.data.id);
+    if (result.conflict) { reply.code(409); return { error: result.conflict }; }
+    if (!result.deleted) { reply.code(404); return { error: "not_found" }; }
+    reply.code(204);
+  });
+
+  app.delete("/admin/organizer-roles/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const result = await deleteOrganizerRole(app.db, params.data.id);
+    if (result.conflict) { reply.code(409); return { error: result.conflict }; }
+    if (!result.deleted) { reply.code(404); return { error: "not_found" }; }
+    reply.code(204);
+  });
+
+  // --- User management endpoints ---
+  app.get("/admin/users", async (request, reply) => {
+    await app.requireAdmin(request);
+    const parsed = z.object({
+      search: z.string().optional(),
+      page: z.coerce.number().int().positive().default(1),
+      pageSize: z.coerce.number().int().positive().max(100).default(20),
+    }).safeParse(request.query);
+    if (!parsed.success) { reply.code(400); return { error: parsed.error.flatten() }; }
+
+    const result = await listUsersWithRoles(app.db, parsed.data);
+
+    // Optionally enrich with Keycloak roles
+    if (app.keycloakAdmin) {
+      for (const user of result.items) {
+        try {
+          const roles = await app.keycloakAdmin.getUserRoles(user.keycloak_sub);
+          (user as Record<string, unknown>).keycloak_roles = roles.map((r) => r.name);
+        } catch {
+          (user as Record<string, unknown>).keycloak_roles = [];
+        }
+      }
+    }
+
+    return result;
+  });
+
+  app.patch("/admin/users/:id/roles", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const body = z.object({
+      add: z.array(z.string()).optional(),
+      remove: z.array(z.string()).optional(),
+    }).safeParse(request.body);
+    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+
+    if (!app.keycloakAdmin) {
+      reply.code(501);
+      return { error: "Keycloak admin not configured" };
+    }
+
+    const userRow = await app.db.query<{ keycloak_sub: string }>(
+      `select keycloak_sub from users where id = $1`, [params.data.id],
+    );
+    if (!userRow.rows[0]) { reply.code(404); return { error: "not_found" }; }
+    const sub = userRow.rows[0].keycloak_sub;
+
+    for (const role of body.data.add ?? []) {
+      await app.keycloakAdmin.grantRole(sub, role);
+    }
+    for (const role of body.data.remove ?? []) {
+      await app.keycloakAdmin.revokeRole(sub, role);
+    }
+
+    return { ok: true };
+  });
+
+  app.get("/admin/users/:id/hosts", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    return getUserLinkedHosts(app.db, params.data.id);
+  });
+
+  app.get("/admin/users/:id/events", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    return getUserLinkedEvents(app.db, params.data.id);
+  });
+
+  app.post("/admin/users/:id/hosts", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const body = z.object({ organizerId: z.string().uuid() }).safeParse(request.body);
+    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+
+    const auth = request.auth!;
+    const adminUserId = await resolveUserId(app.db, auth);
+    await linkUserToHost(app.db, params.data.id, body.data.organizerId, adminUserId);
+    reply.code(201);
+    return { ok: true };
+  });
+
+  app.delete("/admin/users/:id/hosts/:hostId", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid(), hostId: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    await unlinkUserFromHost(app.db, params.data.id, params.data.hostId);
+    reply.code(204);
+  });
+
+  app.post("/admin/users/:id/events", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const body = z.object({ eventId: z.string().uuid() }).safeParse(request.body);
+    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+
+    const auth = request.auth!;
+    const adminUserId = await resolveUserId(app.db, auth);
+    await linkUserToEvent(app.db, params.data.id, body.data.eventId, adminUserId);
+    reply.code(201);
+    return { ok: true };
+  });
+
+  app.delete("/admin/users/:id/events/:eventId", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid(), eventId: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    await unlinkUserFromEvent(app.db, params.data.id, params.data.eventId);
+    reply.code(204);
   });
 
   app.post("/admin/events/reindex", async (request) => {

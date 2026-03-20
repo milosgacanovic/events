@@ -699,7 +699,7 @@ export function EventDetailClient({
       <div className="event-detail-header">
         <h1 className="event-detail-title">{data.event.title}</h1>
         {canEdit && (
-          <Link className="secondary-btn" href={`/admin?section=events&id=${encodeURIComponent(data.event.id)}`}>
+          <Link className="secondary-btn" href={`/manage/events/${data.event.id}`}>
             {t("eventDetail.editEvent")}
           </Link>
         )}

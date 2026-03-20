@@ -1,0 +1,178 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
+import { useI18n } from "../../../../components/i18n/I18nProvider";
+import { AssignToUserModal } from "../../../../components/manage/AssignToUserModal";
+import { EventCard } from "../../../../components/manage/EventCard";
+import { authorizedDelete, authorizedGet, authorizedPost } from "../../../../lib/manageApi";
+
+type EventItem = {
+  id: string;
+  slug: string;
+  title: string;
+  status: string;
+  attendance_mode: string;
+  schedule_kind: string;
+  is_imported: boolean;
+  import_source: string | null;
+  detached_from_import: boolean;
+  updated_at: string;
+  practice_category_label: string | null;
+  event_format_label: string | null;
+  location_city: string | null;
+  location_country: string | null;
+  next_occurrence: string | null;
+  host_names: string | null;
+  created_by_name: string | null;
+};
+
+type EventsResponse = {
+  items: EventItem[];
+  pagination: { page: number; pageSize: number; totalPages: number; totalItems: number };
+};
+
+export default function AdminAllEventsPage() {
+  const { getToken } = useKeycloakAuth();
+  const { t } = useI18n();
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("published");
+  const [importFilter, setImportFilter] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [assignEventId, setAssignEventId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      if (search) params.set("q", search);
+      if (statusFilter) params.set("status", statusFilter);
+      params.set("showUnlisted", "true");
+      if (ownerFilter) params.set("ownerFilter", ownerFilter);
+      if (importFilter === "imported") {
+        // Show only imported events — not a direct API filter but we filter client-side
+      }
+      const data = await authorizedGet<EventsResponse>(getToken, `/admin/events?${params}`);
+      let items = data.items;
+      if (importFilter === "imported") {
+        items = items.filter((e) => e.is_imported);
+      } else if (importFilter === "manual") {
+        items = items.filter((e) => !e.is_imported);
+      }
+      setEvents(items);
+      setTotalItems(data.pagination.totalItems);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken, page, search, statusFilter, importFilter, ownerFilter]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function runAction(eventId: string, action: string) {
+    try {
+      await authorizedPost(getToken, `/events/${eventId}/${action}`, {});
+      void load();
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleDelete(eventId: string) {
+    if (!confirm("Are you sure you want to permanently delete this event?")) return;
+    try {
+      await authorizedDelete(getToken, `/admin/events/${eventId}`);
+      void load();
+    } catch {
+      // ignore
+    }
+  }
+
+  return (
+    <div>
+      <h1 className="manage-page-title">{t("manage.admin.events.title")}</h1>
+
+      <div className="manage-filter-bar">
+        <input
+          placeholder="Search events..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+        />
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+          <option value="">All statuses</option>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="archived">Archived</option>
+        </select>
+        <select value={importFilter} onChange={(e) => { setImportFilter(e.target.value); setPage(1); }}>
+          <option value="">All sources</option>
+          <option value="imported">Imported only</option>
+          <option value="manual">Manual only</option>
+        </select>
+        <select value={ownerFilter} onChange={(e) => { setOwnerFilter(e.target.value); setPage(1); }}>
+          <option value="">All owners</option>
+          <option value="has_owner">Has owner</option>
+          <option value="unassigned">Unassigned</option>
+        </select>
+        <span className="meta">{totalItems} event{totalItems !== 1 ? "s" : ""}</span>
+      </div>
+
+      {loading ? (
+        <div className="manage-loading">Loading...</div>
+      ) : (
+        <>
+          <div className="manage-cards-grid">
+            {events.map((event) => (
+              <EventCard
+                key={event.id}
+                id={event.id}
+                slug={event.slug}
+                title={event.title}
+                status={event.status}
+                isImported={event.is_imported}
+                importSource={event.import_source}
+                detachedFromImport={event.detached_from_import}
+                updatedAt={event.updated_at}
+                practiceCategoryLabel={event.practice_category_label}
+                eventFormatLabel={event.event_format_label}
+                locationCity={event.location_city}
+                locationCountry={event.location_country}
+                nextOccurrence={event.next_occurrence}
+                hostNames={event.host_names}
+                createdByName={event.created_by_name}
+                onPublish={event.status === "draft" ? () => void runAction(event.id, "publish") : undefined}
+                onUnpublish={event.status === "published" ? () => void runAction(event.id, "unpublish") : undefined}
+                onCancel={event.status === "published" ? () => void runAction(event.id, "cancel") : undefined}
+                onAssign={() => setAssignEventId(event.id)}
+                onDelete={() => void handleDelete(event.id)}
+              />
+            ))}
+          </div>
+          {(page > 1 || events.length === 20) && (
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>Previous</button>}
+              {events.length === 20 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>Next</button>}
+            </div>
+          )}
+        </>
+      )}
+      {assignEventId && (
+        <AssignToUserModal
+          getToken={getToken}
+          entityType="events"
+          entityId={assignEventId}
+          onAssigned={() => void load()}
+          onClose={() => setAssignEventId(null)}
+        />
+      )}
+    </div>
+  );
+}

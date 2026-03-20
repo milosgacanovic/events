@@ -1,0 +1,364 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
+import { useI18n } from "../../../../components/i18n/I18nProvider";
+import { authorizedDelete, authorizedPost, authorizedPatch } from "../../../../lib/manageApi";
+import { deriveTaxonomyKey } from "../../../../lib/formUtils";
+import { apiBase } from "../../../../lib/api";
+
+type TaxItem = { id: string; key: string; label: string; sort_order?: number };
+type TaxonomyResponse = {
+  uiLabels: { categorySingular?: string; categoryPlural?: string };
+  practices: {
+    categories: Array<TaxItem & {
+      subcategories: Array<TaxItem>;
+    }>;
+  };
+  organizerRoles: Array<TaxItem>;
+  eventFormats?: Array<TaxItem>;
+};
+
+export default function AdminTaxonomiesPage() {
+  const { getToken } = useKeycloakAuth();
+  const { t } = useI18n();
+  const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
+  const [tab, setTab] = useState<"practices" | "formats" | "roles" | "labels">("practices");
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("");
+
+  // Practice form
+  const [practiceLevel, setPracticeLevel] = useState<"1" | "2">("1");
+  const [practiceParentId, setPracticeParentId] = useState("");
+  const [practiceLabel, setPracticeLabel] = useState("");
+  const [practiceKey, setPracticeKey] = useState("");
+
+  // Role form
+  const [roleKey, setRoleKey] = useState("");
+  const [roleLabel, setRoleLabel] = useState("");
+
+  // Format form
+  const [formatKey, setFormatKey] = useState("");
+  const [formatLabel, setFormatLabel] = useState("");
+
+  // Labels form
+  const [catSingular, setCatSingular] = useState("");
+  const [catPlural, setCatPlural] = useState("");
+
+  // Inline edit
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+
+  const loadTaxonomy = useCallback(async () => {
+    try {
+      const data = await fetch(`${apiBase}/meta/taxonomies`, { cache: "no-store" }).then((r) => r.json()) as TaxonomyResponse;
+      setTaxonomy(data);
+      setCatSingular(data.uiLabels.categorySingular ?? "");
+      setCatPlural(data.uiLabels.categoryPlural ?? "");
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void loadTaxonomy(); }, [loadTaxonomy]);
+
+  async function createPractice(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const key = practiceKey || deriveTaxonomyKey(practiceLabel);
+      await authorizedPost(getToken, "/admin/practices", {
+        level: Number(practiceLevel),
+        parentId: practiceLevel === "2" ? practiceParentId : null,
+        key,
+        label: practiceLabel,
+        sortOrder: 0,
+        isActive: true,
+      });
+      setPracticeLabel("");
+      setPracticeKey("");
+      setStatus("Practice created!");
+      void loadTaxonomy();
+    } catch (err) {
+      setStatus(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    }
+  }
+
+  async function createRole(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await authorizedPost(getToken, "/admin/organizer-roles", {
+        key: roleKey,
+        label: roleLabel,
+        sortOrder: 0,
+        isActive: true,
+      });
+      setRoleKey("");
+      setRoleLabel("");
+      setStatus("Role created!");
+      void loadTaxonomy();
+    } catch (err) {
+      setStatus(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    }
+  }
+
+  async function createFormat(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await authorizedPost(getToken, "/admin/event-formats", {
+        key: formatKey,
+        label: formatLabel,
+        sortOrder: 0,
+        isActive: true,
+      });
+      setFormatKey("");
+      setFormatLabel("");
+      setStatus("Format created!");
+      void loadTaxonomy();
+    } catch (err) {
+      setStatus(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    }
+  }
+
+  async function saveLabels(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await authorizedPatch(getToken, "/admin/ui-labels", {
+        categorySingular: catSingular,
+        categoryPlural: catPlural,
+      });
+      setStatus("Labels saved!");
+    } catch (err) {
+      setStatus(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    }
+  }
+
+  async function handleInlineEdit(endpoint: string, id: string) {
+    try {
+      await authorizedPatch(getToken, `${endpoint}/${id}`, { label: editLabel });
+      setEditingId(null);
+      setEditLabel("");
+      setStatus("Updated!");
+      void loadTaxonomy();
+    } catch (err) {
+      setStatus(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    }
+  }
+
+  async function handleDelete(endpoint: string, id: string, label: string) {
+    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+    try {
+      await authorizedDelete(getToken, `${endpoint}/${id}`);
+      setStatus("Deleted!");
+      void loadTaxonomy();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed";
+      setStatus(`Error: ${msg}`);
+    }
+  }
+
+  function startEdit(id: string, currentLabel: string) {
+    setEditingId(id);
+    setEditLabel(currentLabel);
+  }
+
+  async function handleReorder(endpoint: string, items: TaxItem[], index: number, direction: "up" | "down") {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+
+    const updated = items.map((item, i) => ({
+      id: item.id,
+      sortOrder: item.sort_order ?? i,
+    }));
+    // Swap sort orders
+    const tmp = updated[index].sortOrder;
+    updated[index].sortOrder = updated[targetIndex].sortOrder;
+    updated[targetIndex].sortOrder = tmp;
+
+    try {
+      await authorizedPatch(getToken, `${endpoint}/reorder`, updated);
+      setStatus("Reordered!");
+      void loadTaxonomy();
+    } catch (err) {
+      setStatus(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    }
+  }
+
+  function renderItemRow(id: string, label: string, key: string, endpoint: string, indent = false, items?: TaxItem[], index?: number) {
+    const isEditing = editingId === id;
+    return (
+      <div key={id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, paddingLeft: indent ? 16 : 0 }}>
+        {isEditing ? (
+          <>
+            <input
+              value={editLabel}
+              onChange={(e) => setEditLabel(e.target.value)}
+              style={{ flex: 1, fontSize: "0.9rem" }}
+            />
+            <button type="button" className="primary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleInlineEdit(endpoint, id)}>
+              Save
+            </button>
+            <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => setEditingId(null)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <span style={{ flex: 1 }}>
+              {indent ? "" : <strong>{label}</strong>}
+              {indent && <span className="meta">{label}</span>}
+              {!indent && <span className="meta"> ({key})</span>}
+              {indent && <span className="meta"> ({key})</span>}
+            </span>
+            {items && index !== undefined && index > 0 && (
+              <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 6px" }} onClick={() => void handleReorder(endpoint, items, index, "up")} title="Move up">
+                ↑
+              </button>
+            )}
+            {items && index !== undefined && index < items.length - 1 && (
+              <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 6px" }} onClick={() => void handleReorder(endpoint, items, index, "down")} title="Move down">
+                ↓
+              </button>
+            )}
+            <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => startEdit(id, label)}>
+              Edit
+            </button>
+            <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => void handleDelete(endpoint, id, label)}>
+              Delete
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (loading) return <div className="manage-loading">Loading...</div>;
+
+  return (
+    <div>
+      <h1 className="manage-page-title">{t("manage.admin.taxonomies.title")}</h1>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {(["practices", "formats", "roles", "labels"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            className={tab === t ? "primary-btn" : "secondary-btn"}
+            style={{ fontSize: "0.85rem" }}
+            onClick={() => setTab(t)}
+          >
+            {t === "practices" ? "Dance Practices" : t === "formats" ? "Event Formats" : t === "roles" ? "Host Roles" : "UI Labels"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "practices" && (
+        <div>
+          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>Existing Practices</h2>
+          {taxonomy?.practices.categories.map((cat, catIdx) => (
+            <div key={cat.id} style={{ marginBottom: 12 }}>
+              {renderItemRow(cat.id, cat.label, cat.key, "/admin/practices", false, taxonomy.practices.categories, catIdx)}
+              {cat.subcategories.length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  {cat.subcategories.map((sub, subIdx) =>
+                    renderItemRow(sub.id, sub.label, sub.key, "/admin/practices", true, cat.subcategories, subIdx),
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>Create Practice</h2>
+          <form className="manage-form" onSubmit={(e) => void createPractice(e)}>
+            <div>
+              <label>Level</label>
+              <select value={practiceLevel} onChange={(e) => setPracticeLevel(e.target.value as "1" | "2")}>
+                <option value="1">Category</option>
+                <option value="2">Subcategory</option>
+              </select>
+            </div>
+            {practiceLevel === "2" && (
+              <div>
+                <label>Parent Category</label>
+                <select value={practiceParentId} onChange={(e) => setPracticeParentId(e.target.value)} required>
+                  <option value="">Select parent...</option>
+                  {taxonomy?.practices.categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label>Label</label>
+              <input value={practiceLabel} onChange={(e) => setPracticeLabel(e.target.value)} required />
+            </div>
+            <div>
+              <label>Key (auto-generated if empty)</label>
+              <input value={practiceKey} onChange={(e) => setPracticeKey(e.target.value)} placeholder={deriveTaxonomyKey(practiceLabel || "example")} />
+            </div>
+            <button type="submit" className="primary-btn">Create Practice</button>
+          </form>
+        </div>
+      )}
+
+      {tab === "formats" && (
+        <div>
+          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>Existing Formats</h2>
+          {taxonomy?.eventFormats?.map((f, fIdx) =>
+            renderItemRow(f.id, f.label, f.key, "/admin/event-formats", false, taxonomy?.eventFormats, fIdx),
+          )}
+          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>Create Format</h2>
+          <form className="manage-form" onSubmit={(e) => void createFormat(e)}>
+            <div>
+              <label>Key</label>
+              <input value={formatKey} onChange={(e) => setFormatKey(e.target.value)} required />
+            </div>
+            <div>
+              <label>Label</label>
+              <input value={formatLabel} onChange={(e) => setFormatLabel(e.target.value)} required />
+            </div>
+            <button type="submit" className="primary-btn">Create Format</button>
+          </form>
+        </div>
+      )}
+
+      {tab === "roles" && (
+        <div>
+          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>Existing Roles</h2>
+          {taxonomy?.organizerRoles.map((r, rIdx) =>
+            renderItemRow(r.id, r.label, r.key, "/admin/organizer-roles", false, taxonomy?.organizerRoles, rIdx),
+          )}
+          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>Create Role</h2>
+          <form className="manage-form" onSubmit={(e) => void createRole(e)}>
+            <div>
+              <label>Key</label>
+              <input value={roleKey} onChange={(e) => setRoleKey(e.target.value)} required />
+            </div>
+            <div>
+              <label>Label</label>
+              <input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)} required />
+            </div>
+            <button type="submit" className="primary-btn">Create Role</button>
+          </form>
+        </div>
+      )}
+
+      {tab === "labels" && (
+        <form className="manage-form" onSubmit={(e) => void saveLabels(e)}>
+          <div>
+            <label>Category Singular (e.g. &quot;Dance&quot;, &quot;Activity&quot;)</label>
+            <input value={catSingular} onChange={(e) => setCatSingular(e.target.value)} />
+          </div>
+          <div>
+            <label>Category Plural (e.g. &quot;Dances&quot;, &quot;Activities&quot;)</label>
+            <input value={catPlural} onChange={(e) => setCatPlural(e.target.value)} />
+          </div>
+          <button type="submit" className="primary-btn">Save Labels</button>
+        </form>
+      )}
+
+      {status && <div className="meta" style={{ padding: "8px 0" }}>{status}</div>}
+    </div>
+  );
+}

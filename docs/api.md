@@ -51,7 +51,7 @@ Base path: `/api`
 - `PATCH /api/admin/ui-labels`
 - `GET /api/admin/alerts/run-dry`
 
-See `constitution.md` for complete behavior and field-level requirements.
+See `constitution.md` in this directory for complete behavior and field-level requirements.
 
 ## Search Query Conventions
 - `practiceCategoryId`, `eventFormatId`, and `countryCode` accept CSV values for multi-select filters.

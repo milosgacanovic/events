@@ -1,5 +1,6 @@
 import type { AuthContext } from "@dr-events/shared";
 import type { MeilisearchService } from "../services/meiliService";
+import type { KeycloakAdminService } from "../services/keycloakAdminService";
 import type { Pool } from "pg";
 
 declare module "fastify" {
@@ -10,6 +11,7 @@ declare module "fastify" {
   interface FastifyInstance {
     db: Pool;
     meiliService: MeilisearchService;
+    keycloakAdmin: KeycloakAdminService | null;
     authenticate: (request: FastifyRequest) => Promise<void>;
     requireEditor: (request: FastifyRequest) => Promise<void>;
     requireAdmin: (request: FastifyRequest) => Promise<void>;

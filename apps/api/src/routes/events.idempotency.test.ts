@@ -27,6 +27,11 @@ vi.mock("../services/eventLifecycleService", () => ({
   regenerateOccurrences: vi.fn(),
 }));
 
+vi.mock("../middleware/ownership", () => ({
+  resolveUserId: vi.fn().mockResolvedValue("00000000-0000-0000-0000-000000000001"),
+  requireEventAccess: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { findOrCreateUserBySub } from "../db/userRepo";
 import {
   createEvent,

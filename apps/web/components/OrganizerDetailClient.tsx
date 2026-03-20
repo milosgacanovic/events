@@ -409,7 +409,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
               {canEdit && (
                 <Link
                   className="secondary-btn"
-                  href={`/admin?section=organizers&id=${encodeURIComponent(data.organizer.id)}`}
+                  href={`/manage/hosts/${data.organizer.id}`}
                 >
                   {t("organizerDetail.editHost")}
                 </Link>

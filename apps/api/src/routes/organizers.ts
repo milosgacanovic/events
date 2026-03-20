@@ -8,6 +8,7 @@ import {
   searchOrganizers,
   updateOrganizer,
 } from "../db/organizerRepo";
+import { resolveUserId, requireOrganizerAccess } from "../middleware/ownership";
 import { clearSearchCache, debouncedClearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 
 const querySchema = z.object({
@@ -243,7 +244,21 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
+    const auth = request.auth!;
+    const userId = await resolveUserId(app.db, auth);
+
     const organizer = await createOrganizer(app.db, parsed.data);
+
+    // Set creator and create host_users link
+    await app.db.query(
+      `update organizers set created_by_user_id = $2 where id = $1`,
+      [organizer.id, userId],
+    );
+    await app.db.query(
+      `insert into host_users (user_id, organizer_id, created_by) values ($1, $2, $1) on conflict do nothing`,
+      [userId, organizer.id],
+    );
+
     debouncedClearSearchCache();
     reply.code(201);
     return organizer;
@@ -256,6 +271,12 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     if (!params.success) {
       reply.code(400);
       return { error: params.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    if (!auth.isAdmin) {
+      const userId = await resolveUserId(app.db, auth);
+      await requireOrganizerAccess(app.db, userId, params.data.id, false);
     }
 
     const parsed = updateOrganizerSchema.safeParse(request.body);

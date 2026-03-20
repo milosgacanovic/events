@@ -1,6 +1,6 @@
 # MVP Reconciliation Checklist
 
-Use this checklist to verify `constitution.md` MVP Definition of Done (Section 22) and Epics A-H acceptance.
+Use this checklist to verify `docs/constitution.md` MVP Definition of Done (Section 22) and Epics A-H acceptance.
 
 ## 1) Bootstrap and Runtime
 - `docker compose --env-file /opt/events/.env -f /opt/events/deploy/docker/docker-compose.yml up -d --build`

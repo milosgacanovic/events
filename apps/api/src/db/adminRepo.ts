@@ -8,6 +8,8 @@ export async function listAdminEvents(
     showUnlisted?: boolean;
     externalSource?: string;
     externalId?: string;
+    organizerId?: string;
+    ownerFilter?: "all" | "unassigned" | "has_owner";
     page: number;
     pageSize: number;
   },
@@ -40,6 +42,17 @@ export async function listAdminEvents(
     whereParts.push(`e.external_id = $${values.length}`);
   }
 
+  if (input.organizerId) {
+    values.push(input.organizerId);
+    whereParts.push(`exists(select 1 from event_organizers eo2 where eo2.event_id = e.id and eo2.organizer_id = $${values.length})`);
+  }
+
+  if (input.ownerFilter === "unassigned") {
+    whereParts.push(`e.created_by_user_id IS NULL AND NOT EXISTS(SELECT 1 FROM event_users eu WHERE eu.event_id = e.id)`);
+  } else if (input.ownerFilter === "has_owner") {
+    whereParts.push(`(e.created_by_user_id IS NOT NULL OR EXISTS(SELECT 1 FROM event_users eu WHERE eu.event_id = e.id))`);
+  }
+
   const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
 
   const [itemsResult, totalResult] = await Promise.all([
@@ -55,12 +68,20 @@ export async function listAdminEvents(
       import_source: string | null;
       isImported: boolean;
       importSource: string | null;
+      detached_from_import: boolean;
       status: string;
       attendance_mode: string;
       schedule_kind: string;
       event_format_id: string | null;
       updated_at: string;
       published_at: string | null;
+      practice_category_label: string | null;
+      event_format_label: string | null;
+      location_city: string | null;
+      location_country: string | null;
+      next_occurrence: string | null;
+      host_names: string | null;
+      created_by_name: string | null;
     }>(
       `
         select
@@ -75,13 +96,44 @@ export async function listAdminEvents(
           e.import_source,
           e.is_imported as "isImported",
           e.import_source as "importSource",
+          e.detached_from_import,
           e.status,
           e.attendance_mode,
           e.schedule_kind,
           e.event_format_id,
           e.updated_at,
-          e.published_at
+          e.published_at,
+          pc.label as practice_category_label,
+          ef.label as event_format_label,
+          loc_sub.city as location_city,
+          loc_sub.country_code as location_country,
+          next_occ.starts_at as next_occurrence,
+          hosts_sub.host_names,
+          u.display_name as created_by_name
         from events e
+        left join practices pc on pc.id = e.practice_category_id
+        left join event_formats ef on ef.id = e.event_format_id
+        left join lateral (
+          select l.city, l.country_code
+          from event_locations el
+          join locations l on l.id = el.location_id
+          where el.event_id = e.id
+          limit 1
+        ) loc_sub on true
+        left join lateral (
+          select string_agg(o.name, ', ' order by eo.display_order) as host_names
+          from event_organizers eo
+          join organizers o on o.id = eo.organizer_id
+          where eo.event_id = e.id
+        ) hosts_sub on true
+        left join lateral (
+          select oc.starts_at
+          from event_occurrences oc
+          where oc.event_id = e.id and oc.starts_at > now()
+          order by oc.starts_at
+          limit 1
+        ) next_occ on true
+        left join users u on u.id = e.created_by_user_id
         ${whereSql}
         order by e.updated_at desc
         limit $${values.length + 1}
@@ -111,6 +163,9 @@ export async function listAdminOrganizers(
     q?: string;
     status?: "draft" | "published" | "archived";
     showArchived?: boolean;
+    practiceCategoryId?: string;
+    profileRoleId?: string;
+    countryCode?: string;
     page: number;
     pageSize: number;
   },
@@ -133,6 +188,21 @@ export async function listAdminOrganizers(
     whereParts.push(`o.status = $${values.length}`);
   }
 
+  if (input.practiceCategoryId) {
+    values.push(input.practiceCategoryId);
+    whereParts.push(`EXISTS(SELECT 1 FROM organizer_practices op WHERE op.organizer_id = o.id AND op.practice_id = $${values.length})`);
+  }
+
+  if (input.profileRoleId) {
+    values.push(input.profileRoleId);
+    whereParts.push(`EXISTS(SELECT 1 FROM organizer_profile_roles opr WHERE opr.organizer_id = o.id AND opr.role_id = $${values.length})`);
+  }
+
+  if (input.countryCode) {
+    values.push(input.countryCode);
+    whereParts.push(`o.country_code = $${values.length}`);
+  }
+
   const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
 
   const [itemsResult, totalResult] = await Promise.all([
@@ -142,6 +212,7 @@ export async function listAdminOrganizers(
       name: string;
       status: string;
       updated_at: string;
+      managed_by_names: string | null;
     }>(
       `
         select
@@ -149,8 +220,15 @@ export async function listAdminOrganizers(
           o.slug,
           o.name,
           o.status,
-          o.updated_at
+          o.updated_at,
+          mgr.managed_by_names
         from organizers o
+        left join lateral (
+          select string_agg(u.display_name, ', ') as managed_by_names
+          from host_users hu
+          join users u on u.id = hu.user_id
+          where hu.organizer_id = o.id
+        ) mgr on true
         ${whereSql}
         order by o.updated_at desc
         limit $${values.length + 1}
@@ -209,6 +287,10 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
     duration_minutes: number | null;
     status: "draft" | "published" | "cancelled" | "archived";
     visibility: "public" | "unlisted";
+    detached_from_import: boolean;
+    detached_at: string | null;
+    detached_by_user_id: string | null;
+    created_by_user_id: string | null;
     created_at: string;
     updated_at: string;
     published_at: string | null;
@@ -245,6 +327,10 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
         e.duration_minutes,
         e.status,
         e.visibility,
+        e.detached_from_import,
+        e.detached_at,
+        e.detached_by_user_id,
+        e.created_by_user_id,
         e.created_at,
         e.updated_at,
         e.published_at

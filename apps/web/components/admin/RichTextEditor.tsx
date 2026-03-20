@@ -3,11 +3,20 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
+import Image from "@tiptap/extension-image";
+import Placeholder from "@tiptap/extension-placeholder";
 import { useRef } from "react";
 
 // Stable extension array — created once at module level so TipTap v3's
 // reactive useEditor never sees a reference change and never recreates.
-const extensions = [StarterKit, Underline];
+const extensions = [
+  StarterKit.configure({ heading: { levels: [1, 2] } }),
+  Underline,
+  Link.configure({ openOnClick: false }),
+  Image,
+  Placeholder.configure({ placeholder: "Write a description..." }),
+];
 
 type ToolbarButtonProps = {
   onClick: () => void;
@@ -106,6 +115,30 @@ export function RichTextEditor({
           title="Blockquote"
         >
           "
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => {
+            const url = window.prompt("Enter URL:");
+            if (url) {
+              editor.chain().focus().setLink({ href: url }).run();
+            }
+          }}
+          active={editor.isActive("link")}
+          title="Link"
+        >
+          🔗
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => {
+            const url = window.prompt("Enter image URL:");
+            if (url) {
+              editor.chain().focus().setImage({ src: url }).run();
+            }
+          }}
+          active={false}
+          title="Image"
+        >
+          🖼
         </ToolbarButton>
       </div>
       <EditorContent editor={editor} />

@@ -196,6 +196,93 @@ export async function createEventFormat(
   return result.rows[0];
 }
 
+export async function deletePractice(pool: Pool, id: string): Promise<{ deleted: boolean; conflict?: string }> {
+  // Check if any events reference this practice
+  const usage = await pool.query<{ count: string }>(
+    `select count(*)::text as count from events where practice_category_id = $1 or practice_subcategory_id = $1`,
+    [id],
+  );
+  if (Number(usage.rows[0]?.count) > 0) {
+    return { deleted: false, conflict: "Practice is referenced by events" };
+  }
+  // Check children
+  const children = await pool.query<{ count: string }>(
+    `select count(*)::text as count from practices where parent_id = $1`,
+    [id],
+  );
+  if (Number(children.rows[0]?.count) > 0) {
+    return { deleted: false, conflict: "Practice has subcategories" };
+  }
+  const result = await pool.query(`delete from practices where id = $1 returning id`, [id]);
+  return { deleted: (result.rowCount ?? 0) > 0 };
+}
+
+export async function deleteEventFormat(pool: Pool, id: string): Promise<{ deleted: boolean; conflict?: string }> {
+  const usage = await pool.query<{ count: string }>(
+    `select count(*)::text as count from events where event_format_id = $1`,
+    [id],
+  );
+  if (Number(usage.rows[0]?.count) > 0) {
+    return { deleted: false, conflict: "Event format is referenced by events" };
+  }
+  const result = await pool.query(`delete from event_formats where id = $1 returning id`, [id]);
+  return { deleted: (result.rowCount ?? 0) > 0 };
+}
+
+export async function deleteOrganizerRole(pool: Pool, id: string): Promise<{ deleted: boolean; conflict?: string }> {
+  const usage = await pool.query<{ count: string }>(
+    `select count(*)::text as count from organizer_profile_roles where role_id = $1`,
+    [id],
+  );
+  if (Number(usage.rows[0]?.count) > 0) {
+    return { deleted: false, conflict: "Role is referenced by organizer profiles" };
+  }
+  const result = await pool.query(`delete from organizer_roles where id = $1 returning id`, [id]);
+  return { deleted: (result.rowCount ?? 0) > 0 };
+}
+
+export async function reorderPractices(
+  pool: Pool,
+  items: Array<{ id: string; sortOrder: number }>,
+) {
+  const ids = items.map((i) => i.id);
+  const orders = items.map((i) => i.sortOrder);
+  await pool.query(
+    `UPDATE practices SET sort_order = d.sort_order
+     FROM (SELECT unnest($1::uuid[]) AS id, unnest($2::int[]) AS sort_order) d
+     WHERE practices.id = d.id`,
+    [ids, orders],
+  );
+}
+
+export async function reorderEventFormats(
+  pool: Pool,
+  items: Array<{ id: string; sortOrder: number }>,
+) {
+  const ids = items.map((i) => i.id);
+  const orders = items.map((i) => i.sortOrder);
+  await pool.query(
+    `UPDATE event_formats SET sort_order = d.sort_order
+     FROM (SELECT unnest($1::uuid[]) AS id, unnest($2::int[]) AS sort_order) d
+     WHERE event_formats.id = d.id`,
+    [ids, orders],
+  );
+}
+
+export async function reorderOrganizerRoles(
+  pool: Pool,
+  items: Array<{ id: string; sortOrder: number }>,
+) {
+  const ids = items.map((i) => i.id);
+  const orders = items.map((i) => i.sortOrder);
+  await pool.query(
+    `UPDATE organizer_roles SET sort_order = d.sort_order
+     FROM (SELECT unnest($1::uuid[]) AS id, unnest($2::int[]) AS sort_order) d
+     WHERE organizer_roles.id = d.id`,
+    [ids, orders],
+  );
+}
+
 export async function updateEventFormat(
   pool: Pool,
   id: string,

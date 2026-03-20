@@ -19,6 +19,7 @@ import {
 } from "../db/eventRepo";
 import { getEventDefaultLocation, setEventDefaultLocation } from "../db/locationRepo";
 import { findOrCreateUserBySub } from "../db/userRepo";
+import { resolveUserId, requireEventAccess } from "../middleware/ownership";
 import { cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
@@ -320,7 +321,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const timezone = resolveSafeTimeZone(parsed.data.tz);
     const eventDateRangeMap = buildEventDateRangeMap(timezone, now);
     const selectedEventDateRanges = eventDatePresets.map((preset) => eventDateRangeMap[preset]);
-    const tags = csvToList(parsed.data.tags).map((t) => t.toLowerCase());
+    const tags = csvToList(parsed.data.tags).map((t) => t.replace(/\b\w/g, (c) => c.toUpperCase()));
     const languages = csvToList(parsed.data.languages);
     const rawAttendanceModes = csvToList(parsed.data.attendanceMode);
     const attendanceModes = rawAttendanceModes.filter(
@@ -699,6 +700,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: params.error.flatten() };
     }
 
+    const auth = request.auth!;
+    if (!auth.isAdmin) {
+      const userId = await resolveUserId(app.db, auth);
+      await requireEventAccess(app.db, userId, params.data.id, false);
+    }
+
     const parsed = updateEventSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
@@ -714,6 +721,25 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       getEventById(app.db, params.data.id),
       getEventDefaultLocation(app.db, params.data.id),
     ]);
+
+    // Detachment logic: if imported + not yet detached + content fields changed → detach
+    if (previousEvent && previousEvent.is_imported && !(previousEvent as { detached_from_import?: boolean }).detached_from_import) {
+      const contentChanged = normalizedInput.title !== undefined
+        || normalizedInput.descriptionJson !== undefined
+        || normalizedInput.scheduleKind !== undefined
+        || normalizedInput.rrule !== undefined
+        || normalizedInput.singleStartAt !== undefined
+        || normalizedInput.singleEndAt !== undefined
+        || normalizedInput.locationId !== undefined;
+
+      if (contentChanged) {
+        const detachUserId = await resolveUserId(app.db, auth);
+        await app.db.query(
+          `update events set detached_from_import = true, detached_at = now(), detached_by_user_id = $2 where id = $1`,
+          [params.data.id, detachUserId],
+        );
+      }
+    }
 
     let event;
     try {
@@ -758,6 +784,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         await app.meiliService.upsertOccurrencesForEvent(app.db, params.data.id).catch(() => {});
         clearSearchCache();
       }
+    } else if (!skipSearch && previousEvent && previousEvent.status === "published"
+               && (event.status === "archived" || event.status === "draft")) {
+      await app.meiliService.deleteOccurrencesByEventId(params.data.id).catch(() => {});
+      clearSearchCache();
     }
 
     return event;
@@ -770,6 +800,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     if (!params.success) {
       reply.code(400);
       return { error: params.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    if (!auth.isAdmin) {
+      const userId = await resolveUserId(app.db, auth);
+      await requireEventAccess(app.db, userId, params.data.id, false);
     }
 
     const skipSearch = z.object({ skipSearch: z.coerce.boolean().default(false) })
@@ -797,6 +833,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: params.error.flatten() };
     }
 
+    const auth = request.auth!;
+    if (!auth.isAdmin) {
+      const userId = await resolveUserId(app.db, auth);
+      await requireEventAccess(app.db, userId, params.data.id, false);
+    }
+
     await unpublishEvent(app.db, app.meiliService, params.data.id);
     return { ok: true };
   });
@@ -808,6 +850,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     if (!params.success) {
       reply.code(400);
       return { error: params.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    if (!auth.isAdmin) {
+      const userId = await resolveUserId(app.db, auth);
+      await requireEventAccess(app.db, userId, params.data.id, false);
     }
 
     await cancelEvent(app.db, app.meiliService, params.data.id);

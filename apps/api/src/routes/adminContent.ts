@@ -9,6 +9,7 @@ import {
 } from "../db/adminRepo";
 import { getEventById, setEventOrganizersByRoleKey } from "../db/eventRepo";
 import { createLocation } from "../db/locationRepo";
+import { listManagedEvents, listManagedOrganizers } from "../db/manageRepo";
 import {
   createOrganizer,
   deleteOrganizer,
@@ -16,6 +17,7 @@ import {
   getOrganizerRelated,
   updateOrganizer,
 } from "../db/organizerRepo";
+import { resolveUserId, requireEventAccess, requireOrganizerAccess } from "../middleware/ownership";
 import { geocodeSearch } from "../services/geocodeService";
 import { clearSearchCache } from "../services/searchCache";
 
@@ -25,6 +27,13 @@ const eventQuerySchema = z.object({
   showUnlisted: z.coerce.boolean().optional(),
   externalSource: z.string().trim().min(1).max(255).optional(),
   externalId: z.string().trim().min(1).max(255).optional(),
+  organizerId: z.string().uuid().optional(),
+  practiceCategoryId: z.string().uuid().optional(),
+  eventFormatId: z.string().uuid().optional(),
+  ownerFilter: z.enum(["all", "unassigned", "has_owner"]).optional(),
+  time: z.enum(["upcoming", "past"]).optional(),
+  sort: z.string().optional(),
+  managedBy: z.enum(["me"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });
@@ -33,6 +42,10 @@ const organizerQuerySchema = z.object({
   q: z.string().optional(),
   status: z.enum(["draft", "published", "archived"]).optional(),
   showArchived: z.coerce.boolean().optional(),
+  practiceCategoryId: z.string().uuid().optional(),
+  profileRoleId: z.string().uuid().optional(),
+  countryCode: z.string().trim().min(2).max(8).optional(),
+  managedBy: z.enum(["me"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });
@@ -148,9 +161,26 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       return { error: "externalSource and externalId must be provided together" };
     }
 
+    if (parsed.data.managedBy === "me") {
+      const auth = request.auth!;
+      const userId = await resolveUserId(app.db, auth);
+      return listManagedEvents(app.db, userId, {
+        q: parsed.data.q,
+        status: parsed.data.status,
+        practiceCategoryId: parsed.data.practiceCategoryId,
+        eventFormatId: parsed.data.eventFormatId,
+        time: parsed.data.time,
+        sort: parsed.data.sort,
+        page: parsed.data.page,
+        pageSize: parsed.data.pageSize,
+      });
+    }
+
     return listAdminEvents(app.db, {
       ...parsed.data,
       status: parsed.data.status ?? "published",
+      organizerId: parsed.data.organizerId,
+      ownerFilter: parsed.data.ownerFilter,
     });
   });
 
@@ -163,9 +193,23 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
+    if (parsed.data.managedBy === "me") {
+      const auth = request.auth!;
+      const userId = await resolveUserId(app.db, auth);
+      return listManagedOrganizers(app.db, userId, {
+        q: parsed.data.q,
+        status: parsed.data.status,
+        page: parsed.data.page,
+        pageSize: parsed.data.pageSize,
+      });
+    }
+
     return listAdminOrganizers(app.db, {
       ...parsed.data,
       status: parsed.data.status ?? (parsed.data.showArchived ? undefined : "published"),
+      practiceCategoryId: parsed.data.practiceCategoryId,
+      profileRoleId: parsed.data.profileRoleId,
+      countryCode: parsed.data.countryCode,
     });
   });
 
@@ -176,6 +220,12 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     if (!params.success) {
       reply.code(400);
       return { error: params.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    if (!auth.isAdmin) {
+      const userId = await resolveUserId(app.db, auth);
+      await requireEventAccess(app.db, userId, params.data.id, false);
     }
 
     const item = await getAdminEventById(app.db, params.data.id);
@@ -194,6 +244,12 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     if (!params.success) {
       reply.code(400);
       return { error: params.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    if (!auth.isAdmin) {
+      const userId = await resolveUserId(app.db, auth);
+      await requireOrganizerAccess(app.db, userId, params.data.id, false);
     }
 
     const item = await getAdminOrganizerById(app.db, params.data.id);
@@ -331,6 +387,40 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       };
     }
     return { ok: true };
+  });
+
+  app.delete("/admin/events/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const exists = await app.db.query<{ id: string }>(
+      `select id from events where id = $1`,
+      [params.data.id],
+    );
+    if (!exists.rowCount) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    // Delete event and related data
+    await app.db.query(`delete from event_occurrences where event_id = $1`, [params.data.id]);
+    await app.db.query(`delete from event_organizers where event_id = $1`, [params.data.id]);
+    await app.db.query(`delete from event_locations where event_id = $1`, [params.data.id]);
+    await app.db.query(`delete from event_users where event_id = $1`, [params.data.id]);
+    await app.db.query(`delete from events where id = $1`, [params.data.id]);
+
+    // Remove from Meilisearch
+    try {
+      await app.meiliService.deleteOccurrencesByEventId(params.data.id);
+    } catch { /* ignore */ }
+    clearSearchCache();
+
+    reply.code(204);
   });
 
   app.delete("/admin/organizers/:id", async (request, reply) => {

@@ -23,6 +23,17 @@ vi.mock("../db/eventRepo", () => ({
   setEventOrganizersByRoleKey: vi.fn(),
 }));
 
+vi.mock("../db/manageRepo", () => ({
+  listManagedEvents: vi.fn(),
+  listManagedOrganizers: vi.fn(),
+}));
+
+vi.mock("../middleware/ownership", () => ({
+  resolveUserId: vi.fn().mockResolvedValue("00000000-0000-0000-0000-000000000001"),
+  requireEventAccess: vi.fn().mockResolvedValue(undefined),
+  requireOrganizerAccess: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { getAdminEventById, listAdminEvents } from "../db/adminRepo";
 import { getEventById, setEventOrganizersByRoleKey } from "../db/eventRepo";
 import { createLocation } from "../db/locationRepo";
@@ -37,7 +48,9 @@ function buildApp() {
   const app = Fastify();
   app.decorate("db", {} as never);
   app.decorate("authenticate", async () => {});
-  app.decorate("requireEditor", async () => {});
+  app.decorate("requireEditor", async (request) => {
+    request.auth = { sub: "test-user", roles: ["dr_events_admin"], isAdmin: true, isEditor: true };
+  });
   app.decorate("requireAdmin", async () => {});
   return app;
 }
@@ -75,12 +88,20 @@ describe("admin content external ref filters", () => {
           import_source: "smoke_test",
           isImported: true,
           importSource: "smoke_test",
+          detached_from_import: false,
           status: "draft",
           attendance_mode: "in_person",
           schedule_kind: "single",
           event_format_id: null,
           updated_at: "2026-03-01T00:00:00.000Z",
           published_at: null,
+          practice_category_label: null,
+          event_format_label: null,
+          location_city: null,
+          location_country: null,
+          next_occurrence: null,
+          host_names: null,
+          created_by_name: null,
         },
       ],
       pagination: {
