@@ -10,6 +10,10 @@ import { StatusBadge } from "../../../../components/manage/StatusBadge";
 import { authorizedGet } from "../../../../lib/manageApi";
 import { apiBase } from "../../../../lib/api";
 
+const regionNames = typeof Intl !== "undefined" && Intl.DisplayNames
+  ? new Intl.DisplayNames(["en"], { type: "region" })
+  : null;
+
 type TaxonomyResponse = {
   practices: {
     categories: Array<{ id: string; key: string; label: string }>;
@@ -144,7 +148,7 @@ export default function AdminAllHostsPage() {
                   <StatusBadge status={host.status} />
                 </div>
                 <div className="meta" style={{ fontSize: "0.82rem", marginTop: 2 }}>
-                  {[host.city, host.country_code].filter(Boolean).join(", ")}
+                  {[host.city, host.country_code ? (regionNames?.of(host.country_code.toUpperCase()) ?? host.country_code) : null].filter(Boolean).join(", ")}
                 </div>
                 {host.practice_labels && (
                   <div className="meta" style={{ fontSize: "0.8rem" }}>
