@@ -102,6 +102,17 @@ Meilisearch indexes `event_occurrences`. Multi-value filter params use CSV: `pra
 
 Keycloak OIDC/PKCE SPA flow. Frontend: `keycloak-js`. Backend: Bearer JWT validated via JWKS. Roles: `dr_events_admin`, `dr_events_editor` (from `packages/shared/src/constants/roles.ts`).
 
+## Temporary Files
+
+The `temporary/` directory (gitignored) is for throwaway artifacts that should not be committed. Put files here when they are useful during a session but not part of the codebase:
+
+- QA screenshots and test result outputs
+- Ad-hoc test scripts (e.g. `test-*.mjs`)
+- One-off debug logs or data dumps
+- Intermediate audit/analysis docs that aren't final
+
+Final docs (like QA audit reports or methodology guides) belong in `docs/`.
+
 ## Conventions
 
 - No direct SQL in route handlers — use `db/` repository modules.
