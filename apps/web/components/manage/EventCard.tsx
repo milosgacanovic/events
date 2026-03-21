@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-
 import { useI18n } from "../i18n/I18nProvider";
 import { StatusBadge } from "./StatusBadge";
+
+const regionNames = typeof Intl !== "undefined" && Intl.DisplayNames
+  ? new Intl.DisplayNames(["en"], { type: "region" })
+  : null;
 
 type EventCardProps = {
   id: string;
@@ -70,7 +73,7 @@ export function EventCard({
         )}
         {(locationCity || locationCountry) && (
           <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-            {[locationCity, locationCountry].filter(Boolean).join(", ")}
+            {[locationCity, locationCountry ? (regionNames?.of(locationCountry.toUpperCase()) ?? locationCountry) : null].filter(Boolean).join(", ")}
           </div>
         )}
         {nextOccurrence && (

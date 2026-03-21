@@ -223,7 +223,8 @@ export default function AdminUsersPage() {
         </div>
       ) : !error ? (
         <>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
             <thead>
               <tr>
                 <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>Name</th>
@@ -284,6 +285,7 @@ export default function AdminUsersPage() {
               ))}
             </tbody>
           </table>
+          </div>
           {(page > 1 || users.length === 20) && (
             <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16 }}>
               {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>Previous</button>}

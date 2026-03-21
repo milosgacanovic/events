@@ -133,6 +133,7 @@ export default function ManageDashboard() {
             {data.recentActivity.map((item) => (
               <div key={`${item.entityType}-${item.entityId}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 6, backgroundColor: "var(--surface, #f8f8f8)" }}>
                 <div>
+                  <span className="meta" style={{ marginRight: 6, textTransform: "capitalize" }}>{item.entityType}</span>
                   <Link
                     href={item.entityType === "event" ? `/manage/events/${item.entityId}` : `/manage/hosts/${item.entityId}`}
                     style={{ textDecoration: "none", fontWeight: 500 }}

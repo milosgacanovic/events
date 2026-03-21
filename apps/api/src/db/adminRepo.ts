@@ -378,13 +378,16 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
       organizer_id: string;
       role_id: string;
       display_order: number;
+      organizer_name: string;
     }>(
       `
         select
           rel.organizer_id,
           rel.role_id,
-          rel.display_order
+          rel.display_order,
+          o.name as organizer_name
         from event_organizers rel
+        join organizers o on o.id = rel.organizer_id
         where rel.event_id = $1
         order by rel.display_order asc
       `,

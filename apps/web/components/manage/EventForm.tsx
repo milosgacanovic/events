@@ -144,10 +144,15 @@ export function EventForm({
     }
   }
 
-  const organizerNamesById = useMemo(
-    () => new Map(organizerOptions.map((o) => [o.id, o.name])),
-    [organizerOptions],
-  );
+  const organizerNamesById = useMemo(() => {
+    const map = new Map(organizerOptions.map((o) => [o.id, o.name]));
+    for (const r of form.organizerRoles) {
+      if (r.organizerName && !map.has(r.organizerId)) {
+        map.set(r.organizerId, r.organizerName);
+      }
+    }
+    return map;
+  }, [organizerOptions, form.organizerRoles]);
   const roleLabelsById = useMemo(
     () => new Map((taxonomy?.organizerRoles ?? []).map((r) => [r.id, r.label])),
     [taxonomy],

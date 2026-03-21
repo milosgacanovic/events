@@ -82,7 +82,7 @@ export function HostLinker({
       {/* Combobox */}
       <div style={{ position: "relative", marginBottom: 8 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <div style={{ position: "relative", flex: 1 }}>
+          <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
             <input
               ref={inputRef}
               placeholder="Search hosts..."
@@ -135,6 +135,27 @@ export function HostLinker({
                     {o.name}
                   </button>
                 ))}
+              </div>
+            )}
+            {open && organizerOptions.length > 0 && filtered.length === 0 && query.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  padding: "8px 12px",
+                  background: "var(--bg, #fff)",
+                  border: "1px solid var(--border, #e0e0e0)",
+                  borderRadius: 6,
+                  zIndex: 50,
+                  marginTop: 2,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                  color: "var(--ink-muted, #999)",
+                  fontSize: "0.9rem",
+                }}
+              >
+                No hosts matching &ldquo;{query}&rdquo;
               </div>
             )}
           </div>

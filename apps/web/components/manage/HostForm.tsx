@@ -106,7 +106,7 @@ export function hostFormStateFromApi(data: AdminOrganizerDetailResponse): HostFo
     tags: (data.tags ?? []).join(", "),
     languages: data.languages ?? [],
     city: data.city ?? "",
-    countryCodes: data.country_code ? [data.country_code] : [],
+    countryCodes: data.country_code ? [data.country_code.toUpperCase()] : [],
     profileRoleIds: Array.from(allRoleIds),
     practiceCategoryIds: Array.from(allPracticeIds),
     status: data.status,
@@ -116,7 +116,7 @@ export function hostFormStateFromApi(data: AdminOrganizerDetailResponse): HostFo
       label: loc.label ?? "",
       formattedAddress: loc.formatted_address ?? "",
       city: loc.city ?? "",
-      countryCode: loc.country_code ?? "",
+      countryCode: (loc.country_code ?? "").toUpperCase(),
       lat: loc.lat?.toString() ?? "",
       lng: loc.lng?.toString() ?? "",
     })),
@@ -172,13 +172,22 @@ export function HostForm({
   const languageOptions: MultiSelectOption[] = useMemo(() => {
     try {
       const names = new Intl.DisplayNames(["en"], { type: "language" });
-      return (Intl.supportedValuesOf as (key: string) => string[])("language")
-        .slice(0, 200)
+      const opts = (Intl.supportedValuesOf as (key: string) => string[])("language")
         .map((code) => ({ value: code, label: names.of(code) ?? code }));
+      // Ensure all currently-selected languages are present (e.g. "sr-Latn")
+      const existing = new Set(opts.map((o) => o.value));
+      for (const code of form.languages) {
+        if (!existing.has(code)) {
+          let label: string;
+          try { label = names.of(code) ?? code; } catch { label = code; }
+          opts.push({ value: code, label });
+        }
+      }
+      return opts;
     } catch {
       return [];
     }
-  }, []);
+  }, [form.languages]);
 
   const countryOptions: MultiSelectOption[] = useMemo(() => {
     try {
@@ -322,7 +331,7 @@ export function HostForm({
                   label: loc.formatted_address,
                   formattedAddress: loc.formatted_address,
                   city: loc.city ?? "",
-                  countryCode: loc.country_code ?? "",
+                  countryCode: (loc.country_code ?? "").toUpperCase(),
                   lat: loc.lat.toString(),
                   lng: loc.lng.toString(),
                 },

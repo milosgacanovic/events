@@ -38,6 +38,7 @@ export type EventFormState = {
     organizerId: string;
     roleId: string;
     displayOrder: number;
+    organizerName?: string;
   }>;
 };
 
@@ -73,6 +74,7 @@ export type AdminEventDetailResponse = {
     organizer_id: string;
     role_id: string;
     display_order: number;
+    organizer_name?: string;
   }>;
   location_id: string | null;
   location: {
@@ -125,6 +127,7 @@ export function eventFormStateFromApi(data: AdminEventDetailResponse): EventForm
       organizerId: r.organizer_id,
       roleId: r.role_id,
       displayOrder: r.display_order,
+      organizerName: r.organizer_name,
     })),
   };
 }
