@@ -127,10 +127,10 @@ export async function listAdminEvents(
           where eo.event_id = e.id
         ) hosts_sub on true
         left join lateral (
-          select oc.starts_at
+          select oc.starts_at_utc
           from event_occurrences oc
-          where oc.event_id = e.id and oc.starts_at > now()
-          order by oc.starts_at
+          where oc.event_id = e.id and oc.starts_at_utc > now()
+          order by oc.starts_at_utc
           limit 1
         ) next_occ on true
         left join users u on u.id = e.created_by_user_id
@@ -213,6 +213,11 @@ export async function listAdminOrganizers(
       status: string;
       updated_at: string;
       managed_by_names: string | null;
+      city: string | null;
+      country_code: string | null;
+      practice_labels: string | null;
+      role_labels: string | null;
+      event_count: string | null;
     }>(
       `
         select
@@ -221,7 +226,12 @@ export async function listAdminOrganizers(
           o.name,
           o.status,
           o.updated_at,
-          mgr.managed_by_names
+          o.city,
+          o.country_code,
+          mgr.managed_by_names,
+          practice_sub.practice_labels,
+          role_sub.role_labels,
+          event_count_sub.event_count
         from organizers o
         left join lateral (
           select string_agg(u.display_name, ', ') as managed_by_names
@@ -229,8 +239,25 @@ export async function listAdminOrganizers(
           join users u on u.id = hu.user_id
           where hu.organizer_id = o.id
         ) mgr on true
+        left join lateral (
+          select string_agg(p.label, ', ' order by p.sort_order) as practice_labels
+          from organizer_practices op
+          join practices p on p.id = op.practice_id
+          where op.organizer_id = o.id
+        ) practice_sub on true
+        left join lateral (
+          select string_agg(r.label, ', ') as role_labels
+          from organizer_profile_roles opr
+          join organizer_roles r on r.id = opr.role_id
+          where opr.organizer_id = o.id
+        ) role_sub on true
+        left join lateral (
+          select count(*)::text as event_count
+          from event_organizers eo
+          where eo.organizer_id = o.id
+        ) event_count_sub on true
         ${whereSql}
-        order by o.updated_at desc
+        order by lower(o.name) asc
         limit $${values.length + 1}
         offset $${values.length + 2}
       `,

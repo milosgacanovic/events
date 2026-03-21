@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { ROLE_ADMIN } from "@dr-events/shared";
+
 import { useKeycloakAuth } from "../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../components/i18n/I18nProvider";
 import { EventCard } from "../../../components/manage/EventCard";
@@ -43,7 +45,7 @@ type TaxonomyResponse = {
 };
 
 export default function MyEventsPage() {
-  const { getToken } = useKeycloakAuth();
+  const { getToken, roles } = useKeycloakAuth();
   const { t } = useI18n();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
@@ -55,7 +57,11 @@ export default function MyEventsPage() {
   const [timeFilter, setTimeFilter] = useState("");
   const [sortBy, setSortBy] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
+
+  const isAdmin = roles.includes(ROLE_ADMIN);
+  const pageSize = 20;
 
   useEffect(() => {
     fetch(`${apiBase}/meta/taxonomies`, { cache: "no-store" })
@@ -66,8 +72,9 @@ export default function MyEventsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
-      const params = new URLSearchParams({ managedBy: "me", page: String(page), pageSize: "20" });
+      const params = new URLSearchParams({ managedBy: "me", page: String(page), pageSize: String(pageSize) });
       if (search) params.set("q", search);
       if (statusFilter) params.set("status", statusFilter);
       if (practiceFilter) params.set("practiceCategoryId", practiceFilter);
@@ -77,8 +84,8 @@ export default function MyEventsPage() {
       const data = await authorizedGet<EventsResponse>(getToken, `/admin/events?${params}`);
       setEvents(data.items);
       setTotalItems(data.pagination.totalItems);
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load events");
     } finally {
       setLoading(false);
     }
@@ -94,6 +101,9 @@ export default function MyEventsPage() {
       // ignore
     }
   }
+
+  const pageStart = (page - 1) * pageSize + 1;
+  const pageEnd = (page - 1) * pageSize + events.length;
 
   return (
     <div>
@@ -142,22 +152,42 @@ export default function MyEventsPage() {
           <option value="created">Recently created</option>
           <option value="title">Title A-Z</option>
         </select>
-        <span className="meta">{totalItems} event{totalItems !== 1 ? "s" : ""}</span>
+        {totalItems > 0 && (
+          <span className="meta">Showing {pageStart}–{pageEnd} of {totalItems}</span>
+        )}
       </div>
 
-      {loading ? (
-        <div className="manage-loading">Loading events...</div>
-      ) : events.length === 0 ? (
+      {error && (
         <div className="manage-empty">
-          <h3>{t("manage.events.noEvents")}</h3>
-          <p>{t("manage.events.noEventsDescription")}</p>
-          <Link href="/manage/events/new" className="primary-btn" style={{ marginTop: 12, display: "inline-block" }}>
-            {t("manage.events.createEvent")}
-          </Link>
+          <p>{error}</p>
+          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>Retry</button>
         </div>
-      ) : (
+      )}
+
+      {!error && loading ? (
+        <div className="manage-loading">Loading events...</div>
+      ) : !error && events.length === 0 ? (
+        <div className="manage-empty">
+          {isAdmin ? (
+            <>
+              <h3>{t("manage.events.emptyAdmin")}</h3>
+              <Link href="/manage/admin/events" className="secondary-btn" style={{ marginTop: 12, display: "inline-block" }}>
+                All Events
+              </Link>
+            </>
+          ) : (
+            <>
+              <h3>{t("manage.events.noEvents")}</h3>
+              <p>{t("manage.events.noEventsDescription")}</p>
+              <Link href="/manage/events/new" className="primary-btn" style={{ marginTop: 12, display: "inline-block" }}>
+                {t("manage.events.createEvent")}
+              </Link>
+            </>
+          )}
+        </div>
+      ) : !error ? (
         <>
-          <div className="manage-cards-grid">
+          <div className={`manage-cards-grid${loading ? " manage-list-loading" : ""}`}>
             {events.map((event) => (
               <EventCard
                 key={event.id}
@@ -184,22 +214,22 @@ export default function MyEventsPage() {
               />
             ))}
           </div>
-          {page > 1 || events.length === 20 ? (
+          {(page > 1 || events.length === pageSize) && (
             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
               {page > 1 && (
                 <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>
                   Previous
                 </button>
               )}
-              {events.length === 20 && (
+              {events.length === pageSize && (
                 <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>
                   Next
                 </button>
               )}
             </div>
-          ) : null}
+          )}
         </>
-      )}
+      ) : null}
     </div>
   );
 }

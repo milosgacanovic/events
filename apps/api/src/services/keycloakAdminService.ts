@@ -136,6 +136,18 @@ export class KeycloakAdminService {
     }>;
   }
 
+  async getUser(keycloakSub: string): Promise<{
+    id: string; username: string; email?: string;
+    firstName?: string; lastName?: string;
+  } | null> {
+    const res = await this.adminFetch(`/users/${keycloakSub}`);
+    if (!res.ok) return null;
+    return (await res.json()) as {
+      id: string; username: string; email?: string;
+      firstName?: string; lastName?: string;
+    };
+  }
+
   async getUserRoles(keycloakSub: string): Promise<Array<{ id: string; name: string }>> {
     const userId = await this.getUserIdBySub(keycloakSub);
     const res = await this.adminFetch(`/users/${userId}/role-mappings/realm`);

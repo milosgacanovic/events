@@ -47,16 +47,19 @@ export default function AdminUsersPage() {
   const [linkedEvents, setLinkedEvents] = useState<LinkedEvent[]>([]);
   const accessDialogRef = useRef<HTMLDialogElement>(null);
 
+  const [error, setError] = useState("");
+
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (search) params.set("search", search);
       const data = await authorizedGet<UsersResponse>(getToken, `/admin/users?${params}`);
       setUsers(data.items);
       setTotalItems(data.pagination.totalItems);
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -197,7 +200,7 @@ export default function AdminUsersPage() {
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
-        <span className="meta">{totalItems} user{totalItems !== 1 ? "s" : ""}</span>
+        {totalItems > 0 && <span className="meta">Showing {(page - 1) * 20 + 1}–{(page - 1) * 20 + users.length} of {totalItems}</span>}
         {process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL && (
           <a href={process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL} target="_blank" rel="noopener noreferrer" className="ghost-btn" style={{ fontSize: "0.8rem", marginLeft: "auto" }}>
             Invite user (Keycloak)
@@ -205,13 +208,20 @@ export default function AdminUsersPage() {
         )}
       </div>
 
-      {loading ? (
+      {error && (
+        <div className="manage-empty">
+          <p>{error}</p>
+          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>Retry</button>
+        </div>
+      )}
+
+      {!error && loading ? (
         <div className="manage-loading">Loading users...</div>
-      ) : users.length === 0 ? (
+      ) : !error && users.length === 0 ? (
         <div className="manage-empty">
           <h3>No users found</h3>
         </div>
-      ) : (
+      ) : !error ? (
         <>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
@@ -229,7 +239,7 @@ export default function AdminUsersPage() {
               {users.map((user) => (
                 <tr key={user.id}>
                   <td style={{ padding: "8px", borderBottom: "1px solid var(--border)" }}>
-                    {user.display_name ?? "(No name)"}
+                    {user.display_name ?? user.email ?? user.keycloak_sub.slice(0, 16)}
                   </td>
                   <td style={{ padding: "8px", borderBottom: "1px solid var(--border)" }}>
                     {user.email ?? "—"}
@@ -281,7 +291,7 @@ export default function AdminUsersPage() {
             </div>
           )}
         </>
-      )}
+      ) : null}
 
       {/* Role editing dialog */}
       <dialog ref={roleDialogRef} style={{ padding: 24, borderRadius: 8, border: "1px solid var(--border)", maxWidth: 400 }}>

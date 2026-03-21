@@ -483,7 +483,7 @@
   "manage.auth.editorRequired": "Editor access required",
   "manage.auth.adminRequired": "Admin access required",
 
-  "manage.sidebar.editor": "Editor",
+  "manage.sidebar.editor": "My Content",
   "manage.sidebar.admin": "Admin",
 
   "manage.dashboard.welcome": "Welcome back, {name}",
@@ -567,5 +567,18 @@
   "manage.assignModal.title": "Assign to User",
   "manage.assignModal.searchPlaceholder": "Search users by name or email...",
   "manage.assignModal.searching": "Searching...",
-  "manage.assignModal.assign": "Assign"
+  "manage.assignModal.assign": "Assign",
+
+  "manage.events.emptyAdmin": "No events assigned to your account. Browse All Events to manage platform content.",
+  "manage.hosts.emptyAdmin": "No hosts assigned to your account. Browse All Hosts to manage platform content.",
+
+  "manage.admin.hosts.city": "City",
+  "manage.admin.hosts.practice": "Practice",
+  "manage.admin.hosts.role": "Role",
+  "manage.admin.hosts.eventCount": "Events",
+
+  "manage.pagination.showing": "Showing {start}–{end} of {total}",
+
+  "manage.error.loadFailed": "Failed to load. Please try again.",
+  "manage.error.retry": "Retry"
 }

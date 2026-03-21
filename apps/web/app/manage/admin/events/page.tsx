@@ -44,20 +44,20 @@ export default function AdminAllEventsPage() {
   const [importFilter, setImportFilter] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("");
   const [loading, setLoading] = useState(true);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [assignEventId, setAssignEventId] = useState<string | null>(null);
+
+  const pageSize = 20;
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
-      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (search) params.set("q", search);
       if (statusFilter) params.set("status", statusFilter);
       params.set("showUnlisted", "true");
       if (ownerFilter) params.set("ownerFilter", ownerFilter);
-      if (importFilter === "imported") {
-        // Show only imported events — not a direct API filter but we filter client-side
-      }
       const data = await authorizedGet<EventsResponse>(getToken, `/admin/events?${params}`);
       let items = data.items;
       if (importFilter === "imported") {
@@ -67,8 +67,8 @@ export default function AdminAllEventsPage() {
       }
       setEvents(items);
       setTotalItems(data.pagination.totalItems);
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load events");
     } finally {
       setLoading(false);
     }
@@ -94,6 +94,9 @@ export default function AdminAllEventsPage() {
       // ignore
     }
   }
+
+  const pageStart = (page - 1) * pageSize + 1;
+  const pageEnd = (page - 1) * pageSize + events.length;
 
   return (
     <div>
@@ -122,14 +125,21 @@ export default function AdminAllEventsPage() {
           <option value="has_owner">Has owner</option>
           <option value="unassigned">Unassigned</option>
         </select>
-        <span className="meta">{totalItems} event{totalItems !== 1 ? "s" : ""}</span>
+        {totalItems > 0 && (
+          <span className="meta">Showing {pageStart}–{pageEnd} of {totalItems}</span>
+        )}
       </div>
 
-      {loading ? (
-        <div className="manage-loading">Loading...</div>
-      ) : (
+      {error && (
+        <div className="manage-empty">
+          <p>{error}</p>
+          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>Retry</button>
+        </div>
+      )}
+
+      {!error && (
         <>
-          <div className="manage-cards-grid">
+          <div className={`manage-cards-grid${loading ? " manage-list-loading" : ""}`}>
             {events.map((event) => (
               <EventCard
                 key={event.id}
@@ -156,10 +166,11 @@ export default function AdminAllEventsPage() {
               />
             ))}
           </div>
-          {(page > 1 || events.length === 20) && (
+          {loading && events.length === 0 && <div className="manage-loading">Loading...</div>}
+          {(page > 1 || events.length === pageSize) && (
             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
               {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>Previous</button>}
-              {events.length === 20 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>Next</button>}
+              {events.length === pageSize && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>Next</button>}
             </div>
           )}
         </>

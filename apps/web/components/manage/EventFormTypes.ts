@@ -24,6 +24,11 @@ export type EventFormState = {
   coverImageUrl: string;
   locationId: string | null;
   locationLabel: string;
+  locationCity: string;
+  locationCountry: string;
+  locationLat: number | null;
+  locationLng: number | null;
+  locationAddress: string;
   isImported: boolean;
   importSource: string | null;
   externalId: string | null;
@@ -106,6 +111,11 @@ export function eventFormStateFromApi(data: AdminEventDetailResponse): EventForm
     coverImageUrl: data.cover_image_path ?? "",
     locationId: data.location_id,
     locationLabel: data.location?.formatted_address ?? "",
+    locationCity: data.location?.city ?? "",
+    locationCountry: data.location?.country_code ?? "",
+    locationLat: data.location?.lat ?? null,
+    locationLng: data.location?.lng ?? null,
+    locationAddress: data.location?.formatted_address ?? "",
     isImported: data.is_imported ?? false,
     importSource: data.import_source ?? null,
     externalId: data.external_id ?? null,
@@ -144,6 +154,11 @@ export function newEventFormState(): EventFormState {
     coverImageUrl: "",
     locationId: null,
     locationLabel: "",
+    locationCity: "",
+    locationCountry: "",
+    locationLat: null,
+    locationLng: null,
+    locationAddress: "",
     isImported: false,
     importSource: null,
     externalId: null,

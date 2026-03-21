@@ -50,6 +50,10 @@ export default function AdminTaxonomiesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
 
+  // Delete confirmation dialog
+  const [deleteTarget, setDeleteTarget] = useState<{ endpoint: string; id: string; label: string } | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+
   const loadTaxonomy = useCallback(async () => {
     try {
       const data = await fetch(`${apiBase}/meta/taxonomies`, { cache: "no-store" }).then((r) => r.json()) as TaxonomyResponse;
@@ -147,11 +151,17 @@ export default function AdminTaxonomiesPage() {
     }
   }
 
-  async function handleDelete(endpoint: string, id: string, label: string) {
-    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+  function handleDeleteClick(endpoint: string, id: string, label: string) {
+    setDeleteTarget({ endpoint, id, label });
+    setConfirmText("");
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     try {
-      await authorizedDelete(getToken, `${endpoint}/${id}`);
+      await authorizedDelete(getToken, `${deleteTarget.endpoint}/${deleteTarget.id}`);
       setStatus("Deleted!");
+      setDeleteTarget(null);
       void loadTaxonomy();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
@@ -225,7 +235,7 @@ export default function AdminTaxonomiesPage() {
             <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => startEdit(id, label)}>
               Edit
             </button>
-            <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => void handleDelete(endpoint, id, label)}>
+            <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => handleDeleteClick(endpoint, id, label)}>
               Delete
             </button>
           </>
@@ -359,6 +369,78 @@ export default function AdminTaxonomiesPage() {
       )}
 
       {status && <div className="meta" style={{ padding: "8px 0" }}>{status}</div>}
+
+      {/* Delete confirmation dialog */}
+      {deleteTarget && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onClick={() => setDeleteTarget(null)}
+        >
+          <div
+            style={{
+              background: "var(--bg, #fff)",
+              borderRadius: 8,
+              padding: "24px",
+              maxWidth: 400,
+              width: "90%",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: 12, fontSize: "1rem" }}>Confirm Delete</h3>
+            <p style={{ marginBottom: 16, fontSize: "0.9rem" }}>
+              Delete &quot;{deleteTarget.label}&quot;? This cannot be undone.
+            </p>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: 4 }}>
+                Type &quot;{deleteTarget.label}&quot; to confirm
+              </label>
+              <input
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={deleteTarget.label}
+                autoFocus
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  border: "1px solid var(--border, #e0e0e0)",
+                  borderRadius: 6,
+                  fontSize: "0.9rem",
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                disabled={confirmText !== deleteTarget.label}
+                style={{
+                  background: confirmText === deleteTarget.label ? "var(--danger, #c53030)" : undefined,
+                  opacity: confirmText === deleteTarget.label ? 1 : 0.5,
+                }}
+                onClick={() => void confirmDelete()}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

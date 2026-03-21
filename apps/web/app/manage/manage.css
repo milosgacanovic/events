@@ -50,6 +50,8 @@
   background: var(--accent-bg, #e8f0fe);
   color: var(--accent, #1a73e8);
   font-weight: 600;
+  border-left: 3px solid var(--accent, #1a73e8);
+  padding-left: 9px;
 }
 
 .manage-sidebar .sub-link {
@@ -220,45 +222,100 @@
   color: var(--muted, #888);
 }
 
+.manage-list-loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.manage-back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--muted, #888);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.manage-menu-btn {
+  display: none;
+}
+
+.manage-sidebar-overlay {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .manage-layout {
     grid-template-columns: 1fr;
+    position: relative;
+  }
+
+  .manage-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 48;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent, #1a73e8);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   }
 
   .manage-sidebar {
-    position: static;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border, #e0e0e0);
-    padding: 8px 0;
-    overflow-x: auto;
+    position: fixed;
+    left: -280px;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 50;
+    transition: left 0.2s ease;
+    background: var(--bg, #fff);
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+    border-right: 1px solid var(--border, #e0e0e0);
+    padding: 16px 0;
+    height: 100vh;
+    overflow-y: auto;
+    flex-direction: column;
+  }
+
+  .manage-sidebar.open {
+    left: 0;
+  }
+
+  .manage-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    background: rgba(0,0,0,0.3);
   }
 
   .manage-sidebar-section {
     display: flex;
-    gap: 4px;
-    padding: 0 8px;
-    margin-bottom: 0;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 12px;
+    margin-bottom: 16px;
   }
 
   .manage-sidebar-section-title {
-    display: none;
+    display: block;
   }
 
   .manage-sidebar a,
   .manage-sidebar-link {
-    white-space: nowrap;
+    white-space: normal;
     padding: 6px 12px;
   }
 
   .manage-sidebar .sub-link {
-    display: none;
-  }
-
-  .manage-sidebar-divider {
-    width: 1px;
-    height: auto;
-    margin: 0 4px;
+    display: block;
   }
 
   .manage-main {

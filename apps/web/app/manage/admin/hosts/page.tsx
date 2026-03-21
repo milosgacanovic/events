@@ -24,6 +24,11 @@ type HostItem = {
   status: string;
   updated_at: string;
   managed_by_names: string | null;
+  city: string | null;
+  country_code: string | null;
+  practice_labels: string | null;
+  role_labels: string | null;
+  event_count: string | null;
 };
 
 type HostsResponse = {
@@ -43,8 +48,11 @@ export default function AdminAllHostsPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [countryFilter, setCountryFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const [assignHostId, setAssignHostId] = useState<string | null>(null);
+
+  const pageSize = 20;
 
   useEffect(() => {
     fetch(`${apiBase}/meta/taxonomies`, { cache: "no-store" })
@@ -55,8 +63,9 @@ export default function AdminAllHostsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
-      const params = new URLSearchParams({ page: String(page), pageSize: "20", showArchived: "true" });
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), showArchived: "true" });
       if (search) params.set("q", search);
       if (statusFilter) params.set("status", statusFilter);
       if (practiceFilter) params.set("practiceCategoryId", practiceFilter);
@@ -65,14 +74,17 @@ export default function AdminAllHostsPage() {
       const data = await authorizedGet<HostsResponse>(getToken, `/admin/organizers?${params}`);
       setHosts(data.items);
       setTotalItems(data.pagination.totalItems);
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load hosts");
     } finally {
       setLoading(false);
     }
   }, [getToken, page, search, statusFilter, practiceFilter, roleFilter, countryFilter]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const pageStart = (page - 1) * pageSize + 1;
+  const pageEnd = (page - 1) * pageSize + hosts.length;
 
   return (
     <div>
@@ -108,14 +120,21 @@ export default function AdminAllHostsPage() {
           onChange={(e) => { setCountryFilter(e.target.value); setPage(1); }}
           style={{ maxWidth: 120 }}
         />
-        <span className="meta">{totalItems} host{totalItems !== 1 ? "s" : ""}</span>
+        {totalItems > 0 && (
+          <span className="meta">Showing {pageStart}–{pageEnd} of {totalItems}</span>
+        )}
       </div>
 
-      {loading ? (
-        <div className="manage-loading">Loading...</div>
-      ) : (
+      {error && (
+        <div className="manage-empty">
+          <p>{error}</p>
+          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>Retry</button>
+        </div>
+      )}
+
+      {!error && (
         <>
-          <div className="manage-cards-grid">
+          <div className={`manage-cards-grid${loading ? " manage-list-loading" : ""}`}>
             {hosts.map((host) => (
               <div key={host.id} className="manage-event-card">
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -124,6 +143,24 @@ export default function AdminAllHostsPage() {
                   </Link>
                   <StatusBadge status={host.status} />
                 </div>
+                <div className="meta" style={{ fontSize: "0.82rem", marginTop: 2 }}>
+                  {[host.city, host.country_code].filter(Boolean).join(", ")}
+                </div>
+                {host.practice_labels && (
+                  <div className="meta" style={{ fontSize: "0.8rem" }}>
+                    {t("manage.admin.hosts.practice")}: {host.practice_labels}
+                  </div>
+                )}
+                {host.role_labels && (
+                  <div className="meta" style={{ fontSize: "0.8rem" }}>
+                    {t("manage.admin.hosts.role")}: {host.role_labels}
+                  </div>
+                )}
+                {host.event_count && host.event_count !== "0" && (
+                  <div className="meta" style={{ fontSize: "0.8rem" }}>
+                    {t("manage.admin.hosts.eventCount")}: {host.event_count}
+                  </div>
+                )}
                 {host.managed_by_names && (
                   <div className="meta" style={{ fontSize: "0.8rem", marginTop: 2 }}>
                     Managed by: {host.managed_by_names}
@@ -139,10 +176,11 @@ export default function AdminAllHostsPage() {
               </div>
             ))}
           </div>
-          {(page > 1 || hosts.length === 20) && (
+          {loading && hosts.length === 0 && <div className="manage-loading">Loading...</div>}
+          {(page > 1 || hosts.length === pageSize) && (
             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
               {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>Previous</button>}
-              {hosts.length === 20 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>Next</button>}
+              {hosts.length === pageSize && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>Next</button>}
             </div>
           )}
         </>

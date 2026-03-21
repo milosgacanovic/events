@@ -35,15 +35,18 @@ export default function ManageDashboard() {
   const { t } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const isAdmin = roles.includes(ROLE_ADMIN);
 
   const load = useCallback(async () => {
+    setError("");
+    setLoading(true);
     try {
       const result = await authorizedGet<DashboardData>(getToken, "/manage/dashboard");
       setData(result);
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load dashboard");
     } finally {
       setLoading(false);
     }
@@ -55,26 +58,67 @@ export default function ManageDashboard() {
     return <div className="manage-loading">Loading dashboard...</div>;
   }
 
+  if (error) {
+    return (
+      <div className="manage-empty">
+        <p>{error}</p>
+        <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 12 }}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   const displayName = userName?.split("@")[0] ?? "there";
 
   return (
     <div>
       <h1 className="manage-page-title">{t("manage.dashboard.welcome", { name: displayName })}</h1>
 
-      <div className="manage-cards-grid">
-        <div className="manage-stat-card">
-          <div className="stat-value">{data?.upcomingEventsCount ?? 0}</div>
-          <div className="stat-label">{t("manage.dashboard.upcomingEvents")}</div>
+      {/* Top stat cards — platform-wide for admins, personal for editors */}
+      {isAdmin && data?.admin ? (
+        <div className="manage-cards-grid">
+          <Link href="/manage/admin/events" className="manage-stat-card" style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="stat-value">{data.admin.totalEventsCount}</div>
+            <div className="stat-label">{t("manage.dashboard.allEvents")}</div>
+          </Link>
+          <Link href="/manage/admin/hosts" className="manage-stat-card" style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="stat-value">{data.admin.totalHostsCount}</div>
+            <div className="stat-label">{t("manage.dashboard.allHosts")}</div>
+          </Link>
+          <Link href="/manage/admin/users" className="manage-stat-card" style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="stat-value">{data.admin.totalUsersCount}</div>
+            <div className="stat-label">{t("manage.dashboard.registeredUsers")}</div>
+          </Link>
+          <Link
+            href="/manage/admin/applications"
+            className="manage-stat-card"
+            style={{
+              textDecoration: "none",
+              color: "inherit",
+              border: data.admin.pendingApplicationsCount > 0 ? "2px solid var(--warning-border, #e6d88a)" : undefined,
+            }}
+          >
+            <div className="stat-value">{data.admin.pendingApplicationsCount}</div>
+            <div className="stat-label">{t("manage.dashboard.pendingApplications")}</div>
+          </Link>
         </div>
-        <div className="manage-stat-card">
-          <div className="stat-value">{data?.totalEventsCount ?? 0}</div>
-          <div className="stat-label">{t("manage.dashboard.totalEvents")}</div>
+      ) : (
+        <div className="manage-cards-grid">
+          <div className="manage-stat-card">
+            <div className="stat-value">{data?.upcomingEventsCount ?? 0}</div>
+            <div className="stat-label">{t("manage.dashboard.upcomingEvents")}</div>
+          </div>
+          <div className="manage-stat-card">
+            <div className="stat-value">{data?.totalEventsCount ?? 0}</div>
+            <div className="stat-label">{t("manage.dashboard.totalEvents")}</div>
+          </div>
+          <div className="manage-stat-card">
+            <div className="stat-value">{data?.hostsCount ?? 0}</div>
+            <div className="stat-label">{t("manage.dashboard.myHosts")}</div>
+          </div>
         </div>
-        <div className="manage-stat-card">
-          <div className="stat-value">{data?.hostsCount ?? 0}</div>
-          <div className="stat-label">{t("manage.dashboard.myHosts")}</div>
-        </div>
-      </div>
+      )}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
         <Link href="/manage/events/new" className="primary-btn">{t("manage.dashboard.createEvent")}</Link>
@@ -102,32 +146,6 @@ export default function ManageDashboard() {
             ))}
           </div>
         </div>
-      )}
-
-      {isAdmin && data?.admin && (
-        <>
-          <h2 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 12 }}>{t("manage.dashboard.platformStats")}</h2>
-          <div className="manage-cards-grid">
-            <div className="manage-stat-card">
-              <div className="stat-value">{data.admin.totalEventsCount}</div>
-              <div className="stat-label">{t("manage.dashboard.allEvents")}</div>
-            </div>
-            <div className="manage-stat-card">
-              <div className="stat-value">{data.admin.totalHostsCount}</div>
-              <div className="stat-label">{t("manage.dashboard.allHosts")}</div>
-            </div>
-            <div className="manage-stat-card">
-              <div className="stat-value">{data.admin.totalUsersCount}</div>
-              <div className="stat-label">{t("manage.dashboard.registeredUsers")}</div>
-            </div>
-            {data.admin.pendingApplicationsCount > 0 && (
-              <Link href="/manage/admin/applications" className="manage-stat-card" style={{ textDecoration: "none", color: "inherit", border: "2px solid var(--warning-border, #e6d88a)" }}>
-                <div className="stat-value">{data.admin.pendingApplicationsCount}</div>
-                <div className="stat-label">{t("manage.dashboard.pendingApplications")}</div>
-              </Link>
-            )}
-          </div>
-        </>
       )}
     </div>
   );

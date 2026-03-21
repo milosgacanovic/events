@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { ROLE_ADMIN } from "@dr-events/shared";
+
 import { useKeycloakAuth } from "../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../components/i18n/I18nProvider";
 import { StatusBadge } from "../../../components/manage/StatusBadge";
@@ -26,30 +28,38 @@ type HostsResponse = {
 };
 
 export default function MyHostsPage() {
-  const { getToken } = useKeycloakAuth();
+  const { getToken, roles } = useKeycloakAuth();
   const { t } = useI18n();
   const [hosts, setHosts] = useState<HostItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const isAdmin = roles.includes(ROLE_ADMIN);
+  const pageSize = 20;
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
-      const params = new URLSearchParams({ managedBy: "me", page: String(page), pageSize: "20" });
+      const params = new URLSearchParams({ managedBy: "me", page: String(page), pageSize: String(pageSize) });
       if (search) params.set("q", search);
       const data = await authorizedGet<HostsResponse>(getToken, `/admin/organizers?${params}`);
       setHosts(data.items);
       setTotalItems(data.pagination.totalItems);
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load hosts");
     } finally {
       setLoading(false);
     }
   }, [getToken, page, search]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const pageStart = (page - 1) * pageSize + 1;
+  const pageEnd = (page - 1) * pageSize + hosts.length;
 
   return (
     <div>
@@ -64,22 +74,42 @@ export default function MyHostsPage() {
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
-        <span className="meta">{totalItems} host{totalItems !== 1 ? "s" : ""}</span>
+        {totalItems > 0 && (
+          <span className="meta">Showing {pageStart}–{pageEnd} of {totalItems}</span>
+        )}
       </div>
 
-      {loading ? (
-        <div className="manage-loading">Loading hosts...</div>
-      ) : hosts.length === 0 ? (
+      {error && (
         <div className="manage-empty">
-          <h3>{t("manage.hosts.noHosts")}</h3>
-          <p>{t("manage.hosts.createFirstDescription")}</p>
-          <Link href="/manage/hosts/new" className="primary-btn" style={{ marginTop: 12, display: "inline-block" }}>
-            {t("manage.hosts.createHost")}
-          </Link>
+          <p>{error}</p>
+          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>Retry</button>
         </div>
-      ) : (
+      )}
+
+      {!error && loading ? (
+        <div className="manage-loading">Loading hosts...</div>
+      ) : !error && hosts.length === 0 ? (
+        <div className="manage-empty">
+          {isAdmin ? (
+            <>
+              <h3>{t("manage.hosts.emptyAdmin")}</h3>
+              <Link href="/manage/admin/hosts" className="secondary-btn" style={{ marginTop: 12, display: "inline-block" }}>
+                All Hosts
+              </Link>
+            </>
+          ) : (
+            <>
+              <h3>{t("manage.hosts.noHosts")}</h3>
+              <p>{t("manage.hosts.createFirstDescription")}</p>
+              <Link href="/manage/hosts/new" className="primary-btn" style={{ marginTop: 12, display: "inline-block" }}>
+                {t("manage.hosts.createHost")}
+              </Link>
+            </>
+          )}
+        </div>
+      ) : !error ? (
         <>
-          <div className="manage-cards-grid">
+          <div className={`manage-cards-grid${loading ? " manage-list-loading" : ""}`}>
             {hosts.map((host) => (
               <div key={host.id} className="manage-event-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -105,18 +135,18 @@ export default function MyHostsPage() {
               </div>
             ))}
           </div>
-          {page > 1 || hosts.length === 20 ? (
+          {(page > 1 || hosts.length === pageSize) && (
             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
               {page > 1 && (
                 <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>Previous</button>
               )}
-              {hosts.length === 20 && (
+              {hosts.length === pageSize && (
                 <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>Next</button>
               )}
             </div>
-          ) : null}
+          )}
         </>
-      )}
+      ) : null}
     </div>
   );
 }

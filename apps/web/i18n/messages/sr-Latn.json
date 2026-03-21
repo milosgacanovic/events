@@ -471,7 +471,7 @@
   "manage.auth.editorRequired": "Potreban pristup uređivanju",
   "manage.auth.adminRequired": "Potreban admin pristup",
 
-  "manage.sidebar.editor": "Urednik",
+  "manage.sidebar.editor": "Moj sadržaj",
   "manage.sidebar.admin": "Admin",
 
   "manage.dashboard.welcome": "Dobro došli, {name}",
@@ -555,5 +555,18 @@
   "manage.assignModal.title": "Dodeli korisniku",
   "manage.assignModal.searchPlaceholder": "Pretraga korisnika po imenu ili email-u...",
   "manage.assignModal.searching": "Pretraživanje...",
-  "manage.assignModal.assign": "Dodeli"
+  "manage.assignModal.assign": "Dodeli",
+
+  "manage.events.emptyAdmin": "Nema događaja dodeljenih vašem nalogu. Pregledajte sve događaje da biste upravljali sadržajem platforme.",
+  "manage.hosts.emptyAdmin": "Nema organizatora dodeljenih vašem nalogu. Pregledajte sve organizatore da biste upravljali sadržajem platforme.",
+
+  "manage.admin.hosts.city": "Grad",
+  "manage.admin.hosts.practice": "Praksa",
+  "manage.admin.hosts.role": "Uloga",
+  "manage.admin.hosts.eventCount": "Događaji",
+
+  "manage.pagination.showing": "Prikazujem {start}–{end} od {total}",
+
+  "manage.error.loadFailed": "Učitavanje neuspešno. Pokušajte ponovo.",
+  "manage.error.retry": "Pokušaj ponovo"
 }

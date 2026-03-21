@@ -385,6 +385,15 @@ export function HostForm({
           </div>
         )}
         <input type="file" accept="image/*" onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)} />
+        <div style={{ marginTop: 8 }}>
+          <label>Or paste an image URL</label>
+          <input
+            type="url"
+            placeholder="https://..."
+            value={form.imageUrl}
+            onChange={(e) => update("imageUrl", e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Status (edit only) */}

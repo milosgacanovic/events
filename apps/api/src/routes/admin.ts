@@ -294,14 +294,24 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
 
     const result = await listUsersWithRoles(app.db, parsed.data);
 
-    // Optionally enrich with Keycloak roles
+    // Enrich with Keycloak profile + roles
     if (app.keycloakAdmin) {
       for (const user of result.items) {
+        const u = user as Record<string, unknown>;
+        try {
+          const kcUser = await app.keycloakAdmin.getUser(user.keycloak_sub);
+          if (kcUser) {
+            u.display_name = u.display_name
+              || [kcUser.firstName, kcUser.lastName].filter(Boolean).join(" ")
+              || kcUser.username;
+            u.email = u.email || kcUser.email;
+          }
+        } catch { /* ignore */ }
         try {
           const roles = await app.keycloakAdmin.getUserRoles(user.keycloak_sub);
-          (user as Record<string, unknown>).keycloak_roles = roles.map((r) => r.name);
+          u.keycloak_roles = roles.map((r) => r.name);
         } catch {
-          (user as Record<string, unknown>).keycloak_roles = [];
+          u.keycloak_roles = [];
         }
       }
     }

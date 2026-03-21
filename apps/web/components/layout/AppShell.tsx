@@ -211,8 +211,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             type="button"
             className="theme-toggle"
             onClick={toggle}
-            aria-label={resolved === "dark" ? t("theme.dark") : t("theme.light")}
-            title={resolved === "dark" ? t("theme.dark") : t("theme.light")}
+            aria-label={resolved === "dark" ? t("theme.light") : t("theme.dark")}
+            title={resolved === "dark" ? t("theme.light") : t("theme.dark")}
           >
             <ThemeIcon resolved={resolved} />
           </button>
