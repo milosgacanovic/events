@@ -306,11 +306,12 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
               || kcUser.username;
             u.email = u.email || kcUser.email;
           }
-        } catch { /* ignore */ }
+        } catch (err) { app.log.warn({ err, sub: user.keycloak_sub }, "Keycloak user enrichment failed"); }
         try {
           const roles = await app.keycloakAdmin.getUserRoles(user.keycloak_sub);
           u.keycloak_roles = roles.map((r) => r.name);
-        } catch {
+        } catch (err) {
+          app.log.warn({ err, sub: user.keycloak_sub }, "Keycloak roles enrichment failed");
           u.keycloak_roles = [];
         }
       }

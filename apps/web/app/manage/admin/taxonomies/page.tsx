@@ -385,6 +385,8 @@ export default function AdminTaxonomiesPage() {
           onClick={() => setDeleteTarget(null)}
         >
           <div
+            role="alertdialog"
+            aria-modal="true"
             style={{
               background: "var(--bg, #fff)",
               borderRadius: 8,

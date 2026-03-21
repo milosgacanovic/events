@@ -642,7 +642,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const auth = request.auth!;
-    const userId = await findOrCreateUserBySub(app.db, auth.sub);
+    const userId = await findOrCreateUserBySub(app.db, auth.sub, auth.preferredUsername, auth.email);
     const normalizedInput = {
       ...parsed.data,
       coverImagePath: resolveCoverImagePath(parsed.data),

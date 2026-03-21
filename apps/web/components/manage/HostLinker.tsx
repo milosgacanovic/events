@@ -81,7 +81,7 @@ export function HostLinker({
     <div>
       {/* Combobox */}
       <div style={{ position: "relative", marginBottom: 8 }}>
-        <div className="kv" style={{ gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <div style={{ position: "relative", flex: 1 }}>
             <input
               ref={inputRef}
@@ -93,6 +93,9 @@ export function HostLinker({
               style={{ width: "100%" }}
               autoComplete="off"
             />
+            {open && organizerOptions.length === 0 && (
+              <span className="meta">Loading hosts...</span>
+            )}
             {open && filtered.length > 0 && (
               <div
                 style={{
@@ -105,7 +108,7 @@ export function HostLinker({
                   background: "var(--bg, #fff)",
                   border: "1px solid var(--border, #e0e0e0)",
                   borderRadius: 6,
-                  zIndex: 20,
+                  zIndex: 50,
                   marginTop: 2,
                   boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                 }}

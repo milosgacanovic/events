@@ -3,4 +3,6 @@ export type AuthContext = {
   roles: string[];
   isAdmin: boolean;
   isEditor: boolean;
+  preferredUsername?: string;
+  email?: string;
 };

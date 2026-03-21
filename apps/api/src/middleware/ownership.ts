@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import type { AuthContext } from "@dr-events/shared";
 
 import { findOrCreateUserBySub } from "../db/userRepo";
 import { canUserEditEvent, canUserEditOrganizer } from "../db/manageRepo";
@@ -9,9 +10,9 @@ import { canUserEditEvent, canUserEditOrganizer } from "../db/manageRepo";
  */
 export async function resolveUserId(
   pool: Pool,
-  auth: { sub: string },
+  auth: AuthContext,
 ): Promise<string> {
-  return findOrCreateUserBySub(pool, auth.sub);
+  return findOrCreateUserBySub(pool, auth.sub, auth.preferredUsername, auth.email);
 }
 
 /**

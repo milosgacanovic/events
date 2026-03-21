@@ -113,8 +113,8 @@ export function EventForm({
         setTaxonomy(tax);
         setOrganizerOptions(orgs);
         // No auto-select defaults (UX-2/3)
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error("Failed to load form metadata:", err);
       }
     }
     void load();

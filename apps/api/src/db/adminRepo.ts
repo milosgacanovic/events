@@ -107,7 +107,7 @@ export async function listAdminEvents(
           ef.label as event_format_label,
           loc_sub.city as location_city,
           loc_sub.country_code as location_country,
-          next_occ.starts_at as next_occurrence,
+          next_occ.starts_at_utc as next_occurrence,
           hosts_sub.host_names,
           u.display_name as created_by_name
         from events e

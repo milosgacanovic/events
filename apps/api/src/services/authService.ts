@@ -12,6 +12,8 @@ type KeycloakPayload = JWTPayload & {
   azp?: string;
   realm_access?: { roles?: string[] };
   resource_access?: Record<string, { roles?: string[] }>;
+  preferred_username?: string;
+  email?: string;
 };
 
 export function extractRolesFromPayload(payload: KeycloakPayload, clientId?: string): string[] {
@@ -85,6 +87,8 @@ export class AuthService {
       roles,
       isAdmin,
       isEditor,
+      preferredUsername: payload.preferred_username,
+      email: payload.email,
     };
   }
 }
