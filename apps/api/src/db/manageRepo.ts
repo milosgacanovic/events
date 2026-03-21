@@ -409,3 +409,39 @@ export async function getAdminDashboardStats(pool: Pool) {
     pendingApplicationsCount: Number(pendingApps.rows[0]?.count ?? "0"),
   };
 }
+
+export async function getAdminRecentActivity(pool: Pool) {
+  const result = await pool.query<{
+    entity_type: string;
+    entity_id: string;
+    entity_name: string;
+    action: string;
+    activity_at: string;
+  }>(
+    `
+      (
+        select 'event' as entity_type, e.id as entity_id, e.title as entity_name,
+          case when e.created_at = e.updated_at then 'created' else 'updated' end as action,
+          e.updated_at as activity_at
+        from events e
+      )
+      union all
+      (
+        select 'host' as entity_type, o.id as entity_id, o.name as entity_name,
+          case when o.created_at = o.updated_at then 'created' else 'updated' end as action,
+          o.updated_at as activity_at
+        from organizers o
+      )
+      order by activity_at desc
+      limit 5
+    `,
+  );
+
+  return result.rows.map((r) => ({
+    entityType: r.entity_type,
+    entityId: r.entity_id,
+    entityName: r.entity_name,
+    action: r.action,
+    activityAt: r.activity_at,
+  }));
+}

@@ -492,6 +492,7 @@
   "manage.dashboard.registeredUsers": "Registered Users",
   "manage.dashboard.pendingApplications": "Pending Applications",
   "manage.dashboard.recentActivity": "Recent Activity",
+  "manage.dashboard.noRecentActivity": "No recent activity yet.",
   "manage.dashboard.createEvent": "Create Event",
   "manage.dashboard.createHost": "Create Host",
 

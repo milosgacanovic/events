@@ -26,6 +26,7 @@ import { checkRateLimit, resolveAdminRateLimit, resolvePublicRateLimit } from ".
 import { AuthService } from "./services/authService";
 import { KeycloakAdminService } from "./services/keycloakAdminService";
 import { MeilisearchService } from "./services/meiliService";
+import { findOrCreateUserBySub } from "./db/userRepo";
 import { loggerConfig } from "./utils/logger";
 
 async function buildServer() {
@@ -79,6 +80,11 @@ async function buildServer() {
 
   app.decorate("authenticate", async (request) => {
     request.auth = await authService.authenticate(request.headers.authorization);
+    // Fire-and-forget: upsert display_name + email from JWT claims on every auth
+    if (request.auth.sub) {
+      findOrCreateUserBySub(pool, request.auth.sub, request.auth.preferredUsername, request.auth.email, request.auth.roles)
+        .catch(() => {});
+    }
   });
 
   app.decorate("requireEditor", async (request) => {

@@ -25,13 +25,14 @@ export async function listUsersWithRoles(
       keycloak_sub: string;
       display_name: string | null;
       email: string | null;
+      roles: string[];
       created_at: string;
       host_count: string;
       event_count: string;
     }>(
       `
         select
-          u.id, u.keycloak_sub, u.display_name, u.email, u.created_at,
+          u.id, u.keycloak_sub, u.display_name, u.email, u.roles, u.created_at,
           (select count(*)::text from host_users hu where hu.user_id = u.id) as host_count,
           (
             select count(distinct e.id)::text

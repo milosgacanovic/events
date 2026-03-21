@@ -5,17 +5,19 @@ export async function findOrCreateUserBySub(
   keycloakSub: string,
   displayName?: string,
   email?: string,
+  roles?: string[],
 ): Promise<string> {
   const inserted = await pool.query<{ id: string }>(
     `
-      insert into users (keycloak_sub, display_name, email)
-      values ($1, $2, $3)
+      insert into users (keycloak_sub, display_name, email, roles)
+      values ($1, $2, $3, $4)
       on conflict (keycloak_sub) do update set
         display_name = coalesce(nullif(excluded.display_name, ''), users.display_name),
-        email = coalesce(nullif(excluded.email, ''), users.email)
+        email = coalesce(nullif(excluded.email, ''), users.email),
+        roles = case when cardinality(excluded.roles) = 0 then users.roles else excluded.roles end
       returning id
     `,
-    [keycloakSub, displayName ?? null, email ?? null],
+    [keycloakSub, displayName ?? null, email ?? null, roles ?? []],
   );
 
   return inserted.rows[0].id;

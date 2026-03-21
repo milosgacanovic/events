@@ -480,6 +480,7 @@
   "manage.dashboard.registeredUsers": "Registrovani korisnici",
   "manage.dashboard.pendingApplications": "Prijave na čekanju",
   "manage.dashboard.recentActivity": "Nedavna aktivnost",
+  "manage.dashboard.noRecentActivity": "Još nema nedavne aktivnosti.",
   "manage.dashboard.createEvent": "Kreiraj događaj",
   "manage.dashboard.createHost": "Kreiraj organizatora",
 

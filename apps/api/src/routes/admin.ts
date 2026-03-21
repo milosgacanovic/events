@@ -294,7 +294,12 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
 
     const result = await listUsersWithRoles(app.db, parsed.data);
 
-    // Enrich with Keycloak profile + roles
+    // Set roles from DB (updated on each auth via JWT claims)
+    for (const user of result.items) {
+      (user as Record<string, unknown>).keycloak_roles = user.roles ?? [];
+    }
+
+    // Optionally enrich display_name/email from Keycloak Admin API
     if (app.keycloakAdmin) {
       for (const user of result.items) {
         const u = user as Record<string, unknown>;
@@ -307,13 +312,6 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
             u.email = u.email || kcUser.email;
           }
         } catch (err) { app.log.warn({ err, sub: user.keycloak_sub }, "Keycloak user enrichment failed"); }
-        try {
-          const roles = await app.keycloakAdmin.getUserRoles(user.keycloak_sub);
-          u.keycloak_roles = roles.map((r) => r.name);
-        } catch (err) {
-          app.log.warn({ err, sub: user.keycloak_sub }, "Keycloak roles enrichment failed");
-          u.keycloak_roles = [];
-        }
       }
     }
 

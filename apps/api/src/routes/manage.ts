@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 
-import { getAdminDashboardStats, getDashboardStats } from "../db/manageRepo";
+import { getAdminDashboardStats, getAdminRecentActivity, getDashboardStats } from "../db/manageRepo";
 import { resolveUserId } from "../middleware/ownership";
 
 const manageRoutes: FastifyPluginAsync = async (app) => {
@@ -13,8 +13,11 @@ const manageRoutes: FastifyPluginAsync = async (app) => {
     const editorStats = await getDashboardStats(app.db, userId);
 
     if (auth.isAdmin) {
-      const adminStats = await getAdminDashboardStats(app.db);
-      return { ...editorStats, admin: adminStats };
+      const [adminStats, adminActivity] = await Promise.all([
+        getAdminDashboardStats(app.db),
+        getAdminRecentActivity(app.db),
+      ]);
+      return { ...editorStats, recentActivity: adminActivity, admin: adminStats };
     }
 
     return editorStats;

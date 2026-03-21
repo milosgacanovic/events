@@ -126,9 +126,9 @@ export default function ManageDashboard() {
       </div>
 
       {/* Recent Activity */}
-      {data?.recentActivity && data.recentActivity.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 12 }}>{t("manage.dashboard.recentActivity")}</h2>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: 12 }}>{t("manage.dashboard.recentActivity")}</h2>
+        {data?.recentActivity && data.recentActivity.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {data.recentActivity.map((item) => (
               <div key={`${item.entityType}-${item.entityId}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 6, backgroundColor: "var(--surface, #f8f8f8)" }}>
@@ -145,8 +145,10 @@ export default function ManageDashboard() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="meta">{t("manage.dashboard.noRecentActivity")}</p>
+        )}
+      </div>
     </div>
   );
 }
