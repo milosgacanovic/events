@@ -130,8 +130,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link href="/manage" className={"dropdown-item" + (pathname.startsWith("/manage") ? " active" : "")}>
                   Manage
                 </Link>
-              ) : auth.authenticated ? null : (
-                <Link href="/manage/apply" className="dropdown-item">
+              ) : (
+                <Link href="/manage/apply" className={"dropdown-item" + (pathname.startsWith("/manage") ? " active" : "")}>
                   Post your event
                 </Link>
               )}
@@ -158,8 +158,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link href="/manage" className={pathname.startsWith("/manage") ? "active" : ""}>
               Manage
             </Link>
-          ) : auth.authenticated ? null : (
-            <Link href="/manage/apply" className="accent-link">
+          ) : (
+            <Link href="/manage/apply" className={"accent-link" + (pathname.startsWith("/manage") ? " active" : "")}>
               Post your event
             </Link>
           )}

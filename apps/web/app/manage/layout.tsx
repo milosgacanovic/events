@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { ROLE_ADMIN, ROLE_EDITOR } from "@dr-events/shared";
 
@@ -10,6 +11,7 @@ import "./manage.css";
 
 export default function ManageLayout({ children }: { children: React.ReactNode }) {
   const auth = useKeycloakAuth();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (!auth.ready) {
@@ -25,6 +27,13 @@ export default function ManageLayout({ children }: { children: React.ReactNode }
   const isEditor = auth.roles.includes(ROLE_EDITOR) || isAdmin;
 
   if (!isEditor) {
+    if (pathname === "/manage/apply") {
+      return (
+        <div style={{ display: "flex", justifyContent: "center", minHeight: "calc(100vh - 60px)", padding: "24px 16px" }}>
+          {children}
+        </div>
+      );
+    }
     return (
       <div className="manage-layout">
         <div className="manage-main">

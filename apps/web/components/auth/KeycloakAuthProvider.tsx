@@ -16,6 +16,7 @@ type AuthContextValue = {
   token: string | null;
   roles: string[];
   userName: string | null;
+  userEmail: string | null;
   authError: string | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -117,6 +118,7 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
   const [token, setToken] = useState<string | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const keycloakUrl = normalizeValue(config?.url);
   const keycloakRealm = normalizeValue(config?.realm);
@@ -175,6 +177,9 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
             )?.email
             ?? null,
         );
+        setUserEmail(
+          (keycloak.tokenParsed as { email?: string } | undefined)?.email ?? null,
+        );
 
         if (isAuthenticated) {
           await keycloak.loadUserProfile().catch(() => undefined);
@@ -204,6 +209,9 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
                         | undefined
                     )?.email
                     ?? null,
+                );
+                setUserEmail(
+                  (keycloak.tokenParsed as { email?: string } | undefined)?.email ?? null,
                 );
                 setAuthenticated(Boolean(keycloak.authenticated));
               }
@@ -249,6 +257,7 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
       token,
       roles,
       userName,
+      userEmail,
       authError,
       login: async () => {
         if (!keycloakRef.current) {
@@ -283,7 +292,7 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
         return currentToken;
       },
     }),
-    [ready, authenticated, token, roles, userName, authError, loginRedirectPath, logoutRedirectPath],
+    [ready, authenticated, token, roles, userName, userEmail, authError, loginRedirectPath, logoutRedirectPath],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

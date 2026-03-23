@@ -11,12 +11,19 @@ services:
       MEILI_URL: http://meilisearch:7700
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change_me}
       UPLOADS_DIR: /app/uploads
-      PUBLIC_BASE_URL: https://beta.events.danceresource.org
+      PUBLIC_BASE_URL: https://events.danceresource.org
       KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:-https://sso.danceresource.org/realms/YOUR_REALM}
       KEYCLOAK_JWKS_URL: ${KEYCLOAK_JWKS_URL:-https://sso.danceresource.org/realms/YOUR_REALM/protocol/openid-connect/certs}
       KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-YOUR_CLIENT_ID_OR_AUDIENCE}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-YOUR_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      SMTP_HOST: brevo-relay
+      SMTP_PORT: 2525
+      SMTP_FROM: noreply@danceresource.org
+      SMTP_ADMIN_TO: hello@danceresource.org
+    networks:
+      - default
+      - mail-relay
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,3 +62,7 @@ services:
       - api_green
     ports:
       - "13100:3000"
+
+networks:
+  mail-relay:
+    external: true

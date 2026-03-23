@@ -46,9 +46,9 @@ export async function createApplication(
       input.email,
       input.intent,
       input.intentOther ?? null,
-      input.description ?? null,
+      input.description ?? "",
       input.practiceCategoryIds ?? [],
-      input.proofUrl ?? null,
+      input.proofUrl ?? "",
       input.claimHostId ?? null,
     ],
   );

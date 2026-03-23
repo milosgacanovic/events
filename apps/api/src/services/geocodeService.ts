@@ -33,7 +33,7 @@ export async function geocodeSearch(pool: Pool, query: string, limit: number) {
 
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "DanceResourceEvents/0.1 (+https://beta.events.danceresource.org)",
+      "User-Agent": "DanceResourceEvents/0.1 (+https://events.danceresource.org)",
       Accept: "application/json",
     },
   });

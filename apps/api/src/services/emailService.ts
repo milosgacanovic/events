@@ -1,14 +1,31 @@
+import nodemailer from "nodemailer";
 import type { FastifyBaseLogger } from "fastify";
 
-/**
- * No-op email service stub.
- * Logs instead of sending. Prepares call sites for future SMTP/SES integration.
- */
+import { config } from "../config";
+
+const transporter = nodemailer.createTransport({
+  host: config.SMTP_HOST,
+  port: config.SMTP_PORT,
+  secure: false,
+  tls: { rejectUnauthorized: false },
+});
+
 export async function sendEmail(
   to: string,
   subject: string,
   body: string,
   logger: FastifyBaseLogger,
+  plainText = false,
 ): Promise<void> {
-  logger.info({ to, subject }, "email_stub: would send email (not implemented)");
+  try {
+    await transporter.sendMail({
+      from: config.SMTP_FROM,
+      to,
+      subject,
+      ...(plainText ? { text: body } : { html: body }),
+    });
+    logger.info({ to, subject }, "email sent");
+  } catch (err) {
+    logger.warn({ err, to, subject }, "email send failed");
+  }
 }
