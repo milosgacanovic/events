@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ROLE_EDITOR } from "@dr-events/shared";
 
 import { useKeycloakAuth } from "../../../components/auth/KeycloakAuthProvider";
+import { useI18n } from "../../../components/i18n/I18nProvider";
 import { authorizedPost } from "../../../lib/manageApi";
 import { apiBase } from "../../../lib/api";
 
@@ -20,6 +21,7 @@ type HostSearchResult = { id: string; name: string; slug: string };
 
 export default function ApplyPage() {
   const auth = useKeycloakAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const [name, setName] = useState("");
   const [intent, setIntent] = useState("teach_classes");
@@ -74,11 +76,11 @@ export default function ApplyPage() {
     return () => clearTimeout(timer);
   }, [hostSearch, searchHosts]);
 
-  if (!auth.ready) return <div className="manage-loading">Loading...</div>;
+  if (!auth.ready) return <div className="manage-loading">{t("manage.common.loading")}</div>;
 
   if (!auth.authenticated) {
     void auth.login();
-    return <div className="manage-loading">Redirecting to login...</div>;
+    return <div className="manage-loading">{t("manage.apply.redirectingLogin")}</div>;
   }
 
   useEffect(() => {
@@ -88,8 +90,8 @@ export default function ApplyPage() {
   if (submitted) {
     return (
       <div className="manage-empty">
-        <h3>Application submitted!</h3>
-        <p>We&apos;ll review your application and get back to you soon.</p>
+        <h3>{t("manage.apply.submitted")}</h3>
+        <p>{t("manage.apply.submittedMessage")}</p>
       </div>
     );
   }
@@ -125,50 +127,50 @@ export default function ApplyPage() {
 
   return (
     <div style={{ maxWidth: 600, width: "100%" }}>
-      <h1 className="manage-page-title">Post Your Event</h1>
+      <h1 className="manage-page-title">{t("manage.apply.title")}</h1>
       <p style={{ marginBottom: 24, color: "var(--muted)" }}>
-        Apply for editor access to publish your dance events on DanceResource.
+        {t("manage.apply.subtitle")}
       </p>
 
       <form className="manage-form" onSubmit={(e) => void handleSubmit(e)}>
         <div>
-          <label>Your Name</label>
+          <label>{t("manage.apply.labelName")}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div>
-          <label>Email</label>
+          <label>{t("manage.apply.labelEmail")}</label>
           <input type="email" value={email} disabled style={{ opacity: 0.7, cursor: "not-allowed" }} />
         </div>
         <div>
-          <label>What do you want to do?</label>
+          <label>{t("manage.apply.labelIntent")}</label>
           <select value={intent} onChange={(e) => setIntent(e.target.value)}>
-            <option value="organize_events">I organize dance events</option>
-            <option value="teach_classes">I facilitate dance classes</option>
-            <option value="manage_venue">I manage a dance venue</option>
-            <option value="community">I run a dance community</option>
-            <option value="other">Other</option>
+            <option value="organize_events">{t("manage.apply.intentOrganize")}</option>
+            <option value="teach_classes">{t("manage.apply.intentTeach")}</option>
+            <option value="manage_venue">{t("manage.apply.intentVenue")}</option>
+            <option value="community">{t("manage.apply.intentCommunity")}</option>
+            <option value="other">{t("manage.apply.intentOther")}</option>
           </select>
         </div>
         {intent === "other" && (
           <div>
-            <label>Please describe</label>
+            <label>{t("manage.apply.intentOtherDescribe")}</label>
             <input value={intentOther} onChange={(e) => setIntentOther(e.target.value)} />
           </div>
         )}
         <div>
-          <label>Tell us about your events or organization</label>
+          <label>{t("manage.apply.labelDescription")}</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            placeholder="What kind of events do you run? Where are they located?"
+            placeholder={t("manage.apply.descriptionPlaceholder")}
           />
         </div>
 
         {/* Practice categories as chips */}
         {practices.length > 0 && (
           <div>
-            <label>What dance styles do you focus on?</label>
+            <label>{t("manage.apply.labelPractices")}</label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
               {practices.map((p) => {
                 const selected = practiceCategoryIds.includes(p.id);
@@ -199,12 +201,12 @@ export default function ApplyPage() {
 
         {/* Host claim */}
         <div>
-          <label>Do you manage an existing host on our platform?</label>
+          <label>{t("manage.apply.labelHost")}</label>
           {claimHostId ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
               <span>{claimHostName}</span>
               <button type="button" className="ghost-btn" style={{ fontSize: "0.8rem" }} onClick={() => { setClaimHostId(null); setClaimHostName(""); }}>
-                Remove
+                {t("manage.common.remove")}
               </button>
             </div>
           ) : (
@@ -212,9 +214,9 @@ export default function ApplyPage() {
               <input
                 value={hostSearch}
                 onChange={(e) => setHostSearch(e.target.value)}
-                placeholder="Search for your host/organization..."
+                placeholder={t("manage.apply.hostSearchPlaceholder")}
               />
-              {hostSearching && <span className="meta">Searching...</span>}
+              {hostSearching && <span className="meta">{t("manage.apply.hostSearching")}</span>}
               {hostResults.length > 0 && (
                 <div style={{ border: "1px solid var(--border)", borderRadius: 6, marginTop: 4, maxHeight: 160, overflow: "auto", background: "var(--surface)" }}>
                   {hostResults.map((h) => (
@@ -236,13 +238,13 @@ export default function ApplyPage() {
         </div>
 
         <div>
-          <label>Link to your website or social media (optional)</label>
+          <label>{t("manage.apply.labelProofUrl")}</label>
           <input value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} placeholder="https://..." />
         </div>
 
         <div className="manage-form-actions" style={{ position: "static" }}>
           <button type="submit" className="primary-btn" disabled={saving}>
-            {saving ? "Submitting..." : "Submit Application"}
+            {saving ? t("manage.apply.submitting") : t("manage.apply.submit")}
           </button>
         </div>
 

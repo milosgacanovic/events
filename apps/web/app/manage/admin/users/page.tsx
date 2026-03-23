@@ -196,14 +196,14 @@ export default function AdminUsersPage() {
 
       <div className="manage-filter-bar">
         <input
-          placeholder="Search users..."
+          placeholder={t("manage.admin.users.searchPlaceholder")}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
-        {totalItems > 0 && <span className="meta">Showing {(page - 1) * 20 + 1}–{(page - 1) * 20 + users.length} of {totalItems}</span>}
+        {totalItems > 0 && <span className="meta">{t("manage.pagination.showing", { start: (page - 1) * 20 + 1, end: (page - 1) * 20 + users.length, total: totalItems })}</span>}
         {process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL && (
           <a href={process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL} target="_blank" rel="noopener noreferrer" className="ghost-btn" style={{ fontSize: "0.8rem", marginLeft: "auto" }}>
-            Invite user (Keycloak)
+            {t("manage.admin.users.inviteUser")}
           </a>
         )}
       </div>
@@ -211,15 +211,15 @@ export default function AdminUsersPage() {
       {error && (
         <div className="manage-empty">
           <p>{error}</p>
-          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>Retry</button>
+          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>{t("manage.error.retry")}</button>
         </div>
       )}
 
       {!error && loading ? (
-        <div className="manage-loading">Loading users...</div>
+        <div className="manage-loading">{t("manage.admin.users.loadingUsers")}</div>
       ) : !error && users.length === 0 ? (
         <div className="manage-empty">
-          <h3>No users found</h3>
+          <h3>{t("manage.admin.users.noUsers")}</h3>
         </div>
       ) : !error ? (
         <>
@@ -227,13 +227,13 @@ export default function AdminUsersPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>Name</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>Email</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>Roles</th>
-                <th style={{ textAlign: "center", padding: "8px", borderBottom: "1px solid var(--border)" }}>Hosts</th>
-                <th style={{ textAlign: "center", padding: "8px", borderBottom: "1px solid var(--border)" }}>Events</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>Joined</th>
-                <th style={{ textAlign: "right", padding: "8px", borderBottom: "1px solid var(--border)" }}>Actions</th>
+                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.name")}</th>
+                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.email")}</th>
+                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.common.roles")}</th>
+                <th style={{ textAlign: "center", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.hosts")}</th>
+                <th style={{ textAlign: "center", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.events")}</th>
+                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.joined")}</th>
+                <th style={{ textAlign: "right", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -270,7 +270,7 @@ export default function AdminUsersPage() {
                       style={{ fontSize: "0.75rem", marginRight: 4 }}
                       onClick={() => openRoleEdit(user)}
                     >
-                      Roles
+                      {t("manage.common.roles")}
                     </button>
                     <button
                       type="button"
@@ -278,7 +278,7 @@ export default function AdminUsersPage() {
                       style={{ fontSize: "0.75rem" }}
                       onClick={() => void openAccessManage(user.id)}
                     >
-                      Access
+                      {t("manage.common.access")}
                     </button>
                   </td>
                 </tr>
@@ -288,8 +288,8 @@ export default function AdminUsersPage() {
           </div>
           {(page > 1 || users.length === 20) && (
             <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16 }}>
-              {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>Previous</button>}
-              {users.length === 20 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>Next</button>}
+              {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>{t("manage.common.previous")}</button>}
+              {users.length === 20 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>{t("manage.common.next")}</button>}
             </div>
           )}
         </>
@@ -297,7 +297,7 @@ export default function AdminUsersPage() {
 
       {/* Role editing dialog */}
       <dialog ref={roleDialogRef} style={{ padding: 24, borderRadius: 8, border: "1px solid var(--border)", maxWidth: 400 }}>
-        <h3 style={{ marginTop: 0 }}>Edit Roles</h3>
+        <h3 style={{ marginTop: 0 }}>{t("manage.admin.users.editRoles")}</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {[ROLE_EDITOR, ROLE_ADMIN].map((role) => (
             <label key={role} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
@@ -312,29 +312,29 @@ export default function AdminUsersPage() {
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
           <button type="button" className="ghost-btn" onClick={() => roleDialogRef.current?.close()}>
-            Cancel
+            {t("manage.common.cancel")}
           </button>
           <button type="button" className="primary-btn" onClick={() => void saveRoles()}>
-            Save
+            {t("manage.common.save")}
           </button>
         </div>
       </dialog>
 
       {/* Access management dialog */}
       <dialog ref={accessDialogRef} style={{ padding: 24, borderRadius: 8, border: "1px solid var(--border)", maxWidth: 560, width: "100%" }}>
-        <h3 style={{ marginTop: 0 }}>Manage Access</h3>
+        <h3 style={{ marginTop: 0 }}>{t("manage.admin.users.manageAccess")}</h3>
 
         {/* Linked Hosts */}
-        <h4 style={{ marginBottom: 8 }}>Linked Hosts</h4>
+        <h4 style={{ marginBottom: 8 }}>{t("manage.admin.users.linkedHosts")}</h4>
         {linkedHosts.length === 0 ? (
-          <p className="meta" style={{ fontSize: "0.85rem" }}>No linked hosts</p>
+          <p className="meta" style={{ fontSize: "0.85rem" }}>{t("manage.admin.users.noLinkedHosts")}</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
             {linkedHosts.map((h) => (
               <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
                 <span style={{ fontSize: "0.9rem" }}>{h.organizer_name}</span>
                 <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", color: "var(--danger, #c53030)" }} onClick={() => void removeHostFromUser(accessUserId!, h.organizer_id)}>
-                  Remove
+                  {t("manage.common.remove")}
                 </button>
               </div>
             ))}
@@ -342,7 +342,7 @@ export default function AdminUsersPage() {
         )}
         <div style={{ marginBottom: 16 }}>
           <input
-            placeholder="Search hosts to add..."
+            placeholder={t("manage.admin.users.searchHostsToAdd")}
             value={accessHostSearch}
             onChange={(e) => { setAccessHostSearch(e.target.value); void searchHostsForAccess(e.target.value); }}
             style={{ width: "100%", fontSize: "0.85rem" }}
@@ -352,7 +352,7 @@ export default function AdminUsersPage() {
               {accessHostResults.map((h) => (
                 <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => void addHostToUser(accessUserId!, h.id)}>
                   <span style={{ fontSize: "0.85rem" }}>{h.name}</span>
-                  <span className="meta" style={{ fontSize: "0.75rem" }}>+ Add</span>
+                  <span className="meta" style={{ fontSize: "0.75rem" }}>+ {t("manage.common.add")}</span>
                 </div>
               ))}
             </div>
@@ -360,16 +360,16 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Linked Events */}
-        <h4 style={{ marginBottom: 8 }}>Linked Events</h4>
+        <h4 style={{ marginBottom: 8 }}>{t("manage.admin.users.linkedEvents")}</h4>
         {linkedEvents.length === 0 ? (
-          <p className="meta" style={{ fontSize: "0.85rem" }}>No linked events</p>
+          <p className="meta" style={{ fontSize: "0.85rem" }}>{t("manage.admin.users.noLinkedEvents")}</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
             {linkedEvents.map((ev) => (
               <div key={ev.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
                 <span style={{ fontSize: "0.9rem" }}>{ev.title} <span className="meta">({ev.status})</span></span>
                 <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", color: "var(--danger, #c53030)" }} onClick={() => void removeEventFromUser(accessUserId!, ev.id)}>
-                  Remove
+                  {t("manage.common.remove")}
                 </button>
               </div>
             ))}
@@ -377,7 +377,7 @@ export default function AdminUsersPage() {
         )}
         <div style={{ marginBottom: 16 }}>
           <input
-            placeholder="Search events to add..."
+            placeholder={t("manage.admin.users.searchEventsToAdd")}
             value={accessEventSearch}
             onChange={(e) => { setAccessEventSearch(e.target.value); void searchEventsForAccess(e.target.value); }}
             style={{ width: "100%", fontSize: "0.85rem" }}
@@ -387,7 +387,7 @@ export default function AdminUsersPage() {
               {accessEventResults.map((ev) => (
                 <div key={ev.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => void addEventToUser(accessUserId!, ev.id)}>
                   <span style={{ fontSize: "0.85rem" }}>{ev.title}</span>
-                  <span className="meta" style={{ fontSize: "0.75rem" }}>+ Add</span>
+                  <span className="meta" style={{ fontSize: "0.75rem" }}>+ {t("manage.common.add")}</span>
                 </div>
               ))}
             </div>
@@ -396,7 +396,7 @@ export default function AdminUsersPage() {
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button type="button" className="ghost-btn" onClick={() => accessDialogRef.current?.close()}>
-            Close
+            {t("manage.common.close")}
           </button>
         </div>
       </dialog>

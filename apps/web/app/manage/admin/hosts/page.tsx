@@ -95,16 +95,16 @@ export default function AdminAllHostsPage() {
       <h1 className="manage-page-title">{t("manage.admin.hosts.title")}</h1>
 
       <div className="manage-filter-bar">
-        <input placeholder="Search hosts..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        <input placeholder={t("manage.admin.hosts.searchPlaceholder")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-          <option value="archived">Archived</option>
+          <option value="">{t("manage.admin.hosts.allStatuses")}</option>
+          <option value="draft">{t("common.status.draft")}</option>
+          <option value="published">{t("common.status.published")}</option>
+          <option value="archived">{t("common.status.archived")}</option>
         </select>
         {taxonomy?.practices.categories && taxonomy.practices.categories.length > 0 && (
           <select value={practiceFilter} onChange={(e) => { setPracticeFilter(e.target.value); setPage(1); }}>
-            <option value="">All practices</option>
+            <option value="">{t("manage.admin.hosts.allPractices")}</option>
             {taxonomy.practices.categories.map((c) => (
               <option key={c.id} value={c.id}>{c.label}</option>
             ))}
@@ -112,27 +112,27 @@ export default function AdminAllHostsPage() {
         )}
         {taxonomy?.organizerRoles && taxonomy.organizerRoles.length > 0 && (
           <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
-            <option value="">All roles</option>
+            <option value="">{t("manage.admin.hosts.allRoles")}</option>
             {taxonomy.organizerRoles.map((r) => (
               <option key={r.id} value={r.id}>{r.label}</option>
             ))}
           </select>
         )}
         <input
-          placeholder="Country code..."
+          placeholder={t("manage.admin.hosts.countryPlaceholder")}
           value={countryFilter}
           onChange={(e) => { setCountryFilter(e.target.value); setPage(1); }}
           style={{ maxWidth: 120 }}
         />
         {totalItems > 0 && (
-          <span className="meta">Showing {pageStart}–{pageEnd} of {totalItems}</span>
+          <span className="meta">{t("manage.pagination.showing", { start: pageStart, end: pageEnd, total: totalItems })}</span>
         )}
       </div>
 
       {error && (
         <div className="manage-empty">
           <p>{error}</p>
-          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>Retry</button>
+          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>{t("manage.error.retry")}</button>
         </div>
       )}
 
@@ -167,24 +167,24 @@ export default function AdminAllHostsPage() {
                 )}
                 {host.managed_by_names && (
                   <div className="meta" style={{ fontSize: "0.8rem", marginTop: 2 }}>
-                    Managed by: {host.managed_by_names}
+                    {t("manage.common.managedBy", { names: host.managed_by_names })}
                   </div>
                 )}
                 <div className="manage-event-card-actions">
-                  <Link href={`/manage/hosts/${host.id}`} className="secondary-btn" style={{ fontSize: "0.85rem" }}>Edit</Link>
-                  <Link href={`/hosts/${host.slug}`} className="ghost-btn" style={{ fontSize: "0.85rem" }}>View</Link>
+                  <Link href={`/manage/hosts/${host.id}`} className="secondary-btn" style={{ fontSize: "0.85rem" }}>{t("manage.common.edit")}</Link>
+                  <Link href={`/hosts/${host.slug}`} className="ghost-btn" style={{ fontSize: "0.85rem" }}>{t("manage.common.view")}</Link>
                   <button type="button" className="ghost-btn" style={{ fontSize: "0.85rem" }} onClick={() => setAssignHostId(host.id)}>
-                    Assign
+                    {t("manage.common.assign")}
                   </button>
                 </div>
               </div>
             ))}
           </div>
-          {loading && hosts.length === 0 && <div className="manage-loading">Loading...</div>}
+          {loading && hosts.length === 0 && <div className="manage-loading">{t("manage.common.loading")}</div>}
           {(page > 1 || hosts.length === pageSize) && (
             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-              {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>Previous</button>}
-              {hosts.length === pageSize && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>Next</button>}
+              {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>{t("manage.common.previous")}</button>}
+              {hosts.length === pageSize && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>{t("manage.common.next")}</button>}
             </div>
           )}
         </>

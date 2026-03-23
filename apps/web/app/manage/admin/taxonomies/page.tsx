@@ -208,10 +208,10 @@ export default function AdminTaxonomiesPage() {
               style={{ flex: 1, fontSize: "0.9rem" }}
             />
             <button type="button" className="primary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleInlineEdit(endpoint, id)}>
-              Save
+              {t("manage.common.save")}
             </button>
             <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => setEditingId(null)}>
-              Cancel
+              {t("manage.common.cancel")}
             </button>
           </>
         ) : (
@@ -223,20 +223,20 @@ export default function AdminTaxonomiesPage() {
               {indent && <span className="meta"> ({key})</span>}
             </span>
             {items && index !== undefined && index > 0 && (
-              <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 6px" }} onClick={() => void handleReorder(endpoint, items, index, "up")} title="Move up">
+              <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 6px" }} onClick={() => void handleReorder(endpoint, items, index, "up")} title={t("manage.admin.taxonomies.moveUp")}>
                 ↑
               </button>
             )}
             {items && index !== undefined && index < items.length - 1 && (
-              <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 6px" }} onClick={() => void handleReorder(endpoint, items, index, "down")} title="Move down">
+              <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 6px" }} onClick={() => void handleReorder(endpoint, items, index, "down")} title={t("manage.admin.taxonomies.moveDown")}>
                 ↓
               </button>
             )}
             <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => startEdit(id, label)}>
-              Edit
+              {t("manage.common.edit")}
             </button>
             <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => handleDeleteClick(endpoint, id, label)}>
-              Delete
+              {t("manage.common.delete")}
             </button>
           </>
         )}
@@ -244,29 +244,29 @@ export default function AdminTaxonomiesPage() {
     );
   }
 
-  if (loading) return <div className="manage-loading">Loading...</div>;
+  if (loading) return <div className="manage-loading">{t("manage.common.loading")}</div>;
 
   return (
     <div>
       <h1 className="manage-page-title">{t("manage.admin.taxonomies.title")}</h1>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {(["practices", "formats", "roles", "labels"] as const).map((t) => (
+        {(["practices", "formats", "roles", "labels"] as const).map((tabKey) => (
           <button
-            key={t}
+            key={tabKey}
             type="button"
-            className={tab === t ? "primary-btn" : "secondary-btn"}
+            className={tab === tabKey ? "primary-btn" : "secondary-btn"}
             style={{ fontSize: "0.85rem" }}
-            onClick={() => setTab(t)}
+            onClick={() => setTab(tabKey)}
           >
-            {t === "practices" ? "Dance Practices" : t === "formats" ? "Event Formats" : t === "roles" ? "Host Roles" : "UI Labels"}
+            {tabKey === "practices" ? t("manage.admin.taxonomies.dancePractices") : tabKey === "formats" ? t("manage.admin.taxonomies.eventFormats") : tabKey === "roles" ? t("manage.admin.taxonomies.hostRoles") : t("manage.admin.taxonomies.uiLabels")}
           </button>
         ))}
       </div>
 
       {tab === "practices" && (
         <div>
-          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>Existing Practices</h2>
+          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.dancePractices") })}</h2>
           {taxonomy?.practices.categories.map((cat, catIdx) => (
             <div key={cat.id} style={{ marginBottom: 12 }}>
               {renderItemRow(cat.id, cat.label, cat.key, "/admin/practices", false, taxonomy.practices.categories, catIdx)}
@@ -279,20 +279,20 @@ export default function AdminTaxonomiesPage() {
               )}
             </div>
           ))}
-          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>Create Practice</h2>
+          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.dancePractices") })}</h2>
           <form className="manage-form" onSubmit={(e) => void createPractice(e)}>
             <div>
-              <label>Level</label>
+              <label>{t("manage.admin.taxonomies.level")}</label>
               <select value={practiceLevel} onChange={(e) => setPracticeLevel(e.target.value as "1" | "2")}>
-                <option value="1">Category</option>
-                <option value="2">Subcategory</option>
+                <option value="1">{t("manage.admin.taxonomies.category")}</option>
+                <option value="2">{t("manage.admin.taxonomies.subcategory")}</option>
               </select>
             </div>
             {practiceLevel === "2" && (
               <div>
-                <label>Parent Category</label>
+                <label>{t("manage.admin.taxonomies.parentCategory")}</label>
                 <select value={practiceParentId} onChange={(e) => setPracticeParentId(e.target.value)} required>
-                  <option value="">Select parent...</option>
+                  <option value="">{t("manage.admin.taxonomies.selectParent")}</option>
                   {taxonomy?.practices.categories.map((c) => (
                     <option key={c.id} value={c.id}>{c.label}</option>
                   ))}
@@ -300,56 +300,56 @@ export default function AdminTaxonomiesPage() {
               </div>
             )}
             <div>
-              <label>Label</label>
+              <label>{t("common.field.label")}</label>
               <input value={practiceLabel} onChange={(e) => setPracticeLabel(e.target.value)} required />
             </div>
             <div>
-              <label>Key (auto-generated if empty)</label>
+              <label>{t("common.field.key")} ({t("manage.admin.taxonomies.keyAutoGenerated")})</label>
               <input value={practiceKey} onChange={(e) => setPracticeKey(e.target.value)} placeholder={deriveTaxonomyKey(practiceLabel || "example")} />
             </div>
-            <button type="submit" className="primary-btn">Create Practice</button>
+            <button type="submit" className="primary-btn">{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.dancePractices") })}</button>
           </form>
         </div>
       )}
 
       {tab === "formats" && (
         <div>
-          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>Existing Formats</h2>
+          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.eventFormats") })}</h2>
           {taxonomy?.eventFormats?.map((f, fIdx) =>
             renderItemRow(f.id, f.label, f.key, "/admin/event-formats", false, taxonomy?.eventFormats, fIdx),
           )}
-          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>Create Format</h2>
+          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.eventFormats") })}</h2>
           <form className="manage-form" onSubmit={(e) => void createFormat(e)}>
             <div>
-              <label>Key</label>
+              <label>{t("common.field.key")}</label>
               <input value={formatKey} onChange={(e) => setFormatKey(e.target.value)} required />
             </div>
             <div>
-              <label>Label</label>
+              <label>{t("common.field.label")}</label>
               <input value={formatLabel} onChange={(e) => setFormatLabel(e.target.value)} required />
             </div>
-            <button type="submit" className="primary-btn">Create Format</button>
+            <button type="submit" className="primary-btn">{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.eventFormats") })}</button>
           </form>
         </div>
       )}
 
       {tab === "roles" && (
         <div>
-          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>Existing Roles</h2>
+          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.hostRoles") })}</h2>
           {taxonomy?.organizerRoles.map((r, rIdx) =>
             renderItemRow(r.id, r.label, r.key, "/admin/organizer-roles", false, taxonomy?.organizerRoles, rIdx),
           )}
-          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>Create Role</h2>
+          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.hostRoles") })}</h2>
           <form className="manage-form" onSubmit={(e) => void createRole(e)}>
             <div>
-              <label>Key</label>
+              <label>{t("common.field.key")}</label>
               <input value={roleKey} onChange={(e) => setRoleKey(e.target.value)} required />
             </div>
             <div>
-              <label>Label</label>
+              <label>{t("common.field.label")}</label>
               <input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)} required />
             </div>
-            <button type="submit" className="primary-btn">Create Role</button>
+            <button type="submit" className="primary-btn">{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.hostRoles") })}</button>
           </form>
         </div>
       )}
@@ -357,14 +357,14 @@ export default function AdminTaxonomiesPage() {
       {tab === "labels" && (
         <form className="manage-form" onSubmit={(e) => void saveLabels(e)}>
           <div>
-            <label>Category Singular (e.g. &quot;Dance&quot;, &quot;Activity&quot;)</label>
+            <label>{t("manage.admin.taxonomies.categorySingular")}</label>
             <input value={catSingular} onChange={(e) => setCatSingular(e.target.value)} />
           </div>
           <div>
-            <label>Category Plural (e.g. &quot;Dances&quot;, &quot;Activities&quot;)</label>
+            <label>{t("manage.admin.taxonomies.categoryPlural")}</label>
             <input value={catPlural} onChange={(e) => setCatPlural(e.target.value)} />
           </div>
-          <button type="submit" className="primary-btn">Save Labels</button>
+          <button type="submit" className="primary-btn">{t("manage.admin.taxonomies.saveLabels")}</button>
         </form>
       )}
 
@@ -397,13 +397,13 @@ export default function AdminTaxonomiesPage() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ marginBottom: 12, fontSize: "1rem" }}>Confirm Delete</h3>
+            <h3 style={{ marginBottom: 12, fontSize: "1rem" }}>{t("manage.admin.taxonomies.confirmDeleteTitle")}</h3>
             <p style={{ marginBottom: 16, fontSize: "0.9rem" }}>
-              Delete &quot;{deleteTarget.label}&quot;? This cannot be undone.
+              {t("manage.admin.taxonomies.confirmDelete", { label: deleteTarget.label })}
             </p>
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: "0.85rem", fontWeight: 600, display: "block", marginBottom: 4 }}>
-                Type &quot;{deleteTarget.label}&quot; to confirm
+                {t("manage.admin.taxonomies.confirmDeletePrompt", { label: deleteTarget.label })}
               </label>
               <input
                 value={confirmText}
@@ -425,7 +425,7 @@ export default function AdminTaxonomiesPage() {
                 className="ghost-btn"
                 onClick={() => setDeleteTarget(null)}
               >
-                Cancel
+                {t("manage.common.cancel")}
               </button>
               <button
                 type="button"
@@ -437,7 +437,7 @@ export default function AdminTaxonomiesPage() {
                 }}
                 onClick={() => void confirmDelete()}
               >
-                Delete
+                {t("manage.common.delete")}
               </button>
             </div>
           </div>

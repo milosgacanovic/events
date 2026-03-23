@@ -128,11 +128,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
               {canOpenManage ? (
                 <Link href="/manage" className={"dropdown-item" + (pathname.startsWith("/manage") ? " active" : "")}>
-                  Manage
+                  {t("nav.manage")}
                 </Link>
               ) : (
                 <Link href="/manage/apply" className={"dropdown-item" + (pathname.startsWith("/manage") ? " active" : "")}>
-                  Post your event
+                  {t("nav.postEvent")}
                 </Link>
               )}
               <a className="dropdown-item" href="https://danceresource.org" target="_blank" rel="noopener noreferrer">DanceResource</a>
@@ -156,11 +156,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           {canOpenManage ? (
             <Link href="/manage" className={pathname.startsWith("/manage") ? "active" : ""}>
-              Manage
+              {t("nav.manage")}
             </Link>
           ) : (
             <Link href="/manage/apply" className={"accent-link" + (pathname.startsWith("/manage") ? " active" : "")}>
-              Post your event
+              {t("nav.postEvent")}
             </Link>
           )}
           <a href="https://danceresource.org" target="_blank" rel="noopener noreferrer">DanceResource</a>
@@ -276,16 +276,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </main>
     <footer className="site-footer">
       <div className="site-footer-line">
-        © 2026 DanceResource
+        {t("footer.copyright")}
         <span className="site-footer-sep">·</span>
-        <a href="mailto:hello@danceresource.org">Contact</a>
+        <a href="mailto:hello@danceresource.org">{t("footer.contact")}</a>
         <span className="site-footer-sep">·</span>
-        <Link href={canOpenManage ? "/manage/events/new" : "/manage/apply"}>Post your event</Link>
+        <Link href={canOpenManage ? "/manage/events/new" : "/manage/apply"}>{t("nav.postEvent")}</Link>
         <span className="site-footer-sep">·</span>
         <a href="https://www.danceresource.org" target="_blank" rel="noopener noreferrer">DanceResource.org</a>
       </div>
       <div className="site-footer-line">
-        Content shared with care under{" "}
+        {t("footer.license")}{" "}
         <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>
       </div>
     </footer>

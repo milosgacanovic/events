@@ -68,11 +68,11 @@ export default function AdminAllEventsPage() {
       setEvents(items);
       setTotalItems(data.pagination.totalItems);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load events");
+      setError(err instanceof Error ? err.message : t("manage.error.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, search, statusFilter, importFilter, ownerFilter]);
+  }, [getToken, page, search, statusFilter, importFilter, ownerFilter, t]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -86,7 +86,7 @@ export default function AdminAllEventsPage() {
   }
 
   async function handleDelete(eventId: string) {
-    if (!confirm("Are you sure you want to permanently delete this event?")) return;
+    if (!confirm(t("manage.admin.events.confirmDelete"))) return;
     try {
       await authorizedDelete(getToken, `/admin/events/${eventId}`);
       void load();
@@ -104,36 +104,36 @@ export default function AdminAllEventsPage() {
 
       <div className="manage-filter-bar">
         <input
-          placeholder="Search events..."
+          placeholder={t("manage.admin.events.searchPlaceholder")}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
         <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="archived">Archived</option>
+          <option value="">{t("manage.admin.events.allStatuses")}</option>
+          <option value="draft">{t("common.status.draft")}</option>
+          <option value="published">{t("common.status.published")}</option>
+          <option value="cancelled">{t("common.status.cancelled")}</option>
+          <option value="archived">{t("common.status.archived")}</option>
         </select>
         <select value={importFilter} onChange={(e) => { setImportFilter(e.target.value); setPage(1); }}>
-          <option value="">All sources</option>
-          <option value="imported">Imported only</option>
-          <option value="manual">Manual only</option>
+          <option value="">{t("manage.admin.events.allSources")}</option>
+          <option value="imported">{t("manage.admin.events.importedOnly")}</option>
+          <option value="manual">{t("manage.admin.events.manualOnly")}</option>
         </select>
         <select value={ownerFilter} onChange={(e) => { setOwnerFilter(e.target.value); setPage(1); }}>
-          <option value="">All owners</option>
-          <option value="has_owner">Has owner</option>
-          <option value="unassigned">Unassigned</option>
+          <option value="">{t("manage.admin.events.allOwners")}</option>
+          <option value="has_owner">{t("manage.admin.events.hasOwner")}</option>
+          <option value="unassigned">{t("manage.admin.events.unassigned")}</option>
         </select>
         {totalItems > 0 && (
-          <span className="meta">Showing {pageStart}–{pageEnd} of {totalItems}</span>
+          <span className="meta">{t("manage.pagination.showing", { start: pageStart, end: pageEnd, total: totalItems })}</span>
         )}
       </div>
 
       {error && (
         <div className="manage-empty">
           <p>{error}</p>
-          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>Retry</button>
+          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>{t("manage.error.retry")}</button>
         </div>
       )}
 
@@ -166,11 +166,11 @@ export default function AdminAllEventsPage() {
               />
             ))}
           </div>
-          {loading && events.length === 0 && <div className="manage-loading">Loading...</div>}
+          {loading && events.length === 0 && <div className="manage-loading">{t("manage.common.loading")}</div>}
           {(page > 1 || events.length === pageSize) && (
             <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-              {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>Previous</button>}
-              {events.length === pageSize && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>Next</button>}
+              {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>{t("manage.common.previous")}</button>}
+              {events.length === pageSize && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>{t("manage.common.next")}</button>}
             </div>
           )}
         </>

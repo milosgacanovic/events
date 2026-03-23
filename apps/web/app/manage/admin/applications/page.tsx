@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
+import { useI18n } from "../../../../components/i18n/I18nProvider";
 import { authorizedGet, authorizedPatch } from "../../../../lib/manageApi";
 
 type ApplicationItem = {
@@ -25,6 +26,7 @@ type ApplicationsResponse = {
 
 export default function AdminApplicationsPage() {
   const { getToken } = useKeycloakAuth();
+  const { t } = useI18n();
   const [apps, setApps] = useState<ApplicationItem[]>([]);
   const [statusFilter, setStatusFilter] = useState("pending");
   const [loading, setLoading] = useState(true);
@@ -58,23 +60,23 @@ export default function AdminApplicationsPage() {
 
   return (
     <div>
-      <h1 className="manage-page-title">Applications (Admin)</h1>
+      <h1 className="manage-page-title">{t("manage.admin.applications.title")}</h1>
 
       <div className="manage-filter-bar">
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-          <option value="">All</option>
+          <option value="pending">{t("manage.admin.applications.filterPending")}</option>
+          <option value="approved">{t("manage.admin.applications.filterApproved")}</option>
+          <option value="rejected">{t("manage.admin.applications.filterRejected")}</option>
+          <option value="">{t("manage.admin.applications.filterAll")}</option>
         </select>
       </div>
 
       {loading ? (
-        <div className="manage-loading">Loading...</div>
+        <div className="manage-loading">{t("manage.common.loading")}</div>
       ) : apps.length === 0 ? (
         <div className="manage-empty">
-          <h3>No applications</h3>
-          <p>No {statusFilter || ""} applications found.</p>
+          <h3>{t("manage.admin.applications.noApplications")}</h3>
+          <p>{t("manage.admin.applications.noApplicationsFiltered", { status: statusFilter || "" })}</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -86,7 +88,7 @@ export default function AdminApplicationsPage() {
               </div>
               <div className="meta">{app.email}</div>
               <div className="meta">
-                Intent: {app.intent}{app.intent_other ? ` — ${app.intent_other}` : ""}
+                {t("manage.admin.applications.intentPrefix", { intent: app.intent })}{app.intent_other ? ` — ${app.intent_other}` : ""}
               </div>
               {app.description && <div className="meta" style={{ marginTop: 4 }}>{app.description}</div>}
               {app.proof_url && (
@@ -94,17 +96,17 @@ export default function AdminApplicationsPage() {
                   Link: <a href={app.proof_url} target="_blank" rel="noopener noreferrer">{app.proof_url}</a>
                 </div>
               )}
-              <div className="meta">Applied {new Date(app.created_at).toLocaleDateString()}</div>
+              <div className="meta">{t("manage.admin.applications.appliedDate", { date: new Date(app.created_at).toLocaleDateString() })}</div>
               {app.status === "pending" && (
                 <div className="manage-event-card-actions" style={{ marginTop: 8 }}>
                   <button type="button" className="primary-btn" style={{ fontSize: "0.85rem" }} onClick={() => void updateStatus(app.id, "approved")}>
-                    Approve
+                    {t("manage.admin.applications.approve")}
                   </button>
                   <button type="button" className="ghost-btn" style={{ fontSize: "0.85rem" }} onClick={() => void updateStatus(app.id, "rejected")}>
-                    Reject
+                    {t("manage.admin.applications.reject")}
                   </button>
                   <button type="button" className="secondary-btn" style={{ fontSize: "0.85rem" }} onClick={() => void updateStatus(app.id, "more_info")}>
-                    Request Info
+                    {t("manage.admin.applications.requestInfo")}
                   </button>
                 </div>
               )}

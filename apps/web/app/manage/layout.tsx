@@ -6,21 +6,23 @@ import { usePathname } from "next/navigation";
 import { ROLE_ADMIN, ROLE_EDITOR } from "@dr-events/shared";
 
 import { useKeycloakAuth } from "../../components/auth/KeycloakAuthProvider";
+import { useI18n } from "../../components/i18n/I18nProvider";
 import { ManageSidebar } from "./ManageSidebar";
 import "./manage.css";
 
 export default function ManageLayout({ children }: { children: React.ReactNode }) {
   const auth = useKeycloakAuth();
+  const { t } = useI18n();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (!auth.ready) {
-    return <div className="manage-loading">Loading...</div>;
+    return <div className="manage-loading">{t("manage.common.loading")}</div>;
   }
 
   if (!auth.authenticated) {
     void auth.login();
-    return <div className="manage-loading">Redirecting to login...</div>;
+    return <div className="manage-loading">{t("manage.apply.redirectingLogin")}</div>;
   }
 
   const isAdmin = auth.roles.includes(ROLE_ADMIN);
@@ -38,8 +40,8 @@ export default function ManageLayout({ children }: { children: React.ReactNode }
       <div className="manage-layout">
         <div className="manage-main">
           <div className="manage-empty">
-            <h3>Editor access required</h3>
-            <p>You need the editor role to access the manage area.</p>
+            <h3>{t("manage.auth.editorRequired")}</h3>
+            <p>{t("manage.auth.editorMessage")}</p>
           </div>
         </div>
       </div>
@@ -52,7 +54,7 @@ export default function ManageLayout({ children }: { children: React.ReactNode }
         type="button"
         className="manage-menu-btn"
         onClick={() => setSidebarOpen((o) => !o)}
-        aria-label={sidebarOpen ? "Close menu" : "Open menu"}
+        aria-label={sidebarOpen ? t("manage.sidebar.closeMenu") : t("manage.sidebar.openMenu")}
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <line x1="3" y1="6" x2="21" y2="6" />
