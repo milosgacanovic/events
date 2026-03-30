@@ -185,8 +185,9 @@ function extractDescriptionSections(value: unknown): DescriptionSections {
 
 import { getRoleLabel } from "../lib/filterHelpers";
 
-export function OrganizerDetailClient({ slug, serverTranslations }: {
+export function OrganizerDetailClient({ slug, initialData, serverTranslations }: {
   slug: string;
+  initialData?: OrganizerDetail | null;
   serverTranslations?: OrganizerServerTranslations;
 }) {
   const { locale, t } = useI18n();
@@ -195,7 +196,7 @@ export function OrganizerDetailClient({ slug, serverTranslations }: {
   const [cameFromSearch] = useState(() => {
     try { return !!sessionStorage.getItem("search-cache-snapshot"); } catch { return false; }
   });
-  const [data, setData] = useState<OrganizerDetail | null>(null);
+  const [data, setData] = useState<OrganizerDetail | null>(initialData ?? null);
   const [error, setError] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
   const [alertCity, setAlertCity] = useState("");
@@ -206,6 +207,11 @@ export function OrganizerDetailClient({ slug, serverTranslations }: {
 
   useEffect(() => {
     let active = true;
+
+    if (initialData) {
+      return () => { active = false; };
+    }
+
     setError(null);
 
     // Phase 1: fetch publicly without waiting for auth
@@ -229,7 +235,7 @@ export function OrganizerDetailClient({ slug, serverTranslations }: {
       });
 
     return () => { active = false; };
-  }, [auth.ready, auth.authenticated, auth.getToken, slug, t]);
+  }, [auth.ready, auth.authenticated, auth.getToken, initialData, slug, t]);
 
   useEffect(() => {
     fetchJson<TaxonomyResponse>("/meta/taxonomies")

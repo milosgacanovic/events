@@ -104,7 +104,7 @@ async function HostDetailPageServer({ slug }: { slug: string }) {
       {jsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}
-      <OrganizerDetailClient slug={slug} serverTranslations={serverTranslations} />
+      <OrganizerDetailClient slug={slug} initialData={detail} serverTranslations={serverTranslations} />
     </>
   );
 }
