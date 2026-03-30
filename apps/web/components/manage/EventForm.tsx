@@ -112,6 +112,7 @@ export function EventForm({
   const [suggestSubmitting, setSuggestSubmitting] = useState(false);
   const [suggestDone, setSuggestDone] = useState(false);
   const [publishHostDialog, setPublishHostDialog] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
   const [noHostDontShow, setNoHostDontShow] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
@@ -338,6 +339,20 @@ export function EventForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // If saving with status "published" and no hosts, show warning first
+    if (form.status === "published" && form.organizerRoles.length === 0) {
+      if (!(typeof window !== "undefined" && localStorage.getItem("hideNoHostWarning") === "true")) {
+        setPendingSubmit(true);
+        setPublishHostDialog(true);
+        return;
+      }
+    }
+
+    await doSubmit();
+  }
+
+  async function doSubmit() {
     setSaving(true);
     setStatus(t("manage.form.saving"));
 
@@ -985,10 +1000,16 @@ export function EventForm({
         onConfirm={() => {
           setPublishHostDialog(false);
           if (noHostDontShow) localStorage.setItem("hideNoHostWarning", "true");
-          void handleSaveAndPublish(true);
+          if (pendingSubmit) {
+            setPendingSubmit(false);
+            void doSubmit();
+          } else {
+            void handleSaveAndPublish(true);
+          }
         }}
         onCancel={() => {
           setPublishHostDialog(false);
+          setPendingSubmit(false);
           document.getElementById("hosts")?.scrollIntoView({ behavior: "smooth" });
         }}
       />
