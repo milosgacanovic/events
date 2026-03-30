@@ -13,6 +13,7 @@ type ManageEventCardProps = {
   slug: string;
   title: string;
   status: string;
+  visibility?: string;
   coverImagePath?: string | null;
   attendanceMode?: string;
   isImported?: boolean;
@@ -48,6 +49,7 @@ export function ManageEventCard({
   slug,
   title,
   status,
+  visibility,
   coverImagePath,
   attendanceMode,
   isImported,
@@ -183,6 +185,9 @@ export function ManageEventCard({
           <ArchivedChip onUnarchive={onUnarchive} confirmKey="manage.eventCard.confirmUnarchive" />
         ) : (
           <span className={`tag manage-status-pill manage-status-pill--${statusKey}`}>{t(`common.status.${statusKey}`)}</span>
+        )}
+        {visibility === "unlisted" && (
+          <span className="tag manage-status-pill manage-status-pill--unlisted">{t("common.visibility.unlisted")}</span>
         )}
         {!hostNames && status === "draft" && <NoHostChip eventId={id} />}
         {isImported && !detachedFromImport && (

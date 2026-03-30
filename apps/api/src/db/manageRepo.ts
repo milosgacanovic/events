@@ -12,6 +12,7 @@ export async function listManagedEvents(
   input: {
     q?: string;
     status?: string;
+    visibility?: string;
     practiceCategoryId?: string;
     eventFormatId?: string;
     countryCode?: string;
@@ -47,6 +48,11 @@ export async function listManagedEvents(
       values.push(statuses);
       whereParts.push(`e.status = ANY($${values.length}::text[])`);
     }
+  }
+
+  if (input.visibility) {
+    values.push(input.visibility);
+    whereParts.push(`e.visibility = $${values.length}`);
   }
 
   if (input.practiceCategoryId) {
@@ -149,6 +155,7 @@ export async function listManagedEvents(
       detached_from_import: boolean;
       cover_image_path: string | null;
       tags: string[] | null;
+      visibility: "public" | "unlisted";
       updated_at: string;
       published_at: string | null;
       practice_category_label: string | null;
@@ -166,7 +173,7 @@ export async function listManagedEvents(
         ${ownershipCte}
         select
           e.id, e.slug, e.title, e.status, e.attendance_mode,
-          e.schedule_kind, e.event_format_id,
+          e.schedule_kind, e.event_format_id, e.visibility,
           e.is_imported, e.import_source, e.detached_from_import,
           e.cover_image_path, e.tags, e.updated_at, e.published_at,
           pc.label as practice_category_label,
@@ -418,6 +425,7 @@ export async function listManagedOrganizers(
 
 export type EventFacetFilters = {
   status?: string[];
+  visibility?: string[];
   practiceCategoryIds?: string[];
   attendanceModes?: string[];
   eventFormatIds?: string[];
@@ -433,6 +441,7 @@ export async function getEventFacets(
   filters: EventFacetFilters = {},
 ): Promise<{
   statuses: Record<string, number>;
+  visibilities: Record<string, number>;
   attendanceModes: Record<string, number>;
   practiceCategoryIds: Record<string, number>;
   eventFormatIds: Record<string, number>;
@@ -447,6 +456,10 @@ export async function getEventFacets(
   if (filters.status?.length) {
     values.push(filters.status);
     filterClauses.push(`e.status = ANY($${values.length}::text[])`);
+  }
+  if (filters.visibility?.length) {
+    values.push(filters.visibility);
+    filterClauses.push(`e.visibility = ANY($${values.length}::text[])`);
   }
   if (filters.practiceCategoryIds?.length) {
     values.push(filters.practiceCategoryIds);
@@ -511,6 +524,15 @@ export async function getEventFacets(
           from events e join filtered f on f.id = e.id
           group by e.status
         ) c on c.status = v.s
+      ),
+      'visibilities', (
+        select json_object_agg(v.s, coalesce(c.cnt, 0))
+        from (values ('public'), ('unlisted')) as v(s)
+        left join (
+          select e.visibility, count(distinct e.id)::int as cnt
+          from events e join filtered f on f.id = e.id
+          group by e.visibility
+        ) c on c.visibility = v.s
       ),
       'attendanceModes', (
         select coalesce(json_object_agg(t.attendance_mode, t.cnt), '{}'::json)
@@ -589,6 +611,7 @@ export async function getEventFacets(
   const row = result.rows[0]?.result ?? {};
   return {
     statuses: (row.statuses as Record<string, number>) ?? {},
+    visibilities: (row.visibilities as Record<string, number>) ?? {},
     attendanceModes: (row.attendanceModes as Record<string, number>) ?? {},
     practiceCategoryIds: (row.practiceCategoryIds as Record<string, number>) ?? {},
     eventFormatIds: (row.eventFormatIds as Record<string, number>) ?? {},

@@ -18,6 +18,7 @@ import { ManageEventCard } from "../../../components/manage/ManageEventCard";
 import { ManageFilterSidebar } from "../../../components/manage/ManageFilterSidebar";
 import {
   StatusFilter,
+  VisibilityFilter,
   AttendanceFacetFilter,
   PracticeFacetFilter,
   FormatFacetFilter,
@@ -53,6 +54,7 @@ type EventItem = {
   slug: string;
   title: string;
   status: string;
+  visibility: "public" | "unlisted";
   attendance_mode: string;
   schedule_kind: string;
   is_imported: boolean;
@@ -81,6 +83,7 @@ type EventsResponse = {
 type Filters = {
   q: string;
   statuses: string[];
+  visibilities: string[];
   timeFilter: string;
   attendanceModes: string[];
   practiceCategoryIds: string[];
@@ -106,6 +109,7 @@ const DATE_PRESETS = [
 const DEFAULT_FILTERS: Filters = {
   q: "",
   statuses: [],
+  visibilities: [],
   timeFilter: "",
   attendanceModes: [],
   practiceCategoryIds: [],
@@ -120,6 +124,7 @@ const DEFAULT_FILTERS: Filters = {
 
 const FACET_GROUPS: FacetGroupSpec[] = [
   { responseKey: "statuses", filterParam: "status" },
+  { responseKey: "visibilities", filterParam: "visibility" },
   { responseKey: "attendanceModes", filterParam: "attendanceMode" },
   { responseKey: "practiceCategoryIds", filterParam: "practiceCategoryId" },
   { responseKey: "eventFormatIds", filterParam: "eventFormatId" },
@@ -136,6 +141,7 @@ function filtersFromParams(sp: URLSearchParams): Filters {
   return {
     q: sp.get("q") ?? "",
     statuses: csv("status"),
+    visibilities: csv("visibility"),
     timeFilter: sp.get("time") ?? "",
     attendanceModes: csv("attendanceMode"),
     practiceCategoryIds: csv("practiceCategoryId"),
@@ -153,6 +159,7 @@ function filtersToParams(f: Filters): string {
   const p = new URLSearchParams();
   if (f.q) p.set("q", f.q);
   if (f.statuses.length) p.set("status", f.statuses.join(","));
+  if (f.visibilities.length) p.set("visibility", f.visibilities.join(","));
   if (f.timeFilter) p.set("time", f.timeFilter);
   if (f.attendanceModes.length) p.set("attendanceMode", f.attendanceModes.join(","));
   if (f.practiceCategoryIds.length) p.set("practiceCategoryId", f.practiceCategoryIds.join(","));
@@ -205,6 +212,7 @@ export default function MyEventsPage() {
   const {
     q,
     statuses,
+    visibilities,
     timeFilter,
     attendanceModes,
     practiceCategoryIds,
@@ -247,6 +255,7 @@ export default function MyEventsPage() {
   const activeFilters = useMemo(() => {
     const f: Record<string, string> = {};
     if (statuses.length) f.status = statuses.join(",");
+    if (visibilities.length) f.visibility = visibilities.join(",");
     if (attendanceModes.length) f.attendanceMode = attendanceModes.join(",");
     if (practiceCategoryIds.length) f.practiceCategoryId = practiceCategoryIds.join(",");
     if (eventFormatIds.length) f.eventFormatId = eventFormatIds.join(",");
@@ -255,7 +264,7 @@ export default function MyEventsPage() {
     if (cities.length) f.cities = cities.join(",");
     if (tags.length) f.tags = tags.join(",");
     return f;
-  }, [statuses, attendanceModes, practiceCategoryIds, eventFormatIds, languages, countryCodes, cities, tags]);
+  }, [statuses, visibilities, attendanceModes, practiceCategoryIds, eventFormatIds, languages, countryCodes, cities, tags]);
 
   const facets = useDisjunctiveFacets<Record<string, Record<string, number>>>(
     "/admin/events/facets",
@@ -301,6 +310,7 @@ export default function MyEventsPage() {
       });
       if (q) params.set("q", q);
       if (statuses.length) params.set("status", statuses.join(","));
+      if (visibilities.length === 1) params.set("visibility", visibilities[0]);
       if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
       if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
       if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
@@ -319,7 +329,7 @@ export default function MyEventsPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, q, statuses, practiceCategoryIds, eventFormatIds, countryCodes, attendanceModes, languages, cities, tags, timeFilter, sortBy, t]);
+  }, [getToken, page, q, statuses, visibilities, practiceCategoryIds, eventFormatIds, countryCodes, attendanceModes, languages, cities, tags, timeFilter, sortBy, t]);
 
   useEffect(() => {
     void load();
@@ -358,6 +368,7 @@ export default function MyEventsPage() {
   /* ── derived ── */
   const activeFilterCount = [
     ...statuses,
+    ...visibilities,
     timeFilter,
     ...practiceCategoryIds,
     ...eventFormatIds,
@@ -424,6 +435,12 @@ export default function MyEventsPage() {
           value={statuses}
           counts={facets?.statuses}
           onChange={(v) => { setFilters({ statuses: v, page: 1 }); }}
+        />
+
+        <VisibilityFilter
+          counts={facets?.visibilities}
+          value={visibilities}
+          onChange={(v) => { setFilters({ visibilities: v, page: 1 }); }}
         />
 
         {/* Date presets */}
@@ -631,6 +648,7 @@ export default function MyEventsPage() {
                   slug={event.slug}
                   title={event.title}
                   status={event.status}
+                  visibility={event.visibility}
                   attendanceMode={event.attendance_mode}
                   coverImagePath={event.cover_image_path}
                   isImported={event.is_imported}

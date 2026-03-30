@@ -79,6 +79,43 @@ export function StatusFilter({
   );
 }
 
+/* ── Visibility filter ── */
+
+export function VisibilityFilter({
+  counts,
+  value,
+  onChange,
+}: {
+  counts?: Record<string, number>;
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const { t } = useI18n();
+  const options = [
+    { value: "public", label: t("common.visibility.public") },
+    { value: "unlisted", label: t("common.visibility.unlisted") },
+  ];
+  const hasItems = options.some((o) => (counts?.[o.value] ?? 0) > 0 || value.includes(o.value));
+  if (!hasItems) return null;
+  return (
+    <Section label={t("manage.form.visibility")}>
+      {options.map((opt) => {
+        const count = counts?.[opt.value] ?? 0;
+        if (count === 0 && !value.includes(opt.value)) return null;
+        return (
+          <FilterRow
+            key={opt.value}
+            label={opt.label}
+            selected={value.includes(opt.value)}
+            count={counts !== undefined ? count : undefined}
+            onClick={() => onChange(toggle(value, opt.value))}
+          />
+        );
+      })}
+    </Section>
+  );
+}
+
 /* ── Faceted filter components (for manage pages) ── */
 
 export function AttendanceFacetFilter({

@@ -24,6 +24,7 @@ import { clearSearchCache } from "../services/searchCache";
 const eventQuerySchema = z.object({
   q: z.string().optional(),
   status: z.string().optional(),
+  visibility: z.enum(["public", "unlisted"]).optional(),
   showUnlisted: z.coerce.boolean().optional(),
   externalSource: z.string().trim().min(1).max(255).optional(),
   externalId: z.string().trim().min(1).max(255).optional(),
@@ -160,6 +161,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const csv = (v?: string) => v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [];
     return reply.send(await getEventFacets(app.db, userId, {
       status: csv(q.status),
+      visibility: csv(q.visibility),
       practiceCategoryIds: csv(q.practiceCategoryId),
       attendanceModes: csv(q.attendanceMode),
       eventFormatIds: csv(q.eventFormatId),
@@ -209,6 +211,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       return listManagedEvents(app.db, userId, {
         q: parsed.data.q,
         status: parsed.data.status,
+        visibility: parsed.data.visibility,
         practiceCategoryId: parsed.data.practiceCategoryId,
         eventFormatId: parsed.data.eventFormatId,
         countryCode: parsed.data.countryCode,
