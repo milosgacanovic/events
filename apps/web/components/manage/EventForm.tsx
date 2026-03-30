@@ -153,7 +153,7 @@ export function EventForm({
 
   const update = useCallback(<K extends keyof EventFormState>(key: K, value: EventFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-    setStatus((prev) => savedMessages.includes(prev) ? t("manage.form.edited") : prev);
+    setStatus((prev) => savedMessages.includes(prev) ? "" : prev);
   }, [t]);
 
   // Auto-generate slug from title in create mode
@@ -398,6 +398,7 @@ export function EventForm({
       }
     } catch (err) {
       if (err instanceof Error && err.message === "publish_requires_host") {
+        setStatus("");
         setPublishHostDialog(true);
       } else {
         setStatus(t("manage.form.errorPrefix", { message: err instanceof Error ? err.message : t("manage.form.unknownError") }));
@@ -961,16 +962,6 @@ export function EventForm({
           <button type="submit" className="primary-btn" disabled={saving}>
             {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
           </button>
-          {(mode === "create" || (mode === "edit" && form.status !== "published")) && (
-            <button
-              type="button"
-              className="secondary-btn"
-              disabled={saving}
-              onClick={() => void handleSaveAndPublish()}
-            >
-              {t("manage.eventForm.saveAndPublish")}
-            </button>
-          )}
           <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
             {t("manage.form.discardChanges")}
           </button>
@@ -1000,17 +991,14 @@ export function EventForm({
         onDontShowAgainChange={setNoHostDontShow}
         onConfirm={() => {
           setPublishHostDialog(false);
+          setPendingSubmit(false);
           if (noHostDontShow) localStorage.setItem("hideNoHostWarning", "true");
-          if (pendingSubmit) {
-            setPendingSubmit(false);
-            void doSubmit(true);
-          } else {
-            void handleSaveAndPublish(true);
-          }
+          void doSubmit(true);
         }}
         onCancel={() => {
           setPublishHostDialog(false);
           setPendingSubmit(false);
+          setStatus("");
           document.getElementById("hosts")?.scrollIntoView({ behavior: "smooth" });
         }}
       />

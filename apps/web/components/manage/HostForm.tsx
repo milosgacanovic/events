@@ -246,7 +246,7 @@ export function HostForm({
 
   const update = useCallback(<K extends keyof HostFormState>(key: K, value: HostFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-    setStatus((prev) => savedMessages.includes(prev) ? t("manage.form.edited") : prev);
+    setStatus((prev) => savedMessages.includes(prev) ? "" : prev);
   }, [t]);
 
   useEffect(() => {
@@ -473,7 +473,7 @@ export function HostForm({
       ...prev,
       locations: prev.locations.map((loc, i) => i === index ? { ...loc, [field]: value } : loc),
     }));
-    setStatus((prev) => savedMessages.includes(prev) ? t("manage.form.edited") : prev);
+    setStatus((prev) => savedMessages.includes(prev) ? "" : prev);
   }
 
   function removeLocation(index: number) {
@@ -844,11 +844,6 @@ export function HostForm({
           <button type="submit" className="primary-btn" disabled={saving}>
             {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
           </button>
-          {(mode === "create" || (mode === "edit" && form.status !== "published")) && (
-            <button type="button" className="secondary-btn" disabled={saving} onClick={() => void handleSaveAndPublish()}>
-              {t("manage.eventForm.saveAndPublish")}
-            </button>
-          )}
           <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
             {t("manage.form.discardChanges")}
           </button>
