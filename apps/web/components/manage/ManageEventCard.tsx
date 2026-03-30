@@ -123,7 +123,12 @@ export function ManageEventCard({
             {t("manage.common.edit")}
           </Link>
           {status === "draft" && onPublish && (
-            <button type="button" className="manage-card-action-btn manage-btn-publish" onClick={onPublish}>
+            <button type="button" className="manage-card-action-btn manage-btn-publish" onClick={() => setConfirmAction({
+              action: onPublish,
+              title: !hostNames ? t("manage.eventForm.noHostWarningTitle") : t("manage.confirm.title"),
+              message: !hostNames ? t("manage.eventForm.noHostWarningMessage") : t("manage.eventCard.confirmPublish"),
+              variant: !hostNames ? "warning" : undefined,
+            })}>
               {t("manage.eventCard.publish")}
             </button>
           )}

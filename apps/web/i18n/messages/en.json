@@ -779,6 +779,7 @@
   "manage.eventCard.detached": "Detached — managed manually",
   "manage.eventCard.detachedLabel": "Detached",
   "manage.eventCard.reattachLabel": "Re-attach",
+  "manage.eventCard.confirmPublish": "Are you sure you want to publish this event?",
   "manage.eventCard.confirmUnpublish": "Are you sure you want to unpublish this event?",
   "manage.eventCard.confirmCancel": "Are you sure you want to cancel this event?",
   "manage.eventCard.hosts": "Hosts: {names}",
