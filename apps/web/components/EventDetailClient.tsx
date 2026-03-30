@@ -275,59 +275,61 @@ export function EventDetailClient({
     let active = true;
 
     if (initialData) {
-      return () => {
-        active = false;
-      };
+      return () => { active = false; };
     }
 
-    // Wait for auth to resolve before fetching so we don't flash "Not found"
-    // for non-published events the user has access to
-    if (!auth.ready) {
-      return () => {
-        active = false;
-      };
+    function applySuccess(eventData: EventDetail, taxonomyData: TaxonomyResponse | null, tagsData: { items: Array<{ tag: string; display: string }> } | null) {
+      if (!active) return;
+      setNotFound(false);
+      setError(null);
+      setData(eventData);
+      setTaxonomy(taxonomyData);
+      if (tagsData?.items) {
+        const map: Record<string, string> = {};
+        for (const item of tagsData.items) map[item.tag] = item.display;
+        setTagDisplayMap(map);
+      }
     }
 
-    (async () => {
-      const token = auth.authenticated ? await auth.getToken() : null;
-      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-      return Promise.all([
-        fetchJson<EventDetail>(`/events/${slug}`, headers ? { headers } : undefined),
-        fetchJson<TaxonomyResponse>("/meta/taxonomies").catch(() => null),
-        fetchJson<{ items: Array<{ tag: string; display: string }> }>("/meta/tags?limit=30").catch(() => null),
-      ]);
-    })()
-      .then(([eventData, taxonomyData, tagsData]) => {
-        if (!active) {
-          return;
-        }
-
-        setNotFound(false);
-        setError(null);
-        setData(eventData);
-        setTaxonomy(taxonomyData);
-        if (tagsData?.items) {
-          const map: Record<string, string> = {};
-          for (const t of tagsData.items) map[t.tag] = t.display;
-          setTagDisplayMap(map);
-        }
+    // Phase 1: fetch publicly without waiting for auth
+    fetchJson<EventDetail>(`/events/${slug}`)
+      .then(async (eventData) => {
+        if (!active) return;
+        const [taxonomyData, tagsData] = await Promise.all([
+          fetchJson<TaxonomyResponse>("/meta/taxonomies").catch(() => null),
+          fetchJson<{ items: Array<{ tag: string; display: string }> }>("/meta/tags?limit=30").catch(() => null),
+        ]);
+        applySuccess(eventData, taxonomyData, tagsData);
       })
-      .catch((err) => {
-        if (!active) {
+      .catch(async (err) => {
+        if (!active) return;
+        const message = err instanceof Error ? err.message : t("eventDetail.error.fetchFailed");
+        if (!message.includes("404")) {
+          setError(message);
           return;
         }
-
-        const message = err instanceof Error ? err.message : t("eventDetail.error.fetchFailed");
-        if (message.includes("404")) {
+        // Phase 2: 404 — retry with auth if available
+        if (!auth.ready) return; // effect re-runs when auth.ready flips
+        if (!auth.authenticated) {
           setNotFound(true);
           return;
         }
-        setError(message);
+        try {
+          const token = await auth.getToken();
+          const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+          const [eventData, taxonomyData, tagsData] = await Promise.all([
+            fetchJson<EventDetail>(`/events/${slug}`, headers ? { headers } : undefined),
+            fetchJson<TaxonomyResponse>("/meta/taxonomies").catch(() => null),
+            fetchJson<{ items: Array<{ tag: string; display: string }> }>("/meta/tags?limit=30").catch(() => null),
+          ]);
+          applySuccess(eventData, taxonomyData, tagsData);
+        } catch {
+          if (!active) return;
+          setNotFound(true);
+        }
       });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [auth.ready, auth.authenticated, auth.getToken, initialData, slug, t]);
 
   const hosts = useMemo(() => {

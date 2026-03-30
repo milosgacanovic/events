@@ -205,17 +205,30 @@ export function OrganizerDetailClient({ slug, serverTranslations }: {
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
 
   useEffect(() => {
-    // Wait for auth to resolve before fetching so we don't flash "Not found"
-    // for non-published hosts the user has access to
-    if (!auth.ready) return;
+    let active = true;
     setError(null);
-    (async () => {
-      const token = auth.authenticated ? await auth.getToken() : null;
-      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-      return fetchJson<OrganizerDetail>(`/organizers/${slug}`, headers ? { headers } : undefined);
-    })()
-      .then(setData)
-      .catch((err) => setError(err instanceof Error ? err.message : t("organizerDetail.error.fetchFailed")));
+
+    // Phase 1: fetch publicly without waiting for auth
+    fetchJson<OrganizerDetail>(`/organizers/${slug}`)
+      .then((d) => { if (active) setData(d); })
+      .catch(async (err) => {
+        if (!active) return;
+        const message = err instanceof Error ? err.message : t("organizerDetail.error.fetchFailed");
+        if (!message.includes("404")) { setError(message); return; }
+        // Phase 2: 404 — retry with auth if available
+        if (!auth.ready) return; // effect re-runs when auth.ready flips
+        if (!auth.authenticated) { setError(message); return; }
+        try {
+          const token = await auth.getToken();
+          const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+          const d = await fetchJson<OrganizerDetail>(`/organizers/${slug}`, headers ? { headers } : undefined);
+          if (active) setData(d);
+        } catch (retryErr) {
+          if (active) setError(retryErr instanceof Error ? retryErr.message : t("organizerDetail.error.fetchFailed"));
+        }
+      });
+
+    return () => { active = false; };
   }, [auth.ready, auth.authenticated, auth.getToken, slug, t]);
 
   useEffect(() => {
