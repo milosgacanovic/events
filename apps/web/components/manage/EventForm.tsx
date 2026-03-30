@@ -624,7 +624,12 @@ export function EventForm({
               <input
                 type="datetime-local"
                 value={form.singleStartAt}
-                onChange={(e) => { update("singleStartAt", e.target.value); if (fieldErrors.singleStartAt) setFieldErrors((p) => ({ ...p, singleStartAt: "" })); }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  update("singleStartAt", val);
+                  if (!form.singleEndAt && val) update("singleEndAt", val);
+                  if (fieldErrors.singleStartAt) setFieldErrors((p) => ({ ...p, singleStartAt: "" }));
+                }}
                 className={fieldErrors.singleStartAt ? "field-invalid" : undefined}
               />
               {fieldErrors.singleStartAt && <span className="field-error">{fieldErrors.singleStartAt}</span>}
