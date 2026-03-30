@@ -276,7 +276,14 @@ export default function MyEventsPage() {
       load();
     } catch (err) {
       if (err instanceof Error && err.message === "publish_requires_host") {
-        setPublishHostDialog(eventId);
+        // Card already showed no-host warning, so force-publish directly
+        try {
+          await authorizedPost(getToken, `/events/${eventId}/publish`, { force: true });
+          setFacetRefreshKey((k) => k + 1);
+          load();
+        } catch (retryErr) {
+          setAlertMsg(retryErr instanceof Error ? retryErr.message : t("manage.form.unknownError"));
+        }
       }
     }
   }
