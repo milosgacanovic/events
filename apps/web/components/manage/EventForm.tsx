@@ -349,10 +349,10 @@ export function EventForm({
       }
     }
 
-    await doSubmit();
+    await doSubmit(false);
   }
 
-  async function doSubmit() {
+  async function doSubmit(forceNoHost = false) {
     setSaving(true);
     setStatus(t("manage.form.saving"));
 
@@ -371,6 +371,7 @@ export function EventForm({
 
     try {
       const payload = buildEventPayload(form, mode, coverFile, detachConfirmed);
+      if (forceNoHost) payload.force = true;
 
       let resultId: string;
       let resultSlug: string;
@@ -1002,7 +1003,7 @@ export function EventForm({
           if (noHostDontShow) localStorage.setItem("hideNoHostWarning", "true");
           if (pendingSubmit) {
             setPendingSubmit(false);
-            void doSubmit();
+            void doSubmit(true);
           } else {
             void handleSaveAndPublish(true);
           }

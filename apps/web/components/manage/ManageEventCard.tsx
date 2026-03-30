@@ -92,7 +92,26 @@ export function ManageEventCard({
       : null;
 
   return (
-    <div className="card event-card-h" style={{ cursor: "default" }}>
+    <div className="card event-card-h" style={{ cursor: "default", position: "relative" }}>
+      {confirmAction ? (
+        <div className="manage-card-confirm">
+          <h4 className="manage-card-confirm-title">{confirmAction.title}</h4>
+          <p className="manage-card-confirm-message">{confirmAction.message}</p>
+          <div className="manage-card-confirm-buttons">
+            <button type="button" className="ghost-btn" onClick={() => setConfirmAction(null)}>
+              {t("manage.common.cancel")}
+            </button>
+            <button
+              type="button"
+              className={confirmAction.variant === "danger" ? "danger-btn" : confirmAction.variant === "warning" ? "warning-btn" : "primary-btn"}
+              onClick={() => { confirmAction.action(); setConfirmAction(null); }}
+            >
+              {t("common.action.ok")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="event-card-main">
         <div
           className="event-card-thumb-h"
@@ -188,16 +207,8 @@ export function ManageEventCard({
           <span key={tag} className="tag tag-tag">{t(`tag.${tag.replace(/ /g, "-")}`)}</span>
         ))}
       </div>
-      <ConfirmDialog
-        open={!!confirmAction}
-        title={confirmAction?.title ?? ""}
-        message={confirmAction?.message ?? ""}
-        confirmLabel={t("common.action.ok")}
-        cancelLabel={t("manage.common.cancel")}
-        variant={confirmAction?.variant}
-        onConfirm={() => { confirmAction?.action(); setConfirmAction(null); }}
-        onCancel={() => setConfirmAction(null)}
-      />
+        </>
+      )}
     </div>
   );
 }

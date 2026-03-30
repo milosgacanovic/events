@@ -921,6 +921,28 @@ textarea.field-invalid {
   margin-left: 8px;
 }
 
+/* Inline card confirm */
+.manage-card-confirm {
+  padding: 16px 20px;
+}
+.manage-card-confirm-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.manage-card-confirm-message {
+  margin: 0 0 16px;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.manage-card-confirm-buttons {
+  text-align: right;
+}
+.manage-card-confirm-buttons button {
+  margin-left: 8px;
+}
+
 /* Confirm dialog button variants */
 .danger-btn {
   background: var(--danger, #dc3545);

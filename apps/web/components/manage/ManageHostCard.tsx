@@ -84,7 +84,26 @@ export function ManageHostCard({
   const practiceRole = [practiceLabels, translatedRoles].filter(Boolean).join(" · ");
 
   return (
-    <div className="card event-card-h" style={{ cursor: "default" }}>
+    <div className="card event-card-h" style={{ cursor: "default", position: "relative" }}>
+      {confirmAction ? (
+        <div className="manage-card-confirm">
+          <h4 className="manage-card-confirm-title">{confirmAction.title}</h4>
+          <p className="manage-card-confirm-message">{confirmAction.message}</p>
+          <div className="manage-card-confirm-buttons">
+            <button type="button" className="ghost-btn" onClick={() => setConfirmAction(null)}>
+              {t("manage.common.cancel")}
+            </button>
+            <button
+              type="button"
+              className={confirmAction.variant === "danger" ? "danger-btn" : confirmAction.variant === "warning" ? "warning-btn" : "primary-btn"}
+              onClick={() => { confirmAction.action(); setConfirmAction(null); }}
+            >
+              {t("common.action.ok")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="event-card-main">
         <div
           className="host-card-avatar"
@@ -111,7 +130,7 @@ export function ManageHostCard({
             {t("manage.common.edit")}
           </Link>
           {status === "draft" && onPublish && (
-            <button type="button" className="manage-card-action-btn manage-btn-publish" onClick={onPublish}>
+            <button type="button" className="manage-card-action-btn manage-btn-publish" onClick={() => setConfirmAction({ action: onPublish, title: t("manage.confirm.title"), message: t("manage.hostCard.confirmPublish"), variant: undefined })}>
               {t("manage.eventCard.publish")}
             </button>
           )}
@@ -152,16 +171,8 @@ export function ManageHostCard({
           </span>
         ))}
       </div>
-      <ConfirmDialog
-        open={!!confirmAction}
-        title={confirmAction?.title ?? ""}
-        message={confirmAction?.message ?? ""}
-        confirmLabel={t("common.action.ok")}
-        cancelLabel={t("manage.common.cancel")}
-        variant={confirmAction?.variant}
-        onConfirm={() => { confirmAction?.action(); setConfirmAction(null); }}
-        onCancel={() => setConfirmAction(null)}
-      />
+        </>
+      )}
     </div>
   );
 }

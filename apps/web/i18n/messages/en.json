@@ -840,6 +840,7 @@
   "manage.hosts.sortName": "Name A-Z",
   "manage.hosts.allHostsLink": "All Hosts",
   "manage.hostCard.events": "Events: {count}",
+  "manage.hostCard.confirmPublish": "Are you sure you want to publish this host?",
   "manage.hostCard.confirmUnpublish": "Are you sure you want to unpublish this host?",
   "manage.hostCard.confirmArchive": "Are you sure you want to archive this host?",
   "manage.hostCard.unarchive": "Un-Archive",
