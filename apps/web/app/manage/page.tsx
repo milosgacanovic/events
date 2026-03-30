@@ -125,7 +125,7 @@ export default function ManageDashboard() {
         </div>
       ) : (
         <div className="manage-cards-grid">
-          <Link href="/manage/events?statuses=published&timeFilter=upcoming" className="manage-stat-card" style={{ textDecoration: "none", color: "inherit" }}>
+          <Link href="/manage/events?status=published&time=upcoming" className="manage-stat-card" style={{ textDecoration: "none", color: "inherit" }}>
             <div className="stat-value">{data?.upcomingEventsCount ?? 0}</div>
             <div className="stat-label">{t("manage.dashboard.upcomingEvents")}</div>
           </Link>
