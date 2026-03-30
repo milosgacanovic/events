@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -116,9 +117,12 @@ export function EventForm({
   const [noHostDontShow, setNoHostDontShow] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
+  const [navConfirmHref, setNavConfirmHref] = useState<string | null>(null);
 
   const slugManuallyEdited = useRef(false);
   const savedStatusRef = useRef<string>(initialState?.status ?? "draft");
+  const savedFormRef = useRef<string>(JSON.stringify(initialState ?? newEventFormState()));
+  const isDirty = JSON.stringify(form) !== savedFormRef.current || coverFile !== null;
 
   function saveMessage(newStatus: string): string {
     const prev = savedStatusRef.current;
@@ -150,6 +154,15 @@ export function EventForm({
     }
     return () => clearTimeout(toastTimer.current);
   }, [status, isStatusSuccess]);
+
+  // Warn on browser close/refresh with unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) { e.preventDefault(); }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   const update = useCallback(<K extends keyof EventFormState>(key: K, value: EventFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -391,6 +404,8 @@ export function EventForm({
       if (mode === "create") {
         router.replace(`/manage/events/${resultId}?saved=draft`);
       } else {
+        savedFormRef.current = JSON.stringify(form);
+        setCoverFile(null);
         setStatus(saveMessage(form.status));
         onStatusChange?.(form.status);
       }
@@ -957,33 +972,41 @@ export function EventForm({
           </div>
         )}
         <div className="manage-form-actions">
-          <button type="submit" className="primary-btn" disabled={saving}>
-            {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
-          </button>
-          {mode === "create" && (
+          <div className="manage-form-actions-left">
+            <button type="submit" className="primary-btn" disabled={saving}>
+              {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
+            </button>
+            {mode === "create" && (
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={saving}
+                onClick={() => void handleSaveAndPublish()}
+              >
+                {t("manage.eventForm.saveAndPublish")}
+              </button>
+            )}
+            {extraActions}
+            {onDelete && (
+              <button type="button" className="manage-btn-delete" style={{ padding: "8px 18px", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: "0.9rem" }} onClick={() => setDeleteConfirmOpen(true)} disabled={saving}>
+                {t("manage.eventForm.delete")}
+              </button>
+            )}
+          </div>
+          <div className="manage-form-actions-right">
             <button
               type="button"
-              className="secondary-btn"
-              disabled={saving}
-              onClick={() => void handleSaveAndPublish()}
+              className="ghost-btn manage-back-btn"
+              onClick={() => isDirty ? setNavConfirmHref("/manage/events") : router.push("/manage/events")}
             >
-              {t("manage.eventForm.saveAndPublish")}
+              ← {t("manage.sidebar.myEvents")}
             </button>
-          )}
-          <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
-            {t("manage.form.discardChanges")}
-          </button>
-          {extraActions}
-          {onDelete && (
-            <button type="button" className="manage-btn-delete" style={{ padding: "8px 18px", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: "0.9rem" }} onClick={() => setDeleteConfirmOpen(true)} disabled={saving}>
-              {t("manage.eventForm.delete")}
-            </button>
-          )}
-          {mode === "edit" && form.slug && (
-            <a href={`/events/${form.slug}`} target="_blank" rel="noopener noreferrer" className="manage-view-entity-btn">
-              {t("manage.form.viewEvent")} ↗
-            </a>
-          )}
+            {mode === "edit" && form.slug && (
+              <a href={`/events/${form.slug}`} target="_blank" rel="noopener noreferrer" className="manage-view-entity-btn">
+                {t("manage.form.viewEvent")} ↗
+              </a>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1029,6 +1052,17 @@ export function EventForm({
         confirmLabel={t("common.action.ok")}
         onConfirm={() => setAlertMsg("")}
         onCancel={() => setAlertMsg("")}
+      />
+
+      <ConfirmDialog
+        open={!!navConfirmHref}
+        title={t("manage.form.unsavedTitle")}
+        message={t("manage.form.unsavedMessage")}
+        confirmLabel={t("manage.form.unsavedLeave")}
+        cancelLabel={t("manage.form.unsavedStay")}
+        variant="warning"
+        onConfirm={() => { const href = navConfirmHref; setNavConfirmHref(null); if (href) router.push(href); }}
+        onCancel={() => setNavConfirmHref(null)}
       />
 
       {suggestOpen && (

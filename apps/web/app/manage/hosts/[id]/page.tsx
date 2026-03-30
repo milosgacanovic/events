@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -69,7 +68,6 @@ export default function EditHostPage() {
 
   return (
     <div className="manage-form-page">
-      <Link href="/manage/hosts" className="manage-back-link">{t("manage.hostForm.backToHosts")}</Link>
       <h1 className="manage-page-title">{t("manage.hostForm.editHost")}</h1>
       <HostForm
         mode="edit"

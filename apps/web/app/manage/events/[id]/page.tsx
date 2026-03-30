@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -67,7 +66,6 @@ export default function EditEventPage() {
 
   return (
     <div className="manage-form-page">
-      <Link href="/manage/events" className="manage-back-link">{t("manage.eventForm.backToEvents")}</Link>
       <h1 className="manage-page-title">{t("manage.eventForm.editEvent")}</h1>
       <EventForm
         mode="edit"

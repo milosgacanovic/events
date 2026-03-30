@@ -185,9 +185,11 @@ export function HostForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [unpublishActiveConfirm, setUnpublishActiveConfirm] = useState(false);
-  const [unsavedConfirmOpen, setUnsavedConfirmOpen] = useState(false);
+  const [navConfirmHref, setNavConfirmHref] = useState<string | null>(null);
   const pendingForcePayload = useRef<Record<string, unknown> | null>(null);
   const slugManuallyEdited = useRef(false);
+  const savedFormRef = useRef<string>(JSON.stringify(initialState ?? newHostFormState()));
+  const isDirty = JSON.stringify(form) !== savedFormRef.current || avatarFile !== null;
 
   // Tag chip state
   const [tagInput, setTagInput] = useState("");
@@ -243,6 +245,15 @@ export function HostForm({
     }
     return () => clearTimeout(toastTimer.current);
   }, [status, isStatusSuccess]);
+
+  // Warn on browser close/refresh with unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) { e.preventDefault(); }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   const update = useCallback(<K extends keyof HostFormState>(key: K, value: HostFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -370,6 +381,8 @@ export function HostForm({
       if (mode === "create") {
         router.replace(`/manage/hosts/${resultId}?saved=draft`);
       } else {
+        savedFormRef.current = JSON.stringify(form);
+        setAvatarFile(null);
         setStatus(saveMessage(form.status));
         onStatusChange?.(form.status);
       }
@@ -393,6 +406,8 @@ export function HostForm({
     try {
       const result = await authorizedPatch<{ id: string; slug: string }>(getToken, `/organizers/${form.id}`, { ...payload, force: true });
       if (avatarFile) await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
+      savedFormRef.current = JSON.stringify(form);
+      setAvatarFile(null);
       setStatus(saveMessage(form.status));
       onStatusChange?.(form.status);
     } catch (retryErr) {
@@ -841,28 +856,36 @@ export function HostForm({
           </div>
         )}
         <div className="manage-form-actions">
-          <button type="submit" className="primary-btn" disabled={saving}>
-            {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
-          </button>
-          {mode === "create" && (
-            <button type="button" className="secondary-btn" disabled={saving} onClick={() => void handleSaveAndPublish()}>
-              {t("manage.eventForm.saveAndPublish")}
+          <div className="manage-form-actions-left">
+            <button type="submit" className="primary-btn" disabled={saving}>
+              {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
             </button>
-          )}
-          <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
-            {t("manage.form.discardChanges")}
-          </button>
-          {extraActions}
-          {onDelete && (
-            <button type="button" className="manage-btn-delete" style={{ padding: "8px 18px", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: "0.9rem" }} onClick={() => setDeleteConfirmOpen(true)} disabled={saving}>
-              {t("manage.common.delete")}
+            {mode === "create" && (
+              <button type="button" className="secondary-btn" disabled={saving} onClick={() => void handleSaveAndPublish()}>
+                {t("manage.eventForm.saveAndPublish")}
+              </button>
+            )}
+            {extraActions}
+            {onDelete && (
+              <button type="button" className="manage-btn-delete" style={{ padding: "8px 18px", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: "0.9rem" }} onClick={() => setDeleteConfirmOpen(true)} disabled={saving}>
+                {t("manage.common.delete")}
+              </button>
+            )}
+          </div>
+          <div className="manage-form-actions-right">
+            <button
+              type="button"
+              className="ghost-btn manage-back-btn"
+              onClick={() => isDirty ? setNavConfirmHref("/manage/hosts") : router.push("/manage/hosts")}
+            >
+              ← {t("manage.sidebar.myHosts")}
             </button>
-          )}
-          {mode === "edit" && form.slug && (
-            <a href={`/hosts/${form.slug}`} target="_blank" rel="noopener noreferrer" className="manage-view-entity-btn">
-              {t("manage.form.viewHost")} ↗
-            </a>
-          )}
+            {mode === "edit" && form.slug && (
+              <a href={`/hosts/${form.slug}`} target="_blank" rel="noopener noreferrer" className="manage-view-entity-btn">
+                {t("manage.form.viewHost")} ↗
+              </a>
+            )}
+          </div>
         </div>
       </div>
 
@@ -886,6 +909,17 @@ export function HostForm({
         variant="warning"
         onConfirm={() => { setUnpublishActiveConfirm(false); void handleForceUnpublishRetry(); }}
         onCancel={() => { setUnpublishActiveConfirm(false); setStatus(""); }}
+      />
+
+      <ConfirmDialog
+        open={!!navConfirmHref}
+        title={t("manage.form.unsavedTitle")}
+        message={t("manage.form.unsavedMessage")}
+        confirmLabel={t("manage.form.unsavedLeave")}
+        cancelLabel={t("manage.form.unsavedStay")}
+        variant="warning"
+        onConfirm={() => { const href = navConfirmHref; setNavConfirmHref(null); if (href) router.push(href); }}
+        onCancel={() => setNavConfirmHref(null)}
       />
     </form>
   );
