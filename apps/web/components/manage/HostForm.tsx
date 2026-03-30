@@ -844,7 +844,7 @@ export function HostForm({
           <button type="submit" className="primary-btn" disabled={saving}>
             {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
           </button>
-          {mode === "create" && (
+          {(mode === "create" || (mode === "edit" && form.status !== "published")) && (
             <button type="button" className="secondary-btn" disabled={saving} onClick={() => void handleSaveAndPublish()}>
               {t("manage.eventForm.saveAndPublish")}
             </button>
