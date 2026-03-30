@@ -924,6 +924,10 @@ textarea.field-invalid {
 /* Inline card confirm */
 .manage-card-confirm {
   padding: 16px 20px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .manage-card-confirm-title {
   margin: 0 0 8px;
