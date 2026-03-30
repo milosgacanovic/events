@@ -37,7 +37,7 @@ const eventQuerySchema = z.object({
   languages: z.string().optional(),
   cities: z.string().optional(),
   tags: z.string().optional(),
-  time: z.enum(["upcoming", "past"]).optional(),
+  time: z.string().optional(),
   sort: z.string().optional(),
   managedBy: z.enum(["me"]).optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -231,7 +231,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       status: parsed.data.status ?? "published",
       organizerId: parsed.data.organizerId,
       ownerFilter: parsed.data.ownerFilter,
-      time: parsed.data.time,
+      time: (parsed.data.time === "upcoming" || parsed.data.time === "past") ? parsed.data.time : undefined,
       sort: parsed.data.sort,
     });
   });

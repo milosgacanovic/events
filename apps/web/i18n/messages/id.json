@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Bulan ini",
   "eventSearch.eventDateOption.this_week": "Minggu ini",
   "eventSearch.eventDateOption.this_weekend": "Akhir pekan ini",
+  "eventSearch.eventDateOption.upcoming": "Mendatang",
   "eventSearch.eventDateOption.today": "Hari ini",
   "eventSearch.eventDateOption.tomorrow": "Besok",
   "eventSearch.eventFormat": "Format acara",

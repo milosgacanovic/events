@@ -97,6 +97,7 @@ type Filters = {
 };
 
 const DATE_PRESETS = [
+  "upcoming",
   "today",
   "tomorrow",
   "this_weekend",

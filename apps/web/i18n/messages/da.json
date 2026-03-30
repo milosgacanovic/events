@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Denne måned",
   "eventSearch.eventDateOption.this_week": "Denne uge",
   "eventSearch.eventDateOption.this_weekend": "Denne weekend",
+  "eventSearch.eventDateOption.upcoming": "Kommende",
   "eventSearch.eventDateOption.today": "I dag",
   "eventSearch.eventDateOption.tomorrow": "I morgen",
   "eventSearch.eventFormat": "Begivenhedsformat",

@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Deze maand",
   "eventSearch.eventDateOption.this_week": "Deze week",
   "eventSearch.eventDateOption.this_weekend": "Dit weekend",
+  "eventSearch.eventDateOption.upcoming": "Aankomend",
   "eventSearch.eventDateOption.today": "Vandaag",
   "eventSearch.eventDateOption.tomorrow": "Morgen",
   "eventSearch.eventFormat": "Evenementformaat",

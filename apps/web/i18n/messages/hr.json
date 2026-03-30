@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Ovaj mjesec",
   "eventSearch.eventDateOption.this_week": "Ovaj tjedan",
   "eventSearch.eventDateOption.this_weekend": "Ovaj vikend",
+  "eventSearch.eventDateOption.upcoming": "Nadolazeći",
   "eventSearch.eventDateOption.today": "Danas",
   "eventSearch.eventDateOption.tomorrow": "Sutra",
   "eventSearch.eventFormat": "Format događaja",

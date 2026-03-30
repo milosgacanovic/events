@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Цього місяця",
   "eventSearch.eventDateOption.this_week": "Цього тижня",
   "eventSearch.eventDateOption.this_weekend": "Цих вихідних",
+  "eventSearch.eventDateOption.upcoming": "Майбутні",
   "eventSearch.eventDateOption.today": "Сьогодні",
   "eventSearch.eventDateOption.tomorrow": "Завтра",
   "eventSearch.eventFormat": "Формат події",

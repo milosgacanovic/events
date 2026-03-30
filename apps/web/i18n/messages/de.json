@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Diesen Monat",
   "eventSearch.eventDateOption.this_week": "Diese Woche",
   "eventSearch.eventDateOption.this_weekend": "Dieses Wochenende",
+  "eventSearch.eventDateOption.upcoming": "Bevorstehend",
   "eventSearch.eventDateOption.today": "Heute",
   "eventSearch.eventDateOption.tomorrow": "Morgen",
   "eventSearch.eventFormat": "Veranstaltungsformat",

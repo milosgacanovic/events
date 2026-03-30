@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Tässä kuussa",
   "eventSearch.eventDateOption.this_week": "Tällä viikolla",
   "eventSearch.eventDateOption.this_weekend": "Tänä viikonloppuna",
+  "eventSearch.eventDateOption.upcoming": "Tulevat",
   "eventSearch.eventDateOption.today": "Tänään",
   "eventSearch.eventDateOption.tomorrow": "Huomenna",
   "eventSearch.eventFormat": "Tapahtumamuoto",

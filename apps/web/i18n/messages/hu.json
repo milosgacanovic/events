@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Ebben a hónapban",
   "eventSearch.eventDateOption.this_week": "Ezen a héten",
   "eventSearch.eventDateOption.this_weekend": "Ezen a hétvégén",
+  "eventSearch.eventDateOption.upcoming": "Közelgő",
   "eventSearch.eventDateOption.today": "Ma",
   "eventSearch.eventDateOption.tomorrow": "Holnap",
   "eventSearch.eventFormat": "Esemény formátuma",

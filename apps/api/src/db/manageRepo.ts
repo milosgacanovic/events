@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { buildEventDateRangeMap, type EventDatePreset, EVENT_DATE_PRESETS } from "../utils/eventDatePresets";
 
 /**
  * Lists events the user can manage via 3 ownership paths:
@@ -20,7 +21,7 @@ export async function listManagedEvents(
     languages?: string;
     cities?: string;
     tags?: string;
-    time?: "upcoming" | "past";
+    time?: string;
     sort?: string;
     page: number;
     pageSize: number;
@@ -116,6 +117,11 @@ export async function listManagedEvents(
     whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
   } else if (input.time === "past") {
     whereParts.push(`not exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
+  } else if (input.time && (EVENT_DATE_PRESETS as readonly string[]).includes(input.time)) {
+    const ranges = buildEventDateRangeMap("UTC");
+    const range = ranges[input.time as EventDatePreset];
+    values.push(range.fromUtc, range.toUtc);
+    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc >= $${values.length - 1} and oc.starts_at_utc < $${values.length})`);
   }
 
   const extraWhere = whereParts.length ? `and ${whereParts.join(" and ")}` : "";

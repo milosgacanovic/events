@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Þennan mánuð",
   "eventSearch.eventDateOption.this_week": "Þessa viku",
   "eventSearch.eventDateOption.this_weekend": "Þetta helgi",
+  "eventSearch.eventDateOption.upcoming": "Komandi",
   "eventSearch.eventDateOption.today": "Í dag",
   "eventSearch.eventDateOption.tomorrow": "Á morgun",
   "eventSearch.eventFormat": "Viðburðarform",

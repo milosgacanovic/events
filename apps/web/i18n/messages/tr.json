@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Bu ay",
   "eventSearch.eventDateOption.this_week": "Bu hafta",
   "eventSearch.eventDateOption.this_weekend": "Bu hafta sonu",
+  "eventSearch.eventDateOption.upcoming": "Yaklaşan",
   "eventSearch.eventDateOption.today": "Bugün",
   "eventSearch.eventDateOption.tomorrow": "Yarın",
   "eventSearch.eventFormat": "Etkinlik formatı",

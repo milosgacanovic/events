@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Lo nyanga",
   "eventSearch.eventDateOption.this_week": "Leli viki",
   "eventSearch.eventDateOption.this_weekend": "Leli sonto",
+  "eventSearch.eventDateOption.upcoming": "Ezizayo",
   "eventSearch.eventDateOption.today": "Namuhla",
   "eventSearch.eventDateOption.tomorrow": "Kusasa",
   "eventSearch.eventFormat": "Ifomethi yomcimbi",

@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "本月",
   "eventSearch.eventDateOption.this_week": "本周",
   "eventSearch.eventDateOption.this_weekend": "本周末",
+  "eventSearch.eventDateOption.upcoming": "即将到来",
   "eventSearch.eventDateOption.today": "今天",
   "eventSearch.eventDateOption.tomorrow": "明天",
   "eventSearch.eventFormat": "活动形式",

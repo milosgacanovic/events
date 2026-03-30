@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "החודש הזה",
   "eventSearch.eventDateOption.this_week": "השבוע הזה",
   "eventSearch.eventDateOption.this_weekend": "סוף השבוע הזה",
+  "eventSearch.eventDateOption.upcoming": "קרובים",
   "eventSearch.eventDateOption.today": "היום",
   "eventSearch.eventDateOption.tomorrow": "מחר",
   "eventSearch.eventFormat": "פורמט האירוע",

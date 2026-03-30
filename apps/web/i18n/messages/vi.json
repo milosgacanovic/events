@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Tháng này",
   "eventSearch.eventDateOption.this_week": "Tuần này",
   "eventSearch.eventDateOption.this_weekend": "Cuối tuần này",
+  "eventSearch.eventDateOption.upcoming": "Sắp tới",
   "eventSearch.eventDateOption.today": "Hôm nay",
   "eventSearch.eventDateOption.tomorrow": "Ngày mai",
   "eventSearch.eventFormat": "Định dạng sự kiện",

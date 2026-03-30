@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Αυτόν τον μήνα",
   "eventSearch.eventDateOption.this_week": "Αυτή την εβδομάδα",
   "eventSearch.eventDateOption.this_weekend": "Αυτό το σαββατοκύριακο",
+  "eventSearch.eventDateOption.upcoming": "Επερχόμενα",
   "eventSearch.eventDateOption.today": "Σήμερα",
   "eventSearch.eventDateOption.tomorrow": "Αύριο",
   "eventSearch.eventFormat": "Μορφή εκδήλωσης",

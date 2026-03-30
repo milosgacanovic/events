@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "В этом месяце",
   "eventSearch.eventDateOption.this_week": "На этой неделе",
   "eventSearch.eventDateOption.this_weekend": "В эти выходные",
+  "eventSearch.eventDateOption.upcoming": "Предстоящие",
   "eventSearch.eventDateOption.today": "Сегодня",
   "eventSearch.eventDateOption.tomorrow": "Завтра",
   "eventSearch.eventFormat": "Формат мероприятия",

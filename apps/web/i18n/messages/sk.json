@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Tento mesiac",
   "eventSearch.eventDateOption.this_week": "Tento týždeň",
   "eventSearch.eventDateOption.this_weekend": "Tento víkend",
+  "eventSearch.eventDateOption.upcoming": "Nadchádzajúce",
   "eventSearch.eventDateOption.today": "Dnes",
   "eventSearch.eventDateOption.tomorrow": "Zajtra",
   "eventSearch.eventFormat": "Formát podujatia",

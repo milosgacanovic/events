@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "هذا الشهر",
   "eventSearch.eventDateOption.this_week": "هذا الأسبوع",
   "eventSearch.eventDateOption.this_weekend": "هذا الأسبوع",
+  "eventSearch.eventDateOption.upcoming": "القادمة",
   "eventSearch.eventDateOption.today": "اليوم",
   "eventSearch.eventDateOption.tomorrow": "غداً",
   "eventSearch.eventFormat": "تنسيق الفعالية",

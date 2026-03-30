@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Luna aceasta",
   "eventSearch.eventDateOption.this_week": "Această săptămână",
   "eventSearch.eventDateOption.this_weekend": "Acest weekend",
+  "eventSearch.eventDateOption.upcoming": "Viitoare",
   "eventSearch.eventDateOption.today": "Astăzi",
   "eventSearch.eventDateOption.tomorrow": "Mâine",
   "eventSearch.eventFormat": "Format eveniment",

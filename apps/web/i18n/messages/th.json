@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "เดือนนี้",
   "eventSearch.eventDateOption.this_week": "สัปดาห์นี้",
   "eventSearch.eventDateOption.this_weekend": "สุดสัปดาห์นี้",
+  "eventSearch.eventDateOption.upcoming": "กำลังจะมาถึง",
   "eventSearch.eventDateOption.today": "วันนี้",
   "eventSearch.eventDateOption.tomorrow": "พรุ่งนี้",
   "eventSearch.eventFormat": "รูปแบบกิจกรรม",

@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "इस महीने",
   "eventSearch.eventDateOption.this_week": "इस सप्ताह",
   "eventSearch.eventDateOption.this_weekend": "इस सप्ताहांत",
+  "eventSearch.eventDateOption.upcoming": "आगामी",
   "eventSearch.eventDateOption.today": "आज",
   "eventSearch.eventDateOption.tomorrow": "कल",
   "eventSearch.eventFormat": "कार्यक्रम प्रारूप",

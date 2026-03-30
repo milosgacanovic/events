@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Ta mesec",
   "eventSearch.eventDateOption.this_week": "Ta teden",
   "eventSearch.eventDateOption.this_weekend": "Ta vikend",
+  "eventSearch.eventDateOption.upcoming": "Prihajajoči",
   "eventSearch.eventDateOption.today": "Danes",
   "eventSearch.eventDateOption.tomorrow": "Jutri",
   "eventSearch.eventFormat": "Format dogodka",

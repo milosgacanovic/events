@@ -95,6 +95,7 @@
   "eventSearch.dateTo": "To",
   "eventSearch.dateRange": "Date range",
   "eventSearch.customRange": "Custom range",
+  "eventSearch.eventDateOption.upcoming": "Upcoming",
   "eventSearch.eventDateOption.today": "Today",
   "eventSearch.eventDateOption.tomorrow": "Tomorrow",
   "eventSearch.eventDateOption.this_weekend": "This weekend",

@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "Den här månaden",
   "eventSearch.eventDateOption.this_week": "Den här veckan",
   "eventSearch.eventDateOption.this_weekend": "Den här helgen",
+  "eventSearch.eventDateOption.upcoming": "Kommande",
   "eventSearch.eventDateOption.today": "Idag",
   "eventSearch.eventDateOption.tomorrow": "Imorgon",
   "eventSearch.eventFormat": "Evenemangsformat",

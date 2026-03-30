@@ -263,6 +263,7 @@
   "eventSearch.eventDateOption.this_month": "今月",
   "eventSearch.eventDateOption.this_week": "今週",
   "eventSearch.eventDateOption.this_weekend": "今週末",
+  "eventSearch.eventDateOption.upcoming": "今後",
   "eventSearch.eventDateOption.today": "今日",
   "eventSearch.eventDateOption.tomorrow": "明日",
   "eventSearch.eventFormat": "イベント形式",
