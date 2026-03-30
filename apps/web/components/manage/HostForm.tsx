@@ -844,6 +844,11 @@ export function HostForm({
           <button type="submit" className="primary-btn" disabled={saving}>
             {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
           </button>
+          {mode === "create" && (
+            <button type="button" className="secondary-btn" disabled={saving} onClick={() => void handleSaveAndPublish()}>
+              {t("manage.eventForm.saveAndPublish")}
+            </button>
+          )}
           <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
             {t("manage.form.discardChanges")}
           </button>

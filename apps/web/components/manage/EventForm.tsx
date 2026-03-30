@@ -342,11 +342,9 @@ export function EventForm({
 
     // If saving with status "published" and no hosts, show warning first
     if (form.status === "published" && form.organizerRoles.length === 0) {
-      if (!(typeof window !== "undefined" && localStorage.getItem("hideNoHostWarning") === "true")) {
-        setPendingSubmit(true);
-        setPublishHostDialog(true);
-        return;
-      }
+      setPendingSubmit(true);
+      setPublishHostDialog(true);
+      return;
     }
 
     await doSubmit(false);
@@ -962,6 +960,16 @@ export function EventForm({
           <button type="submit" className="primary-btn" disabled={saving}>
             {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
           </button>
+          {mode === "create" && (
+            <button
+              type="button"
+              className="secondary-btn"
+              disabled={saving}
+              onClick={() => void handleSaveAndPublish()}
+            >
+              {t("manage.eventForm.saveAndPublish")}
+            </button>
+          )}
           <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
             {t("manage.form.discardChanges")}
           </button>
