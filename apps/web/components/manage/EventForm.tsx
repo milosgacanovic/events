@@ -81,12 +81,14 @@ export function EventForm({
   initialState,
   extraActions,
   onDelete,
+  onStatusChange,
   initialStatusMessage,
 }: {
   mode: "create" | "edit";
   initialState?: EventFormState;
   extraActions?: React.ReactNode;
   onDelete?: () => void;
+  onStatusChange?: (status: string) => void;
   initialStatusMessage?: string;
 }) {
   const { getToken, roles: authRoles } = useKeycloakAuth();
@@ -376,6 +378,7 @@ export function EventForm({
         router.replace(`/manage/events/${resultId}?saved=draft`);
       } else {
         setStatus(saveMessage(form.status));
+        onStatusChange?.(form.status);
       }
     } catch (err) {
       if (err instanceof Error && err.message === "publish_requires_host") {

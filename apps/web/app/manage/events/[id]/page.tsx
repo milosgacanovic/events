@@ -26,6 +26,7 @@ export default function EditEventPage() {
   const [showAssign, setShowAssign] = useState(false);
   const [initialStatus, setInitialStatus] = useState("");
   const [alertMsg, setAlertMsg] = useState("");
+  const [savedStatus, setSavedStatus] = useState("");
   const isAdmin = roles.includes(ROLE_ADMIN);
 
   // Show save banner when redirected from create page
@@ -72,7 +73,8 @@ export default function EditEventPage() {
         mode="edit"
         initialState={state}
         initialStatusMessage={initialStatus || undefined}
-        onDelete={state.status === "archived" ? () => void handleDelete() : undefined}
+        onDelete={(savedStatus || state.status) === "archived" ? () => void handleDelete() : undefined}
+        onStatusChange={setSavedStatus}
         extraActions={isAdmin ? (
           <button type="button" className="secondary-btn" onClick={() => setShowAssign(true)}>
             {t("manage.common.assignToUser")}

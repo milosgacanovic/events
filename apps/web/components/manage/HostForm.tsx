@@ -163,12 +163,14 @@ export function HostForm({
   initialState,
   extraActions,
   onDelete,
+  onStatusChange,
   initialStatusMessage,
 }: {
   mode: "create" | "edit";
   initialState?: HostFormState;
   extraActions?: React.ReactNode;
   onDelete?: () => void;
+  onStatusChange?: (status: string) => void;
   initialStatusMessage?: string;
 }) {
   const { getToken } = useKeycloakAuth();
@@ -369,6 +371,7 @@ export function HostForm({
         router.replace(`/manage/hosts/${resultId}?saved=draft`);
       } else {
         setStatus(saveMessage(form.status));
+        onStatusChange?.(form.status);
       }
     } catch (err) {
       if (err instanceof Error && err.message === "host_has_active_events") {
@@ -391,6 +394,7 @@ export function HostForm({
       const result = await authorizedPatch<{ id: string; slug: string }>(getToken, `/organizers/${form.id}`, { ...payload, force: true });
       if (avatarFile) await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
       setStatus(saveMessage(form.status));
+      onStatusChange?.(form.status);
     } catch (retryErr) {
       setStatus(t("manage.form.errorPrefix", { message: retryErr instanceof Error ? retryErr.message : t("manage.form.unknownError") }));
     } finally {
