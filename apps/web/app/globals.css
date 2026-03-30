@@ -1885,7 +1885,7 @@ label.meta {
 .date-input-placeholder {
   position: absolute;
   inset: 0;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   font-size: 0.78rem;
@@ -1893,6 +1893,12 @@ label.meta {
   pointer-events: none;
   user-select: none;
   letter-spacing: 0.02em;
+}
+
+@media (max-width: 600px) {
+  .date-input-placeholder {
+    display: flex;
+  }
 }
 
 /* ── Filter row (replaces checkboxes) ─── */

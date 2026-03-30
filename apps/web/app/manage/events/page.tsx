@@ -85,6 +85,8 @@ type Filters = {
   statuses: string[];
   visibilities: string[];
   timeFilter: string;
+  dateFrom: string;
+  dateTo: string;
   attendanceModes: string[];
   practiceCategoryIds: string[];
   eventFormatIds: string[];
@@ -98,13 +100,8 @@ type Filters = {
 
 const DATE_PRESETS = [
   "upcoming",
-  "today",
-  "tomorrow",
-  "this_weekend",
-  "this_week",
-  "next_week",
-  "this_month",
-  "next_month",
+  "next_7_days",
+  "next_30_days",
 ] as const;
 
 const DEFAULT_FILTERS: Filters = {
@@ -112,6 +109,8 @@ const DEFAULT_FILTERS: Filters = {
   statuses: [],
   visibilities: [],
   timeFilter: "",
+  dateFrom: "",
+  dateTo: "",
   attendanceModes: [],
   practiceCategoryIds: [],
   eventFormatIds: [],
@@ -144,6 +143,8 @@ function filtersFromParams(sp: URLSearchParams): Filters {
     statuses: csv("status"),
     visibilities: csv("visibility"),
     timeFilter: sp.get("time") ?? "",
+    dateFrom: sp.get("dateFrom") ?? "",
+    dateTo: sp.get("dateTo") ?? "",
     attendanceModes: csv("attendanceMode"),
     practiceCategoryIds: csv("practiceCategoryId"),
     eventFormatIds: csv("eventFormatId"),
@@ -162,6 +163,8 @@ function filtersToParams(f: Filters): string {
   if (f.statuses.length) p.set("status", f.statuses.join(","));
   if (f.visibilities.length) p.set("visibility", f.visibilities.join(","));
   if (f.timeFilter) p.set("time", f.timeFilter);
+  if (f.dateFrom) p.set("dateFrom", f.dateFrom);
+  if (f.dateTo) p.set("dateTo", f.dateTo);
   if (f.attendanceModes.length) p.set("attendanceMode", f.attendanceModes.join(","));
   if (f.practiceCategoryIds.length) p.set("practiceCategoryId", f.practiceCategoryIds.join(","));
   if (f.eventFormatIds.length) p.set("eventFormatId", f.eventFormatIds.join(","));
@@ -216,6 +219,8 @@ export default function MyEventsPage() {
     statuses,
     visibilities,
     timeFilter,
+    dateFrom,
+    dateTo,
     attendanceModes,
     practiceCategoryIds,
     eventFormatIds,
@@ -238,12 +243,22 @@ export default function MyEventsPage() {
   const [noHostDontShow, setNoHostDontShow] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [view, setView] = useState<"list" | "map">("list");
+  const [dateRangeOpen, setDateRangeOpen] = useState(!!(filters.dateFrom) || !!(filters.dateTo));
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
   const [userHostCount, setUserHostCount] = useState<number | null>(null);
   const [facetRefreshKey, setFacetRefreshKey] = useState(0);
 
   const isAdmin = roles.includes(ROLE_ADMIN);
   const isPast = timeFilter === "past";
+
+  const dateFormatHint = useMemo(() => {
+    try {
+      const parts = new Intl.DateTimeFormat(locale, { year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(2013, 10, 25));
+      return parts.map((p) => p.type === "year" ? "yyyy" : p.type === "month" ? "mm" : p.type === "day" ? "dd" : p.value).join("");
+    } catch {
+      return "dd/mm/yyyy";
+    }
+  }, [locale]);
 
   /* ── taxonomy ── */
   useEffect(() => {
@@ -321,6 +336,8 @@ export default function MyEventsPage() {
       if (cities.length) params.set("cities", cities.join(","));
       if (tags.length) params.set("tags", tags.join(","));
       if (timeFilter) params.set("time", timeFilter);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
       if (sortBy) params.set("sort", sortBy);
 
       const data = await authorizedGet<EventsResponse>(getToken, `/admin/events?${params}`);
@@ -331,7 +348,7 @@ export default function MyEventsPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, q, statuses, visibilities, practiceCategoryIds, eventFormatIds, countryCodes, attendanceModes, languages, cities, tags, timeFilter, sortBy, t]);
+  }, [getToken, page, q, statuses, visibilities, practiceCategoryIds, eventFormatIds, countryCodes, attendanceModes, languages, cities, tags, timeFilter, dateFrom, dateTo, sortBy, t]);
 
   useEffect(() => {
     void load();
@@ -372,6 +389,8 @@ export default function MyEventsPage() {
     ...statuses,
     ...visibilities,
     timeFilter,
+    dateFrom,
+    dateTo,
     ...practiceCategoryIds,
     ...eventFormatIds,
     ...countryCodes,
@@ -446,37 +465,95 @@ export default function MyEventsPage() {
         />
 
         {/* Date presets */}
-        {totalItems > 0 && (
-          <details>
-            <summary>{t("eventSearch.eventDate")}</summary>
-            <div className="kv">
-              {DATE_PRESETS.map((preset) => {
-                const selected = timeFilter === preset;
-                return (
-                  <button
-                    key={preset}
-                    type="button"
-                    className={`filter-row${selected ? " filter-row-selected" : ""}`}
-                    onClick={() => { setFilters({ timeFilter: selected ? "" : preset, page: 1 }); }}
-                  >
-                    <span className="filter-row-icon">{selected ? "\u2212" : "+"}</span>
-                    <span className="filter-row-label">{t(`eventSearch.eventDateOption.${preset}`)}</span>
-                    <span className="filter-row-count" />
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                className={`filter-row${isPast ? " filter-row-selected" : ""}`}
-                onClick={() => { setFilters({ timeFilter: isPast ? "" : "past", page: 1 }); }}
-              >
-                <span className="filter-row-icon">{isPast ? "\u2212" : "+"}</span>
-                <span className="filter-row-label">{t("eventSearch.includePast")}</span>
-                <span className="filter-row-count" />
-              </button>
-            </div>
-          </details>
-        )}
+        <details open>
+          <summary>{t("eventSearch.eventDate")}</summary>
+          <div className="kv">
+            {DATE_PRESETS.map((preset) => {
+              const selected = timeFilter === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  className={`filter-row${selected ? " filter-row-selected" : ""}`}
+                  onClick={() => { setFilters({ timeFilter: selected ? "" : preset, page: 1 }); }}
+                >
+                  <span className="filter-row-icon">{selected ? "\u2212" : "+"}</span>
+                  <span className="filter-row-label">{t(`eventSearch.eventDateOption.${preset}`)}</span>
+                  <span className="filter-row-count" />
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              className={`filter-row${dateRangeOpen ? " filter-row-selected" : ""}`}
+              onClick={() => {
+                if (dateRangeOpen) {
+                  setDateRangeOpen(false);
+                  setFilters({ dateFrom: "", dateTo: "", page: 1 });
+                } else {
+                  setDateRangeOpen(true);
+                }
+              }}
+            >
+              <span className="filter-row-icon">{dateRangeOpen ? "\u2212" : "+"}</span>
+              <span className="filter-row-label">{t("eventSearch.dateRange")}</span>
+              <span className="filter-row-count" />
+            </button>
+            {dateRangeOpen && (
+              <div className="date-range-inputs">
+                <label className="date-range-label">
+                  <span>{t("eventSearch.dateFrom")}</span>
+                  <div className="date-input-wrap">
+                    <input
+                      type="date"
+                      className="date-range-input"
+                      value={dateFrom}
+                      max={dateTo || undefined}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v && dateTo && v > dateTo) {
+                          setFilters({ dateFrom: dateTo, dateTo: v, timeFilter: "", page: 1 });
+                        } else {
+                          setFilters({ dateFrom: v, timeFilter: v ? "" : timeFilter, page: 1 });
+                        }
+                      }}
+                    />
+                    {!dateFrom && <span className="date-input-placeholder">{dateFormatHint}</span>}
+                  </div>
+                </label>
+                <label className="date-range-label">
+                  <span>{t("eventSearch.dateTo")}</span>
+                  <div className="date-input-wrap">
+                    <input
+                      type="date"
+                      className="date-range-input"
+                      value={dateTo}
+                      min={dateFrom || undefined}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v && dateFrom && v < dateFrom) {
+                          setFilters({ dateTo: dateFrom, dateFrom: v, timeFilter: "", page: 1 });
+                        } else {
+                          setFilters({ dateTo: v, timeFilter: v ? "" : timeFilter, page: 1 });
+                        }
+                      }}
+                    />
+                    {!dateTo && <span className="date-input-placeholder">{dateFormatHint}</span>}
+                  </div>
+                </label>
+              </div>
+            )}
+            <button
+              type="button"
+              className={`filter-row${isPast ? " filter-row-selected" : ""}`}
+              onClick={() => { setFilters({ timeFilter: isPast ? "" : "past", page: 1 }); }}
+            >
+              <span className="filter-row-icon">{isPast ? "\u2212" : "+"}</span>
+              <span className="filter-row-label">{t("eventSearch.eventDateOption.past")}</span>
+              <span className="filter-row-count" />
+            </button>
+          </div>
+        </details>
 
         <AttendanceFacetFilter
           counts={facets?.attendanceModes ?? {}}

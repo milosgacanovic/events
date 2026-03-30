@@ -22,6 +22,8 @@ export async function listManagedEvents(
     cities?: string;
     tags?: string;
     time?: string;
+    dateFrom?: string;
+    dateTo?: string;
     sort?: string;
     page: number;
     pageSize: number;
@@ -117,11 +119,24 @@ export async function listManagedEvents(
     whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
   } else if (input.time === "past") {
     whereParts.push(`not exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
+  } else if (input.time === "next_7_days") {
+    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() and oc.starts_at_utc < now() + interval '7 days')`);
+  } else if (input.time === "next_30_days") {
+    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() and oc.starts_at_utc < now() + interval '30 days')`);
   } else if (input.time && (EVENT_DATE_PRESETS as readonly string[]).includes(input.time)) {
     const ranges = buildEventDateRangeMap("UTC");
     const range = ranges[input.time as EventDatePreset];
     values.push(range.fromUtc, range.toUtc);
     whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc >= $${values.length - 1} and oc.starts_at_utc < $${values.length})`);
+  }
+
+  if (input.dateFrom) {
+    values.push(input.dateFrom);
+    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc >= $${values.length}::date)`);
+  }
+  if (input.dateTo) {
+    values.push(input.dateTo);
+    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc < ($${values.length}::date + interval '1 day'))`);
   }
 
   const extraWhere = whereParts.length ? `and ${whereParts.join(" and ")}` : "";
