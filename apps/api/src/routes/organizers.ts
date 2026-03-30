@@ -10,6 +10,7 @@ import {
   updateOrganizer,
 } from "../db/organizerRepo";
 import { resolveUserId, requireOrganizerAccess } from "../middleware/ownership";
+import { canUserEditOrganizer } from "../db/manageRepo";
 import { clearSearchCache, debouncedClearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 
 const querySchema = z.object({
@@ -233,7 +234,18 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: "not_found" };
     }
 
-    return mapOrganizerDetail(result as unknown as Record<string, unknown>);
+    // Compute canEdit for authenticated users
+    let canEdit = false;
+    if (request.auth) {
+      if (request.auth.isAdmin) {
+        canEdit = true;
+      } else if (request.auth.isEditor) {
+        const userId = await resolveUserId(app.db, request.auth);
+        canEdit = await canUserEditOrganizer(app.db, userId, (result as { organizer: { id: string } }).organizer.id);
+      }
+    }
+
+    return { ...mapOrganizerDetail(result as unknown as Record<string, unknown>), canEdit };
   });
 
   app.post("/organizers", async (request, reply) => {

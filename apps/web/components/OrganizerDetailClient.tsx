@@ -63,6 +63,7 @@ export type OrganizerDetail = {
     coverImageUrl?: string | null;
   }>;
   practiceCategoryIds?: string[];
+  canEdit?: boolean;
 };
 
 type TaxonomyResponse = {
@@ -237,6 +238,22 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
     return () => { active = false; };
   }, [auth.ready, auth.authenticated, auth.getToken, initialData, slug, t]);
 
+  // When data was loaded without auth (SSR or public fetch), re-fetch with auth to get canEdit
+  useEffect(() => {
+    if (!data || data.canEdit !== undefined) return;
+    if (!auth.ready || !auth.authenticated) return;
+    let active = true;
+    (async () => {
+      const token = await auth.getToken();
+      if (!token || !active) return;
+      try {
+        const freshData = await fetchJson<OrganizerDetail>(`/organizers/${slug}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (active) setData(freshData);
+      } catch { /* ignore */ }
+    })();
+    return () => { active = false; };
+  }, [data, auth.ready, auth.authenticated, auth.getToken, slug]);
+
   useEffect(() => {
     fetchJson<TaxonomyResponse>("/meta/taxonomies")
       .then(setTaxonomy)
@@ -306,10 +323,7 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
       </section>
     );
   }
-  const hasEditorRole = auth.roles.some((role) =>
-    role === "admin" || role === "editor"
-  );
-  const canEdit = auth.ready && auth.authenticated && hasEditorRole;
+  const canEdit = data.canEdit === true;
 
   const organizerImage = data.organizer.imageUrl ?? data.organizer.avatar_path ?? null;
   const websiteUrl = data.organizer.websiteUrl ?? data.organizer.website_url ?? null;

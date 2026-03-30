@@ -21,6 +21,7 @@ import {
 import { createLocation, getEventDefaultLocation, setEventDefaultLocation, updateLocation } from "../db/locationRepo";
 import { findOrCreateUserBySub } from "../db/userRepo";
 import { resolveUserId, requireEventAccess } from "../middleware/ownership";
+import { canUserEditEvent } from "../db/manageRepo";
 import { archiveEvent, cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
@@ -610,8 +611,20 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: "not_found" };
     }
 
+    // Compute canEdit for authenticated users
+    let canEdit = false;
+    if (request.auth) {
+      if (request.auth.isAdmin) {
+        canEdit = true;
+      } else if (request.auth.isEditor) {
+        const userId = await resolveUserId(app.db, request.auth);
+        canEdit = await canUserEditEvent(app.db, userId, event.event.id);
+      }
+    }
+
     return {
       ...event,
+      canEdit,
       organizers: event.organizers.map((row) => ({
         ...row,
         id: row.organizer_id,

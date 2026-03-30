@@ -108,6 +108,7 @@ export type EventDetail = {
       lng: number | null;
     }>;
   };
+  canEdit?: boolean;
 };
 
 const EventDetailMap = dynamic(
@@ -331,6 +332,22 @@ export function EventDetailClient({
 
     return () => { active = false; };
   }, [auth.ready, auth.authenticated, auth.getToken, initialData, slug, t]);
+
+  // When data was loaded without auth (SSR or public fetch), re-fetch with auth to get canEdit + status
+  useEffect(() => {
+    if (!data || data.canEdit !== undefined) return; // already has canEdit info
+    if (!auth.ready || !auth.authenticated) return;
+    let active = true;
+    (async () => {
+      const token = await auth.getToken();
+      if (!token || !active) return;
+      try {
+        const freshData = await fetchJson<EventDetail>(`/events/${slug}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (active) setData(freshData);
+      } catch { /* ignore — public data is already displayed */ }
+    })();
+    return () => { active = false; };
+  }, [data, auth.ready, auth.authenticated, auth.getToken, slug]);
 
   const hosts = useMemo(() => {
     if (!data) {
@@ -616,10 +633,7 @@ export function EventDetailClient({
   const externalUrl = data.event.externalUrl ?? data.event.external_url;
   const isImported = data.event.is_imported;
   const transparencySource = data.event.import_source ?? data.event.external_source ?? t("common.none");
-  const hasEditorRole = auth.roles.some((role) =>
-    role === "admin" || role === "editor"
-  );
-  const canEdit = auth.ready && auth.authenticated && hasEditorRole;
+  const canEdit = data.canEdit === true;
   const lastSyncedRaw = data.event.lastSyncedAt ?? data.event.updated_at;
   const lastSyncedUtc = new Date(lastSyncedRaw).toLocaleDateString(locale, {
     day: "2-digit",
