@@ -65,28 +65,26 @@ export function ConfirmDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 style={{ margin: "0 0 12px", fontSize: "1.1rem" }}>{title}</h3>
-        <p style={{ margin: "0 0 20px", color: "var(--ink-muted)", lineHeight: 1.5 }}>{message}</p>
-        <div style={{ display: "flex", gap: 8, justifyContent: showDontShowAgain ? "space-between" : "flex-end", alignItems: "center" }}>
-          {showDontShowAgain && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 400, cursor: "pointer", margin: 0, color: "var(--ink-muted)" }}>
-              <input
-                type="checkbox"
-                checked={dontShowAgainChecked ?? false}
-                onChange={(e) => onDontShowAgainChange?.(e.target.checked)}
-              />
-              {t("manage.confirm.dontShowAgain")}
-            </label>
-          )}
-          <div style={{ display: "flex", gap: 8 }}>
-            {cancelLabel && (
-              <button type="button" className="ghost-btn" onClick={onCancel}>
-                {cancelLabel}
-              </button>
-            )}
-            <button type="button" className={confirmClass} onClick={onConfirm}>
-              {confirmLabel}
+        <p style={{ margin: "0 0 16px", color: "var(--ink-muted)", lineHeight: 1.5 }}>{message}</p>
+        {showDontShowAgain && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 400, cursor: "pointer", margin: "0 0 16px", color: "var(--ink-muted)" }}>
+            <input
+              type="checkbox"
+              checked={dontShowAgainChecked ?? false}
+              onChange={(e) => onDontShowAgainChange?.(e.target.checked)}
+            />
+            {t("manage.confirm.dontShowAgain")}
+          </label>
+        )}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          {cancelLabel && (
+            <button type="button" className="ghost-btn" onClick={onCancel}>
+              {cancelLabel}
             </button>
-          </div>
+          )}
+          <button type="button" className={confirmClass} onClick={onConfirm}>
+            {confirmLabel}
+          </button>
         </div>
       </div>
     </div>
