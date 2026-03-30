@@ -118,6 +118,7 @@ export function EventForm({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [navConfirmHref, setNavConfirmHref] = useState<string | null>(null);
+  const backHref = typeof window !== "undefined" ? (sessionStorage.getItem("manageEventsUrl") || "/manage/events") : "/manage/events";
 
   const slugManuallyEdited = useRef(false);
   const savedStatusRef = useRef<string>(initialState?.status ?? "draft");
@@ -997,7 +998,7 @@ export function EventForm({
             <button
               type="button"
               className="ghost-btn manage-back-btn"
-              onClick={() => isDirty ? setNavConfirmHref("/manage/events") : router.push("/manage/events")}
+              onClick={() => isDirty ? setNavConfirmHref(backHref) : router.push(backHref)}
             >
               ← {t("manage.sidebar.myEvents")}
             </button>

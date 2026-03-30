@@ -186,6 +186,7 @@ export function HostForm({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [unpublishActiveConfirm, setUnpublishActiveConfirm] = useState(false);
   const [navConfirmHref, setNavConfirmHref] = useState<string | null>(null);
+  const backHref = typeof window !== "undefined" ? (sessionStorage.getItem("manageHostsUrl") || "/manage/hosts") : "/manage/hosts";
   const pendingForcePayload = useRef<Record<string, unknown> | null>(null);
   const slugManuallyEdited = useRef(false);
   const savedFormRef = useRef<string>(JSON.stringify(initialState ?? newHostFormState()));
@@ -876,7 +877,7 @@ export function HostForm({
             <button
               type="button"
               className="ghost-btn manage-back-btn"
-              onClick={() => isDirty ? setNavConfirmHref("/manage/hosts") : router.push("/manage/hosts")}
+              onClick={() => isDirty ? setNavConfirmHref(backHref) : router.push(backHref)}
             >
               ← {t("manage.sidebar.myHosts")}
             </button>

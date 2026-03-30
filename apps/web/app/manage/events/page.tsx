@@ -197,6 +197,7 @@ export default function MyEventsPage() {
     const qs = filtersToParams(filters);
     const url = qs ? `${pathname}?${qs}` : pathname;
     window.history.replaceState(window.history.state, "", url);
+    try { sessionStorage.setItem("manageEventsUrl", url); } catch {}
   }, [filters, pathname]);
 
   /* ── sync URL → filters (browser back/forward) ── */

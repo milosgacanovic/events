@@ -123,6 +123,7 @@ export default function MyHostsPage() {
     const qs = hostFiltersToParams({ search, statusFilter, profileRoleIds, practiceCategoryIds, languages, countryCodes, cities, sortBy, page });
     const url = qs ? `${pathname}?${qs}` : pathname;
     window.history.replaceState(window.history.state, "", url);
+    try { sessionStorage.setItem("manageHostsUrl", url); } catch {}
   }, [search, statusFilter, profileRoleIds, practiceCategoryIds, languages, countryCodes, cities, sortBy, page, pathname]);
 
   /* ── sync URL → filters (browser back/forward) ── */
