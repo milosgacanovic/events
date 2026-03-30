@@ -142,7 +142,7 @@ export function EventForm({
     if (isStatusSuccess) {
       toastTimer.current = setTimeout(() => {
         setToastLeaving(true);
-        setTimeout(() => { setStatus(""); setToastLeaving(false); }, 300);
+        setTimeout(() => { setStatus(""); setToastLeaving(false); }, 500);
       }, 3000);
     }
     return () => clearTimeout(toastTimer.current);

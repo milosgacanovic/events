@@ -1590,6 +1590,44 @@ label.meta {
   color: var(--ink);
 }
 
+.event-status-banner {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.event-status-banner--draft {
+  background: #fff3cd;
+  color: #664d03;
+  border: 1px solid #ffecb5;
+}
+.event-status-banner--archived {
+  background: #e2e3e5;
+  color: #41464b;
+  border: 1px solid #d3d6d8;
+}
+.event-status-banner--cancelled {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+[data-theme="dark"] .event-status-banner--draft {
+  background: #332b00;
+  color: #ffe69c;
+  border-color: #554400;
+}
+[data-theme="dark"] .event-status-banner--archived {
+  background: #2c2c2c;
+  color: #adb5bd;
+  border-color: #444;
+}
+[data-theme="dark"] .event-status-banner--cancelled {
+  background: #3b1114;
+  color: #f5c6cb;
+  border-color: #582024;
+}
+
 .event-detail-header {
   display: flex;
   align-items: flex-start;

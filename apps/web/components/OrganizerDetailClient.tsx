@@ -31,6 +31,7 @@ export type OrganizerDetail = {
     externalUrl?: string | null;
     tags: string[];
     languages: string[];
+    status?: string;
     city?: string | null;
     country_code?: string | null;
     countryCode?: string | null;
@@ -204,6 +205,9 @@ export function OrganizerDetailClient({ slug, serverTranslations }: {
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
 
   useEffect(() => {
+    // Wait for auth to resolve before fetching so we don't flash "Not found"
+    // for non-published hosts the user has access to
+    if (!auth.ready) return;
     setError(null);
     (async () => {
       const token = auth.authenticated ? await auth.getToken() : null;
@@ -212,7 +216,7 @@ export function OrganizerDetailClient({ slug, serverTranslations }: {
     })()
       .then(setData)
       .catch((err) => setError(err instanceof Error ? err.message : t("organizerDetail.error.fetchFailed")));
-  }, [auth.authenticated, auth.getToken, slug, t]);
+  }, [auth.ready, auth.authenticated, auth.getToken, slug, t]);
 
   useEffect(() => {
     fetchJson<TaxonomyResponse>("/meta/taxonomies")
@@ -396,6 +400,15 @@ export function OrganizerDetailClient({ slug, serverTranslations }: {
   return (
     <section className="panel cards" style={{ maxWidth: 760, margin: "0 auto" }}>
       {breadcrumb}
+
+      {/* Non-published status banner */}
+      {data.organizer.status && data.organizer.status !== "published" && (
+        <div className={`event-status-banner event-status-banner--${data.organizer.status}`}>
+          {data.organizer.status === "draft" && t("eventDetail.statusBanner.draftHost")}
+          {data.organizer.status === "archived" && t("eventDetail.statusBanner.archivedHost")}
+        </div>
+      )}
+
       <div className="organizer-profile-header">
         <div className="organizer-avatar-shell" aria-hidden={!organizerImage}>
           {organizerImage ? (

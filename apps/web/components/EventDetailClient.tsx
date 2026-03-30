@@ -75,6 +75,7 @@ export type EventDetail = {
     practice_subcategory_id: string | null;
     event_format_id: string | null;
     tags: string[];
+    status?: string;
   };
   organizers: Array<{
     organizer_id: string;
@@ -279,6 +280,14 @@ export function EventDetailClient({
       };
     }
 
+    // Wait for auth to resolve before fetching so we don't flash "Not found"
+    // for non-published events the user has access to
+    if (!auth.ready) {
+      return () => {
+        active = false;
+      };
+    }
+
     (async () => {
       const token = auth.authenticated ? await auth.getToken() : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
@@ -319,7 +328,7 @@ export function EventDetailClient({
     return () => {
       active = false;
     };
-  }, [auth.authenticated, auth.getToken, initialData, slug, t]);
+  }, [auth.ready, auth.authenticated, auth.getToken, initialData, slug, t]);
 
   const hosts = useMemo(() => {
     if (!data) {
@@ -712,6 +721,15 @@ export function EventDetailClient({
           )}
         </div>
       </nav>
+
+      {/* Non-published status banner */}
+      {data.event.status && data.event.status !== "published" && (
+        <div className={`event-status-banner event-status-banner--${data.event.status}`}>
+          {data.event.status === "draft" && t("eventDetail.statusBanner.draft")}
+          {data.event.status === "archived" && t("eventDetail.statusBanner.archived")}
+          {data.event.status === "cancelled" && t("eventDetail.statusBanner.cancelled")}
+        </div>
+      )}
 
       {/* Header */}
       <div className="event-detail-header">

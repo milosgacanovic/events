@@ -772,13 +772,18 @@ textarea.field-invalid {
 }
 
 .manage-save-toast {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(100% + 8px);
   padding: 10px 20px;
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 500;
-  margin-bottom: 6px;
-  animation: toast-slide-up 0.25s ease-out;
+  animation: toast-slide-up 0.4s ease-out;
   text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
 }
 .manage-save-toast--success {
   background: var(--success-bg, #d4edda);
@@ -791,15 +796,15 @@ textarea.field-invalid {
   border: 1px solid var(--danger-border, #f5c6cb);
 }
 @keyframes toast-slide-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 .manage-save-toast--leaving {
-  animation: toast-fade-out 0.3s ease-in forwards;
+  animation: toast-fade-out 0.5s ease-in forwards;
 }
 @keyframes toast-fade-out {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to { opacity: 0; transform: translateX(-50%) translateY(-8px); }
 }
 
 .manage-view-entity-btn {
