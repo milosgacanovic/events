@@ -228,11 +228,16 @@ export function HostForm({
   const isStatusError = status.startsWith(t("manage.form.errorPrefix", { message: "" }).split("{")[0] || "⚠");
   const isStatusSuccess = !!status && !isStatusError && status !== t("manage.form.saving") && status !== t("manage.form.edited");
 
+  const [toastLeaving, setToastLeaving] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     clearTimeout(toastTimer.current);
+    setToastLeaving(false);
     if (isStatusSuccess) {
-      toastTimer.current = setTimeout(() => setStatus(""), 3000);
+      toastTimer.current = setTimeout(() => {
+        setToastLeaving(true);
+        setTimeout(() => { setStatus(""); setToastLeaving(false); }, 300);
+      }, 3000);
     }
     return () => clearTimeout(toastTimer.current);
   }, [status, isStatusSuccess]);
@@ -827,7 +832,7 @@ export function HostForm({
       {/* Actions */}
       <div className="manage-form-actions-wrap">
         {status && (
-          <div className={`manage-save-toast ${isStatusError ? "manage-save-toast--error" : "manage-save-toast--success"}`}>
+          <div className={`manage-save-toast ${isStatusError ? "manage-save-toast--error" : "manage-save-toast--success"} ${toastLeaving ? "manage-save-toast--leaving" : ""}`}>
             {status}
           </div>
         )}
