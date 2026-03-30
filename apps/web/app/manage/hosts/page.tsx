@@ -4,8 +4,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const HostLeafletClusterMap = dynamic(
-  () => import("../../../components/HostLeafletClusterMap").then((m) => m.HostLeafletClusterMap),
+const ManageMapView = dynamic(
+  () => import("../../../components/manage/ManageMapView").then((m) => m.ManageMapView),
   { ssr: false },
 );
 
@@ -339,7 +339,7 @@ export default function MyHostsPage() {
         {/* Map view */}
         {view === "map" && !error && (
           <div style={{ height: 500, borderRadius: 8, overflow: "hidden" }}>
-            <HostLeafletClusterMap queryString={mapQueryString} />
+            <ManageMapView getToken={getToken} endpoint="/admin/organizers/map" queryString={mapQueryString} entityType="host" refreshToken={0} />
           </div>
         )}
 

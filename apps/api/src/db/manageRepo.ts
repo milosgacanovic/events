@@ -921,3 +921,205 @@ export async function getAdminRecentActivity(pool: Pool) {
     activityAt: r.activity_at,
   }));
 }
+
+/**
+ * Returns GeoJSON FeatureCollection of the user's managed events that have locations.
+ */
+export async function fetchManagedEventMapPoints(
+  pool: Pool,
+  userId: string,
+  input: {
+    q?: string;
+    status?: string;
+    practiceCategoryId?: string;
+  },
+) {
+  const values: unknown[] = [userId];
+  const whereParts: string[] = [];
+
+  if (input.q) {
+    values.push(`%${input.q}%`);
+    const idx = values.length;
+    whereParts.push(`(e.title ilike $${idx} or e.slug ilike $${idx})`);
+  }
+
+  if (input.status) {
+    const statuses = input.status.split(",").map((s) => s.trim()).filter(Boolean);
+    if (statuses.length === 1) {
+      values.push(statuses[0]);
+      whereParts.push(`e.status = $${values.length}`);
+    } else if (statuses.length > 1) {
+      values.push(statuses);
+      whereParts.push(`e.status = ANY($${values.length}::text[])`);
+    }
+  }
+
+  if (input.practiceCategoryId) {
+    const ids = input.practiceCategoryId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`e.practice_category_id = $${values.length}`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`e.practice_category_id = ANY($${values.length}::uuid[])`);
+    }
+  }
+
+  const extraWhere = whereParts.length ? `and ${whereParts.join(" and ")}` : "";
+
+  const ownershipCte = `
+    with managed_event_ids as (
+      select e.id from events e where e.created_by_user_id = $1
+      union
+      select eo.event_id as id
+        from event_organizers eo
+        join host_users hu on hu.organizer_id = eo.organizer_id
+        where hu.user_id = $1
+      union
+      select eu.event_id as id from event_users eu where eu.user_id = $1
+    )
+  `;
+
+  const result = await pool.query<{
+    event_id: string;
+    event_slug: string;
+    event_title: string;
+    status: string;
+    lat: number;
+    lng: number;
+  }>(
+    `
+      ${ownershipCte}
+      select distinct on (e.id)
+        e.id as event_id,
+        e.slug as event_slug,
+        e.title as event_title,
+        e.status,
+        st_y(loc.geom::geometry) as lat,
+        st_x(loc.geom::geometry) as lng
+      from events e
+      join managed_event_ids m on m.id = e.id
+      join event_locations el on el.event_id = e.id
+      join locations loc on loc.id = el.location_id
+      where loc.geom is not null
+        ${extraWhere}
+      order by e.id, el.id
+      limit 500
+    `,
+    values,
+  );
+
+  return {
+    type: "FeatureCollection" as const,
+    features: result.rows.map((r) => ({
+      type: "Feature" as const,
+      geometry: {
+        type: "Point" as const,
+        coordinates: [r.lng, r.lat],
+      },
+      properties: {
+        event_id: r.event_id,
+        event_slug: r.event_slug,
+        event_title: r.event_title,
+        status: r.status,
+        lat: r.lat,
+        lng: r.lng,
+      },
+    })),
+  };
+}
+
+/**
+ * Returns GeoJSON FeatureCollection of the user's managed organizers that have locations.
+ */
+export async function fetchManagedOrganizerMapPoints(
+  pool: Pool,
+  userId: string,
+  input: {
+    q?: string;
+    status?: string;
+    practiceCategoryId?: string;
+  },
+) {
+  const values: unknown[] = [userId];
+  const whereParts: string[] = [];
+
+  if (input.q) {
+    values.push(`%${input.q}%`);
+    const idx = values.length;
+    whereParts.push(`(o.name ilike $${idx} or o.slug ilike $${idx})`);
+  }
+
+  if (input.status) {
+    values.push(input.status);
+    whereParts.push(`o.status = $${values.length}`);
+  }
+
+  if (input.practiceCategoryId) {
+    const ids = input.practiceCategoryId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_practices op WHERE op.organizer_id = o.id AND op.practice_id = $${values.length})`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_practices op WHERE op.organizer_id = o.id AND op.practice_id = ANY($${values.length}::uuid[]))`);
+    }
+  }
+
+  const extraWhere = whereParts.length ? `and ${whereParts.join(" and ")}` : "";
+
+  const ownershipCte = `
+    with managed_org_ids as (
+      select o.id from organizers o where o.created_by_user_id = $1
+      union
+      select hu.organizer_id as id from host_users hu where hu.user_id = $1
+    )
+  `;
+
+  const result = await pool.query<{
+    organizer_id: string;
+    organizer_slug: string;
+    organizer_name: string;
+    status: string;
+    lat: number;
+    lng: number;
+  }>(
+    `
+      ${ownershipCte}
+      select distinct on (o.id)
+        o.id as organizer_id,
+        o.slug as organizer_slug,
+        o.name as organizer_name,
+        o.status,
+        st_y(ol.geom::geometry) as lat,
+        st_x(ol.geom::geometry) as lng
+      from organizers o
+      join managed_org_ids m on m.id = o.id
+      join organizer_locations ol on ol.organizer_id = o.id
+      where ol.geom is not null
+        ${extraWhere}
+      order by o.id, ol.created_at desc, ol.id desc
+      limit 500
+    `,
+    values,
+  );
+
+  return {
+    type: "FeatureCollection" as const,
+    features: result.rows.map((r) => ({
+      type: "Feature" as const,
+      geometry: {
+        type: "Point" as const,
+        coordinates: [r.lng, r.lat],
+      },
+      properties: {
+        organizer_id: r.organizer_id,
+        organizer_slug: r.organizer_slug,
+        organizer_name: r.organizer_name,
+        status: r.status,
+        lat: r.lat,
+        lng: r.lng,
+      },
+    })),
+  };
+}

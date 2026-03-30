@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-const LeafletClusterMap = dynamic(
-  () => import("../../../components/LeafletClusterMap").then((m) => m.LeafletClusterMap),
+const ManageMapView = dynamic(
+  () => import("../../../components/manage/ManageMapView").then((m) => m.ManageMapView),
   { ssr: false },
 );
 
@@ -510,7 +510,7 @@ export default function MyEventsPage() {
         {/* Map view */}
         {view === "map" && !error && (
           <div style={{ height: 500, borderRadius: 8, overflow: "hidden" }}>
-            <LeafletClusterMap queryString={mapQueryString} refreshToken={facetRefreshKey} timeDisplayMode="event" />
+            <ManageMapView getToken={getToken} endpoint="/admin/events/map" queryString={mapQueryString} entityType="event" refreshToken={facetRefreshKey} />
           </div>
         )}
 

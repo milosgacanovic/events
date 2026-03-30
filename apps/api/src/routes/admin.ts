@@ -30,6 +30,7 @@ import {
 } from "../db/userManageRepo";
 import { getUiLabels, updateUiLabels } from "../db/uiLabelRepo";
 import { resolveUserId } from "../middleware/ownership";
+import { fetchManagedEventMapPoints, fetchManagedOrganizerMapPoints } from "../db/manageRepo";
 
 const createPracticeSchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
@@ -502,6 +503,31 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     );
     if (!result.rows[0]) { reply.code(404); return { error: "not_found_or_not_detached" }; }
     return { ok: true };
+  });
+
+  // --- Manage map endpoints ---
+  app.get("/admin/events/map", async (request) => {
+    await app.requireEditor(request);
+    const auth = request.auth!;
+    const userId = await resolveUserId(app.db, auth);
+    const q = request.query as Record<string, string>;
+    return fetchManagedEventMapPoints(app.db, userId, {
+      q: q.q,
+      status: q.status,
+      practiceCategoryId: q.practiceCategoryId,
+    });
+  });
+
+  app.get("/admin/organizers/map", async (request) => {
+    await app.requireEditor(request);
+    const auth = request.auth!;
+    const userId = await resolveUserId(app.db, auth);
+    const q = request.query as Record<string, string>;
+    return fetchManagedOrganizerMapPoints(app.db, userId, {
+      q: q.q,
+      status: q.status,
+      practiceCategoryId: q.practiceCategoryId,
+    });
   });
 
 };
