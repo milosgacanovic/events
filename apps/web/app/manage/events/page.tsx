@@ -2,8 +2,8 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const ManageMapView = dynamic(
   () => import("../../../components/manage/ManageMapView").then((m) => m.ManageMapView),
@@ -131,19 +131,76 @@ const FACET_GROUPS: FacetGroupSpec[] = [
 
 const PAGE_SIZE = 20;
 
+function filtersFromParams(sp: URLSearchParams): Filters {
+  const csv = (key: string) => sp.get(key)?.split(",").filter(Boolean) ?? [];
+  return {
+    q: sp.get("q") ?? "",
+    statuses: csv("status"),
+    timeFilter: sp.get("time") ?? "",
+    attendanceModes: csv("attendanceMode"),
+    practiceCategoryIds: csv("practiceCategoryId"),
+    eventFormatIds: csv("eventFormatId"),
+    languages: csv("languages"),
+    countryCodes: csv("countryCode"),
+    cities: csv("cities"),
+    tags: csv("tags"),
+    sortBy: sp.get("sort") ?? "",
+    page: Number(sp.get("page")) || 1,
+  };
+}
+
+function filtersToParams(f: Filters): string {
+  const p = new URLSearchParams();
+  if (f.q) p.set("q", f.q);
+  if (f.statuses.length) p.set("status", f.statuses.join(","));
+  if (f.timeFilter) p.set("time", f.timeFilter);
+  if (f.attendanceModes.length) p.set("attendanceMode", f.attendanceModes.join(","));
+  if (f.practiceCategoryIds.length) p.set("practiceCategoryId", f.practiceCategoryIds.join(","));
+  if (f.eventFormatIds.length) p.set("eventFormatId", f.eventFormatIds.join(","));
+  if (f.languages.length) p.set("languages", f.languages.join(","));
+  if (f.countryCodes.length) p.set("countryCode", f.countryCodes.join(","));
+  if (f.cities.length) p.set("cities", f.cities.join(","));
+  if (f.tags.length) p.set("tags", f.tags.join(","));
+  if (f.sortBy) p.set("sort", f.sortBy);
+  if (f.page > 1) p.set("page", String(f.page));
+  return p.toString();
+}
+
 export default function MyEventsPage() {
   const { getToken, roles } = useKeycloakAuth();
   const { locale, t } = useI18n();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   /* ── filter state ── */
-  const [filters, setFiltersRaw] = useState<Filters>(DEFAULT_FILTERS);
+  const [filters, setFiltersRaw] = useState<Filters>(() => filtersFromParams(searchParams));
+  const syncingFromUrl = useRef(false);
+
   const setFilter = useCallback(<K extends keyof Filters>(key: K, value: Filters[K]) => {
     setFiltersRaw((prev) => ({ ...prev, [key]: value }));
   }, []);
   const setFilters = useCallback((patch: Partial<Filters>) => {
     setFiltersRaw((prev) => ({ ...prev, ...patch }));
   }, []);
+
+  /* ── sync filters → URL ── */
+  useEffect(() => {
+    if (syncingFromUrl.current) return;
+    const qs = filtersToParams(filters);
+    const url = qs ? `${pathname}?${qs}` : pathname;
+    window.history.replaceState(window.history.state, "", url);
+  }, [filters, pathname]);
+
+  /* ── sync URL → filters (browser back/forward) ── */
+  useEffect(() => {
+    const fromUrl = filtersFromParams(searchParams);
+    if (JSON.stringify(fromUrl) !== JSON.stringify(filters)) {
+      syncingFromUrl.current = true;
+      setFiltersRaw(fromUrl);
+      setTimeout(() => { syncingFromUrl.current = false; }, 0);
+    }
+  }, [searchParams]);
 
   const {
     q,

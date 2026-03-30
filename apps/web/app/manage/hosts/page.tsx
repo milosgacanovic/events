@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 const ManageMapView = dynamic(
   () => import("../../../components/manage/ManageMapView").then((m) => m.ManageMapView),
@@ -71,22 +72,40 @@ type FacetsResponse = {
 
 const PAGE_SIZE = 20;
 
+function hostFiltersToParams(f: { search: string; statusFilter: string; profileRoleIds: string[]; practiceCategoryIds: string[]; languages: string[]; countryCodes: string[]; cities: string[]; sortBy: string; page: number }): string {
+  const p = new URLSearchParams();
+  if (f.search) p.set("q", f.search);
+  if (f.statusFilter) p.set("status", f.statusFilter);
+  if (f.profileRoleIds.length) p.set("roleId", f.profileRoleIds.join(","));
+  if (f.practiceCategoryIds.length) p.set("practiceCategoryId", f.practiceCategoryIds.join(","));
+  if (f.languages.length) p.set("languages", f.languages.join(","));
+  if (f.countryCodes.length) p.set("countryCode", f.countryCodes.join(","));
+  if (f.cities.length) p.set("cities", f.cities.join(","));
+  if (f.sortBy) p.set("sort", f.sortBy);
+  if (f.page > 1) p.set("page", String(f.page));
+  return p.toString();
+}
+
 export default function MyHostsPage() {
   const { getToken, roles } = useKeycloakAuth();
   const { locale, t } = useI18n();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const syncingFromUrl = useRef(false);
 
-  /* ── data state ── */
+  /* ── data state (initialized from URL) ── */
+  const csv = (key: string) => searchParams.get(key)?.split(",").filter(Boolean) ?? [];
   const [hosts, setHosts] = useState<HostItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [profileRoleIds, setProfileRoleIds] = useState<string[]>([]);
-  const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>([]);
-  const [languages, setLanguages] = useState<string[]>([]);
-  const [countryCodes, setCountryCodes] = useState<string[]>([]);
-  const [cities, setCities] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState("");
+  const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
+  const [search, setSearch] = useState(searchParams.get("q") ?? "");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") ?? "");
+  const [profileRoleIds, setProfileRoleIds] = useState<string[]>(csv("roleId"));
+  const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>(csv("practiceCategoryId"));
+  const [languages, setLanguages] = useState<string[]>(csv("languages"));
+  const [countryCodes, setCountryCodes] = useState<string[]>(csv("countryCode"));
+  const [cities, setCities] = useState<string[]>(csv("cities"));
+  const [sortBy, setSortBy] = useState(searchParams.get("sort") ?? "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
@@ -97,6 +116,31 @@ export default function MyHostsPage() {
   const [unpublishConfirmHostId, setUnpublishConfirmHostId] = useState<string | null>(null);
 
   const isAdmin = roles.includes(ROLE_ADMIN);
+
+  /* ── sync filters → URL ── */
+  useEffect(() => {
+    if (syncingFromUrl.current) return;
+    const qs = hostFiltersToParams({ search, statusFilter, profileRoleIds, practiceCategoryIds, languages, countryCodes, cities, sortBy, page });
+    const url = qs ? `${pathname}?${qs}` : pathname;
+    window.history.replaceState(window.history.state, "", url);
+  }, [search, statusFilter, profileRoleIds, practiceCategoryIds, languages, countryCodes, cities, sortBy, page, pathname]);
+
+  /* ── sync URL → filters (browser back/forward) ── */
+  useEffect(() => {
+    syncingFromUrl.current = true;
+    const sp = searchParams;
+    const csvParse = (key: string) => sp.get(key)?.split(",").filter(Boolean) ?? [];
+    setSearch(sp.get("q") ?? "");
+    setStatusFilter(sp.get("status") ?? "");
+    setProfileRoleIds(csvParse("roleId"));
+    setPracticeCategoryIds(csvParse("practiceCategoryId"));
+    setLanguages(csvParse("languages"));
+    setCountryCodes(csvParse("countryCode"));
+    setCities(csvParse("cities"));
+    setSortBy(sp.get("sort") ?? "");
+    setPage(Number(sp.get("page")) || 1);
+    setTimeout(() => { syncingFromUrl.current = false; }, 0);
+  }, [searchParams]);
 
   /* ── Intl display names ── */
   const languageNames = useMemo(() => {
