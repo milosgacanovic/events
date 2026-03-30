@@ -41,33 +41,12 @@ export function ConfirmDialog({
         : "primary-btn";
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.4)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          background: "var(--surface, #fff)",
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 420,
-          width: "90%",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{ margin: "0 0 12px", fontSize: "1.1rem" }}>{title}</h3>
-        <p style={{ margin: "0 0 16px", color: "var(--ink-muted)", lineHeight: 1.5 }}>{message}</p>
+    <div className="confirm-dialog-overlay" onClick={onCancel}>
+      <div className="confirm-dialog-card" onClick={(e) => e.stopPropagation()}>
+        <h3 className="confirm-dialog-title">{title}</h3>
+        <p className="confirm-dialog-message">{message}</p>
         {showDontShowAgain && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 400, cursor: "pointer", margin: "0 0 16px", color: "var(--ink-muted)" }}>
+          <label className="confirm-dialog-checkbox">
             <input
               type="checkbox"
               checked={dontShowAgainChecked ?? false}
@@ -76,7 +55,7 @@ export function ConfirmDialog({
             {t("manage.confirm.dontShowAgain")}
           </label>
         )}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div className="confirm-dialog-buttons">
           {cancelLabel && (
             <button type="button" className="ghost-btn" onClick={onCancel}>
               {cancelLabel}
