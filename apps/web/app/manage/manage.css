@@ -775,6 +775,11 @@ textarea.field-invalid {
 
 .manage-back-btn {
   white-space: nowrap;
+  font-size: 0.85rem;
+  color: var(--ink-muted, #666);
+}
+.manage-back-btn:hover {
+  color: var(--ink);
 }
 
 .manage-form-actions-wrap {
@@ -820,7 +825,6 @@ textarea.field-invalid {
 }
 
 .manage-view-entity-btn {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 4px;
