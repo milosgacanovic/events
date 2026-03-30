@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
+import { ConfirmDialog } from "../../../../components/manage/ConfirmDialog";
 import { authorizedGet, authorizedPatch } from "../../../../lib/manageApi";
 
 type TagSuggestionItem = {
@@ -38,6 +39,7 @@ export default function AdminTagSuggestionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [alertMsg, setAlertMsg] = useState("");
   const pageSize = 20;
 
   const load = useCallback(async () => {
@@ -64,7 +66,7 @@ export default function AdminTagSuggestionsPage() {
       await authorizedPatch(getToken, `/admin/tag-suggestions/${id}`, { status });
       void load();
     } catch {
-      alert("Action failed. Please try again.");
+      setAlertMsg("Action failed. Please try again.");
     } finally {
       setActionLoading(null);
     }
@@ -154,6 +156,14 @@ export default function AdminTagSuggestionsPage() {
           )}
         </>
       )}
+      <ConfirmDialog
+        open={!!alertMsg}
+        title={t("manage.confirm.title")}
+        message={alertMsg}
+        confirmLabel={t("common.action.ok")}
+        onConfirm={() => setAlertMsg("")}
+        onCancel={() => setAlertMsg("")}
+      />
     </div>
   );
 }

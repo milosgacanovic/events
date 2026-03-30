@@ -9,6 +9,7 @@ vi.mock("../db/eventRepo", () => ({
   searchEventsFallback: vi.fn(),
   setEventOrganizers: vi.fn(),
   updateEvent: vi.fn(),
+  eventHasOrganizers: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("../db/locationRepo", () => ({

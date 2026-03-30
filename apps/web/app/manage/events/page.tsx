@@ -27,6 +27,7 @@ import {
   TagsFacetFilter,
 } from "../../../components/manage/ManageFilterSections";
 import { ManageResultsToolbar } from "../../../components/manage/ManageResultsToolbar";
+import { ConfirmDialog } from "../../../components/manage/ConfirmDialog";
 import { authorizedGet, authorizedPost, authorizedDelete } from "../../../lib/manageApi";
 import { apiBase } from "../../../lib/api";
 import { useDisjunctiveFacets, FacetGroupSpec } from "../../../lib/useDisjunctiveFacets";
@@ -167,6 +168,8 @@ export default function MyEventsPage() {
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [publishHostDialog, setPublishHostDialog] = useState<string | null>(null);
+  const [noHostDontShow, setNoHostDontShow] = useState(false);
+  const [alertMsg, setAlertMsg] = useState("");
   const [view, setView] = useState<"list" | "map">("list");
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
   const [userHostCount, setUserHostCount] = useState<number | null>(null);
@@ -284,7 +287,7 @@ export default function MyEventsPage() {
       setFacetRefreshKey((k) => k + 1);
       load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : t("manage.form.unknownError"));
+      setAlertMsg(err instanceof Error ? err.message : t("manage.form.unknownError"));
     }
   }
 
@@ -620,59 +623,38 @@ export default function MyEventsPage() {
         ) : null}
       </div>
 
-      {/* Publish requires host dialog */}
-      {publishHostDialog && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setPublishHostDialog(null)}
-        >
-          <div
-            style={{
-              background: "var(--surface, #fff)",
-              borderRadius: 12,
-              padding: 24,
-              maxWidth: 420,
-              width: "90%",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ margin: "0 0 12px", fontSize: "1.1rem" }}>
-              {t("manage.eventForm.publishRequiresHostTitle")}
-            </h3>
-            <p style={{ margin: "0 0 20px", color: "var(--ink-muted)", lineHeight: 1.5 }}>
-              {t("manage.eventForm.publishRequiresHost")}
-            </p>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                className="ghost-btn"
-                onClick={() => setPublishHostDialog(null)}
-              >
-                {t("manage.form.cancel")}
-              </button>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={() => {
-                  setPublishHostDialog(null);
-                  router.push(`/manage/events/${publishHostDialog}#hosts`);
-                }}
-              >
-                {t("manage.eventForm.goToHosts")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Publish requires host warning */}
+      <ConfirmDialog
+        open={!!publishHostDialog}
+        title={t("manage.eventForm.noHostWarningTitle")}
+        message={t("manage.eventForm.noHostWarningMessage")}
+        confirmLabel={t("manage.eventForm.noHostIgnore")}
+        cancelLabel={t("manage.eventForm.noHostAddHost")}
+        variant="warning"
+        showDontShowAgain
+        dontShowAgainChecked={noHostDontShow}
+        onDontShowAgainChange={setNoHostDontShow}
+        onConfirm={() => {
+          const eventId = publishHostDialog;
+          setPublishHostDialog(null);
+          if (noHostDontShow) localStorage.setItem("hideNoHostWarning", "true");
+          if (eventId) void authorizedPost(getToken, `/events/${eventId}/publish`, { force: true }).then(() => { setFacetRefreshKey((k) => k + 1); load(); });
+        }}
+        onCancel={() => {
+          const eventId = publishHostDialog;
+          setPublishHostDialog(null);
+          if (eventId) router.push(`/manage/events/${eventId}#hosts`);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!alertMsg}
+        title={t("manage.confirm.title")}
+        message={alertMsg}
+        confirmLabel={t("common.action.ok")}
+        onConfirm={() => setAlertMsg("")}
+        onCancel={() => setAlertMsg("")}
+      />
     </section>
   );
 }

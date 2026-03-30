@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useI18n } from "../i18n/I18nProvider";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { apiBase } from "../../lib/api";
 import { formatDateTimeRange } from "../../lib/datetime";
 import { getLocalizedRegionLabel } from "../../lib/i18n/icuFallback";
@@ -71,6 +72,7 @@ export function ManageEventCard({
   onReattach,
 }: ManageEventCardProps) {
   const { t, locale } = useI18n();
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; variant?: "warning" | "danger" | "info" } | null>(null);
   const imageUrl = resolveImageUrl(coverImagePath);
   const statusKey = ["published", "draft", "cancelled", "archived", "unlisted"].includes(status) ? status : "draft";
 
@@ -126,22 +128,22 @@ export function ManageEventCard({
             </button>
           )}
           {status === "published" && onUnpublish && (
-            <button type="button" className="manage-card-action-btn manage-btn-unpublish" onClick={() => { if (confirm(t("manage.eventCard.confirmUnpublish"))) onUnpublish(); }}>
+            <button type="button" className="manage-card-action-btn manage-btn-unpublish" onClick={() => setConfirmAction({ action: onUnpublish, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmUnpublish"), variant: "warning" })}>
               {t("manage.eventCard.unpublish")}
             </button>
           )}
           {status === "published" && onCancel && (
-            <button type="button" className="manage-card-action-btn manage-btn-cancel" onClick={() => { if (confirm(t("manage.eventCard.confirmCancel"))) onCancel(); }}>
+            <button type="button" className="manage-card-action-btn manage-btn-cancel" onClick={() => setConfirmAction({ action: onCancel, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmCancel"), variant: "warning" })}>
               {t("manage.common.cancel")}
             </button>
           )}
           {onArchive && status !== "archived" && (
-            <button type="button" className="manage-card-action-btn manage-btn-cancel" onClick={() => { if (confirm(t("manage.eventCard.confirmArchive"))) onArchive(); }}>
+            <button type="button" className="manage-card-action-btn manage-btn-cancel" onClick={() => setConfirmAction({ action: onArchive, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmArchive"), variant: "warning" })}>
               {t("manage.eventCard.archive")}
             </button>
           )}
           {onDelete && (
-            <button type="button" className="manage-card-action-btn manage-btn-delete" onClick={() => { if (confirm(t("manage.eventCard.confirmDelete"))) onDelete(); }}>
+            <button type="button" className="manage-card-action-btn manage-btn-delete" onClick={() => setConfirmAction({ action: onDelete, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmDelete"), variant: "danger" })}>
               {t("manage.eventCard.delete")}
             </button>
           )}
@@ -181,6 +183,16 @@ export function ManageEventCard({
           <span key={tag} className="tag tag-tag">{t(`tag.${tag.replace(/ /g, "-")}`)}</span>
         ))}
       </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title ?? ""}
+        message={confirmAction?.message ?? ""}
+        confirmLabel={t("common.action.ok")}
+        cancelLabel={t("manage.common.cancel")}
+        variant={confirmAction?.variant}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null); }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }
@@ -203,16 +215,28 @@ function DraftChip({ id, kind }: { id: string; kind: "events" | "hosts" }) {
 function ArchivedChip({ onUnarchive, confirmKey }: { onUnarchive: () => void; confirmKey: string }) {
   const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   return (
-    <button
-      type="button"
-      className="tag manage-status-pill manage-status-pill--archived manage-status-chip-interactive"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={() => { if (confirm(t(confirmKey))) onUnarchive(); }}
-    >
-      {hovered ? t("manage.eventCard.unarchive") : t("common.status.archived")}
-    </button>
+    <>
+      <button
+        type="button"
+        className="tag manage-status-pill manage-status-pill--archived manage-status-chip-interactive"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => setShowConfirm(true)}
+      >
+        {hovered ? t("manage.eventCard.unarchive") : t("common.status.archived")}
+      </button>
+      <ConfirmDialog
+        open={showConfirm}
+        title={t("manage.confirm.title")}
+        message={t(confirmKey)}
+        confirmLabel={t("common.action.ok")}
+        cancelLabel={t("manage.common.cancel")}
+        onConfirm={() => { setShowConfirm(false); onUnarchive(); }}
+        onCancel={() => setShowConfirm(false)}
+      />
+    </>
   );
 }
 

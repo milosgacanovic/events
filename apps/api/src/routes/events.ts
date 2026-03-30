@@ -714,6 +714,8 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
+    const forceFlag = z.object({ force: z.boolean().default(false) }).safeParse(request.body).data?.force ?? false;
+
     const normalizedInput = {
       ...parsed.data,
       coverImagePath: resolveCoverImagePath(parsed.data),
@@ -746,7 +748,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     // Publish gate: if status is being set to published, check requirements
     if (normalizedInput.status === "published" && previousEvent && previousEvent.status !== "published") {
       const hasHosts = await eventHasOrganizers(app.db, params.data.id);
-      if (!hasHosts) {
+      if (!hasHosts && !forceFlag) {
         reply.code(400);
         return { error: "publish_requires_host" };
       }
@@ -854,8 +856,11 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const skipSearch = z.object({ skipSearch: z.coerce.boolean().default(false) })
       .safeParse(request.query).data?.skipSearch ?? false;
 
+    const body = z.object({ force: z.boolean().default(false) }).safeParse(request.body ?? {});
+    const force = body.data?.force ?? false;
+
     const hasHosts = await eventHasOrganizers(app.db, params.data.id);
-    if (!hasHosts) {
+    if (!hasHosts && !force) {
       reply.code(400);
       return { error: "publish_requires_host" };
     }

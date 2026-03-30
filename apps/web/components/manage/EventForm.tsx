@@ -8,6 +8,7 @@ import { ROLE_ADMIN } from "@dr-events/shared";
 import { useKeycloakAuth } from "../auth/KeycloakAuthProvider";
 import { useI18n } from "../i18n/I18nProvider";
 import { RichTextEditor } from "../admin/RichTextEditor";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { HostLinker } from "./HostLinker";
 import { ImportWarningBanner } from "./ImportWarningBanner";
 import { LocationSearchField } from "./LocationSearchField";
@@ -109,6 +110,9 @@ export function EventForm({
   const [suggestSubmitting, setSuggestSubmitting] = useState(false);
   const [suggestDone, setSuggestDone] = useState(false);
   const [publishHostDialog, setPublishHostDialog] = useState(false);
+  const [noHostDontShow, setNoHostDontShow] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [alertMsg, setAlertMsg] = useState("");
 
   const slugManuallyEdited = useRef(false);
   const savedStatusRef = useRef<string>(initialState?.status ?? "draft");
@@ -126,6 +130,18 @@ export function EventForm({
   }
 
   const savedMessages = [t("manage.form.saved"), t("manage.form.savedAsDraft"), t("manage.form.savedAndPublished"), t("manage.form.savedAndCancelled"), t("manage.form.savedAndArchived")];
+  const isStatusError = status.startsWith(t("manage.form.errorPrefix", { message: "" }).split("{")[0] || "⚠");
+  const isStatusSuccess = !!status && !isStatusError && status !== t("manage.form.saving") && status !== t("manage.form.edited");
+
+  // Auto-dismiss success toasts after 3s
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    clearTimeout(toastTimer.current);
+    if (isStatusSuccess) {
+      toastTimer.current = setTimeout(() => setStatus(""), 3000);
+    }
+    return () => clearTimeout(toastTimer.current);
+  }, [status, isStatusSuccess]);
 
   const update = useCallback(<K extends keyof EventFormState>(key: K, value: EventFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -244,7 +260,7 @@ export function EventForm({
       update("tags", tagList.filter((t) => t !== tag).join(", "));
     } else {
       if (tagList.length >= 5) {
-        alert(t("manage.eventForm.maxTagsAllowed"));
+        setAlertMsg(t("manage.eventForm.maxTagsAllowed"));
         return;
       }
       update("tags", [...tagList, tag].join(", "));
@@ -367,10 +383,15 @@ export function EventForm({
     }
   }
 
-  async function handleSaveAndPublish() {
-    if (form.organizerRoles.length === 0) {
-      setPublishHostDialog(true);
-      return;
+  async function handleSaveAndPublish(forceNoHost = false) {
+    if (form.organizerRoles.length === 0 && !forceNoHost) {
+      // Check if user has dismissed the warning permanently
+      if (typeof window !== "undefined" && localStorage.getItem("hideNoHostWarning") === "true") {
+        // Skip warning, proceed with publish
+      } else {
+        setPublishHostDialog(true);
+        return;
+      }
     }
     setSaving(true);
     setStatus("");
@@ -399,8 +420,9 @@ export function EventForm({
         resultSlug = result.slug;
       }
       if (coverFile) await authorizedUpload(getToken, "eventCover", resultId, coverFile);
-      // Now publish
-      await authorizedPost(getToken, `/events/${resultId}/publish`, {});
+      // Now publish (force if no host and user chose to proceed)
+      const publishBody = form.organizerRoles.length === 0 ? { force: true } : {};
+      await authorizedPost(getToken, `/events/${resultId}/publish`, publishBody);
       savedStatusRef.current = "published";
       setStatus(t("manage.form.savedAndPublished"));
       router.push(`/events/${resultSlug}`);
@@ -905,61 +927,83 @@ export function EventForm({
       )}
 
       {/* Actions */}
-      <div className="manage-form-actions">
-        <button type="submit" className="primary-btn" disabled={saving}>
-          {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
-        </button>
-        {mode === "create" && (
-          <button
-            type="button"
-            className="secondary-btn"
-            disabled={saving || form.organizerRoles.length === 0}
-            title={form.organizerRoles.length === 0 ? t("manage.eventForm.publishRequiresHost") : undefined}
-            onClick={() => void handleSaveAndPublish()}
-          >
-            {t("manage.eventForm.saveAndPublish")}
-          </button>
+      <div className="manage-form-actions-wrap">
+        {status && (
+          <div className={`manage-save-toast ${isStatusError ? "manage-save-toast--error" : "manage-save-toast--success"}`}>
+            {status}
+          </div>
         )}
-        <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
-          {t("manage.form.discardChanges")}
-        </button>
-        {extraActions}
-        {onDelete && (
-          <button type="button" className="manage-btn-delete" style={{ marginLeft: "auto", padding: "8px 18px", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: "0.9rem" }} onClick={() => { if (confirm(t("manage.eventCard.confirmDelete"))) onDelete(); }} disabled={saving}>
-            {t("manage.eventForm.delete")}
+        <div className="manage-form-actions">
+          <button type="submit" className="primary-btn" disabled={saving}>
+            {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
           </button>
-        )}
-      </div>
-
-      {status && (
-        <div className="manage-save-banner">
-          <span>{status}</span>
-          {(status === t("manage.form.saved") || status === t("manage.form.savedAndPublished")) && form.slug && form.status === "published" && (
-            <>
-              <span>{t("manage.form.viewEvent")}</span>
-              <a href={`/events/${form.slug}`} className="manage-save-banner-link">{form.title || form.slug}</a>
-            </>
+          {mode === "create" && (
+            <button
+              type="button"
+              className="secondary-btn"
+              disabled={saving}
+              onClick={() => void handleSaveAndPublish()}
+            >
+              {t("manage.eventForm.saveAndPublish")}
+            </button>
+          )}
+          <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
+            {t("manage.form.discardChanges")}
+          </button>
+          {extraActions}
+          {onDelete && (
+            <button type="button" className="manage-btn-delete" style={{ padding: "8px 18px", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: "0.9rem" }} onClick={() => setDeleteConfirmOpen(true)} disabled={saving}>
+              {t("manage.eventForm.delete")}
+            </button>
+          )}
+          {mode === "edit" && form.slug && (
+            <a href={`/events/${form.slug}`} target="_blank" rel="noopener noreferrer" className="manage-view-entity-btn">
+              {t("manage.form.viewEvent")} ↗
+            </a>
           )}
         </div>
-      )}
+      </div>
 
-      {publishHostDialog && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
-          onClick={() => setPublishHostDialog(false)}>
-          <div style={{ background: "var(--surface, #fff)", borderRadius: 12, padding: 24, maxWidth: 420, width: "90%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: "0 0 12px", fontSize: "1.1rem" }}>{t("manage.eventForm.publishRequiresHostTitle")}</h3>
-            <p style={{ margin: "0 0 20px", color: "var(--ink-muted)", lineHeight: 1.5 }}>{t("manage.eventForm.publishRequiresHost")}</p>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button type="button" className="ghost-btn" onClick={() => setPublishHostDialog(false)}>{t("manage.form.cancel")}</button>
-              <button type="button" className="primary-btn" onClick={() => {
-                setPublishHostDialog(false);
-                document.getElementById("hosts")?.scrollIntoView({ behavior: "smooth" });
-              }}>{t("manage.eventForm.goToHosts")}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={publishHostDialog}
+        title={t("manage.eventForm.noHostWarningTitle")}
+        message={t("manage.eventForm.noHostWarningMessage")}
+        confirmLabel={t("manage.eventForm.noHostIgnore")}
+        cancelLabel={t("manage.eventForm.noHostAddHost")}
+        variant="warning"
+        showDontShowAgain
+        dontShowAgainChecked={noHostDontShow}
+        onDontShowAgainChange={setNoHostDontShow}
+        onConfirm={() => {
+          setPublishHostDialog(false);
+          if (noHostDontShow) localStorage.setItem("hideNoHostWarning", "true");
+          void handleSaveAndPublish(true);
+        }}
+        onCancel={() => {
+          setPublishHostDialog(false);
+          document.getElementById("hosts")?.scrollIntoView({ behavior: "smooth" });
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title={t("manage.confirm.title")}
+        message={t("manage.eventCard.confirmDelete")}
+        confirmLabel={t("common.action.ok")}
+        cancelLabel={t("manage.common.cancel")}
+        variant="danger"
+        onConfirm={() => { setDeleteConfirmOpen(false); onDelete?.(); }}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={!!alertMsg}
+        title={t("manage.confirm.title")}
+        message={alertMsg}
+        confirmLabel={t("common.action.ok")}
+        onConfirm={() => setAlertMsg("")}
+        onCancel={() => setAlertMsg("")}
+      />
 
       {suggestOpen && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
@@ -1009,7 +1053,7 @@ export function EventForm({
                           setSuggestReason("");
                           setSuggestDone(true);
                         } catch {
-                          alert(t("manage.eventForm.suggestFailed"));
+                          setAlertMsg(t("manage.eventForm.suggestFailed"));
                         } finally {
                           setSuggestSubmitting(false);
                         }

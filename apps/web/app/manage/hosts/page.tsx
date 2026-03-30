@@ -24,6 +24,7 @@ import {
   CityFacetFilter,
 } from "../../../components/manage/ManageFilterSections";
 import { ManageResultsToolbar } from "../../../components/manage/ManageResultsToolbar";
+import { ConfirmDialog } from "../../../components/manage/ConfirmDialog";
 import { authorizedGet, authorizedPatch, authorizedDelete } from "../../../lib/manageApi";
 import { apiBase } from "../../../lib/api";
 import { getRoleLabel, formatCityLabel } from "../../../lib/filterHelpers";
@@ -92,6 +93,8 @@ export default function MyHostsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [view, setView] = useState<"list" | "map">("list");
   const [facets, setFacets] = useState<FacetsResponse | null>(null);
+  const [alertMsg, setAlertMsg] = useState("");
+  const [unpublishConfirmHostId, setUnpublishConfirmHostId] = useState<string | null>(null);
 
   const isAdmin = roles.includes(ROLE_ADMIN);
 
@@ -186,12 +189,18 @@ export default function MyHostsPage() {
       loadFacets();
     } catch (err) {
       if (err instanceof Error && err.message === "host_has_active_events") {
-        if (confirm(t("manage.hostForm.unpublishHasActiveEventsConfirm"))) {
-          await authorizedPatch(getToken, `/organizers/${hostId}`, { status, force: true });
-          load();
-          loadFacets();
-        }
+        setUnpublishConfirmHostId(hostId);
       }
+    }
+  }
+
+  async function forceUnpublishHost(hostId: string) {
+    try {
+      await authorizedPatch(getToken, `/organizers/${hostId}`, { status: "draft", force: true });
+      load();
+      loadFacets();
+    } catch (err) {
+      setAlertMsg(err instanceof Error ? err.message : t("manage.form.unknownError"));
     }
   }
 
@@ -202,9 +211,9 @@ export default function MyHostsPage() {
       loadFacets();
     } catch (err) {
       if (err instanceof Error && err.message === "host_has_active_events") {
-        alert(t("manage.hostCard.deleteHasActiveEvents"));
+        setAlertMsg(t("manage.hostCard.deleteHasActiveEvents"));
       } else {
-        alert(err instanceof Error ? err.message : t("manage.form.unknownError"));
+        setAlertMsg(err instanceof Error ? err.message : t("manage.form.unknownError"));
       }
     }
   }
@@ -431,6 +440,26 @@ export default function MyHostsPage() {
           </>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={!!unpublishConfirmHostId}
+        title={t("manage.confirm.title")}
+        message={t("manage.hostForm.unpublishHasActiveEventsConfirm")}
+        confirmLabel={t("common.action.ok")}
+        cancelLabel={t("manage.common.cancel")}
+        variant="warning"
+        onConfirm={() => { const hid = unpublishConfirmHostId; setUnpublishConfirmHostId(null); if (hid) void forceUnpublishHost(hid); }}
+        onCancel={() => setUnpublishConfirmHostId(null)}
+      />
+
+      <ConfirmDialog
+        open={!!alertMsg}
+        title={t("manage.confirm.title")}
+        message={alertMsg}
+        confirmLabel={t("common.action.ok")}
+        onConfirm={() => setAlertMsg("")}
+        onCancel={() => setAlertMsg("")}
+      />
     </section>
   );
 }

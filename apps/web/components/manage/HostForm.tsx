@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useKeycloakAuth } from "../auth/KeycloakAuthProvider";
 import { useI18n } from "../i18n/I18nProvider";
 import { RichTextEditor } from "../admin/RichTextEditor";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { type MultiSelectOption } from "./SearchableMultiSelect";
 import { LocationSearchField } from "./LocationSearchField";
 import { ensureHtml, mergeLegacyOrganizerDescription } from "../../lib/formUtils";
@@ -180,6 +181,10 @@ export function HostForm({
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState(initialStatusMessage ?? "");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [unpublishActiveConfirm, setUnpublishActiveConfirm] = useState(false);
+  const [unsavedConfirmOpen, setUnsavedConfirmOpen] = useState(false);
+  const pendingForcePayload = useRef<Record<string, unknown> | null>(null);
   const slugManuallyEdited = useRef(false);
 
   // Tag chip state
@@ -220,6 +225,17 @@ export function HostForm({
   }
 
   const savedMessages = [t("manage.form.saved"), t("manage.form.savedAsDraft"), t("manage.form.savedAndPublished"), t("manage.form.savedAndArchived")];
+  const isStatusError = status.startsWith(t("manage.form.errorPrefix", { message: "" }).split("{")[0] || "⚠");
+  const isStatusSuccess = !!status && !isStatusError && status !== t("manage.form.saving") && status !== t("manage.form.edited");
+
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    clearTimeout(toastTimer.current);
+    if (isStatusSuccess) {
+      toastTimer.current = setTimeout(() => setStatus(""), 3000);
+    }
+    return () => clearTimeout(toastTimer.current);
+  }, [status, isStatusSuccess]);
 
   const update = useCallback(<K extends keyof HostFormState>(key: K, value: HostFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -351,20 +367,27 @@ export function HostForm({
       }
     } catch (err) {
       if (err instanceof Error && err.message === "host_has_active_events") {
-        if (confirm(t("manage.hostForm.unpublishHasActiveEventsConfirm"))) {
-          try {
-            const result = await authorizedPatch<{ id: string; slug: string }>(getToken, `/organizers/${form.id}`, { ...payload, force: true });
-            if (avatarFile) await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
-            setStatus(saveMessage(form.status));
-          } catch (retryErr) {
-            setStatus(t("manage.form.errorPrefix", { message: retryErr instanceof Error ? retryErr.message : t("manage.form.unknownError") }));
-          }
-        } else {
-          setStatus("");
-        }
+        pendingForcePayload.current = payload;
+        setUnpublishActiveConfirm(true);
       } else {
         setStatus(t("manage.form.errorPrefix", { message: err instanceof Error ? err.message : t("manage.form.unknownError") }));
       }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleForceUnpublishRetry() {
+    const payload = pendingForcePayload.current;
+    if (!payload) return;
+    pendingForcePayload.current = null;
+    setSaving(true);
+    try {
+      const result = await authorizedPatch<{ id: string; slug: string }>(getToken, `/organizers/${form.id}`, { ...payload, force: true });
+      if (avatarFile) await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
+      setStatus(saveMessage(form.status));
+    } catch (retryErr) {
+      setStatus(t("manage.form.errorPrefix", { message: retryErr instanceof Error ? retryErr.message : t("manage.form.unknownError") }));
     } finally {
       setSaving(false);
     }
@@ -802,37 +825,59 @@ export function HostForm({
       )}
 
       {/* Actions */}
-      <div className="manage-form-actions">
-        <button type="submit" className="primary-btn" disabled={saving}>
-          {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
-        </button>
-        {mode === "create" && (
-          <button type="button" className="secondary-btn" disabled={saving} onClick={() => void handleSaveAndPublish()}>
-            {t("manage.eventForm.saveAndPublish")}
-          </button>
+      <div className="manage-form-actions-wrap">
+        {status && (
+          <div className={`manage-save-toast ${isStatusError ? "manage-save-toast--error" : "manage-save-toast--success"}`}>
+            {status}
+          </div>
         )}
-        <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
-          {t("manage.form.discardChanges")}
-        </button>
-        {extraActions}
-        {onDelete && (
-          <button type="button" className="manage-btn-delete" style={{ marginLeft: "auto", padding: "8px 18px", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: "0.9rem" }} onClick={() => { if (confirm(t("manage.hostCard.confirmDelete"))) onDelete(); }} disabled={saving}>
-            {t("manage.common.delete")}
+        <div className="manage-form-actions">
+          <button type="submit" className="primary-btn" disabled={saving}>
+            {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
           </button>
-        )}
-      </div>
-
-      {status && (
-        <div className="manage-save-banner">
-          <span>{status}</span>
-          {(status === t("manage.form.saved") || status === t("manage.form.savedAndPublished")) && form.slug && form.status === "published" && (
-            <>
-              <span>{t("manage.form.viewHost")}</span>
-              <a href={`/hosts/${form.slug}`} className="manage-save-banner-link">{form.name || form.slug}</a>
-            </>
+          {mode === "create" && (
+            <button type="button" className="secondary-btn" disabled={saving} onClick={() => void handleSaveAndPublish()}>
+              {t("manage.eventForm.saveAndPublish")}
+            </button>
+          )}
+          <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
+            {t("manage.form.discardChanges")}
+          </button>
+          {extraActions}
+          {onDelete && (
+            <button type="button" className="manage-btn-delete" style={{ padding: "8px 18px", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: "0.9rem" }} onClick={() => setDeleteConfirmOpen(true)} disabled={saving}>
+              {t("manage.common.delete")}
+            </button>
+          )}
+          {mode === "edit" && form.slug && (
+            <a href={`/hosts/${form.slug}`} target="_blank" rel="noopener noreferrer" className="manage-view-entity-btn">
+              {t("manage.form.viewHost")} ↗
+            </a>
           )}
         </div>
-      )}
+      </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title={t("manage.confirm.title")}
+        message={t("manage.hostCard.confirmDelete")}
+        confirmLabel={t("common.action.ok")}
+        cancelLabel={t("manage.common.cancel")}
+        variant="danger"
+        onConfirm={() => { setDeleteConfirmOpen(false); onDelete?.(); }}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={unpublishActiveConfirm}
+        title={t("manage.confirm.title")}
+        message={t("manage.hostForm.unpublishHasActiveEventsConfirm")}
+        confirmLabel={t("common.action.ok")}
+        cancelLabel={t("manage.common.cancel")}
+        variant="warning"
+        onConfirm={() => { setUnpublishActiveConfirm(false); void handleForceUnpublishRetry(); }}
+        onCancel={() => { setUnpublishActiveConfirm(false); setStatus(""); }}
+      />
     </form>
   );
 }
@@ -841,6 +886,7 @@ function HostEventsSection({ hostId, getToken }: { hostId: string; getToken: () 
   const { t } = useI18n();
   const [events, setEvents] = useState<Array<{ id: string; title: string; status: string }>>([]);
   const [loading, setLoading] = useState(true);
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -882,15 +928,21 @@ function HostEventsSection({ hostId, getToken }: { hostId: string; getToken: () 
           type="button"
           className="secondary-btn"
           style={{ fontSize: "0.85rem" }}
-          onClick={() => {
-            if (confirm(t("manage.hostForm.unsavedWarning"))) {
-              window.location.href = "/manage/events/new";
-            }
-          }}
+          onClick={() => setShowUnsavedConfirm(true)}
         >
           {t("manage.hostForm.createEvent")}
         </button>
       </div>
+      <ConfirmDialog
+        open={showUnsavedConfirm}
+        title={t("manage.confirm.title")}
+        message={t("manage.hostForm.unsavedWarning")}
+        confirmLabel={t("common.action.ok")}
+        cancelLabel={t("manage.common.cancel")}
+        variant="warning"
+        onConfirm={() => { setShowUnsavedConfirm(false); window.location.href = "/manage/events/new"; }}
+        onCancel={() => setShowUnsavedConfirm(false)}
+      />
     </div>
   );
 }

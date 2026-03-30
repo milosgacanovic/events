@@ -9,6 +9,7 @@ import { ROLE_ADMIN } from "@dr-events/shared";
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
 import { AssignToUserModal } from "../../../../components/manage/AssignToUserModal";
+import { ConfirmDialog } from "../../../../components/manage/ConfirmDialog";
 import { EventForm } from "../../../../components/manage/EventForm";
 import { eventFormStateFromApi, type AdminEventDetailResponse, type EventFormState } from "../../../../components/manage/EventFormTypes";
 import { authorizedDelete, authorizedGet } from "../../../../lib/manageApi";
@@ -24,6 +25,7 @@ export default function EditEventPage() {
   const [error, setError] = useState("");
   const [showAssign, setShowAssign] = useState(false);
   const [initialStatus, setInitialStatus] = useState("");
+  const [alertMsg, setAlertMsg] = useState("");
   const isAdmin = roles.includes(ROLE_ADMIN);
 
   // Show save banner when redirected from create page
@@ -41,7 +43,7 @@ export default function EditEventPage() {
       await authorizedDelete(getToken, `/events/${id}`);
       router.push("/manage/events");
     } catch (err) {
-      alert(err instanceof Error ? err.message : t("manage.form.unknownError"));
+      setAlertMsg(err instanceof Error ? err.message : t("manage.form.unknownError"));
     }
   }
 
@@ -86,6 +88,14 @@ export default function EditEventPage() {
           onClose={() => setShowAssign(false)}
         />
       )}
+      <ConfirmDialog
+        open={!!alertMsg}
+        title={t("manage.confirm.title")}
+        message={alertMsg}
+        confirmLabel={t("common.action.ok")}
+        onConfirm={() => setAlertMsg("")}
+        onCancel={() => setAlertMsg("")}
+      />
     </div>
   );
 }

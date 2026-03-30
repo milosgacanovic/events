@@ -14,3 +14,4 @@ data/postgres/
 data/meili/
 data/uploads/
 temporary/
+.playwright-mcp/

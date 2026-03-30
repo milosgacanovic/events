@@ -9,6 +9,7 @@ import { ROLE_ADMIN } from "@dr-events/shared";
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
 import { AssignToUserModal } from "../../../../components/manage/AssignToUserModal";
+import { ConfirmDialog } from "../../../../components/manage/ConfirmDialog";
 import { HostForm, hostFormStateFromApi, type AdminOrganizerDetailResponse, type HostFormState } from "../../../../components/manage/HostForm";
 import { authorizedDelete, authorizedGet } from "../../../../lib/manageApi";
 
@@ -23,6 +24,7 @@ export default function EditHostPage() {
   const [error, setError] = useState("");
   const [showAssign, setShowAssign] = useState(false);
   const [initialStatus, setInitialStatus] = useState("");
+  const [alertMsg, setAlertMsg] = useState("");
   const isAdmin = roles.includes(ROLE_ADMIN);
 
   useEffect(() => {
@@ -40,9 +42,9 @@ export default function EditHostPage() {
       router.push("/manage/hosts");
     } catch (err) {
       if (err instanceof Error && err.message === "host_has_active_events") {
-        alert(t("manage.hostCard.deleteHasActiveEvents"));
+        setAlertMsg(t("manage.hostCard.deleteHasActiveEvents"));
       } else {
-        alert(err instanceof Error ? err.message : t("manage.form.unknownError"));
+        setAlertMsg(err instanceof Error ? err.message : t("manage.form.unknownError"));
       }
     }
   }
@@ -88,6 +90,14 @@ export default function EditHostPage() {
           onClose={() => setShowAssign(false)}
         />
       )}
+      <ConfirmDialog
+        open={!!alertMsg}
+        title={t("manage.confirm.title")}
+        message={alertMsg}
+        confirmLabel={t("common.action.ok")}
+        onConfirm={() => setAlertMsg("")}
+        onCancel={() => setAlertMsg("")}
+      />
     </div>
   );
 }
