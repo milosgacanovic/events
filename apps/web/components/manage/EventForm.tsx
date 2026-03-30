@@ -40,9 +40,10 @@ type TaxonomyResponse = {
 
 
 const COMMON_LANGUAGE_CODES = [
-  "ar", "zh", "hr", "da", "nl", "en", "fi", "fr", "de", "el",
-  "he", "hi", "id", "it", "ja", "ko", "nb", "pl", "pt", "ru",
-  "sr-Latn", "es", "sv", "th", "tr", "uk", "vi",
+  "en","es","fr","de","it","pt","nl","pl","ru","tr","sr","sr-Latn","hr","ar",
+  "zh","ja","ko","uk","sv","da","fi","nb","el","he","hi","id","vi","th",
+  "cs","hu","ro","sk","sl","bg","ca","et","ga","is","ka","lt","lv","mk",
+  "ms","mt","no","sq","sw","ta","te","ur","cy","zu",
 ];
 
 const regionNames = typeof Intl !== "undefined" && Intl.DisplayNames
