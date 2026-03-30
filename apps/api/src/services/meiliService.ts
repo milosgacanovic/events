@@ -114,7 +114,7 @@ export class MeilisearchService {
       from event_occurrences eo
       join events e on e.id = eo.event_id
       left join event_organizers eo2 on eo2.event_id = e.id
-      left join organizers o on o.id = eo2.organizer_id
+      left join organizers o on o.id = eo2.organizer_id and o.status = 'published'
       where ($1::uuid is null or e.id = $1::uuid)
         and e.status in ('published', 'cancelled')
       group by eo.id, e.id
@@ -174,7 +174,7 @@ export class MeilisearchService {
         practice_category_id: row.practice_category_id,
         practice_subcategory_id: row.practice_subcategory_id,
         event_format_id: row.event_format_id,
-        tags: row.tags,
+        tags: row.tags.map((t: string) => t.toLowerCase()),
         languages: row.languages,
         visibility: row.visibility,
         organizer_ids: row.organizer_ids,

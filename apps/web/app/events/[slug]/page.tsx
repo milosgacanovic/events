@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 
 import {
   EventDetailClient,
@@ -184,6 +185,29 @@ async function EventDetailPageServer({ slug }: { slug: string }) {
       }
     : null;
 
+  const cookieStore = cookies();
+  const locale = cookieStore.get("dr_locale")?.value ?? "en";
+  const serverTranslations = (() => {
+    try {
+      const regionNames = new Intl.DisplayNames([locale], { type: "region" });
+      const languageNames = new Intl.DisplayNames([locale], { type: "language" });
+      const regionLabels: Record<string, string> = {};
+      const langLabels: Record<string, string> = {};
+      const countryCode = detail?.defaultLocation?.country_code;
+      if (countryCode) {
+        const label = regionNames.of(countryCode.toUpperCase());
+        if (label) regionLabels[countryCode.toLowerCase()] = label;
+      }
+      for (const code of detail?.event.languages ?? []) {
+        const label = languageNames.of(code);
+        if (label) langLabels[code.toLowerCase()] = label;
+      }
+      return { locale, regionLabels, languageLabels: langLabels };
+    } catch {
+      return { locale, regionLabels: {}, languageLabels: {} };
+    }
+  })();
+
   return (
     <>
       {jsonLd && (
@@ -192,7 +216,7 @@ async function EventDetailPageServer({ slug }: { slug: string }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <EventDetailClient slug={slug} initialData={detail} initialTaxonomy={taxonomy} />
+      <EventDetailClient slug={slug} initialData={detail} initialTaxonomy={taxonomy} serverTranslations={serverTranslations} />
     </>
   );
 }

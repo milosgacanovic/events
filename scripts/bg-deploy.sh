@@ -12,6 +12,7 @@ PUBLIC_URL="${PUBLIC_URL:-https://events.danceresource.org}"
 CURL_BIN="${CURL_BIN:-curl}"
 
 BASE_COMPOSE="$REPO_ROOT/deploy/docker/docker-compose.base.yml"
+ENV_FILE="$REPO_ROOT/.env"
 
 active_color="$("$SCRIPT_DIR/bg-active-color.sh")"
 if [[ "$active_color" == "blue" ]]; then
@@ -42,13 +43,13 @@ git checkout "$REF"
 git pull --ff-only "$GIT_REMOTE" "$REF"
 
 echo "Ensuring shared infra is up (postgres + meili) ..."
-docker compose -f "$BASE_COMPOSE" up -d postgres meilisearch
+docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" up -d postgres meilisearch
 
 echo "Building inactive color services ..."
-docker compose -f "$BASE_COMPOSE" -f "$inactive_compose" build "$inactive_api_service" "$inactive_web_service"
+docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" -f "$inactive_compose" build "$inactive_api_service" "$inactive_web_service"
 
 echo "Starting inactive color services ..."
-docker compose -f "$BASE_COMPOSE" -f "$inactive_compose" up -d "$inactive_api_service" "$inactive_web_service"
+docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" -f "$inactive_compose" up -d "$inactive_api_service" "$inactive_web_service"
 
 retry_curl() {
   local url="$1"
@@ -69,7 +70,7 @@ echo "Waiting for inactive API health ..."
 retry_curl "http://127.0.0.1:${inactive_api_port}/api/health" 40 2
 
 echo "Running DB migrations (expand/contract-safe only) ..."
-if ! docker compose -f "$BASE_COMPOSE" -f "$inactive_compose" exec -T "$inactive_api_service" npm run migrate -w @dr-events/api; then
+if ! docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" -f "$inactive_compose" exec -T "$inactive_api_service" npm run migrate -w @dr-events/api; then
   echo "Container migration failed (likely slim runtime image). Falling back to host migration ..."
   npm run migrate -w @dr-events/api
 fi
@@ -87,6 +88,6 @@ retry_curl "${PUBLIC_URL}/sitemap.xml" 20 2
 
 echo "Stopping previous color ($active_color) ..."
 prev_compose="$REPO_ROOT/deploy/docker/docker-compose.${active_color}.yml"
-docker compose -f "$BASE_COMPOSE" -f "$prev_compose" stop "api_${active_color}" "web_${active_color}"
+docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" -f "$prev_compose" stop "api_${active_color}" "web_${active_color}"
 
 echo "Blue/green deploy complete. Active color: $inactive_color"

@@ -1,15 +1,51 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+const LeafletClusterMap = dynamic(
+  () => import("../../../components/LeafletClusterMap").then((m) => m.LeafletClusterMap),
+  { ssr: false },
+);
 
 import { ROLE_ADMIN } from "@dr-events/shared";
 
 import { useKeycloakAuth } from "../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../components/i18n/I18nProvider";
-import { EventCard } from "../../../components/manage/EventCard";
-import { authorizedGet, authorizedPost } from "../../../lib/manageApi";
+import { ManageEventCard } from "../../../components/manage/ManageEventCard";
+import { ManageFilterSidebar } from "../../../components/manage/ManageFilterSidebar";
+import {
+  StatusFilter,
+  AttendanceFacetFilter,
+  PracticeFacetFilter,
+  FormatFacetFilter,
+  LanguageFacetFilter,
+  CountryFacetFilter,
+  CityFacetFilter,
+  TagsFacetFilter,
+} from "../../../components/manage/ManageFilterSections";
+import { ManageResultsToolbar } from "../../../components/manage/ManageResultsToolbar";
+import { authorizedGet, authorizedPost, authorizedDelete } from "../../../lib/manageApi";
 import { apiBase } from "../../../lib/api";
+import { useDisjunctiveFacets, FacetGroupSpec } from "../../../lib/useDisjunctiveFacets";
+import { getFormatLabel, formatCityLabel, toTitleCase } from "../../../lib/filterHelpers";
+import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../../../lib/i18n/icuFallback";
+
+type TaxonomyResponse = {
+  uiLabels?: { categorySingular?: string };
+  practices: {
+    categories: Array<{
+      id: string;
+      key: string;
+      label: string;
+      subcategories?: Array<{ id: string; label: string }>;
+    }>;
+  };
+  eventFormats?: Array<{ id: string; key: string; label: string }>;
+  organizerRoles?: Array<{ id: string; key: string; label: string }>;
+};
 
 type EventItem = {
   id: string;
@@ -22,12 +58,16 @@ type EventItem = {
   import_source: string | null;
   detached_from_import: boolean;
   cover_image_path: string | null;
+  tags: string[] | null;
   updated_at: string;
   practice_category_label: string | null;
   event_format_label: string | null;
+  event_format_key: string | null;
   location_city: string | null;
   location_country: string | null;
   next_occurrence: string | null;
+  next_ends_at: string | null;
+  event_timezone: string | null;
   host_names: string | null;
   created_by_name: string | null;
 };
@@ -37,32 +77,105 @@ type EventsResponse = {
   pagination: { page: number; pageSize: number; totalPages: number; totalItems: number };
 };
 
-type TaxonomyResponse = {
-  practices: {
-    categories: Array<{ id: string; key: string; label: string }>;
-  };
-  eventFormats?: Array<{ id: string; key: string; label: string }>;
+type Filters = {
+  q: string;
+  statuses: string[];
+  timeFilter: string;
+  attendanceModes: string[];
+  practiceCategoryIds: string[];
+  eventFormatIds: string[];
+  languages: string[];
+  countryCodes: string[];
+  cities: string[];
+  tags: string[];
+  sortBy: string;
+  page: number;
 };
+
+const DATE_PRESETS = [
+  "today",
+  "tomorrow",
+  "this_weekend",
+  "this_week",
+  "next_week",
+  "this_month",
+  "next_month",
+] as const;
+
+const DEFAULT_FILTERS: Filters = {
+  q: "",
+  statuses: [],
+  timeFilter: "",
+  attendanceModes: [],
+  practiceCategoryIds: [],
+  eventFormatIds: [],
+  languages: [],
+  countryCodes: [],
+  cities: [],
+  tags: [],
+  sortBy: "",
+  page: 1,
+};
+
+const FACET_GROUPS: FacetGroupSpec[] = [
+  { responseKey: "statuses", filterParam: "status" },
+  { responseKey: "attendanceModes", filterParam: "attendanceMode" },
+  { responseKey: "practiceCategoryIds", filterParam: "practiceCategoryId" },
+  { responseKey: "eventFormatIds", filterParam: "eventFormatId" },
+  { responseKey: "languages", filterParam: "languages" },
+  { responseKey: "countryCodes", filterParam: "countryCode" },
+  { responseKey: "cities", filterParam: "cities" },
+  { responseKey: "tags", filterParam: "tags" },
+];
+
+const PAGE_SIZE = 20;
 
 export default function MyEventsPage() {
   const { getToken, roles } = useKeycloakAuth();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const router = useRouter();
+
+  /* ── filter state ── */
+  const [filters, setFiltersRaw] = useState<Filters>(DEFAULT_FILTERS);
+  const setFilter = useCallback(<K extends keyof Filters>(key: K, value: Filters[K]) => {
+    setFiltersRaw((prev) => ({ ...prev, [key]: value }));
+  }, []);
+  const setFilters = useCallback((patch: Partial<Filters>) => {
+    setFiltersRaw((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const {
+    q,
+    statuses,
+    timeFilter,
+    attendanceModes,
+    practiceCategoryIds,
+    eventFormatIds,
+    languages,
+    countryCodes,
+    cities,
+    tags,
+    sortBy,
+    page,
+  } = filters;
+
+  /* ── data state ── */
   const [events, setEvents] = useState<EventItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [practiceFilter, setPracticeFilter] = useState("");
-  const [formatFilter, setFormatFilter] = useState("");
-  const [timeFilter, setTimeFilter] = useState("");
-  const [sortBy, setSortBy] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [publishHostDialog, setPublishHostDialog] = useState<string | null>(null);
+  const [view, setView] = useState<"list" | "map">("list");
+  const [practiceSubcategoryId, setPracticeSubcategoryId] = useState("");
+  const [userHostCount, setUserHostCount] = useState<number | null>(null);
+  const [facetRefreshKey, setFacetRefreshKey] = useState(0);
 
   const isAdmin = roles.includes(ROLE_ADMIN);
-  const pageSize = 20;
+  const isPast = timeFilter === "past";
 
+  /* ── taxonomy ── */
   useEffect(() => {
     fetch(`${apiBase}/meta/taxonomies`, { cache: "no-store" })
       .then((r) => r.json())
@@ -70,166 +183,496 @@ export default function MyEventsPage() {
       .catch(() => {});
   }, []);
 
+  /* ── disjunctive facets ── */
+  const activeFilters = useMemo(() => {
+    const f: Record<string, string> = {};
+    if (statuses.length) f.status = statuses.join(",");
+    if (attendanceModes.length) f.attendanceMode = attendanceModes.join(",");
+    if (practiceCategoryIds.length) f.practiceCategoryId = practiceCategoryIds.join(",");
+    if (eventFormatIds.length) f.eventFormatId = eventFormatIds.join(",");
+    if (languages.length) f.languages = languages.join(",");
+    if (countryCodes.length) f.countryCode = countryCodes.join(",");
+    if (cities.length) f.cities = cities.join(",");
+    if (tags.length) f.tags = tags.join(",");
+    return f;
+  }, [statuses, attendanceModes, practiceCategoryIds, eventFormatIds, languages, countryCodes, cities, tags]);
+
+  const facets = useDisjunctiveFacets<Record<string, Record<string, number>>>(
+    "/admin/events/facets",
+    FACET_GROUPS,
+    activeFilters,
+    getToken,
+    true,
+    facetRefreshKey,
+  );
+
+  /* ── Intl display names ── */
+  const languageNames = useMemo(() => {
+    try { return new Intl.DisplayNames([locale], { type: "language" }); } catch { return null; }
+  }, [locale]);
+
+  const regionNames = useMemo(() => {
+    try { return new Intl.DisplayNames([locale], { type: "region" }); } catch { return null; }
+  }, [locale]);
+
+  const getLanguageLabel = useCallback(
+    (code: string) =>
+      code === "mul" ? t("common.language.multiple") : getLocalizedLanguageLabel(code, locale, languageNames),
+    [languageNames, locale, t],
+  );
+
+  const getCountryLabel = useCallback(
+    (code: string) => getLocalizedRegionLabel(code, locale, regionNames),
+    [regionNames, locale],
+  );
+
+  const categorySingularLabel =
+    t("admin.placeholder.categorySingular") || taxonomy?.uiLabels?.categorySingular || "Practice";
+
+  /* ── load events ── */
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ managedBy: "me", page: String(page), pageSize: String(pageSize) });
-      if (search) params.set("q", search);
-      if (statusFilter) params.set("status", statusFilter);
-      if (practiceFilter) params.set("practiceCategoryId", practiceFilter);
-      if (formatFilter) params.set("eventFormatId", formatFilter);
+      const params = new URLSearchParams({
+        managedBy: "me",
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+      });
+      if (q) params.set("q", q);
+      if (statuses.length) params.set("status", statuses.join(","));
+      if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+      if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
+      if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+      if (attendanceModes.length) params.set("attendanceMode", attendanceModes.join(","));
+      if (languages.length) params.set("languages", languages.join(","));
+      if (cities.length) params.set("cities", cities.join(","));
+      if (tags.length) params.set("tags", tags.join(","));
       if (timeFilter) params.set("time", timeFilter);
       if (sortBy) params.set("sort", sortBy);
+
       const data = await authorizedGet<EventsResponse>(getToken, `/admin/events?${params}`);
       setEvents(data.items);
       setTotalItems(data.pagination.totalItems);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load events");
+      setError(err instanceof Error ? err.message : t("manage.error.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, search, statusFilter, practiceFilter, formatFilter, timeFilter, sortBy]);
+  }, [getToken, page, q, statuses, practiceCategoryIds, eventFormatIds, countryCodes, attendanceModes, languages, cities, tags, timeFilter, sortBy, t]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
+  /* ── actions ── */
   async function runAction(eventId: string, action: string) {
     try {
       await authorizedPost(getToken, `/events/${eventId}/${action}`, {});
-      void load();
-    } catch {
-      // ignore
+      setFacetRefreshKey((k) => k + 1);
+      load();
+    } catch (err) {
+      if (err instanceof Error && err.message === "publish_requires_host") {
+        setPublishHostDialog(eventId);
+      }
     }
   }
 
-  const pageStart = (page - 1) * pageSize + 1;
-  const pageEnd = (page - 1) * pageSize + events.length;
+  async function deleteEvent(eventId: string) {
+    try {
+      await authorizedDelete(getToken, `/events/${eventId}`);
+      setFacetRefreshKey((k) => k + 1);
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : t("manage.form.unknownError"));
+    }
+  }
+
+  /* ── derived ── */
+  const activeFilterCount = [
+    ...statuses,
+    timeFilter,
+    ...practiceCategoryIds,
+    ...eventFormatIds,
+    ...countryCodes,
+    ...attendanceModes,
+    ...languages,
+    ...cities,
+    ...tags,
+  ].filter(Boolean).length;
+
+  const mapQueryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+    if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
+    if (languages.length) params.set("languages", languages.join(","));
+    if (attendanceModes.length) params.set("attendanceMode", attendanceModes.join(","));
+    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+    if (cities.length) params.set("city", cities.join(","));
+    if (tags.length) params.set("tags", tags.join(","));
+    return params.toString();
+  }, [q, practiceCategoryIds, eventFormatIds, languages, attendanceModes, countryCodes, cities, tags]);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: "draft", label: t("common.status.draft") },
+      { value: "published", label: t("common.status.published") },
+      { value: "cancelled", label: t("common.status.cancelled") },
+      { value: "archived", label: t("common.status.archived") },
+    ],
+    [t],
+  );
+
+  const sortOptions = useMemo(
+    () => [
+      { value: "", label: t("manage.events.sortRecent") },
+      { value: "upcoming", label: t("manage.events.sortNextOccurrence") },
+      { value: "created", label: t("manage.events.sortCreated") },
+      { value: "title", label: t("manage.events.sortTitle") },
+    ],
+    [t],
+  );
+
+  const hasSubcategories =
+    taxonomy?.practices.categories.some((c) => (c.subcategories?.length ?? 0) > 0) ?? false;
+
+  const selectedCategory =
+    practiceCategoryIds.length === 1
+      ? taxonomy?.practices.categories.find((c) => c.id === practiceCategoryIds[0])
+      : undefined;
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h1 className="manage-page-title" style={{ marginBottom: 0 }}>{t("manage.events.title")}</h1>
-        <Link href="/manage/events/new" className="primary-btn">{t("manage.events.createEvent")}</Link>
-      </div>
-
-      <div className="manage-filter-bar">
+    <section className={`grid${sidebarOpen ? " sidebar-open" : ""}`} style={{ marginTop: 8 }}>
+      {/* ── Sidebar filters ── */}
+      <ManageFilterSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
         <input
-          placeholder="Search events..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          placeholder={t("eventSearch.placeholder.searchTitle")}
+          value={q}
+          onChange={(e) => { setFilters({ q: e.target.value, page: 1 }); }}
         />
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="archived">Archived</option>
-        </select>
-        {taxonomy?.practices.categories && taxonomy.practices.categories.length > 0 && (
-          <select value={practiceFilter} onChange={(e) => { setPracticeFilter(e.target.value); setPage(1); }}>
-            <option value="">All practices</option>
-            {taxonomy.practices.categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.label}</option>
-            ))}
-          </select>
-        )}
-        {taxonomy?.eventFormats && taxonomy.eventFormats.length > 0 && (
-          <select value={formatFilter} onChange={(e) => { setFormatFilter(e.target.value); setPage(1); }}>
-            <option value="">All formats</option>
-            {taxonomy.eventFormats.map((f) => (
-              <option key={f.id} value={f.id}>{f.label}</option>
-            ))}
-          </select>
-        )}
-        <select value={timeFilter} onChange={(e) => { setTimeFilter(e.target.value); setPage(1); }}>
-          <option value="">All time</option>
-          <option value="upcoming">Upcoming</option>
-          <option value="past">Past</option>
-        </select>
-        <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}>
-          <option value="">Recently edited</option>
-          <option value="upcoming">Next occurrence</option>
-          <option value="created">Recently created</option>
-          <option value="title">Title A-Z</option>
-        </select>
+
+        <StatusFilter
+          options={statusOptions}
+          value={statuses}
+          counts={facets?.statuses}
+          onChange={(v) => { setFilters({ statuses: v, page: 1 }); }}
+        />
+
+        {/* Date presets */}
         {totalItems > 0 && (
-          <span className="meta">Showing {pageStart}–{pageEnd} of {totalItems}</span>
+          <details>
+            <summary>{t("eventSearch.eventDate")}</summary>
+            <div className="kv">
+              {DATE_PRESETS.map((preset) => {
+                const selected = timeFilter === preset;
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    className={`filter-row${selected ? " filter-row-selected" : ""}`}
+                    onClick={() => { setFilters({ timeFilter: selected ? "" : preset, page: 1 }); }}
+                  >
+                    <span className="filter-row-icon">{selected ? "\u2212" : "+"}</span>
+                    <span className="filter-row-label">{t(`eventSearch.eventDateOption.${preset}`)}</span>
+                    <span className="filter-row-count" />
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                className={`filter-row${isPast ? " filter-row-selected" : ""}`}
+                onClick={() => { setFilters({ timeFilter: isPast ? "" : "past", page: 1 }); }}
+              >
+                <span className="filter-row-icon">{isPast ? "\u2212" : "+"}</span>
+                <span className="filter-row-label">{t("eventSearch.includePast")}</span>
+                <span className="filter-row-count" />
+              </button>
+            </div>
+          </details>
         )}
+
+        <AttendanceFacetFilter
+          counts={facets?.attendanceModes ?? {}}
+          value={attendanceModes}
+          onChange={(v) => { setFilters({ attendanceModes: v, page: 1 }); }}
+        />
+
+        <PracticeFacetFilter
+          categories={taxonomy?.practices.categories ?? []}
+          counts={facets?.practiceCategoryIds ?? {}}
+          value={practiceCategoryIds}
+          sectionLabel={categorySingularLabel}
+          onChange={(v) => {
+            setFilters({ practiceCategoryIds: v, page: 1 });
+            if (
+              practiceSubcategoryId &&
+              !taxonomy?.practices.categories
+                .find((c) => v.includes(c.id))
+                ?.subcategories?.some((s) => s.id === practiceSubcategoryId)
+            ) {
+              setPracticeSubcategoryId("");
+            }
+          }}
+        />
+
+        {hasSubcategories && (
+          <label>
+            {t("common.subcategory")}
+            <select
+              value={practiceSubcategoryId}
+              onChange={(e) => { setPracticeSubcategoryId(e.target.value); setFilter("page", 1); }}
+              disabled={!selectedCategory}
+            >
+              <option value="">{t("eventSearch.option.selectSubcategory")}</option>
+              {(selectedCategory?.subcategories ?? []).map((sub) => (
+                <option key={sub.id} value={sub.id}>{sub.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <FormatFacetFilter
+          formats={taxonomy?.eventFormats ?? []}
+          counts={facets?.eventFormatIds ?? {}}
+          value={eventFormatIds}
+          getLabel={(key, label) => getFormatLabel(key, label, t)}
+          onChange={(v) => { setFilters({ eventFormatIds: v, page: 1 }); }}
+        />
+
+        <LanguageFacetFilter
+          counts={facets?.languages ?? {}}
+          value={languages}
+          getLabel={getLanguageLabel}
+          sectionLabel={t("eventSearch.eventLanguage")}
+          onChange={(v) => { setFilters({ languages: v, page: 1 }); }}
+        />
+
+        <CountryFacetFilter
+          counts={facets?.countryCodes ?? {}}
+          value={countryCodes}
+          getLabel={getCountryLabel}
+          sectionLabel={t("eventSearch.country")}
+          onChange={(v) => { setFilters({ countryCodes: v, page: 1 }); }}
+        />
+
+        <CityFacetFilter
+          counts={facets?.cities ?? {}}
+          value={cities}
+          getLabel={formatCityLabel}
+          sectionLabel={t("eventSearch.placeholder.city")}
+          onChange={(v) => { setFilters({ cities: v, page: 1 }); }}
+        />
+
+        <TagsFacetFilter
+          counts={facets?.tags ?? {}}
+          value={tags}
+          getLabel={function (tag: string) {
+            const key = `tag.${tag.replace(/ /g, "-")}`;
+            const translated = t(key);
+            return translated !== key ? translated : toTitleCase(tag);
+          }}
+          sectionLabel={t("eventSearch.placeholder.tags")}
+          onChange={(v) => { setFilters({ tags: v, page: 1 }); }}
+        />
+      </ManageFilterSidebar>
+
+      {/* ── Main content ── */}
+      <div className="panel cards">
+        <ManageResultsToolbar
+          createHref="/manage/events/new"
+          createLabel={t("manage.events.createEvent")}
+          totalItems={totalItems}
+          sortValue={sortBy}
+          sortOptions={sortOptions}
+          onSortChange={(v) => { setFilters({ sortBy: v, page: 1 }); }}
+          onToggleFilters={() => setSidebarOpen((o) => !o)}
+          activeFilterCount={activeFilterCount}
+          view={view}
+          onViewChange={setView}
+        />
+
+        {/* Error state */}
+        {error && (
+          <div className="manage-empty">
+            <p>{error}</p>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => void load()}
+              style={{ marginTop: 8 }}
+            >
+              {t("manage.error.retry")}
+            </button>
+          </div>
+        )}
+
+        {/* Map view */}
+        {view === "map" && !error && (
+          <div style={{ height: 500, borderRadius: 8, overflow: "hidden" }}>
+            <LeafletClusterMap queryString={mapQueryString} refreshToken={facetRefreshKey} timeDisplayMode="event" />
+          </div>
+        )}
+
+        {/* Loading state */}
+        {view === "list" && !error && loading && events.length === 0 ? (
+          <div className="manage-loading">{t("manage.common.loading")}</div>
+        ) : view === "list" && !error && events.length === 0 ? (
+          /* Empty state */
+          <div className="manage-empty">
+            {activeFilterCount > 0 || q ? (
+              <h3>{t("manage.events.noResults")}</h3>
+            ) : isAdmin ? (
+              <>
+                <h3>{t("manage.events.emptyAdmin")}</h3>
+                <Link
+                  href="/manage/admin/events"
+                  className="secondary-btn"
+                  style={{ marginTop: 12, display: "inline-block" }}
+                >
+                  {t("manage.events.allEventsLink")}
+                </Link>
+              </>
+            ) : (
+              <>
+                <h3>{t("manage.events.noEvents")}</h3>
+                <p>{t("manage.events.noEventsDescription")}</p>
+                {userHostCount === 0 && (
+                  <p className="meta" style={{ marginTop: 8 }}>
+                    {t("manage.events.needHostFirst")}{" "}
+                    <Link href="/manage/hosts/new">{t("manage.events.createHostLink")}</Link>
+                  </p>
+                )}
+                <Link
+                  href="/manage/events/new"
+                  className="primary-btn"
+                  style={{ marginTop: 12, display: "inline-block" }}
+                >
+                  {t("manage.events.createEvent")}
+                </Link>
+              </>
+            )}
+          </div>
+        ) : view === "list" && !error ? (
+          /* Results */
+          <>
+            <div className={`manage-card-list${loading ? " manage-list-loading" : ""}`}>
+              {events.map((event) => (
+                <ManageEventCard
+                  key={event.id}
+                  id={event.id}
+                  slug={event.slug}
+                  title={event.title}
+                  status={event.status}
+                  attendanceMode={event.attendance_mode}
+                  coverImagePath={event.cover_image_path}
+                  isImported={event.is_imported}
+                  importSource={event.import_source}
+                  detachedFromImport={event.detached_from_import}
+                  practiceCategoryLabel={event.practice_category_label}
+                  eventFormatLabel={event.event_format_label}
+                  eventFormatKey={event.event_format_key}
+                  tags={event.tags}
+                  locationCity={event.location_city}
+                  locationCountry={event.location_country}
+                  nextOccurrence={event.next_occurrence}
+                  nextEndsAt={event.next_ends_at}
+                  eventTimezone={event.event_timezone}
+                  hostNames={event.host_names}
+                  onPublish={event.status === "draft" ? () => void runAction(event.id, "publish") : undefined}
+                  onUnpublish={event.status === "published" ? () => void runAction(event.id, "unpublish") : undefined}
+                  onCancel={event.status === "published" ? () => void runAction(event.id, "cancel") : undefined}
+                  onArchive={
+                    event.status === "draft" || event.status === "cancelled"
+                      ? () => void runAction(event.id, "archive")
+                      : undefined
+                  }
+                  onUnarchive={event.status === "archived" ? () => void runAction(event.id, "unpublish") : undefined}
+                  onDelete={event.status === "archived" ? () => void deleteEvent(event.id) : undefined}
+                />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {(page > 1 || events.length === PAGE_SIZE) && (
+              <div className="manage-pagination">
+                {page > 1 && (
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setFilter("page", page - 1)}
+                  >
+                    {t("manage.common.previous")}
+                  </button>
+                )}
+                {events.length === PAGE_SIZE && (
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => setFilter("page", page + 1)}
+                  >
+                    {t("manage.common.next")}
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        ) : null}
       </div>
 
-      {error && (
-        <div className="manage-empty">
-          <p>{error}</p>
-          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>Retry</button>
+      {/* Publish requires host dialog */}
+      {publishHostDialog && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setPublishHostDialog(null)}
+        >
+          <div
+            style={{
+              background: "var(--surface, #fff)",
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 420,
+              width: "90%",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 12px", fontSize: "1.1rem" }}>
+              {t("manage.eventForm.publishRequiresHostTitle")}
+            </h3>
+            <p style={{ margin: "0 0 20px", color: "var(--ink-muted)", lineHeight: 1.5 }}>
+              {t("manage.eventForm.publishRequiresHost")}
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => setPublishHostDialog(null)}
+              >
+                {t("manage.form.cancel")}
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={() => {
+                  setPublishHostDialog(null);
+                  router.push(`/manage/events/${publishHostDialog}#hosts`);
+                }}
+              >
+                {t("manage.eventForm.goToHosts")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-
-      {!error && loading ? (
-        <div className="manage-loading">Loading events...</div>
-      ) : !error && events.length === 0 ? (
-        <div className="manage-empty">
-          {isAdmin ? (
-            <>
-              <h3>{t("manage.events.emptyAdmin")}</h3>
-              <Link href="/manage/admin/events" className="secondary-btn" style={{ marginTop: 12, display: "inline-block" }}>
-                All Events
-              </Link>
-            </>
-          ) : (
-            <>
-              <h3>{t("manage.events.noEvents")}</h3>
-              <p>{t("manage.events.noEventsDescription")}</p>
-              <Link href="/manage/events/new" className="primary-btn" style={{ marginTop: 12, display: "inline-block" }}>
-                {t("manage.events.createEvent")}
-              </Link>
-            </>
-          )}
-        </div>
-      ) : !error ? (
-        <>
-          <div className={`manage-cards-grid${loading ? " manage-list-loading" : ""}`}>
-            {events.map((event) => (
-              <EventCard
-                key={event.id}
-                id={event.id}
-                slug={event.slug}
-                title={event.title}
-                status={event.status}
-                attendanceMode={event.attendance_mode}
-                scheduleKind={event.schedule_kind}
-                isImported={event.is_imported}
-                importSource={event.import_source}
-                detachedFromImport={event.detached_from_import}
-                coverImagePath={event.cover_image_path}
-                updatedAt={event.updated_at}
-                practiceCategoryLabel={event.practice_category_label}
-                eventFormatLabel={event.event_format_label}
-                locationCity={event.location_city}
-                locationCountry={event.location_country}
-                nextOccurrence={event.next_occurrence}
-                hostNames={event.host_names}
-                onPublish={event.status === "draft" ? () => void runAction(event.id, "publish") : undefined}
-                onUnpublish={event.status === "published" ? () => void runAction(event.id, "unpublish") : undefined}
-                onCancel={event.status === "published" ? () => void runAction(event.id, "cancel") : undefined}
-              />
-            ))}
-          </div>
-          {(page > 1 || events.length === pageSize) && (
-            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-              {page > 1 && (
-                <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>
-                  Previous
-                </button>
-              )}
-              {events.length === pageSize && (
-                <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>
-                  Next
-                </button>
-              )}
-            </div>
-          )}
-        </>
-      ) : null}
-    </div>
+    </section>
   );
 }

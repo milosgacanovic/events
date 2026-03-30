@@ -101,7 +101,7 @@ describe("events idempotency conflict handling", () => {
     app.decorate("requireEditor", async (request) => {
       request.auth = {
         sub: "importer-test-user",
-        roles: ["dr_events_editor"],
+        roles: ["editor"],
         isAdmin: false,
         isEditor: true,
       };
@@ -181,7 +181,7 @@ describe("events idempotency conflict handling", () => {
     app.decorate("requireEditor", async (request) => {
       request.auth = {
         sub: "importer-test-user",
-        roles: ["dr_events_editor"],
+        roles: ["editor"],
         isAdmin: false,
         isEditor: true,
       };
@@ -233,7 +233,7 @@ describe("events idempotency conflict handling", () => {
     app.decorate("requireEditor", async (request) => {
       request.auth = {
         sub: "importer-test-user",
-        roles: ["dr_events_editor"],
+        roles: ["editor"],
         isAdmin: false,
         isEditor: true,
       };
@@ -261,7 +261,7 @@ describe("events idempotency conflict handling", () => {
     app.decorate("requireEditor", async (request) => {
       request.auth = {
         sub: "importer-test-user",
-        roles: ["dr_events_editor"],
+        roles: ["editor"],
         isAdmin: false,
         isEditor: true,
       };
@@ -311,7 +311,7 @@ describe("events idempotency conflict handling", () => {
     app.decorate("requireEditor", async (request) => {
       request.auth = {
         sub: "importer-test-user",
-        roles: ["dr_events_editor"],
+        roles: ["editor"],
         isAdmin: false,
         isEditor: true,
       };
@@ -621,7 +621,7 @@ describe("events idempotency conflict handling", () => {
     app.decorate("requireEditor", async (request) => {
       request.auth = {
         sub: "importer-test-user",
-        roles: ["dr_events_editor"],
+        roles: ["editor"],
         isAdmin: false,
         isEditor: true,
       };
@@ -668,7 +668,7 @@ describe("events idempotency conflict handling", () => {
     app.decorate("requireEditor", async (request) => {
       request.auth = {
         sub: "importer-test-user",
-        roles: ["dr_events_editor"],
+        roles: ["editor"],
         isAdmin: false,
         isEditor: true,
       };

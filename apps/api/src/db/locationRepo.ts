@@ -84,6 +84,41 @@ export async function createLocation(
   return result.rows[0];
 }
 
+export async function updateLocation(
+  pool: Pool,
+  id: string,
+  input: {
+    label?: string | null;
+    formattedAddress?: string | null;
+    countryCode?: string | null;
+    city?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+  },
+): Promise<void> {
+  const resolvedCountryCode = inferCountryCode(input.countryCode ?? null, input.formattedAddress ?? "");
+  await pool.query(
+    `
+      update locations set
+        label = $2,
+        formatted_address = $3,
+        country_code = $4,
+        city = $5,
+        geom = ST_SetSRID(ST_MakePoint($7, $6), 4326)::geography
+      where id = $1
+    `,
+    [
+      id,
+      input.label ?? null,
+      input.formattedAddress ?? null,
+      resolvedCountryCode,
+      input.city ?? null,
+      input.lat ?? 0,
+      input.lng ?? 0,
+    ],
+  );
+}
+
 export async function setEventDefaultLocation(
   pool: Pool,
   eventId: string,

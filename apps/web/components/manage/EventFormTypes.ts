@@ -33,12 +33,16 @@ export type EventFormState = {
   importSource: string | null;
   externalId: string | null;
   detachedFromImport: boolean;
+  status: "draft" | "published" | "cancelled" | "archived";
   detachedAt: string | null;
   organizerRoles: Array<{
     organizerId: string;
     roleId: string;
     displayOrder: number;
     organizerName?: string;
+    organizerImageUrl?: string | null;
+    organizerAvatarPath?: string | null;
+    organizerStatus?: string;
   }>;
 };
 
@@ -75,10 +79,14 @@ export type AdminEventDetailResponse = {
     role_id: string;
     display_order: number;
     organizer_name?: string;
+    organizer_image_url?: string | null;
+    organizer_avatar_path?: string | null;
+    organizer_status?: string;
   }>;
   location_id: string | null;
   location: {
     id: string;
+    label: string | null;
     formatted_address: string;
     city: string | null;
     country_code: string | null;
@@ -112,15 +120,16 @@ export function eventFormStateFromApi(data: AdminEventDetailResponse): EventForm
     visibility: data.visibility ?? "public",
     coverImageUrl: data.cover_image_path ?? "",
     locationId: data.location_id,
-    locationLabel: data.location?.formatted_address ?? "",
+    locationLabel: data.location?.label ?? "",
     locationCity: data.location?.city ?? "",
-    locationCountry: data.location?.country_code ?? "",
+    locationCountry: (data.location?.country_code ?? "").toUpperCase(),
     locationLat: data.location?.lat ?? null,
     locationLng: data.location?.lng ?? null,
     locationAddress: data.location?.formatted_address ?? "",
     isImported: data.is_imported ?? false,
     importSource: data.import_source ?? null,
     externalId: data.external_id ?? null,
+    status: data.status ?? "draft",
     detachedFromImport: data.detached_from_import ?? false,
     detachedAt: data.detached_at ?? null,
     organizerRoles: (data.organizer_roles ?? []).map((r) => ({
@@ -128,6 +137,9 @@ export function eventFormStateFromApi(data: AdminEventDetailResponse): EventForm
       roleId: r.role_id,
       displayOrder: r.display_order,
       organizerName: r.organizer_name,
+      organizerImageUrl: r.organizer_image_url ?? null,
+      organizerAvatarPath: r.organizer_avatar_path ?? null,
+      organizerStatus: r.organizer_status ?? "published",
     })),
   };
 }
@@ -145,7 +157,7 @@ export function newEventFormState(): EventFormState {
     practiceSubcategoryId: "",
     eventFormatId: "",
     tags: "",
-    languages: "en",
+    languages: "",
     scheduleKind: "single",
     eventTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     singleStartAt: "",
@@ -163,6 +175,7 @@ export function newEventFormState(): EventFormState {
     locationLng: null,
     locationAddress: "",
     isImported: false,
+    status: "draft",
     importSource: null,
     externalId: null,
     detachedFromImport: false,

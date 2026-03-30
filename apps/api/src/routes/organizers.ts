@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import {
   createOrganizer,
+  deleteOrganizer,
   getOrganizerBySlug,
   searchOrganizers,
   updateOrganizer,
@@ -285,15 +286,111 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       return { error: parsed.error.flatten() };
     }
 
+    // Warn when unpublishing/archiving hosts linked to published events (allow with force flag)
+    if ((parsed.data.status === "draft" || parsed.data.status === "archived") && !(request.body as Record<string, unknown>)?.force) {
+      const currentOrg = await app.db.query<{ status: string }>(
+        `SELECT status FROM organizers WHERE id = $1`,
+        [params.data.id],
+      );
+      if (currentOrg.rows[0] && currentOrg.rows[0].status === "published") {
+        const activeEvents = await app.db.query(
+          `SELECT 1 FROM events e
+           JOIN event_organizers eo ON eo.event_id = e.id
+           WHERE eo.organizer_id = $1 AND e.status = 'published'
+           LIMIT 1`,
+          [params.data.id],
+        );
+        if (activeEvents.rowCount && activeEvents.rowCount > 0) {
+          reply.code(409);
+          return { error: "host_has_active_events" };
+        }
+      }
+    }
+
     const organizer = await updateOrganizer(app.db, params.data.id, parsed.data);
     if (!organizer) {
       reply.code(404);
       return { error: "not_found" };
     }
 
+    // Reindex affected events in Meilisearch when organizer status changes
+    if (parsed.data.status) {
+      const linkedEvents = await app.db.query<{ event_id: string }>(
+        `SELECT event_id FROM event_organizers WHERE organizer_id = $1`,
+        [params.data.id],
+      );
+      if (linkedEvents.rows.length > 0) {
+        await Promise.all(
+          linkedEvents.rows.map((row) =>
+            app.meiliService.upsertOccurrencesForEvent(app.db, row.event_id).catch(() => {}),
+          ),
+        );
+      }
+    }
+
     debouncedClearSearchCache();
 
     return organizer;
+  });
+
+  app.delete("/organizers/:id", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    if (!auth.isAdmin) {
+      const userId = await resolveUserId(app.db, auth);
+      await requireOrganizerAccess(app.db, userId, params.data.id, false);
+    }
+
+    // Only allow deletion of draft or archived hosts
+    const org = await app.db.query<{ status: string }>(
+      `SELECT status FROM organizers WHERE id = $1`,
+      [params.data.id],
+    );
+    if (!org.rowCount) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+    if (org.rows[0].status !== "draft" && org.rows[0].status !== "archived") {
+      reply.code(400);
+      return { error: "delete_only_draft_or_archived" };
+    }
+
+    // Prevent deletion if host is linked to published events
+    const activeEvents = await app.db.query(
+      `SELECT 1 FROM events e
+       JOIN event_organizers eo ON eo.event_id = e.id
+       WHERE eo.organizer_id = $1 AND e.status = 'published'
+       LIMIT 1`,
+      [params.data.id],
+    );
+    if (activeEvents.rowCount && activeEvents.rowCount > 0) {
+      reply.code(400);
+      return { error: "host_has_active_events" };
+    }
+
+    const { found, affectedEventIds } = await deleteOrganizer(app.db, params.data.id);
+    if (!found) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    if (affectedEventIds.length > 0) {
+      await Promise.all(
+        affectedEventIds.map((eventId) =>
+          app.meiliService.upsertOccurrencesForEvent(app.db, eventId).catch(() => {}),
+        ),
+      );
+    }
+    clearSearchCache();
+
+    return reply.code(204).send();
   });
 };
 

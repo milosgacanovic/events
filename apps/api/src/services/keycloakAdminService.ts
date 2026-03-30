@@ -8,18 +8,22 @@ export class KeycloakAdminService {
   private clientId: string;
   private clientSecret: string;
   private realm: string;
+  private rolesClientId: string;
   private cachedToken: { token: string; expiresAt: number } | null = null;
+  private cachedRolesClientUuid: string | null = null;
 
   constructor(opts: {
     adminUrl: string;
     clientId: string;
     clientSecret: string;
     realm: string;
+    rolesClientId?: string;
   }) {
     this.adminUrl = opts.adminUrl.replace(/\/$/, "");
     this.clientId = opts.clientId;
     this.clientSecret = opts.clientSecret;
     this.realm = opts.realm;
+    this.rolesClientId = opts.rolesClientId ?? opts.clientId;
   }
 
   private async getServiceToken(): Promise<string> {
@@ -68,44 +72,66 @@ export class KeycloakAdminService {
     });
   }
 
-  private async getUserIdBySub(keycloakSub: string): Promise<string> {
-    // Keycloak user ID IS the sub
-    return keycloakSub;
+  private async getRolesClientUuid(): Promise<string> {
+    if (this.cachedRolesClientUuid) return this.cachedRolesClientUuid;
+
+    const res = await this.adminFetch(
+      `/clients?clientId=${encodeURIComponent(this.rolesClientId)}&first=0&max=1`,
+    );
+    if (!res.ok) {
+      throw new Error(`Keycloak client lookup failed: ${res.status}`);
+    }
+    const clients = (await res.json()) as Array<{ id: string }>;
+    if (!clients[0]) {
+      throw new Error(`Keycloak client '${this.rolesClientId}' not found`);
+    }
+    this.cachedRolesClientUuid = clients[0].id;
+    return this.cachedRolesClientUuid;
   }
 
   async grantRole(keycloakSub: string, roleName: string): Promise<void> {
-    const userId = await this.getUserIdBySub(keycloakSub);
+    const clientUuid = await this.getRolesClientUuid();
 
-    // Get role representation
-    const roleRes = await this.adminFetch(`/roles/${encodeURIComponent(roleName)}`);
+    // Get client role representation
+    const roleRes = await this.adminFetch(
+      `/clients/${clientUuid}/roles/${encodeURIComponent(roleName)}`,
+    );
     if (!roleRes.ok) {
       throw new Error(`Keycloak role lookup failed for ${roleName}: ${roleRes.status}`);
     }
     const role = (await roleRes.json()) as { id: string; name: string };
 
-    // Assign role to user
-    const assignRes = await this.adminFetch(`/users/${userId}/role-mappings/realm`, {
-      method: "POST",
-      body: JSON.stringify([{ id: role.id, name: role.name }]),
-    });
+    // Assign client role to user
+    const assignRes = await this.adminFetch(
+      `/users/${keycloakSub}/role-mappings/clients/${clientUuid}`,
+      {
+        method: "POST",
+        body: JSON.stringify([{ id: role.id, name: role.name }]),
+      },
+    );
     if (!assignRes.ok) {
       throw new Error(`Keycloak role grant failed: ${assignRes.status}`);
     }
   }
 
   async revokeRole(keycloakSub: string, roleName: string): Promise<void> {
-    const userId = await this.getUserIdBySub(keycloakSub);
+    const clientUuid = await this.getRolesClientUuid();
 
-    const roleRes = await this.adminFetch(`/roles/${encodeURIComponent(roleName)}`);
+    const roleRes = await this.adminFetch(
+      `/clients/${clientUuid}/roles/${encodeURIComponent(roleName)}`,
+    );
     if (!roleRes.ok) {
       throw new Error(`Keycloak role lookup failed for ${roleName}: ${roleRes.status}`);
     }
     const role = (await roleRes.json()) as { id: string; name: string };
 
-    const deleteRes = await this.adminFetch(`/users/${userId}/role-mappings/realm`, {
-      method: "DELETE",
-      body: JSON.stringify([{ id: role.id, name: role.name }]),
-    });
+    const deleteRes = await this.adminFetch(
+      `/users/${keycloakSub}/role-mappings/clients/${clientUuid}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify([{ id: role.id, name: role.name }]),
+      },
+    );
     if (!deleteRes.ok) {
       throw new Error(`Keycloak role revoke failed: ${deleteRes.status}`);
     }
@@ -149,8 +175,10 @@ export class KeycloakAdminService {
   }
 
   async getUserRoles(keycloakSub: string): Promise<Array<{ id: string; name: string }>> {
-    const userId = await this.getUserIdBySub(keycloakSub);
-    const res = await this.adminFetch(`/users/${userId}/role-mappings/realm`);
+    const clientUuid = await this.getRolesClientUuid();
+    const res = await this.adminFetch(
+      `/users/${keycloakSub}/role-mappings/clients/${clientUuid}`,
+    );
     if (!res.ok) {
       throw new Error(`Keycloak get user roles failed: ${res.status}`);
     }

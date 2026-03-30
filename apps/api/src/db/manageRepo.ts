@@ -14,6 +14,11 @@ export async function listManagedEvents(
     status?: string;
     practiceCategoryId?: string;
     eventFormatId?: string;
+    countryCode?: string;
+    attendanceMode?: string;
+    languages?: string;
+    cities?: string;
+    tags?: string;
     time?: "upcoming" | "past";
     sort?: string;
     page: number;
@@ -34,18 +39,71 @@ export async function listManagedEvents(
   }
 
   if (input.status) {
-    values.push(input.status);
-    whereParts.push(`e.status = $${values.length}`);
+    const statuses = input.status.split(",").map((s) => s.trim()).filter(Boolean);
+    if (statuses.length === 1) {
+      values.push(statuses[0]);
+      whereParts.push(`e.status = $${values.length}`);
+    } else if (statuses.length > 1) {
+      values.push(statuses);
+      whereParts.push(`e.status = ANY($${values.length}::text[])`);
+    }
   }
 
   if (input.practiceCategoryId) {
-    values.push(input.practiceCategoryId);
-    whereParts.push(`e.practice_category_id = $${values.length}`);
+    const ids = input.practiceCategoryId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`e.practice_category_id = $${values.length}`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`e.practice_category_id = ANY($${values.length}::uuid[])`);
+    }
   }
 
   if (input.eventFormatId) {
-    values.push(input.eventFormatId);
-    whereParts.push(`e.event_format_id = $${values.length}`);
+    const ids = input.eventFormatId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`e.event_format_id = $${values.length}`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`e.event_format_id = ANY($${values.length}::uuid[])`);
+    }
+  }
+
+  if (input.countryCode) {
+    const codes = input.countryCode.split(",").map((s) => s.trim()).filter(Boolean);
+    if (codes.length === 1) {
+      values.push(codes[0]);
+      whereParts.push(`exists(select 1 from event_locations el join locations loc on loc.id = el.location_id where el.event_id = e.id and upper(loc.country_code) = upper($${values.length}))`);
+    } else if (codes.length > 1) {
+      values.push(codes.map((c) => c.toUpperCase()));
+      whereParts.push(`exists(select 1 from event_locations el join locations loc on loc.id = el.location_id where el.event_id = e.id and upper(loc.country_code) = ANY($${values.length}::text[]))`);
+    }
+  }
+
+  if (input.attendanceMode) {
+    const modes = input.attendanceMode.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(modes);
+    whereParts.push(`e.attendance_mode = ANY($${values.length}::text[])`);
+  }
+
+  if (input.languages) {
+    const langs = input.languages.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(langs);
+    whereParts.push(`e.languages && $${values.length}::text[]`);
+  }
+
+  if (input.cities) {
+    const cityList = input.cities.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(cityList);
+    whereParts.push(`exists(select 1 from event_locations el2 join locations l2 on l2.id = el2.location_id where el2.event_id = e.id and l2.city = ANY($${values.length}::text[]))`);
+  }
+
+  if (input.tags) {
+    const tagList = input.tags.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(tagList);
+    whereParts.push(`e.tags && $${values.length}::text[]`);
   }
 
   if (input.time === "upcoming") {
@@ -90,13 +148,17 @@ export async function listManagedEvents(
       import_source: string | null;
       detached_from_import: boolean;
       cover_image_path: string | null;
+      tags: string[] | null;
       updated_at: string;
       published_at: string | null;
       practice_category_label: string | null;
       event_format_label: string | null;
+      event_format_key: string | null;
       location_city: string | null;
       location_country: string | null;
       next_occurrence: string | null;
+      next_ends_at: string | null;
+      event_timezone: string | null;
       host_names: string | null;
       created_by_name: string | null;
     }>(
@@ -106,12 +168,15 @@ export async function listManagedEvents(
           e.id, e.slug, e.title, e.status, e.attendance_mode,
           e.schedule_kind, e.event_format_id,
           e.is_imported, e.import_source, e.detached_from_import,
-          e.cover_image_path, e.updated_at, e.published_at,
+          e.cover_image_path, e.tags, e.updated_at, e.published_at,
           pc.label as practice_category_label,
           ef.label as event_format_label,
+          ef.key as event_format_key,
           loc_sub.city as location_city,
           loc_sub.country_code as location_country,
-          next_occ.starts_at_utc as next_occurrence,
+          coalesce(next_occ.starts_at_utc, e.single_start_at) as next_occurrence,
+          coalesce(next_occ.ends_at_utc, e.single_end_at) as next_ends_at,
+          e.event_timezone,
           hosts_sub.host_names,
           u.display_name as created_by_name
         from events e
@@ -132,10 +197,9 @@ export async function listManagedEvents(
           where eo.event_id = e.id
         ) hosts_sub on true
         left join lateral (
-          select oc.starts_at_utc
-          from event_occurrences oc
-          where oc.event_id = e.id and oc.starts_at_utc > now()
-          order by oc.starts_at_utc
+          (select oc.starts_at_utc, oc.ends_at_utc from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() order by oc.starts_at_utc limit 1)
+          union all
+          (select oc.starts_at_utc, oc.ends_at_utc from event_occurrences oc where oc.event_id = e.id order by oc.starts_at_utc desc limit 1)
           limit 1
         ) next_occ on true
         left join users u on u.id = e.created_by_user_id
@@ -182,6 +246,12 @@ export async function listManagedOrganizers(
   input: {
     q?: string;
     status?: string;
+    practiceCategoryId?: string;
+    profileRoleId?: string;
+    countryCode?: string;
+    languages?: string;
+    cities?: string;
+    sort?: string;
     page: number;
     pageSize: number;
   },
@@ -189,6 +259,13 @@ export async function listManagedOrganizers(
   const page = Math.max(input.page, 1);
   const pageSize = Math.min(Math.max(input.pageSize, 1), 100);
   const offset = (page - 1) * pageSize;
+
+  const sortMap: Record<string, string> = {
+    edited: "o.updated_at desc",
+    created: "o.created_at desc",
+    name: "lower(o.name) asc",
+  };
+  const orderBy = sortMap[input.sort ?? ""] ?? "o.updated_at desc";
 
   const whereParts: string[] = [];
   const values: unknown[] = [userId];
@@ -202,6 +279,51 @@ export async function listManagedOrganizers(
   if (input.status) {
     values.push(input.status);
     whereParts.push(`o.status = $${values.length}`);
+  }
+
+  if (input.practiceCategoryId) {
+    const ids = input.practiceCategoryId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_practices op WHERE op.organizer_id = o.id AND op.practice_id = $${values.length})`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_practices op WHERE op.organizer_id = o.id AND op.practice_id = ANY($${values.length}::uuid[]))`);
+    }
+  }
+
+  if (input.profileRoleId) {
+    const ids = input.profileRoleId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_profile_roles opr WHERE opr.organizer_id = o.id AND opr.role_id = $${values.length})`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_profile_roles opr WHERE opr.organizer_id = o.id AND opr.role_id = ANY($${values.length}::uuid[]))`);
+    }
+  }
+
+  if (input.countryCode) {
+    const codes = input.countryCode.split(",").map((s) => s.trim()).filter(Boolean);
+    if (codes.length === 1) {
+      values.push(codes[0]);
+      whereParts.push(`upper(o.country_code) = upper($${values.length})`);
+    } else if (codes.length > 1) {
+      values.push(codes.map((c) => c.toUpperCase()));
+      whereParts.push(`upper(o.country_code) = ANY($${values.length}::text[])`);
+    }
+  }
+
+  if (input.languages) {
+    const langs = input.languages.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(langs);
+    whereParts.push(`o.languages && $${values.length}::text[]`);
+  }
+
+  if (input.cities) {
+    const cityList = input.cities.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(cityList);
+    whereParts.push(`EXISTS(SELECT 1 FROM organizer_locations ol WHERE ol.organizer_id = o.id AND ol.city = ANY($${values.length}::text[]))`);
   }
 
   const extraWhere = whereParts.length ? `and ${whereParts.join(" and ")}` : "";
@@ -225,17 +347,45 @@ export async function listManagedOrganizers(
       city: string | null;
       country_code: string | null;
       updated_at: string;
+      languages: string[] | null;
+      practice_labels: string | null;
+      role_labels: string | null;
+      role_keys: string[] | null;
+      event_count: string | null;
     }>(
       `
         ${ownershipCte}
         select
           o.id, o.slug, o.name, o.status,
           o.image_url, o.avatar_path, o.city, o.country_code,
-          o.updated_at
+          o.updated_at, o.languages,
+          practice_sub.practice_labels,
+          role_sub.role_labels,
+          role_sub.role_keys,
+          event_count_sub.event_count
         from organizers o
         join managed_org_ids m on m.id = o.id
+        left join lateral (
+          select string_agg(p.label, ', ' order by p.sort_order) as practice_labels
+          from organizer_practices op
+          join practices p on p.id = op.practice_id
+          where op.organizer_id = o.id
+        ) practice_sub on true
+        left join lateral (
+          select
+            string_agg(r.label, ', ') as role_labels,
+            array_agg(r.key order by r.key) as role_keys
+          from organizer_profile_roles opr
+          join organizer_roles r on r.id = opr.role_id
+          where opr.organizer_id = o.id
+        ) role_sub on true
+        left join lateral (
+          select count(*)::text as event_count
+          from event_organizers eo
+          where eo.organizer_id = o.id
+        ) event_count_sub on true
         where 1=1 ${extraWhere}
-        order by o.updated_at desc
+        order by ${orderBy}
         limit $${values.length + 1}
         offset $${values.length + 2}
       `,
@@ -263,6 +413,332 @@ export async function listManagedOrganizers(
       totalPages: Math.max(Math.ceil(total / pageSize), 1),
       totalItems: total,
     },
+  };
+}
+
+export type EventFacetFilters = {
+  status?: string[];
+  practiceCategoryIds?: string[];
+  attendanceModes?: string[];
+  eventFormatIds?: string[];
+  languages?: string[];
+  countryCodes?: string[];
+  cities?: string[];
+  tags?: string[];
+};
+
+export async function getEventFacets(
+  pool: Pool,
+  userId: string,
+  filters: EventFacetFilters = {},
+): Promise<{
+  statuses: Record<string, number>;
+  attendanceModes: Record<string, number>;
+  practiceCategoryIds: Record<string, number>;
+  eventFormatIds: Record<string, number>;
+  languages: Record<string, number>;
+  countryCodes: Record<string, number>;
+  cities: Record<string, number>;
+  tags: Record<string, number>;
+}> {
+  const values: unknown[] = [userId];
+  const filterClauses: string[] = [];
+
+  if (filters.status?.length) {
+    values.push(filters.status);
+    filterClauses.push(`e.status = ANY($${values.length}::text[])`);
+  }
+  if (filters.practiceCategoryIds?.length) {
+    values.push(filters.practiceCategoryIds);
+    filterClauses.push(`e.practice_category_id = ANY($${values.length}::uuid[])`);
+  }
+  if (filters.attendanceModes?.length) {
+    values.push(filters.attendanceModes);
+    filterClauses.push(`e.attendance_mode = ANY($${values.length}::text[])`);
+  }
+  if (filters.eventFormatIds?.length) {
+    values.push(filters.eventFormatIds);
+    filterClauses.push(`e.event_format_id = ANY($${values.length}::uuid[])`);
+  }
+  if (filters.languages?.length) {
+    values.push(filters.languages);
+    filterClauses.push(`e.languages && $${values.length}::text[]`);
+  }
+  if (filters.tags?.length) {
+    values.push(filters.tags);
+    filterClauses.push(`e.tags && $${values.length}::text[]`);
+  }
+  if (filters.countryCodes?.length) {
+    values.push(filters.countryCodes);
+    filterClauses.push(`exists (
+      select 1 from event_locations el2
+      join locations l2 on l2.id = el2.location_id
+      where el2.event_id = e.id and upper(l2.country_code) = ANY($${values.length}::text[])
+    )`);
+  }
+  if (filters.cities?.length) {
+    values.push(filters.cities);
+    filterClauses.push(`exists (
+      select 1 from event_locations el3
+      join locations l3 on l3.id = el3.location_id
+      where el3.event_id = e.id and l3.city = ANY($${values.length}::text[])
+    )`);
+  }
+
+  const filterWhere = filterClauses.length ? `and ${filterClauses.join(" and ")}` : "";
+
+  const result = await pool.query<{ result: Record<string, unknown> }>(
+    `
+    with managed as (
+      select e.id from events e where e.created_by_user_id = $1
+      union
+      select eo.event_id from event_organizers eo
+        join host_users hu on hu.organizer_id = eo.organizer_id where hu.user_id = $1
+      union
+      select eu.event_id from event_users eu where eu.user_id = $1
+    ),
+    filtered as (
+      select distinct m.id from managed m
+      join events e on e.id = m.id
+      where 1=1 ${filterWhere}
+    )
+    select json_build_object(
+      'statuses', (
+        select json_object_agg(v.s, coalesce(c.cnt, 0))
+        from (values ('draft'), ('published'), ('cancelled'), ('archived')) as v(s)
+        left join (
+          select e.status, count(distinct e.id)::int as cnt
+          from events e join filtered f on f.id = e.id
+          group by e.status
+        ) c on c.status = v.s
+      ),
+      'attendanceModes', (
+        select coalesce(json_object_agg(t.attendance_mode, t.cnt), '{}'::json)
+        from (
+          select e.attendance_mode, count(distinct e.id)::int as cnt
+          from events e join filtered f on f.id = e.id
+          where e.attendance_mode is not null
+          group by e.attendance_mode
+        ) t
+      ),
+      'practiceCategoryIds', (
+        select coalesce(json_object_agg(t.id::text, t.cnt), '{}'::json)
+        from (
+          select e.practice_category_id as id, count(distinct e.id)::int as cnt
+          from events e join filtered f on f.id = e.id
+          where e.practice_category_id is not null
+          group by e.practice_category_id
+        ) t
+      ),
+      'eventFormatIds', (
+        select coalesce(json_object_agg(t.id::text, t.cnt), '{}'::json)
+        from (
+          select e.event_format_id as id, count(distinct e.id)::int as cnt
+          from events e join filtered f on f.id = e.id
+          where e.event_format_id is not null
+          group by e.event_format_id
+        ) t
+      ),
+      'languages', (
+        select coalesce(json_object_agg(t.lang, t.cnt), '{}'::json)
+        from (
+          select lang, count(distinct e.id)::int as cnt
+          from events e join filtered f on f.id = e.id
+          cross join unnest(e.languages) as lang
+          group by lang
+        ) t
+      ),
+      'countryCodes', (
+        select coalesce(json_object_agg(t.country_code, t.cnt), '{}'::json)
+        from (
+          select upper(l.country_code) as country_code, count(distinct e.id)::int as cnt
+          from events e
+          join filtered f on f.id = e.id
+          join event_locations el on el.event_id = e.id
+          join locations l on l.id = el.location_id
+          where l.country_code is not null
+          group by upper(l.country_code)
+        ) t
+      ),
+      'cities', (
+        select coalesce(json_object_agg(t.city, t.cnt), '{}'::json)
+        from (
+          select l.city, count(distinct e.id)::int as cnt
+          from events e
+          join filtered f on f.id = e.id
+          join event_locations el on el.event_id = e.id
+          join locations l on l.id = el.location_id
+          where l.city is not null and l.city != ''
+          group by l.city
+        ) t
+      ),
+      'tags', (
+        select coalesce(json_object_agg(t.tag, t.cnt), '{}'::json)
+        from (
+          select tag, count(distinct e.id)::int as cnt
+          from events e join filtered f on f.id = e.id
+          cross join unnest(e.tags) as tag
+          where tag is not null
+          group by tag
+        ) t
+      )
+    ) as result
+    `,
+    values,
+  );
+  const row = result.rows[0]?.result ?? {};
+  return {
+    statuses: (row.statuses as Record<string, number>) ?? {},
+    attendanceModes: (row.attendanceModes as Record<string, number>) ?? {},
+    practiceCategoryIds: (row.practiceCategoryIds as Record<string, number>) ?? {},
+    eventFormatIds: (row.eventFormatIds as Record<string, number>) ?? {},
+    languages: (row.languages as Record<string, number>) ?? {},
+    countryCodes: (row.countryCodes as Record<string, number>) ?? {},
+    cities: (row.cities as Record<string, number>) ?? {},
+    tags: (row.tags as Record<string, number>) ?? {},
+  };
+}
+
+export type HostFacetFilters = {
+  status?: string;
+  practiceCategoryIds?: string[];
+  roleIds?: string[];
+  languages?: string[];
+  countryCodes?: string[];
+  cities?: string[];
+};
+
+export async function getHostFacets(
+  pool: Pool,
+  userId: string,
+  filters: HostFacetFilters = {},
+): Promise<{
+  statuses: Record<string, number>;
+  practiceCategoryIds: Record<string, number>;
+  roleIds: Record<string, number>;
+  languages: Record<string, number>;
+  countryCodes: Record<string, number>;
+  cities: Record<string, number>;
+}> {
+  const values: unknown[] = [userId];
+  const filterClauses: string[] = [];
+
+  if (filters.status) {
+    values.push(filters.status);
+    filterClauses.push(`o.status = $${values.length}`);
+  }
+  if (filters.languages?.length) {
+    values.push(filters.languages);
+    filterClauses.push(`o.languages && $${values.length}::text[]`);
+  }
+  if (filters.countryCodes?.length) {
+    values.push(filters.countryCodes);
+    filterClauses.push(`upper(o.country_code) = ANY($${values.length}::text[])`);
+  }
+  if (filters.practiceCategoryIds?.length) {
+    values.push(filters.practiceCategoryIds);
+    filterClauses.push(`exists (
+      select 1 from organizer_practices op2
+      where op2.organizer_id = o.id and op2.practice_id = ANY($${values.length}::uuid[])
+    )`);
+  }
+  if (filters.roleIds?.length) {
+    values.push(filters.roleIds);
+    filterClauses.push(`exists (
+      select 1 from organizer_profile_roles opr2
+      where opr2.organizer_id = o.id and opr2.role_id = ANY($${values.length}::uuid[])
+    )`);
+  }
+  if (filters.cities?.length) {
+    values.push(filters.cities);
+    filterClauses.push(`exists (
+      select 1 from organizer_locations ol2
+      where ol2.organizer_id = o.id and ol2.city = ANY($${values.length}::text[])
+    )`);
+  }
+
+  const filterWhere = filterClauses.length ? `and ${filterClauses.join(" and ")}` : "";
+
+  const result = await pool.query<{ result: Record<string, unknown> }>(
+    `
+    with managed as (
+      select o.id from organizers o where o.created_by_user_id = $1
+      union
+      select hu.organizer_id as id from host_users hu where hu.user_id = $1
+    ),
+    filtered as (
+      select distinct m.id from managed m
+      join organizers o on o.id = m.id
+      where 1=1 ${filterWhere}
+    )
+    select json_build_object(
+      'statuses', (
+        select json_object_agg(v.s, coalesce(c.cnt, 0))
+        from (values ('draft'), ('published'), ('archived')) as v(s)
+        left join (
+          select o.status, count(distinct o.id)::int as cnt
+          from organizers o join filtered f on f.id = o.id
+          group by o.status
+        ) c on c.status = v.s
+      ),
+      'practiceCategoryIds', (
+        select coalesce(json_object_agg(t.id::text, t.cnt), '{}'::json)
+        from (
+          select op.practice_id as id, count(distinct o.id)::int as cnt
+          from organizers o join filtered f on f.id = o.id
+          join organizer_practices op on op.organizer_id = o.id
+          group by op.practice_id
+        ) t
+      ),
+      'roleIds', (
+        select coalesce(json_object_agg(t.id::text, t.cnt), '{}'::json)
+        from (
+          select opr.role_id as id, count(distinct o.id)::int as cnt
+          from organizers o join filtered f on f.id = o.id
+          join organizer_profile_roles opr on opr.organizer_id = o.id
+          group by opr.role_id
+        ) t
+      ),
+      'languages', (
+        select coalesce(json_object_agg(t.lang, t.cnt), '{}'::json)
+        from (
+          select lang, count(distinct o.id)::int as cnt
+          from organizers o join filtered f on f.id = o.id
+          cross join unnest(o.languages) as lang
+          group by lang
+        ) t
+      ),
+      'countryCodes', (
+        select coalesce(json_object_agg(t.country_code, t.cnt), '{}'::json)
+        from (
+          select upper(o.country_code) as country_code, count(distinct o.id)::int as cnt
+          from organizers o join filtered f on f.id = o.id
+          where o.country_code is not null
+          group by upper(o.country_code)
+        ) t
+      ),
+      'cities', (
+        select coalesce(json_object_agg(t.city, t.cnt), '{}'::json)
+        from (
+          select ol.city, count(distinct o.id)::int as cnt
+          from organizers o join filtered f on f.id = o.id
+          join organizer_locations ol on ol.organizer_id = o.id
+          where ol.city is not null and ol.city != ''
+          group by ol.city
+        ) t
+      )
+    ) as result
+    `,
+    values,
+  );
+  const row = result.rows[0]?.result ?? {};
+  return {
+    statuses: (row.statuses as Record<string, number>) ?? {},
+    practiceCategoryIds: (row.practiceCategoryIds as Record<string, number>) ?? {},
+    roleIds: (row.roleIds as Record<string, number>) ?? {},
+    languages: (row.languages as Record<string, number>) ?? {},
+    countryCodes: (row.countryCodes as Record<string, number>) ?? {},
+    cities: (row.cities as Record<string, number>) ?? {},
   };
 }
 

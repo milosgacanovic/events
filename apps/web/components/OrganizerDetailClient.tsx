@@ -10,7 +10,14 @@ import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 
-type OrganizerDetail = {
+export type OrganizerServerTranslations = {
+  locale: string;
+  countryLabel?: string | null;
+  languageLabels?: Record<string, string>;
+  locationCountryLabels?: Record<string, string>;
+};
+
+export type OrganizerDetail = {
   organizer: {
     id: string;
     name: string;
@@ -175,12 +182,12 @@ function extractDescriptionSections(value: unknown): DescriptionSections {
   };
 }
 
-function getRoleLabel(key: string, t: (k: string) => string): string {
-  const translated = t(`roleType.${key}`);
-  return translated === `roleType.${key}` ? key : translated;
-}
+import { getRoleLabel } from "../lib/filterHelpers";
 
-export function OrganizerDetailClient({ slug }: { slug: string }) {
+export function OrganizerDetailClient({ slug, serverTranslations }: {
+  slug: string;
+  serverTranslations?: OrganizerServerTranslations;
+}) {
   const { locale, t } = useI18n();
   const router = useRouter();
   const auth = useKeycloakAuth();
@@ -277,7 +284,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
     );
   }
   const hasEditorRole = auth.roles.some((role) =>
-    role === "dr_events_admin" || role === "dr_events_editor" || role === "admin" || role === "editor"
+    role === "admin" || role === "editor"
   );
   const canEdit = auth.ready && auth.authenticated && hasEditorRole;
 
@@ -300,8 +307,24 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   })();
   const countryValue = data.organizer.countryCode ?? data.organizer.country_code ?? null;
   const countryLabel = countryValue
-    ? (regionNames?.of(countryValue.toUpperCase()) ?? countryValue.toUpperCase())
+    ? (serverTranslations?.locale === locale && serverTranslations.countryLabel
+        ? serverTranslations.countryLabel
+        : (regionNames?.of(countryValue.toUpperCase()) ?? countryValue.toUpperCase()))
     : null;
+  const getRegionLabel = (code: string): string => {
+    if (serverTranslations?.locale === locale) {
+      const s = serverTranslations.locationCountryLabels?.[code];
+      if (s) return s;
+    }
+    return regionNames?.of(code.toUpperCase()) ?? code.toUpperCase();
+  };
+  const getLangLabel = (code: string): string => {
+    if (serverTranslations?.locale === locale) {
+      const s = serverTranslations.languageLabels?.[code];
+      if (s) return s;
+    }
+    return labelForLanguageCode(code, languageNames);
+  };
   const practiceLabelById = (() => {
     const map = new Map<string, string>();
     for (const category of taxonomy?.practices.categories ?? []) {
@@ -371,7 +394,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
   }
 
   return (
-    <section className="panel cards">
+    <section className="panel cards" style={{ maxWidth: 760, margin: "0 auto" }}>
       {breadcrumb}
       <div className="organizer-profile-header">
         <div className="organizer-avatar-shell" aria-hidden={!organizerImage}>
@@ -451,7 +474,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
             <dt>{data.organizer.languages.length === 1 ? t("organizerDetail.language") : t("organizerDetail.languages")}</dt>
             <dd>
               {data.organizer.languages.map((code, i) => (
-                <span key={code}>{i > 0 && " · "}<Link href={`/hosts?languages=${code}`}>{labelForLanguageCode(code, languageNames)}</Link></span>
+                <span key={code}>{i > 0 && " · "}<Link href={`/hosts?languages=${code}`}>{getLangLabel(code)}</Link></span>
               ))}
             </dd>
           </>
@@ -461,9 +484,7 @@ export function OrganizerDetailClient({ slug }: { slug: string }) {
             <dt>{displayedLocations.length === 1 ? t("organizerDetail.location") : t("organizerDetail.locations")}</dt>
             <dd>
               {displayedLocations.map((loc) => {
-                const locCountry = loc.country_code
-                  ? (regionNames?.of(loc.country_code.toUpperCase()) ?? loc.country_code.toUpperCase())
-                  : null;
+                const locCountry = loc.country_code ? getRegionLabel(loc.country_code) : null;
                 if (loc.city && !loc.city.includes(',') && loc.country_code) {
                   return (
                     <span key={loc.id} style={{ display: "block" }}>

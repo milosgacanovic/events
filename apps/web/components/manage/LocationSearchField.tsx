@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 
+import { useI18n } from "../i18n/I18nProvider";
 import { authorizedGet, authorizedPost } from "../../lib/manageApi";
 
 type GeocodeResult = {
@@ -32,9 +33,11 @@ export function LocationSearchField({
   onClear: () => void;
   selectedLabel: string;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const search = useCallback(async () => {
     if (query.trim().length < 2) return;
@@ -53,6 +56,7 @@ export function LocationSearchField({
   }, [getToken, query]);
 
   const selectResult = useCallback(async (result: GeocodeResult) => {
+    setError(null);
     try {
       const location = await authorizedPost<LocationResponse>(
         getToken,
@@ -60,7 +64,7 @@ export function LocationSearchField({
         {
           label: result.formatted_address,
           formattedAddress: result.formatted_address,
-          city: result.city,
+          city: result.city ?? "",
           countryCode: result.country_code,
           lat: result.lat,
           lng: result.lng,
@@ -69,35 +73,57 @@ export function LocationSearchField({
       onSelect(location);
       setResults([]);
       setQuery("");
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("manage.locationSearch.failedToCreate"));
     }
   }, [getToken, onSelect]);
 
-  if (selectedLabel) {
-    return (
-      <div className="kv">
-        <span className="meta">{selectedLabel}</span>
-        <button type="button" className="ghost-btn" onClick={onClear}>Clear</button>
-      </div>
-    );
-  }
-
   return (
     <div>
-      <div className="kv" style={{ gap: 8 }}>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search location..."
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void search(); } }}
-        />
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ position: "relative", flex: 1 }}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("manage.locationSearch.placeholder")}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void search(); } }}
+            style={{ width: "100%", paddingRight: query ? 32 : undefined }}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => { setQuery(""); setResults([]); setError(null); }}
+              aria-label="Clear search"
+              style={{
+                position: "absolute",
+                right: 6,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--muted, #888)",
+                fontSize: "1.1rem",
+                lineHeight: 1,
+                padding: "2px 4px",
+              }}
+            >
+              &times;
+            </button>
+          )}
+        </div>
         <button type="button" className="secondary-btn" onClick={() => void search()} disabled={loading}>
-          {loading ? "..." : "Search"}
+          {loading ? "..." : t("manage.locationSearch.search")}
         </button>
       </div>
+      {error && (
+        <p style={{ color: "var(--color-danger, #c00)", marginTop: 4, fontSize: "0.9em" }}>{error}</p>
+      )}
       {results.length > 0 && (
         <div className="panel" style={{ marginTop: 4 }}>
+          <div className="meta" style={{ padding: "6px 8px", fontSize: "0.8rem", borderBottom: "1px solid var(--border, #e0e0e0)" }}>
+            {t("manage.locationSearch.resultsHint")}
+          </div>
           {results.map((r, i) => (
             <button
               type="button"

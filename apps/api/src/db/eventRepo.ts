@@ -4,6 +4,14 @@ import type { Pool } from "pg";
 import type { EventOccurrenceRow, EventSeriesRow, LocationRow } from "../types/domain";
 import { generateUniqueSlug } from "../utils/slug";
 
+export async function eventHasOrganizers(pool: Pool, eventId: string): Promise<boolean> {
+  const result = await pool.query(
+    "SELECT 1 FROM event_organizers WHERE event_id = $1 LIMIT 1",
+    [eventId],
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
 type EventSearchInput = {
   q?: string;
   from: string;
@@ -442,6 +450,7 @@ export async function getEventBySlug(
       join organizers o on o.id = rel.organizer_id
       join organizer_roles r on r.id = rel.role_id
       where rel.event_id = $1
+        and o.status = 'published'
       order by rel.display_order asc, o.name asc
     `,
     [event.id],

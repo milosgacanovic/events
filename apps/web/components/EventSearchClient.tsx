@@ -9,6 +9,7 @@ import { fetchJson } from "../lib/api";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
 import { pushDataLayer } from "../lib/gtm";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
+import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../lib/i18n/icuFallback";
 import { scrollToTopFast } from "../lib/scroll";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useGeolocation } from "../lib/useGeolocation";
@@ -139,10 +140,7 @@ type DisjunctiveFacetState = {
   eventDate: Record<string, number>;
 };
 
-function getFormatLabel(key: string, label: string, t: (k: string) => string): string {
-  const translated = t(`eventFormat.${key}`);
-  return translated === `eventFormat.${key}` ? label : translated;
-}
+import { getFormatLabel, toTitleCase as toTitleCaseHelper } from "../lib/filterHelpers";
 
 export function EventSearchClient({
   initialResults,
@@ -158,7 +156,7 @@ export function EventSearchClient({
   const authRef = useRef(auth);
   authRef.current = auth;
   const isEditor = auth.authenticated && auth.roles.some((role) =>
-    role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
+    role === "editor" || role === "admin"
   );
   const canSeeDetailedErrors = isEditor;
   const router = useRouter();
@@ -171,9 +169,7 @@ export function EventSearchClient({
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState(initialQuery?.practiceSubcategoryId ?? "");
   const [eventFormatIds, setEventFormatIds] = useState(initialQuery?.eventFormatIds ?? []);
   const [tags, setTags] = useState<string[]>(initialQuery?.tags ?? []);
-  const [tagQuery, setTagQuery] = useState("");
-  const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; count: number }>>([]);
-  const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false);
+  const [tagSuggestions, setTagSuggestions] = useState<Array<{ tag: string; display: string; count: number }>>([]);
   const [languages, setLanguages] = useState<string[]>(initialQuery?.languages ?? []);
   const [attendanceModes, setAttendanceModes] = useState<string[]>(initialQuery?.attendanceModes ?? []);
   const [countryCodes, setCountryCodes] = useState<string[]>(
@@ -184,11 +180,13 @@ export function EventSearchClient({
   const [customFrom, setCustomFrom] = useState<string>(initialQuery?.dateFrom ?? "");
   const [customTo, setCustomTo] = useState<string>(initialQuery?.dateTo ?? "");
   const [cityQuery, setCityQuery] = useState("");
+  const [tagQuery, setTagQuery] = useState("");
+  const [tagSuggestionsOpen, setTagSuggestionsOpen] = useState(false);
+  const tagInputRef = useRef<HTMLInputElement>(null);
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
   const [includePast, setIncludePast] = useState(initialQuery?.includePast ?? false);
-  const [showUnlisted, setShowUnlisted] = useState(false);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [loading, setLoading] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -232,7 +230,6 @@ export function EventSearchClient({
   const pendingPaginationScrollRef = useRef(false);
   const skipNextScrollRestoreRef = useRef(false);
   const isTypingQRef = useRef(false);
-  const tagInputRef = useRef<HTMLInputElement>(null);
   const cityInputRef = useRef<HTMLInputElement>(null);
   const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
@@ -379,14 +376,12 @@ export function EventSearchClient({
     }
   }, [locale]);
   const getLanguageLabel = useCallback(
-    (value: string) => labelForLanguageCode(value, languageNames),
-    [languageNames],
+    (value: string) => getLocalizedLanguageLabel(value, locale, languageNames),
+    [languageNames, locale],
   );
   const getCountryLabel = useCallback((value: string) => {
-    const normalized = value.trim().toUpperCase();
-    const localized = regionNames?.of(normalized);
-    return localized && localized !== normalized ? localized : normalized;
-  }, [regionNames]);
+    return getLocalizedRegionLabel(value, locale, regionNames);
+  }, [regionNames, locale]);
   const visibleCountryFacets = useMemo(() => {
     const selectedSet = new Set(countryCodes.map((value) => value.trim().toLowerCase()));
     const merged = new Map<string, number>();
@@ -431,7 +426,6 @@ export function EventSearchClient({
       params.set("includePast", "true");
       params.set("to", new Date().toISOString());
     }
-    if (showUnlisted) params.set("showUnlisted", "true");
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
     return params.toString();
@@ -451,7 +445,6 @@ export function EventSearchClient({
     userTimeZone,
     sort,
     includePast,
-    showUnlisted,
   ]);
 
   const buildUiQueryString = useCallback(() => {
@@ -703,9 +696,7 @@ export function EventSearchClient({
     setError(null);
 
     try {
-      const token = (showUnlisted && authRef.current.authenticated) ? await authRef.current.getToken() : null;
-      const fetchInit = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
-      const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`, fetchInit);
+      const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`);
       setData(result);
       pushDataLayer({ event: "event_listing_view", page_type: "event_listing", total_results: result.totalHits, current_page: page });
       if (appendMode) {
@@ -734,7 +725,7 @@ export function EventSearchClient({
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [buildQueryString, canSeeDetailedErrors, page, t, showUnlisted]);
+  }, [buildQueryString, canSeeDetailedErrors, page, t]);
 
   useEffect(() => {
     // Try restoring from snapshot saved by onNavigateAway (event card click)
@@ -950,12 +941,12 @@ export function EventSearchClient({
     setPracticeSubcategoryId("");
     setEventFormatIds([]);
     setTags([]);
-    setTagQuery("");
     setLanguages([]);
     setAttendanceModes([]);
     setCountryCodes([]);
     setCities([]);
     setCityQuery("");
+    setTagQuery("");
     setEventDates([]);
     setCustomFrom("");
     setCustomTo("");
@@ -987,17 +978,17 @@ export function EventSearchClient({
   }, [cityQuery, countryCodes, cities]);
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (tagQuery.trim()) {
-      params.set("q", tagQuery.trim());
-      params.set("limit", "20");
-    } else {
-      params.set("limit", "5");
-    }
-    void fetchJson<{ items: Array<{ tag: string; count: number }> }>(`/meta/tags?${params.toString()}`)
+    void fetchJson<{ items: Array<{ tag: string; display: string; count: number }> }>(`/meta/tags?limit=30`)
       .then((payload) => setTagSuggestions(payload.items ?? []))
       .catch(() => setTagSuggestions([]));
-  }, [tagQuery]);
+  }, []);
+
+  const visibleTagSuggestions = useMemo(() => {
+    const q = tagQuery.trim().toLowerCase();
+    return tagSuggestions
+      .filter((item) => !tags.includes(item.tag))
+      .filter((item) => !q || item.tag.includes(q) || (item.display ?? "").toLowerCase().includes(q));
+  }, [tagSuggestions, tags, tagQuery]);
 
   const visibleCategories = useMemo(() => {
     const categories = taxonomy?.practices.categories ?? [];
@@ -1097,7 +1088,7 @@ export function EventSearchClient({
     for (const tag of tags) {
       chips.push({
         key: `tag:${tag}`,
-        label: toTitleCase(tag),
+        label: tagDisplay(tag),
         onRemove: () => {
           setTags((current) => current.filter((item) => item !== tag));
           setPage(1);
@@ -1166,18 +1157,13 @@ export function EventSearchClient({
     taxonomy?.eventFormats,
   ]);
 
-  function addTagFromInput(rawValue: string) {
-    const value = rawValue.trim().toLowerCase();
-    if (!value) {
-      return;
-    }
-    setTags((current) => (current.includes(value) ? current : [...current, value]));
-    setTagQuery("");
-    setPage(1);
-  }
+  const toTitleCase = toTitleCaseHelper;
 
-  function toTitleCase(str: string): string {
-    return str.replace(/\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+  function tagDisplay(tag: string): string {
+    const i18nKey = `tag.${tag.replace(/ /g, "-")}`;
+    const translated = t(i18nKey);
+    if (translated !== i18nKey) return translated;
+    return tagSuggestions.find((t) => t.tag === tag)?.display ?? toTitleCase(tag);
   }
 
   function addCityFromInput(rawValue: string) {
@@ -1190,10 +1176,6 @@ export function EventSearchClient({
     setPage(1);
   }
 
-  const visibleTagSuggestions = useMemo(
-    () => tagSuggestions.filter((item) => !tags.includes(item.tag)),
-    [tagSuggestions, tags],
-  );
   const dateFormatHint = useMemo(() => {
     try {
       const parts = new Intl.DateTimeFormat(locale, { year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(2013, 10, 25));
@@ -1369,18 +1351,6 @@ export function EventSearchClient({
             <span className="filters-panel-count">{t("eventSearch.resultsCount", { count: data.totalHits })}</span>
           )}
         </h2>
-        <input
-          value={q}
-          onChange={(event) => {
-            isTypingQRef.current = true;
-            if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
-            typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
-            setQ(event.target.value);
-            setPage(1);
-            clearSearchCache();
-          }}
-          placeholder={t("eventSearch.placeholder.searchTitle")}
-        />
         <details open={dateOpen} onToggle={(event) => setDateOpen((event.currentTarget as HTMLDetailsElement).open)}>
           <summary>{t("eventSearch.eventDate")}</summary>
           <div className="kv">
@@ -1727,33 +1697,35 @@ export function EventSearchClient({
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
-                const query = tagQuery.trim().toLowerCase();
-                if (!query) {
-                  return;
+                const match = visibleTagSuggestions[0];
+                if (match) {
+                  setTags((current) => [...current, match.tag]);
+                  setTagQuery("");
+                  setPage(1);
+                  setTagSuggestionsOpen(false);
+                  tagInputRef.current?.blur();
                 }
-                const exact = visibleTagSuggestions.find((item) => item.tag.toLowerCase() === query);
-                addTagFromInput(exact?.tag ?? query);
-                setTagSuggestionsOpen(false);
-                tagInputRef.current?.blur();
               }
             }}
-            placeholder={t("eventSearch.tags")}
+            placeholder={t("eventSearch.placeholder.tags")}
           />
           {tagSuggestionsOpen && visibleTagSuggestions.length > 0 && (
             <div className="autocomplete-menu">
-              {visibleTagSuggestions.slice(0, 10).map((item) => (
+              {visibleTagSuggestions.map((item) => (
                 <button
                   type="button"
                   className="autocomplete-option"
                   key={item.tag}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    addTagFromInput(item.tag);
+                    setTags((current) => [...current, item.tag]);
+                    setTagQuery("");
+                    setPage(1);
                     setTagSuggestionsOpen(false);
                     tagInputRef.current?.blur();
                   }}
                 >
-                  {toTitleCase(item.tag)} ({item.count})
+                  {tagDisplay(item.tag)}{item.count > 0 ? ` (${item.count})` : ""}
                 </button>
               ))}
             </div>
@@ -1761,17 +1733,17 @@ export function EventSearchClient({
         </div>
         {tags.length > 0 && (
           <div className="kv">
-            {tags.map((item) => (
+            {tags.map((tag) => (
               <button
                 className="tag"
-                key={item}
+                key={tag}
                 type="button"
                 onClick={() => {
-                  setTags((current) => current.filter((tag) => tag !== item));
+                  setTags((current) => current.filter((t) => t !== tag));
                   setPage(1);
                 }}
               >
-                {toTitleCase(item)} ×
+                {tagDisplay(tag)} ×
               </button>
             ))}
           </div>
@@ -1793,19 +1765,6 @@ export function EventSearchClient({
             </span>
           </label>
         </div>
-        {isEditor && (
-          <label className="meta">
-            <input
-              type="checkbox"
-              checked={showUnlisted}
-              onChange={(e) => {
-                setShowUnlisted(e.target.checked);
-                setPage(1);
-              }}
-            />
-            {" Show unlisted"}
-          </label>
-        )}
         <div className="filters-mobile-footer">
           <button
             type="button"
@@ -1941,7 +1900,7 @@ export function EventSearchClient({
             const organizerNames = hit.organizers?.map((o) => o.name).join(", ");
             const extraPills = [
               ...hit.event.languages.map((l) => getLanguageLabel(l)),
-              ...hit.event.tags,
+              ...hit.event.tags.map((t) => tagDisplay(t)),
             ];
             const visiblePills = extraPills;
             const overflowCount = 0;
@@ -1977,9 +1936,6 @@ export function EventSearchClient({
                   <div className="event-card-body">
                     <h3>
                       {hit.event.title}
-                      {hit.event.visibility === "unlisted" && (
-                        <span className="tag" style={{ marginLeft: "0.5em", fontSize: "0.75em" }}>Unlisted</span>
-                      )}
                     </h3>
                     <div
                       className="meta"

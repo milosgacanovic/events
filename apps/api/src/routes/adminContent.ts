@@ -9,7 +9,7 @@ import {
 } from "../db/adminRepo";
 import { getEventById, setEventOrganizersByRoleKey } from "../db/eventRepo";
 import { createLocation } from "../db/locationRepo";
-import { listManagedEvents, listManagedOrganizers } from "../db/manageRepo";
+import { listManagedEvents, listManagedOrganizers, getEventFacets, getHostFacets } from "../db/manageRepo";
 import {
   createOrganizer,
   deleteOrganizer,
@@ -23,14 +23,19 @@ import { clearSearchCache } from "../services/searchCache";
 
 const eventQuerySchema = z.object({
   q: z.string().optional(),
-  status: z.enum(["draft", "published", "cancelled", "archived"]).optional(),
+  status: z.string().optional(),
   showUnlisted: z.coerce.boolean().optional(),
   externalSource: z.string().trim().min(1).max(255).optional(),
   externalId: z.string().trim().min(1).max(255).optional(),
   organizerId: z.string().uuid().optional(),
-  practiceCategoryId: z.string().uuid().optional(),
-  eventFormatId: z.string().uuid().optional(),
+  practiceCategoryId: z.string().optional(),
+  eventFormatId: z.string().optional(),
   ownerFilter: z.enum(["all", "unassigned", "has_owner"]).optional(),
+  countryCode: z.string().optional(),
+  attendanceMode: z.string().optional(),
+  languages: z.string().optional(),
+  cities: z.string().optional(),
+  tags: z.string().optional(),
   time: z.enum(["upcoming", "past"]).optional(),
   sort: z.string().optional(),
   managedBy: z.enum(["me"]).optional(),
@@ -42,9 +47,12 @@ const organizerQuerySchema = z.object({
   q: z.string().optional(),
   status: z.enum(["draft", "published", "archived"]).optional(),
   showArchived: z.coerce.boolean().optional(),
-  practiceCategoryId: z.string().uuid().optional(),
-  profileRoleId: z.string().uuid().optional(),
-  countryCode: z.string().trim().min(2).max(8).optional(),
+  practiceCategoryId: z.string().optional(),
+  profileRoleId: z.string().optional(),
+  countryCode: z.string().optional(),
+  languages: z.string().optional(),
+  cities: z.string().optional(),
+  sort: z.string().optional(),
   managedBy: z.enum(["me"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
@@ -95,7 +103,7 @@ const createLocationBaseSchema = z.object({
   label: z.string().min(1).max(200).optional(),
   formattedAddress: z.string().min(1).max(500).optional(),
   countryCode: z.string().min(2).max(8).optional(),
-  city: z.string().min(1).max(120).optional(),
+  city: z.string().max(120).nullish(),
   fingerprint: z.string().min(1).max(500).optional(),
   lat: z.number().gte(-90).lte(90).nullable().optional(),
   lng: z.number().gte(-180).lte(180).nullable().optional(),
@@ -144,6 +152,40 @@ const createLocationSchema = createLocationBaseSchema
   );
 
 const adminContentRoutes: FastifyPluginAsync = async (app) => {
+  app.get("/admin/events/facets", async (request, reply) => {
+    await app.requireEditor(request);
+    const auth = request.auth!;
+    const userId = await resolveUserId(app.db, auth);
+    const q = request.query as Record<string, string>;
+    const csv = (v?: string) => v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    return reply.send(await getEventFacets(app.db, userId, {
+      status: csv(q.status),
+      practiceCategoryIds: csv(q.practiceCategoryId),
+      attendanceModes: csv(q.attendanceMode),
+      eventFormatIds: csv(q.eventFormatId),
+      languages: csv(q.languages),
+      countryCodes: csv(q.countryCode).map((c) => c.toUpperCase()),
+      cities: csv(q.cities),
+      tags: csv(q.tags),
+    }));
+  });
+
+  app.get("/admin/organizers/facets", async (request, reply) => {
+    await app.requireEditor(request);
+    const auth = request.auth!;
+    const userId = await resolveUserId(app.db, auth);
+    const q = request.query as Record<string, string>;
+    const csv = (v?: string) => v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    return reply.send(await getHostFacets(app.db, userId, {
+      status: q.status || undefined,
+      practiceCategoryIds: csv(q.practiceCategoryId),
+      roleIds: csv(q.profileRoleId),
+      languages: csv(q.languages),
+      countryCodes: csv(q.countryCode).map((c) => c.toUpperCase()),
+      cities: csv(q.cities),
+    }));
+  });
+
   app.get("/admin/events", async (request, reply) => {
     await app.requireEditor(request);
 
@@ -169,6 +211,11 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
         status: parsed.data.status,
         practiceCategoryId: parsed.data.practiceCategoryId,
         eventFormatId: parsed.data.eventFormatId,
+        countryCode: parsed.data.countryCode,
+        attendanceMode: parsed.data.attendanceMode,
+        languages: parsed.data.languages,
+        cities: parsed.data.cities,
+        tags: parsed.data.tags,
         time: parsed.data.time,
         sort: parsed.data.sort,
         page: parsed.data.page,
@@ -181,6 +228,8 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       status: parsed.data.status ?? "published",
       organizerId: parsed.data.organizerId,
       ownerFilter: parsed.data.ownerFilter,
+      time: parsed.data.time,
+      sort: parsed.data.sort,
     });
   });
 
@@ -199,6 +248,12 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       return listManagedOrganizers(app.db, userId, {
         q: parsed.data.q,
         status: parsed.data.status,
+        practiceCategoryId: parsed.data.practiceCategoryId,
+        profileRoleId: parsed.data.profileRoleId,
+        countryCode: parsed.data.countryCode,
+        languages: parsed.data.languages,
+        cities: parsed.data.cities,
+        sort: parsed.data.sort,
         page: parsed.data.page,
         pageSize: parsed.data.pageSize,
       });
@@ -210,7 +265,64 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       practiceCategoryId: parsed.data.practiceCategoryId,
       profileRoleId: parsed.data.profileRoleId,
       countryCode: parsed.data.countryCode,
+      sort: parsed.data.sort,
     });
+  });
+
+  app.get("/admin/events/distinct-cities", async (request) => {
+    await app.requireEditor(request);
+    const result = await app.db.query<{ city: string }>(
+      `SELECT DISTINCT l.city FROM event_locations el JOIN locations l ON l.id = el.location_id WHERE l.city IS NOT NULL AND l.city != '' ORDER BY l.city`,
+    );
+    return { items: result.rows.map((r) => r.city) };
+  });
+
+  app.get("/admin/events/distinct-tags", async (request) => {
+    await app.requireEditor(request);
+    const result = await app.db.query<{ tag: string }>(
+      `SELECT DISTINCT unnest(tags) AS tag FROM events WHERE tags IS NOT NULL AND array_length(tags, 1) > 0 ORDER BY tag`,
+    );
+    return { items: result.rows.map((r) => r.tag) };
+  });
+
+  app.get("/admin/events/distinct-languages", async (request) => {
+    await app.requireEditor(request);
+    const result = await app.db.query<{ lang: string }>(
+      `SELECT DISTINCT unnest(languages) AS lang FROM events WHERE languages IS NOT NULL AND array_length(languages, 1) > 0 ORDER BY lang`,
+    );
+    return { items: result.rows.map((r) => r.lang) };
+  });
+
+  app.get("/admin/events/distinct-countries", async (request) => {
+    await app.requireEditor(request);
+    const result = await app.db.query<{ country_code: string }>(
+      `SELECT DISTINCT upper(l.country_code) AS country_code FROM event_locations el JOIN locations l ON l.id = el.location_id WHERE l.country_code IS NOT NULL AND l.country_code != '' ORDER BY country_code`,
+    );
+    return { items: result.rows.map((r) => r.country_code) };
+  });
+
+  app.get("/admin/organizers/distinct-languages", async (request) => {
+    await app.requireEditor(request);
+    const result = await app.db.query<{ lang: string }>(
+      `SELECT DISTINCT unnest(languages) AS lang FROM organizers WHERE languages IS NOT NULL AND array_length(languages, 1) > 0 ORDER BY lang`,
+    );
+    return { items: result.rows.map((r) => r.lang) };
+  });
+
+  app.get("/admin/organizers/distinct-countries", async (request) => {
+    await app.requireEditor(request);
+    const result = await app.db.query<{ country_code: string }>(
+      `SELECT DISTINCT upper(country_code) AS country_code FROM organizers WHERE country_code IS NOT NULL AND country_code != '' ORDER BY country_code`,
+    );
+    return { items: result.rows.map((r) => r.country_code) };
+  });
+
+  app.get("/admin/organizers/distinct-cities", async (request) => {
+    await app.requireEditor(request);
+    const result = await app.db.query<{ city: string }>(
+      `SELECT DISTINCT city FROM organizer_locations WHERE city IS NOT NULL AND city != '' ORDER BY city`,
+    );
+    return { items: result.rows.map((r) => r.city) };
   });
 
   app.get("/admin/events/:id", async (request, reply) => {

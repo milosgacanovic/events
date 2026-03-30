@@ -440,7 +440,7 @@ export async function getOrganizerBySlug(
 }
 
 export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
-  const slug = await generateUniqueSlug(pool, "organizers", input.name);
+  const slug = input.slug || await generateUniqueSlug(pool, "organizers", input.name);
   const imageUrl = input.imageUrl ?? input.avatarPath ?? null;
   const locationCity = input.primaryLocation?.city ?? input.city ?? null;
   const locationCountryCode = input.primaryLocation?.countryCode ?? input.countryCode ?? null;

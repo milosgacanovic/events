@@ -51,7 +51,7 @@ export function SearchableMultiSelect({
         {selectedOptions.length > 0 ? `${selectedOptions.length} selected` : placeholder}
       </button>
       {selectedOptions.length > 0 && (
-        <div className="kv">
+        <div className="kv" style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
           {selectedOptions.map((option) => (
             <button
               className="tag"

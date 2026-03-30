@@ -511,10 +511,10 @@ export function AdminConsole() {
   );
 
   const hasEditorRole = useMemo(
-    () => roles.includes("dr_events_editor") || roles.includes("dr_events_admin"),
+    () => roles.includes("editor") || roles.includes("admin"),
     [roles],
   );
-  const hasAdminRole = useMemo(() => roles.includes("dr_events_admin"), [roles]);
+  const hasAdminRole = useMemo(() => roles.includes("admin"), [roles]);
   const organizerNamesById = useMemo(
     () => new Map(organizerOptions.map((organizer) => [organizer.id, organizer.name])),
     [organizerOptions],

@@ -89,6 +89,19 @@ export async function cancelEvent(
   await regenerateOccurrences(pool, meiliService, eventId);
 }
 
+export async function archiveEvent(
+  pool: Pool,
+  meiliService: MeilisearchService,
+  eventId: string,
+): Promise<void> {
+  await setEventStatus(pool, eventId, "archived");
+  await deleteOccurrencesForEvent(pool, eventId);
+  await meiliService.deleteOccurrencesByEventId(eventId).catch((err) => {
+    console.error(`[archiveEvent] Failed to delete Meilisearch docs for event ${eventId}:`, err);
+  });
+  clearSearchCache();
+}
+
 export async function refreshRecurringOccurrences(
   pool: Pool,
   meiliService: MeilisearchService,

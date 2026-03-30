@@ -1,20 +1,21 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
-import { AssignToUserModal } from "../../../../components/manage/AssignToUserModal";
-import { StatusBadge } from "../../../../components/manage/StatusBadge";
-import { authorizedGet } from "../../../../lib/manageApi";
+import { ManageHostCard } from "../../../../components/manage/ManageHostCard";
+import { ManageFilterSidebar } from "../../../../components/manage/ManageFilterSidebar";
+import { StatusFilter } from "../../../../components/manage/ManageFilterSections";
+import { ManageResultsToolbar } from "../../../../components/manage/ManageResultsToolbar";
+import { authorizedGet, authorizedPatch } from "../../../../lib/manageApi";
 import { apiBase } from "../../../../lib/api";
-
-const regionNames = typeof Intl !== "undefined" && Intl.DisplayNames
-  ? new Intl.DisplayNames(["en"], { type: "region" })
-  : null;
+import { getRoleLabel, formatCityLabel } from "../../../../lib/filterHelpers";
+import { labelForLanguageCode } from "../../../../lib/i18n/languageLabels";
+import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../../../../lib/i18n/icuFallback";
 
 type TaxonomyResponse = {
+  uiLabels?: { categorySingular?: string };
   practices: {
     categories: Array<{ id: string; key: string; label: string }>;
   };
@@ -30,9 +31,13 @@ type HostItem = {
   managed_by_names: string | null;
   city: string | null;
   country_code: string | null;
+  image_url: string | null;
+  avatar_path: string | null;
   practice_labels: string | null;
   role_labels: string | null;
+  role_keys: string[] | null;
   event_count: string | null;
+  languages: string[] | null;
 };
 
 type HostsResponse = {
@@ -42,21 +47,53 @@ type HostsResponse = {
 
 export default function AdminAllHostsPage() {
   const { getToken } = useKeycloakAuth();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [hosts, setHosts] = useState<HostItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  /* manage-specific */
   const [statusFilter, setStatusFilter] = useState("");
-  const [practiceFilter, setPracticeFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [countryFilter, setCountryFilter] = useState("");
+  /* public-matching filters */
+  const [roleKeys, setRoleKeys] = useState<string[]>([]);
+  const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>([]);
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [countryCodes, setCountryCodes] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
+  /* UI state */
+  const [sortBy, setSortBy] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
-  const [assignHostId, setAssignHostId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [view, setView] = useState<"list" | "map">("list");
+  /* section open state */
+  const [hostTypeOpen, setHostTypeOpen] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const [countryOpen, setCountryOpen] = useState(false);
+  /* autocomplete + distinct lists */
+  const [languageSuggestions, setLanguageSuggestions] = useState<string[]>([]);
+  const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
+  const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
+  const [cityQuery, setCityQuery] = useState("");
+  const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
+  const cityInputRef = useRef<HTMLInputElement>(null);
 
   const pageSize = 20;
+
+  const languageNames = useMemo(() => {
+    try { return new Intl.DisplayNames([locale], { type: "language" }); } catch { return null; }
+  }, [locale]);
+  const regionNames = useMemo(() => {
+    try { return new Intl.DisplayNames([locale], { type: "region" }); } catch { return null; }
+  }, [locale]);
+  const getLanguageLabel = useCallback((v: string) => v === "mul" ? t("common.language.multiple") : getLocalizedLanguageLabel(v, locale, languageNames), [languageNames, locale, t]);
+  const getCountryLabel = useCallback((v: string) => {
+    return getLocalizedRegionLabel(v, locale, regionNames);
+  }, [regionNames, locale]);
+
+  const categorySingularLabel = t("admin.placeholder.categorySingular") || taxonomy?.uiLabels?.categorySingular || "Practice";
 
   useEffect(() => {
     fetch(`${apiBase}/meta/taxonomies`, { cache: "no-store" })
@@ -65,6 +102,23 @@ export default function AdminAllHostsPage() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken();
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const [langRes, countryRes, cityRes] = await Promise.all([
+          fetch(`${apiBase}/admin/organizers/distinct-languages`, { headers }).then((r) => r.json()),
+          fetch(`${apiBase}/admin/organizers/distinct-countries`, { headers }).then((r) => r.json()),
+          fetch(`${apiBase}/admin/organizers/distinct-cities`, { headers }).then((r) => r.json()),
+        ]);
+        setLanguageSuggestions(langRes.items ?? []);
+        setCountrySuggestions(countryRes.items ?? []);
+        setCitySuggestions(cityRes.items ?? []);
+      } catch { /* ignore */ }
+    })();
+  }, [getToken]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -72,132 +126,291 @@ export default function AdminAllHostsPage() {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), showArchived: "true" });
       if (search) params.set("q", search);
       if (statusFilter) params.set("status", statusFilter);
-      if (practiceFilter) params.set("practiceCategoryId", practiceFilter);
-      if (roleFilter) params.set("profileRoleId", roleFilter);
-      if (countryFilter) params.set("countryCode", countryFilter);
+      if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
+      if (roleKeys.length) params.set("profileRoleId", roleKeys.join(","));
+      if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+      if (languages.length) params.set("languages", languages.join(","));
+      if (cities.length) params.set("cities", cities.join(","));
+      if (sortBy) params.set("sort", sortBy);
       const data = await authorizedGet<HostsResponse>(getToken, `/admin/organizers?${params}`);
       setHosts(data.items);
       setTotalItems(data.pagination.totalItems);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load hosts");
+      setError(err instanceof Error ? err.message : t("manage.error.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, search, statusFilter, practiceFilter, roleFilter, countryFilter]);
+  }, [getToken, page, search, statusFilter, practiceCategoryIds, roleKeys, countryCodes, languages, cities, sortBy]);
 
   useEffect(() => { void load(); }, [load]);
 
-  const pageStart = (page - 1) * pageSize + 1;
-  const pageEnd = (page - 1) * pageSize + hosts.length;
+  async function setHostStatus(hostId: string, newStatus: string) {
+    try {
+      await authorizedPatch(getToken, `/organizers/${hostId}`, { status: newStatus });
+      void load();
+    } catch { /* ignore */ }
+  }
+
+  const activeFilterCount = [
+    statusFilter,
+    ...roleKeys, ...practiceCategoryIds, ...countryCodes, ...languages, ...cities,
+  ].filter(Boolean).length;
+
+  const statusOptions = useMemo(() => [
+    { value: "draft", label: t("common.status.draft") },
+    { value: "published", label: t("common.status.published") },
+    { value: "archived", label: t("common.status.archived") },
+  ], [t]);
+
+  const sortOptions = useMemo(() => [
+    { value: "", label: t("manage.hosts.sortRecent") },
+    { value: "created", label: t("manage.hosts.sortCreated") },
+    { value: "name", label: t("manage.hosts.sortName") },
+  ], [t]);
+
+  function resetPage() { setPage(1); }
+
+  const visibleCitySuggestions = useMemo(() => {
+    const selectedSet = new Set(cities.map((c) => c.toLowerCase()));
+    let list = citySuggestions.filter((c) => !selectedSet.has(c.toLowerCase()));
+    if (cityQuery) list = list.filter((c) => c.toLowerCase().includes(cityQuery.toLowerCase()));
+    return list.slice(0, 10);
+  }, [citySuggestions, cities, cityQuery]);
+
+  function addCityFromInput(rawValue: string) {
+    const value = rawValue.trim();
+    if (!value) return;
+    const lower = value.toLowerCase();
+    if (cities.some((c) => c.toLowerCase() === lower)) return;
+    const match = citySuggestions.find((c) => c.toLowerCase() === lower);
+    setCities((prev) => [...prev, match ?? value]);
+    setCityQuery("");
+    setPage(1);
+  }
 
   return (
-    <div>
-      <h1 className="manage-page-title">{t("manage.admin.hosts.title")}</h1>
-
-      <div className="manage-filter-bar">
-        <input placeholder={t("manage.admin.hosts.searchPlaceholder")} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-          <option value="">{t("manage.admin.hosts.allStatuses")}</option>
-          <option value="draft">{t("common.status.draft")}</option>
-          <option value="published">{t("common.status.published")}</option>
-          <option value="archived">{t("common.status.archived")}</option>
-        </select>
-        {taxonomy?.practices.categories && taxonomy.practices.categories.length > 0 && (
-          <select value={practiceFilter} onChange={(e) => { setPracticeFilter(e.target.value); setPage(1); }}>
-            <option value="">{t("manage.admin.hosts.allPractices")}</option>
-            {taxonomy.practices.categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.label}</option>
-            ))}
-          </select>
-        )}
-        {taxonomy?.organizerRoles && taxonomy.organizerRoles.length > 0 && (
-          <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
-            <option value="">{t("manage.admin.hosts.allRoles")}</option>
-            {taxonomy.organizerRoles.map((r) => (
-              <option key={r.id} value={r.id}>{r.label}</option>
-            ))}
-          </select>
-        )}
+    <section className={`grid${sidebarOpen ? " sidebar-open" : ""}`} style={{ marginTop: 8 }}>
+      <ManageFilterSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
         <input
-          placeholder={t("manage.admin.hosts.countryPlaceholder")}
-          value={countryFilter}
-          onChange={(e) => { setCountryFilter(e.target.value); setPage(1); }}
-          style={{ maxWidth: 120 }}
+          placeholder={t("manage.hosts.searchPlaceholder")}
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
-        {totalItems > 0 && (
-          <span className="meta">{t("manage.pagination.showing", { start: pageStart, end: pageEnd, total: totalItems })}</span>
-        )}
-      </div>
 
-      {error && (
-        <div className="manage-empty">
-          <p>{error}</p>
-          <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>{t("manage.error.retry")}</button>
-        </div>
-      )}
+        {/* ── Manage-specific filters ── */}
+        <StatusFilter options={statusOptions} value={statusFilter ? [statusFilter] : []} onChange={(v) => { setStatusFilter(v[0] || ""); resetPage(); }} />
 
-      {!error && (
-        <>
-          <div className={`manage-cards-grid${loading ? " manage-list-loading" : ""}`}>
-            {hosts.map((host) => (
-              <div key={host.id} className="manage-event-card">
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <Link href={`/manage/hosts/${host.id}`} style={{ fontWeight: 600, textDecoration: "none", color: "var(--ink)" }}>
-                    {host.name}
-                  </Link>
-                  <StatusBadge status={host.status} />
-                </div>
-                <div className="meta" style={{ fontSize: "0.82rem", marginTop: 2 }}>
-                  {[host.city, host.country_code ? (regionNames?.of(host.country_code.toUpperCase()) ?? host.country_code) : null].filter(Boolean).join(", ")}
-                </div>
-                {host.practice_labels && (
-                  <div className="meta" style={{ fontSize: "0.8rem" }}>
-                    {t("manage.admin.hosts.practice")}: {host.practice_labels}
-                  </div>
-                )}
-                {host.role_labels && (
-                  <div className="meta" style={{ fontSize: "0.8rem" }}>
-                    {t("manage.admin.hosts.role")}: {host.role_labels}
-                  </div>
-                )}
-                {host.event_count && host.event_count !== "0" && (
-                  <div className="meta" style={{ fontSize: "0.8rem" }}>
-                    {t("manage.admin.hosts.eventCount")}: {host.event_count}
-                  </div>
-                )}
-                {host.managed_by_names && (
-                  <div className="meta" style={{ fontSize: "0.8rem", marginTop: 2 }}>
-                    {t("manage.common.managedBy", { names: host.managed_by_names })}
-                  </div>
-                )}
-                <div className="manage-event-card-actions">
-                  <Link href={`/manage/hosts/${host.id}`} className="secondary-btn" style={{ fontSize: "0.85rem" }}>{t("manage.common.edit")}</Link>
-                  <Link href={`/hosts/${host.slug}`} className="ghost-btn" style={{ fontSize: "0.85rem" }}>{t("manage.common.view")}</Link>
-                  <button type="button" className="ghost-btn" style={{ fontSize: "0.85rem" }} onClick={() => setAssignHostId(host.id)}>
-                    {t("manage.common.assign")}
-                  </button>
-                </div>
-              </div>
-            ))}
+        {/* ── Host Type ── */}
+        <details open={hostTypeOpen} onToggle={(e) => setHostTypeOpen((e.currentTarget as HTMLDetailsElement).open)}>
+          <summary>{t("organizerSearch.hostType")}</summary>
+          <div className="kv">
+            {(taxonomy?.organizerRoles ?? []).map((role) => {
+              const checked = roleKeys.includes(role.id);
+              return (
+                <button
+                  type="button"
+                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                  key={role.id}
+                  onClick={() => {
+                    setRoleKeys((cur) => cur.includes(role.id) ? cur.filter((id) => id !== role.id) : [...cur, role.id]);
+                    resetPage();
+                  }}
+                >
+                  <span className="filter-row-icon">{checked ? "\u2212" : "+"}</span>
+                  <span className="filter-row-label">{getRoleLabel(role.key, t)}</span>
+                  <span className="filter-row-count" />
+                </button>
+              );
+            })}
           </div>
-          {loading && hosts.length === 0 && <div className="manage-loading">{t("manage.common.loading")}</div>}
-          {(page > 1 || hosts.length === pageSize) && (
-            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-              {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>{t("manage.common.previous")}</button>}
-              {hosts.length === pageSize && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>{t("manage.common.next")}</button>}
+        </details>
+
+        {/* ── Dance Practice ── */}
+        {(taxonomy?.practices.categories.length ?? 0) > 0 && (
+          <details open={practiceOpen} onToggle={(e) => setPracticeOpen((e.currentTarget as HTMLDetailsElement).open)}>
+            <summary>{categorySingularLabel}</summary>
+            <div className="filter-scroll">
+              {taxonomy?.practices.categories.map((cat) => {
+                const checked = practiceCategoryIds.includes(cat.id);
+                return (
+                  <button
+                    type="button"
+                    className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                    key={cat.id}
+                    onClick={() => {
+                      setPracticeCategoryIds((cur) => cur.includes(cat.id) ? cur.filter((id) => id !== cat.id) : [...cur, cat.id]);
+                      resetPage();
+                    }}
+                  >
+                    <span className="filter-row-icon">{checked ? "\u2212" : "+"}</span>
+                    <span className="filter-row-label">{cat.label}</span>
+                    <span className="filter-row-count" />
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+        )}
+
+        {/* ── Host Language ── */}
+        {languageSuggestions.length > 0 && (
+          <details open={langOpen} onToggle={(e) => setLangOpen((e.currentTarget as HTMLDetailsElement).open)}>
+            <summary>{t("organizerSearch.hostLanguage")}</summary>
+            <div className="filter-scroll">
+              {[...languageSuggestions].sort((a, b) => getLanguageLabel(a).localeCompare(getLanguageLabel(b))).map((lang) => {
+                const checked = languages.includes(lang);
+                return (
+                  <button
+                    type="button"
+                    className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                    key={lang}
+                    onClick={() => {
+                      setLanguages((cur) => cur.includes(lang) ? cur.filter((l) => l !== lang) : [...cur, lang]);
+                      resetPage();
+                    }}
+                  >
+                    <span className="filter-row-icon">{checked ? "\u2212" : "+"}</span>
+                    <span className="filter-row-label">{getLanguageLabel(lang)}</span>
+                    <span className="filter-row-count" />
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+        )}
+
+        {/* ── Country ── */}
+        {countrySuggestions.length > 0 && (
+          <details open={countryOpen} onToggle={(e) => setCountryOpen((e.currentTarget as HTMLDetailsElement).open)}>
+            <summary>{t("organizerSearch.country")}</summary>
+            <div className="filter-scroll">
+              {[...countrySuggestions].sort((a, b) => getCountryLabel(a).localeCompare(getCountryLabel(b))).filter((code, i, arr) => i === 0 || getCountryLabel(code) !== getCountryLabel(arr[i - 1])).map((code) => {
+                const checked = countryCodes.includes(code);
+                return (
+                  <button
+                    type="button"
+                    className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                    key={code}
+                    onClick={() => {
+                      setCountryCodes((cur) => cur.includes(code) ? cur.filter((c) => c !== code) : [...cur, code]);
+                      resetPage();
+                    }}
+                  >
+                    <span className="filter-row-icon">{checked ? "\u2212" : "+"}</span>
+                    <span className="filter-row-label">{getCountryLabel(code)}</span>
+                    <span className="filter-row-count" />
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+        )}
+
+        {/* ── City ── */}
+        <div className="autocomplete-wrap">
+          <input
+            ref={cityInputRef}
+            value={cityQuery}
+            onFocus={() => setCitySuggestionsOpen(true)}
+            onBlur={() => window.setTimeout(() => setCitySuggestionsOpen(false), 120)}
+            onChange={(e) => setCityQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const q = cityQuery.trim();
+                if (!q) return;
+                const exact = visibleCitySuggestions.find((c) => c.toLowerCase() === q.toLowerCase());
+                addCityFromInput(exact ?? q);
+                setCitySuggestionsOpen(false);
+                cityInputRef.current?.blur();
+              }
+            }}
+            placeholder={t("organizerSearch.placeholder.city")}
+          />
+          {citySuggestionsOpen && visibleCitySuggestions.length > 0 && (
+            <div className="autocomplete-menu">
+              {visibleCitySuggestions.map((city) => (
+                <button
+                  type="button"
+                  className="autocomplete-option"
+                  key={city}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => { addCityFromInput(city); setCitySuggestionsOpen(false); cityInputRef.current?.blur(); }}
+                >
+                  {formatCityLabel(city)}
+                </button>
+              ))}
             </div>
           )}
-        </>
-      )}
-      {assignHostId && (
-        <AssignToUserModal
-          getToken={getToken}
-          entityType="hosts"
-          entityId={assignHostId}
-          onAssigned={() => void load()}
-          onClose={() => setAssignHostId(null)}
+        </div>
+        {cities.length > 0 && (
+          <div className="kv">
+            {cities.map((city) => (
+              <button className="tag" key={city} type="button" onClick={() => { setCities((cur) => cur.filter((c) => c !== city)); resetPage(); }}>
+                {formatCityLabel(city)} ×
+              </button>
+            ))}
+          </div>
+        )}
+      </ManageFilterSidebar>
+
+      <div className="panel cards">
+        <ManageResultsToolbar
+          createHref="/manage/hosts/new"
+          createLabel={t("manage.hosts.createHost")}
+          totalItems={totalItems}
+          sortValue={sortBy}
+          sortOptions={sortOptions}
+          onSortChange={(v) => { setSortBy(v); resetPage(); }}
+          onToggleFilters={() => setSidebarOpen((o) => !o)}
+          activeFilterCount={activeFilterCount}
+          view={view}
+          onViewChange={setView}
         />
-      )}
-    </div>
+
+        {error && (
+          <div className="manage-empty">
+            <p>{error}</p>
+            <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 8 }}>{t("manage.error.retry")}</button>
+          </div>
+        )}
+
+        {!error && (
+          <>
+            <div className={`manage-card-list${loading ? " manage-list-loading" : ""}`}>
+              {hosts.map((host) => (
+                <ManageHostCard
+                  key={host.id}
+                  id={host.id}
+                  slug={host.slug}
+                  name={host.name}
+                  status={host.status}
+                  imageUrl={host.image_url}
+                  avatarPath={host.avatar_path}
+                  city={host.city}
+                  countryCode={host.country_code}
+                  practiceLabels={host.practice_labels}
+                  roleLabels={host.role_labels}
+                  roleKeys={host.role_keys}
+                  eventCount={host.event_count}
+                  managedByNames={host.managed_by_names}
+                  languages={host.languages}
+                  onPublish={host.status === "draft" ? () => void setHostStatus(host.id, "published") : undefined}
+                  onUnpublish={host.status === "published" ? () => void setHostStatus(host.id, "draft") : undefined}
+                  onArchive={host.status === "published" ? () => void setHostStatus(host.id, "archived") : undefined}
+                />
+              ))}
+            </div>
+            {loading && hosts.length === 0 && <div className="manage-loading">{t("manage.common.loading")}</div>}
+            {(page > 1 || hosts.length === pageSize) && (
+              <div className="manage-pagination">
+                {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>{t("manage.common.previous")}</button>}
+                {hosts.length === pageSize && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>{t("manage.common.next")}</button>}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </section>
   );
 }

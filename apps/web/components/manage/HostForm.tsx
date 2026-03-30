@@ -3,36 +3,18 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useKeycloakAuth } from "../auth/KeycloakAuthProvider";
+import { useI18n } from "../i18n/I18nProvider";
 import { RichTextEditor } from "../admin/RichTextEditor";
-import { SearchableMultiSelect, type MultiSelectOption } from "./SearchableMultiSelect";
+import { type MultiSelectOption } from "./SearchableMultiSelect";
 import { LocationSearchField } from "./LocationSearchField";
 import { ensureHtml, mergeLegacyOrganizerDescription } from "../../lib/formUtils";
+import { getRoleLabel } from "../../lib/filterHelpers";
 import { authorizedGet, authorizedPatch, authorizedPost, authorizedUpload } from "../../lib/manageApi";
 import { apiBase } from "../../lib/api";
-
-// Comprehensive ISO 3166-1 alpha-2 country codes (Intl.supportedValuesOf("region") is not a valid key)
-const ISO_COUNTRY_CODES = [
-  "AD","AE","AF","AG","AI","AL","AM","AO","AR","AS","AT","AU","AW","AX","AZ",
-  "BA","BB","BD","BE","BF","BG","BH","BI","BJ","BL","BM","BN","BO","BQ","BR",
-  "BS","BT","BW","BY","BZ","CA","CC","CD","CF","CG","CH","CI","CK","CL","CM",
-  "CN","CO","CR","CU","CV","CW","CX","CY","CZ","DE","DJ","DK","DM","DO","DZ",
-  "EC","EE","EG","EH","ER","ES","ET","FI","FJ","FK","FM","FO","FR","GA","GB",
-  "GD","GE","GF","GG","GH","GI","GL","GM","GN","GP","GQ","GR","GT","GU","GW",
-  "GY","HK","HN","HR","HT","HU","ID","IE","IL","IM","IN","IO","IQ","IR","IS",
-  "IT","JE","JM","JO","JP","KE","KG","KH","KI","KM","KN","KP","KR","KW","KY",
-  "KZ","LA","LB","LC","LI","LK","LR","LS","LT","LU","LV","LY","MA","MC","MD",
-  "ME","MF","MG","MH","MK","ML","MM","MN","MO","MP","MQ","MR","MS","MT","MU",
-  "MV","MW","MX","MY","MZ","NA","NC","NE","NF","NG","NI","NL","NO","NP","NR",
-  "NU","NZ","OM","PA","PE","PF","PG","PH","PK","PL","PM","PN","PR","PS","PT",
-  "PW","PY","QA","RE","RO","RS","RU","RW","SA","SB","SC","SD","SE","SG","SH",
-  "SI","SJ","SK","SL","SM","SN","SO","SR","SS","ST","SV","SX","SY","SZ","TC",
-  "TD","TF","TG","TH","TJ","TK","TL","TM","TN","TO","TR","TT","TV","TW","TZ",
-  "UA","UG","US","UY","UZ","VA","VC","VE","VG","VI","VN","VU","WF","WS","YE",
-  "YT","ZA","ZM","ZW",
-];
+import { countryOptions } from "../../lib/countries";
 
 // Common language codes (Intl.supportedValuesOf("language") is not a valid key)
 const COMMON_LANGUAGE_CODES = [
@@ -161,7 +143,7 @@ export function newHostFormState(): HostFormState {
     websiteUrl: "",
     imageUrl: "",
     tags: "",
-    languages: ["en"],
+    languages: [],
     city: "",
     countryCodes: [],
     profileRoleIds: [],
@@ -171,25 +153,78 @@ export function newHostFormState(): HostFormState {
   };
 }
 
+function csvToArray(csv: string): string[] {
+  return csv.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 export function HostForm({
   mode,
   initialState,
+  extraActions,
+  onDelete,
+  initialStatusMessage,
 }: {
   mode: "create" | "edit";
   initialState?: HostFormState;
+  extraActions?: React.ReactNode;
+  onDelete?: () => void;
+  initialStatusMessage?: string;
 }) {
   const { getToken } = useKeycloakAuth();
+  const { t, locale } = useI18n();
   const router = useRouter();
 
   const [form, setForm] = useState<HostFormState>(initialState ?? newHostFormState());
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(initialStatusMessage ?? "");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const slugManuallyEdited = useRef(false);
+
+  // Tag chip state
+  const [tagInput, setTagInput] = useState("");
+  const tagList = csvToArray(form.tags);
+
+  function addTag(tag: string) {
+    const t = tag.trim().toLowerCase();
+    if (!t || tagList.includes(t) || tagList.length >= 5) return;
+    update("tags", [...tagList, t].join(", "));
+  }
+
+  function removeTag(tag: string) {
+    update("tags", tagList.filter((t) => t !== tag).join(", "));
+  }
+
+  function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      if (tagInput.trim()) {
+        addTag(tagInput);
+        setTagInput("");
+      }
+    }
+  }
+
+  const savedStatusRef = useRef<string>(initialState?.status ?? "draft");
+
+  function saveMessage(newStatus: string): string {
+    const prev = savedStatusRef.current;
+    savedStatusRef.current = newStatus;
+    if (prev !== newStatus) {
+      if (newStatus === "draft") return t("manage.form.savedAsDraft");
+      if (newStatus === "published") return t("manage.form.savedAndPublished");
+      if (newStatus === "archived") return t("manage.form.savedAndArchived");
+    }
+    return t("manage.form.saved");
+  }
+
+  const savedMessages = [t("manage.form.saved"), t("manage.form.savedAsDraft"), t("manage.form.savedAndPublished"), t("manage.form.savedAndArchived")];
 
   const update = useCallback(<K extends keyof HostFormState>(key: K, value: HostFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-  }, []);
+    setStatus((prev) => savedMessages.includes(prev) ? t("manage.form.edited") : prev);
+  }, [t]);
 
   useEffect(() => {
     fetch(`${apiBase}/meta/taxonomies`, { cache: "no-store" })
@@ -198,9 +233,21 @@ export function HostForm({
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (mode === "create" && !slugManuallyEdited.current) {
+      const slug = form.name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      setForm((prev) => ({ ...prev, slug }));
+    }
+  }, [form.name, mode]);
+
   const languageOptions: MultiSelectOption[] = useMemo(() => {
     try {
-      const names = new Intl.DisplayNames(["en"], { type: "language" });
+      const names = new Intl.DisplayNames([locale], { type: "language" });
       const codeSet = new Set(COMMON_LANGUAGE_CODES);
       for (const code of form.languages) {
         codeSet.add(code);
@@ -215,21 +262,9 @@ export function HostForm({
     }
   }, [form.languages]);
 
-  const countryOptions: MultiSelectOption[] = useMemo(() => {
-    try {
-      const names = new Intl.DisplayNames(["en"], { type: "region" });
-      return ISO_COUNTRY_CODES.map((code) => ({
-        value: code,
-        label: names.of(code) ?? code,
-      }));
-    } catch {
-      return ISO_COUNTRY_CODES.map((code) => ({ value: code, label: code }));
-    }
-  }, []);
-
   const roleOptions: MultiSelectOption[] = useMemo(
-    () => (taxonomy?.organizerRoles ?? []).map((r) => ({ value: r.id, label: r.label })),
-    [taxonomy],
+    () => (taxonomy?.organizerRoles ?? []).map((r) => ({ value: r.id, label: getRoleLabel(r.key, t) })),
+    [taxonomy, t],
   );
 
   const practiceOptions: MultiSelectOption[] = useMemo(
@@ -237,40 +272,61 @@ export function HostForm({
     [taxonomy],
   );
 
+  function validateForm(): Record<string, string> {
+    const errors: Record<string, string> = {};
+    if (!form.name.trim()) errors.name = t("manage.form.required");
+    return errors;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setStatus("");
+    setStatus(t("manage.form.saving"));
+
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setSaving(false);
+      setStatus("");
+      requestAnimationFrame(() => {
+        const firstKey = Object.keys(errors)[0];
+        document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
+    setFieldErrors({});
+
+    const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
+    const descText = form.descriptionHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      slug: form.slug || undefined,
+      descriptionJson: { html: form.descriptionHtml, text: descText },
+      descriptionHtml: form.descriptionHtml,
+      websiteUrl: form.websiteUrl || null,
+      imageUrl: form.imageUrl || null,
+      tags,
+      languages: form.languages,
+      city: form.locations[0]?.city || form.city || null,
+      countryCode: form.locations[0]?.countryCode || (form.countryCodes[0] ?? null),
+      profileRoleIds: form.profileRoleIds,
+      practiceCategoryIds: form.practiceCategoryIds,
+      status: mode === "create" ? "draft" : form.status,
+      locations: form.locations.map((loc) => ({
+        id: loc.id || undefined,
+        isPrimary: loc.isPrimary,
+        label: loc.label || loc.formattedAddress,
+        formattedAddress: loc.formattedAddress,
+        city: loc.city || null,
+        countryCode: loc.countryCode || null,
+        lat: loc.lat ? Number.parseFloat(loc.lat) : null,
+        lng: loc.lng ? Number.parseFloat(loc.lng) : null,
+      })),
+      primaryLocationId: form.locations.find((l) => l.isPrimary)?.id ?? form.locations[0]?.id ?? null,
+    };
 
     try {
-      const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
-      const descText = form.descriptionHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-
-      const payload: Record<string, unknown> = {
-        name: form.name,
-        descriptionJson: { html: form.descriptionHtml, text: descText },
-        descriptionHtml: form.descriptionHtml,
-        websiteUrl: form.websiteUrl || null,
-        tags,
-        languages: form.languages,
-        city: form.city || null,
-        countryCode: form.countryCodes[0] ?? null,
-        profileRoleIds: form.profileRoleIds,
-        practiceCategoryIds: form.practiceCategoryIds,
-        status: mode === "create" ? "published" : form.status,
-        locations: form.locations.map((loc) => ({
-          id: loc.id || undefined,
-          isPrimary: loc.isPrimary,
-          label: loc.label || loc.formattedAddress,
-          formattedAddress: loc.formattedAddress,
-          city: loc.city || null,
-          countryCode: loc.countryCode || null,
-          lat: loc.lat ? Number.parseFloat(loc.lat) : null,
-          lng: loc.lng ? Number.parseFloat(loc.lng) : null,
-        })),
-        primaryLocationId: form.locations.find((l) => l.isPrimary)?.id ?? form.locations[0]?.id ?? null,
-      };
-
       let resultId: string;
       let resultSlug: string;
 
@@ -288,119 +344,438 @@ export function HostForm({
         await authorizedUpload(getToken, "organizerAvatar", resultId, avatarFile);
       }
 
-      setStatus("Saved!");
-      router.push(`/hosts/${resultSlug}`);
+      if (mode === "create") {
+        router.replace(`/manage/hosts/${resultId}?saved=draft`);
+      } else {
+        setStatus(saveMessage(form.status));
+      }
     } catch (err) {
-      setStatus(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+      if (err instanceof Error && err.message === "host_has_active_events") {
+        if (confirm(t("manage.hostForm.unpublishHasActiveEventsConfirm"))) {
+          try {
+            const result = await authorizedPatch<{ id: string; slug: string }>(getToken, `/organizers/${form.id}`, { ...payload, force: true });
+            if (avatarFile) await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
+            setStatus(saveMessage(form.status));
+          } catch (retryErr) {
+            setStatus(t("manage.form.errorPrefix", { message: retryErr instanceof Error ? retryErr.message : t("manage.form.unknownError") }));
+          }
+        } else {
+          setStatus("");
+        }
+      } else {
+        setStatus(t("manage.form.errorPrefix", { message: err instanceof Error ? err.message : t("manage.form.unknownError") }));
+      }
     } finally {
       setSaving(false);
     }
   }
 
+  async function handleSaveAndPublish() {
+    setSaving(true);
+    setStatus(t("manage.form.saving"));
+
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setSaving(false);
+      setStatus("");
+      requestAnimationFrame(() => {
+        const firstKey = Object.keys(errors)[0];
+        document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
+    setFieldErrors({});
+
+    try {
+      const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
+      const descText = form.descriptionHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+      const payload: Record<string, unknown> = {
+        name: form.name,
+        slug: form.slug || undefined,
+        descriptionJson: { html: form.descriptionHtml, text: descText },
+        descriptionHtml: form.descriptionHtml,
+        websiteUrl: form.websiteUrl || null,
+        imageUrl: form.imageUrl || null,
+        tags,
+        languages: form.languages,
+        city: form.locations[0]?.city || form.city || null,
+        countryCode: form.locations[0]?.countryCode || (form.countryCodes[0] ?? null),
+        profileRoleIds: form.profileRoleIds,
+        practiceCategoryIds: form.practiceCategoryIds,
+        status: "published",
+        locations: form.locations.map((loc) => ({
+          id: loc.id || undefined,
+          isPrimary: loc.isPrimary,
+          label: loc.label || loc.formattedAddress,
+          formattedAddress: loc.formattedAddress,
+          city: loc.city || null,
+          countryCode: loc.countryCode || null,
+          lat: loc.lat ? Number.parseFloat(loc.lat) : null,
+          lng: loc.lng ? Number.parseFloat(loc.lng) : null,
+        })),
+        primaryLocationId: form.locations.find((l) => l.isPrimary)?.id ?? form.locations[0]?.id ?? null,
+      };
+
+      const result = await authorizedPost<{ id: string; slug: string }>(getToken, "/organizers", payload);
+      if (avatarFile) {
+        await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
+      }
+      savedStatusRef.current = "published";
+      setStatus(t("manage.form.savedAndPublished"));
+      router.push(`/hosts/${result.slug}`);
+    } catch (err) {
+      setStatus(t("manage.form.errorPrefix", { message: err instanceof Error ? err.message : t("manage.form.unknownError") }));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function setLocationPrimary(index: number) {
+    update("locations", form.locations.map((loc, i) => ({ ...loc, isPrimary: i === index })));
+  }
+
+  function updateLocationField(index: number, field: string, value: string) {
+    setForm((prev) => ({
+      ...prev,
+      locations: prev.locations.map((loc, i) => i === index ? { ...loc, [field]: value } : loc),
+    }));
+    setStatus((prev) => savedMessages.includes(prev) ? t("manage.form.edited") : prev);
+  }
+
+  function removeLocation(index: number) {
+    const updated = form.locations.filter((_, i) => i !== index);
+    // If we removed the primary, make the first remaining one primary
+    if (updated.length > 0 && !updated.some((l) => l.isPrimary)) {
+      updated[0].isPrimary = true;
+    }
+    update("locations", updated);
+  }
+
   return (
     <form className="manage-form" onSubmit={(e) => void handleSubmit(e)}>
-      <div>
-        <label>Name</label>
-        <input value={form.name} onChange={(e) => update("name", e.target.value)} required />
+      <div className="manage-form-section">
+        <h3>{t("manage.form.basicDetails")}</h3>
+        <div id="field-name">
+          <label>{t("manage.hostForm.name")} <span className="field-required-mark">*</span></label>
+          <input
+            value={form.name}
+            onChange={(e) => { update("name", e.target.value); if (fieldErrors.name) setFieldErrors((p) => ({ ...p, name: "" })); }}
+            className={fieldErrors.name ? "field-invalid" : undefined}
+          />
+          {fieldErrors.name && <span className="field-error">{fieldErrors.name}</span>}
+        </div>
+
+        <div>
+          <label>{t("manage.form.urlSlug")}</label>
+          <input
+            value={form.slug}
+            onChange={(e) => { slugManuallyEdited.current = true; update("slug", e.target.value); }}
+            disabled={mode === "edit"}
+            placeholder="auto-generated-from-name"
+          />
+        </div>
+
+        <div>
+          <label>{t("manage.form.description")}</label>
+          <RichTextEditor value={form.descriptionHtml} onChange={(html) => update("descriptionHtml", html)} />
+        </div>
+
+        <div>
+          <label>{t("manage.hostForm.websiteUrl")}</label>
+          <input value={form.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} placeholder="https://..." />
+        </div>
       </div>
 
-      <div>
-        <label>Description</label>
-        <RichTextEditor value={form.descriptionHtml} onChange={(html) => update("descriptionHtml", html)} />
-      </div>
-
-      <div>
-        <label>Website URL</label>
-        <input value={form.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} placeholder="https://..." />
+      {/* Avatar */}
+      <div className="manage-form-section">
+        <h3>{t("manage.hostForm.avatarImage")}</h3>
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+          {form.imageUrl && (
+            <img
+              src={form.imageUrl.startsWith("http") ? form.imageUrl : `${apiBase.replace("/api", "")}${form.imageUrl}`}
+              alt="Avatar"
+              style={{ width: 100, height: 100, objectFit: "cover", borderRadius: "50%", flexShrink: 0 }}
+            />
+          )}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            <input type="file" accept="image/*" onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)} />
+            <div>
+              <label>{t("manage.form.orPasteImageUrl")}</label>
+              <input
+                type="url"
+                placeholder="https://..."
+                value={form.imageUrl}
+                onChange={(e) => update("imageUrl", e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Location */}
       <div className="manage-form-section">
-        <h3>Location</h3>
-        <div style={{ marginBottom: 8 }}>
-          <label>City</label>
-          <input value={form.city} onChange={(e) => update("city", e.target.value)} />
-        </div>
-        <SearchableMultiSelect
-          label="Country"
-          options={countryOptions}
-          selectedValues={form.countryCodes}
-          onChange={(v) => update("countryCodes", v)}
-          placeholder="Select country..."
-        />
+        <h3>{t("manage.hostForm.locations")}</h3>
         {form.locations.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <label>Locations</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
             {form.locations.map((loc, i) => (
-              <div key={loc.id || i} className="kv" style={{ gap: 8, marginBottom: 4 }}>
-                <span className="meta">{loc.formattedAddress || loc.label || "(No address)"}</span>
-                {loc.isPrimary && <span className="tag">Primary</span>}
+              <div
+                key={loc.id || i}
+                style={{
+                  border: `1px solid ${loc.isPrimary ? "var(--accent, #1a73e8)" : "var(--border, #e0e0e0)"}`,
+                  borderRadius: 8,
+                  padding: 12,
+                  background: loc.isPrimary ? "var(--accent-bg, #e8f0fe)" : "var(--surface, #f8f8f8)",
+                  position: "relative",
+                }}
+              >
                 <button
                   type="button"
-                  className="ghost-btn"
-                  onClick={() => update("locations", form.locations.filter((_, j) => j !== i))}
+                  onClick={() => removeLocation(i)}
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "1.1rem",
+                    color: "var(--muted, #888)",
+                    lineHeight: 1,
+                    padding: "2px 6px",
+                  }}
+                  aria-label={t("manage.hostForm.removeLocation")}
                 >
-                  ×
+                  &times;
                 </button>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4, paddingRight: 24 }}>
+                  <div className="kv" style={{ gridColumn: "1 / -1" }}>
+                    <label>{t("manage.eventForm.address")}</label>
+                    <input value={loc.formattedAddress} onChange={(e) => updateLocationField(i, "formattedAddress", e.target.value)} />
+                  </div>
+                  <div className="kv">
+                    <label>{t("manage.eventForm.city")}</label>
+                    <input value={loc.city} onChange={(e) => updateLocationField(i, "city", e.target.value)} />
+                  </div>
+                  <div className="kv">
+                    <label>{t("manage.eventForm.country")}</label>
+                    <select value={loc.countryCode} onChange={(e) => updateLocationField(i, "countryCode", e.target.value)}>
+                      <option value="">{t("manage.eventForm.selectCountry")}</option>
+                      {countryOptions.map((c) => (
+                        <option key={c.code} value={c.code}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="kv">
+                    <label>{t("manage.eventForm.latitude")}</label>
+                    <input type="number" step="any" value={loc.lat} onChange={(e) => updateLocationField(i, "lat", e.target.value)} />
+                  </div>
+                  <div className="kv">
+                    <label>{t("manage.eventForm.longitude")}</label>
+                    <input type="number" step="any" value={loc.lng} onChange={(e) => updateLocationField(i, "lng", e.target.value)} />
+                  </div>
+                </div>
+                {loc.lat && loc.lng && parseFloat(loc.lat) && parseFloat(loc.lng) && (
+                  <div style={{ marginTop: 8, height: 220 }}>
+                    <AdminLocationPreviewMap
+                      lat={parseFloat(loc.lat)}
+                      lng={parseFloat(loc.lng)}
+                      onMarkerChange={(lat, lng) => { updateLocationField(i, "lat", lat.toString()); updateLocationField(i, "lng", lng.toString()); }}
+                    />
+                  </div>
+                )}
+                <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center" }}>
+                  {loc.isPrimary ? (
+                    <span className="tag" style={{ fontSize: "0.75rem" }}>{t("manage.hostForm.primary")}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      style={{ fontSize: "0.75rem", padding: "2px 8px" }}
+                      onClick={() => setLocationPrimary(i)}
+                    >
+                      {t("manage.hostForm.setAsPrimary")}
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
-        <div style={{ marginTop: 8 }}>
-          <LocationSearchField
-            getToken={getToken}
-            selectedLabel=""
-            onSelect={(loc) => {
-              update("locations", [
-                ...form.locations,
-                {
-                  id: loc.id,
-                  isPrimary: form.locations.length === 0,
-                  label: loc.formatted_address,
-                  formattedAddress: loc.formatted_address,
-                  city: loc.city ?? "",
-                  countryCode: (loc.country_code ?? "").toUpperCase(),
-                  lat: loc.lat.toString(),
-                  lng: loc.lng.toString(),
-                },
-              ]);
-            }}
-            onClear={() => {}}
-          />
-        </div>
+        <LocationSearchField
+          getToken={getToken}
+          selectedLabel=""
+          onSelect={(loc) => {
+            update("locations", [
+              ...form.locations,
+              {
+                id: loc.id,
+                isPrimary: form.locations.length === 0,
+                label: loc.formatted_address,
+                formattedAddress: loc.formatted_address,
+                city: loc.city ?? "",
+                countryCode: (loc.country_code ?? "").toUpperCase(),
+                lat: loc.lat.toString(),
+                lng: loc.lng.toString(),
+              },
+            ]);
+          }}
+          onClear={() => {}}
+        />
       </div>
 
       {/* Taxonomy */}
       <div className="manage-form-section">
-        <h3>Profile</h3>
-        <SearchableMultiSelect
-          label="Languages"
-          options={languageOptions}
-          selectedValues={form.languages}
-          onChange={(v) => update("languages", v)}
-          placeholder="Select languages..."
-        />
-        <div style={{ marginTop: 12 }}>
-          <label>Tags (CSV)</label>
-          <input value={form.tags} onChange={(e) => update("tags", e.target.value)} placeholder="bachata, kizomba" />
+        <h3>{t("manage.form.languages")}</h3>
+        <div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+            {languageOptions.map((opt) => {
+              const selected = form.languages.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    if (selected) {
+                      update("languages", form.languages.filter((v) => v !== opt.value));
+                    } else {
+                      update("languages", [...form.languages, opt.value]);
+                    }
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 999,
+                    border: `1.5px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+                    background: selected ? "var(--accent-bg, #e8f0fe)" : "transparent",
+                    color: selected ? "var(--accent)" : "var(--ink)",
+                    fontWeight: 400,
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div style={{ marginTop: 12 }}>
-          <SearchableMultiSelect
-            label="Roles"
-            options={roleOptions}
-            selectedValues={form.profileRoleIds}
-            onChange={(v) => update("profileRoleIds", v)}
-            placeholder="Select roles..."
+      </div>
+
+      {/* Tags section hidden for now
+      <div className="manage-form-section">
+        <h3>Tags</h3>
+        <div>
+          <input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={handleTagKeyDown}
+            onBlur={() => { if (tagInput.trim()) { addTag(tagInput); setTagInput(""); } }}
+            placeholder="e.g. salsa, bachata, kizomba (Enter or comma to add)"
           />
+          {tagList.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+              {tagList.map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: "var(--accent-bg, #e8f0fe)",
+                    color: "var(--accent, #1a73e8)",
+                    padding: "5px 12px",
+                    borderRadius: 999,
+                    fontSize: "0.88rem",
+                    fontWeight: 500,
+                  }}
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: "0 0 0 2px", lineHeight: 1, fontSize: "1rem" }}
+                    aria-label={`Remove ${tag}`}
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-        <div style={{ marginTop: 12 }}>
-          <SearchableMultiSelect
-            label="Practice Categories"
-            options={practiceOptions}
-            selectedValues={form.practiceCategoryIds}
-            onChange={(v) => update("practiceCategoryIds", v)}
-            placeholder="Select categories..."
-          />
+      </div>
+      */}
+
+      <div className="manage-form-section">
+        <h3>{t("manage.hostForm.roles")}</h3>
+        <div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {roleOptions.map((opt) => {
+              const selected = form.profileRoleIds.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    if (selected) {
+                      update("profileRoleIds", form.profileRoleIds.filter((v) => v !== opt.value));
+                    } else {
+                      update("profileRoleIds", [...form.profileRoleIds, opt.value]);
+                    }
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 999,
+                    border: `1.5px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+                    background: selected ? "var(--accent-bg, #e8f0fe)" : "transparent",
+                    color: selected ? "var(--accent)" : "var(--ink)",
+                    fontWeight: 400,
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="manage-form-section">
+        <h3>{t("manage.hostForm.practiceCategories")}</h3>
+        <div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {practiceOptions.map((opt) => {
+              const selected = form.practiceCategoryIds.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    if (selected) {
+                      update("practiceCategoryIds", form.practiceCategoryIds.filter((v) => v !== opt.value));
+                    } else {
+                      update("practiceCategoryIds", [...form.practiceCategoryIds, opt.value]);
+                    }
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 999,
+                    border: `1.5px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+                    background: selected ? "var(--accent-bg, #e8f0fe)" : "transparent",
+                    color: selected ? "var(--accent)" : "var(--ink)",
+                    fontWeight: 400,
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -409,58 +784,61 @@ export function HostForm({
         <HostEventsSection hostId={form.id} getToken={getToken} />
       )}
 
-      {/* Avatar */}
-      <div className="manage-form-section">
-        <h3>Avatar Image</h3>
-        {form.imageUrl && (
-          <div style={{ marginBottom: 8 }}>
-            <img
-              src={form.imageUrl.startsWith("http") ? form.imageUrl : `${apiBase.replace("/api", "")}${form.imageUrl}`}
-              alt="Avatar"
-              style={{ maxWidth: 120, maxHeight: 120, objectFit: "cover", borderRadius: "50%" }}
-            />
-          </div>
-        )}
-        <input type="file" accept="image/*" onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)} />
-        <div style={{ marginTop: 8 }}>
-          <label>Or paste an image URL</label>
-          <input
-            type="url"
-            placeholder="https://..."
-            value={form.imageUrl}
-            onChange={(e) => update("imageUrl", e.target.value)}
-          />
-        </div>
-      </div>
-
       {/* Status (edit only) */}
       {mode === "edit" && (
         <div className="manage-form-section">
-          <h3>Status</h3>
+          <h3>{t("manage.form.status")}</h3>
           <select value={form.status} onChange={(e) => update("status", e.target.value as HostFormState["status"])}>
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
+            <option value="draft">{t("common.status.draft")}</option>
+            <option value="published">{t("common.status.published")}</option>
+            <option value="archived">{t("common.status.archived")}</option>
           </select>
+          <span className="meta" style={{ fontSize: "0.75rem" }}>
+            {form.status === "draft" && t("manage.form.statusHint.draft")}
+            {form.status === "published" && t("manage.form.statusHint.published")}
+            {form.status === "archived" && t("manage.form.statusHint.archived")}
+          </span>
         </div>
       )}
 
       {/* Actions */}
       <div className="manage-form-actions">
         <button type="submit" className="primary-btn" disabled={saving}>
-          {saving ? "Saving..." : mode === "create" ? "Create Host" : "Update Host"}
+          {mode === "create" ? t("manage.form.saveDraft") : t("manage.form.save")}
         </button>
+        {mode === "create" && (
+          <button type="button" className="secondary-btn" disabled={saving} onClick={() => void handleSaveAndPublish()}>
+            {t("manage.eventForm.saveAndPublish")}
+          </button>
+        )}
         <button type="button" className="ghost-btn" onClick={() => router.back()} disabled={saving}>
-          Cancel
+          {t("manage.form.discardChanges")}
         </button>
+        {extraActions}
+        {onDelete && (
+          <button type="button" className="manage-btn-delete" style={{ marginLeft: "auto", padding: "8px 18px", borderRadius: 4, cursor: "pointer", fontWeight: 500, fontSize: "0.9rem" }} onClick={() => { if (confirm(t("manage.hostCard.confirmDelete"))) onDelete(); }} disabled={saving}>
+            {t("manage.common.delete")}
+          </button>
+        )}
       </div>
 
-      {status && <div className="meta" style={{ padding: "8px 0" }}>{status}</div>}
+      {status && (
+        <div className="manage-save-banner">
+          <span>{status}</span>
+          {(status === t("manage.form.saved") || status === t("manage.form.savedAndPublished")) && form.slug && form.status === "published" && (
+            <>
+              <span>{t("manage.form.viewHost")}</span>
+              <a href={`/hosts/${form.slug}`} className="manage-save-banner-link">{form.name || form.slug}</a>
+            </>
+          )}
+        </div>
+      )}
     </form>
   );
 }
 
 function HostEventsSection({ hostId, getToken }: { hostId: string; getToken: () => Promise<string | null> }) {
+  const { t } = useI18n();
   const [events, setEvents] = useState<Array<{ id: string; title: string; status: string }>>([]);
   const [loading, setLoading] = useState(true);
 
@@ -482,11 +860,11 @@ function HostEventsSection({ hostId, getToken }: { hostId: string; getToken: () 
 
   return (
     <div className="manage-form-section">
-      <h3>This Host&apos;s Events</h3>
+      <h3>{t("manage.hostForm.thisHostsEvents")}</h3>
       {loading ? (
-        <div className="meta">Loading events...</div>
+        <div className="meta">{t("manage.hostForm.loadingEvents")}</div>
       ) : events.length === 0 ? (
-        <div className="meta">No events linked to this host yet.</div>
+        <div className="meta">{t("manage.hostForm.noEventsLinked")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {events.map((ev) => (
@@ -500,9 +878,18 @@ function HostEventsSection({ hostId, getToken }: { hostId: string; getToken: () 
         </div>
       )}
       <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-        <Link href="/manage/events/new" className="secondary-btn" style={{ fontSize: "0.85rem" }}>
-          + Create event
-        </Link>
+        <button
+          type="button"
+          className="secondary-btn"
+          style={{ fontSize: "0.85rem" }}
+          onClick={() => {
+            if (confirm(t("manage.hostForm.unsavedWarning"))) {
+              window.location.href = "/manage/events/new";
+            }
+          }}
+        >
+          {t("manage.hostForm.createEvent")}
+        </button>
       </div>
     </div>
   );

@@ -1,23 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 
-import { OrganizerDetailClient } from "../../../components/OrganizerDetailClient";
+import { OrganizerDetailClient, type OrganizerDetail } from "../../../components/OrganizerDetailClient";
 import { apiBase } from "../../../lib/api";
-
-type OrganizerDetail = {
-  organizer: {
-    name: string;
-    descriptionHtml?: string | null;
-    description_json?: unknown;
-    imageUrl?: string | null;
-    avatar_path?: string | null;
-    websiteUrl?: string | null;
-    website_url?: string | null;
-    city?: string | null;
-    country_code?: string | null;
-    countryCode?: string | null;
-    roleKeys?: string[];
-  };
-};
 
 async function fetchServerJson<T>(path: string): Promise<T | null> {
   const serverApiBase = process.env.INTERNAL_API_BASE_URL ?? apiBase;
@@ -67,6 +52,33 @@ export default function HostDetailPage({ params }: { params: { slug: string } })
 
 async function HostDetailPageServer({ slug }: { slug: string }) {
   const detail = await fetchServerJson<OrganizerDetail>(`/organizers/${slug}`);
+
+  const cookieStore = cookies();
+  const locale = cookieStore.get("dr_locale")?.value ?? "en";
+  const serverTranslations = (() => {
+    try {
+      const regionNames = new Intl.DisplayNames([locale], { type: "region" });
+      const languageNames = new Intl.DisplayNames([locale], { type: "language" });
+      const countryCode = detail?.organizer.countryCode ?? detail?.organizer.country_code ?? null;
+      const countryLabel = countryCode ? (regionNames.of(countryCode.toUpperCase()) ?? null) : null;
+      const languageLabels: Record<string, string> = {};
+      for (const code of detail?.organizer.languages ?? []) {
+        const label = languageNames.of(code);
+        if (label) languageLabels[code] = label;
+      }
+      const locationCountryLabels: Record<string, string> = {};
+      for (const loc of detail?.locations ?? []) {
+        if (loc.country_code && !locationCountryLabels[loc.country_code]) {
+          const label = regionNames.of(loc.country_code.toUpperCase());
+          if (label) locationCountryLabels[loc.country_code] = label;
+        }
+      }
+      return { locale, countryLabel, languageLabels, locationCountryLabels };
+    } catch {
+      return { locale, countryLabel: null, languageLabels: {}, locationCountryLabels: {} };
+    }
+  })();
+
   const websiteUrl = detail?.organizer.websiteUrl ?? detail?.organizer.website_url ?? undefined;
   const jsonLd = detail
     ? {
@@ -92,7 +104,7 @@ async function HostDetailPageServer({ slug }: { slug: string }) {
       {jsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}
-      <OrganizerDetailClient slug={slug} />
+      <OrganizerDetailClient slug={slug} serverTranslations={serverTranslations} />
     </>
   );
 }

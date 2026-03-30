@@ -4,12 +4,21 @@ export async function listAdminEvents(
   pool: Pool,
   input: {
     q?: string;
-    status?: "draft" | "published" | "cancelled" | "archived";
+    status?: string;
     showUnlisted?: boolean;
     externalSource?: string;
     externalId?: string;
     organizerId?: string;
     ownerFilter?: "all" | "unassigned" | "has_owner";
+    practiceCategoryId?: string;
+    eventFormatId?: string;
+    countryCode?: string;
+    attendanceMode?: string;
+    languages?: string;
+    cities?: string;
+    tags?: string;
+    time?: "upcoming" | "past";
+    sort?: string;
     page: number;
     pageSize: number;
   },
@@ -28,8 +37,14 @@ export async function listAdminEvents(
   }
 
   if (input.status) {
-    values.push(input.status);
-    whereParts.push(`e.status = $${values.length}`);
+    const statuses = input.status.split(",").map((s) => s.trim()).filter(Boolean);
+    if (statuses.length === 1) {
+      values.push(statuses[0]);
+      whereParts.push(`e.status = $${values.length}`);
+    } else if (statuses.length > 1) {
+      values.push(statuses);
+      whereParts.push(`e.status = ANY($${values.length}::text[])`);
+    }
   }
   if (!input.showUnlisted) {
     whereParts.push("e.visibility = 'public'");
@@ -52,6 +67,77 @@ export async function listAdminEvents(
   } else if (input.ownerFilter === "has_owner") {
     whereParts.push(`(e.created_by_user_id IS NOT NULL OR EXISTS(SELECT 1 FROM event_users eu WHERE eu.event_id = e.id))`);
   }
+
+  if (input.practiceCategoryId) {
+    const ids = input.practiceCategoryId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`e.practice_category_id = $${values.length}`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`e.practice_category_id = ANY($${values.length}::uuid[])`);
+    }
+  }
+
+  if (input.eventFormatId) {
+    const ids = input.eventFormatId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`e.event_format_id = $${values.length}`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`e.event_format_id = ANY($${values.length}::uuid[])`);
+    }
+  }
+
+  if (input.countryCode) {
+    const codes = input.countryCode.split(",").map((s) => s.trim()).filter(Boolean);
+    if (codes.length === 1) {
+      values.push(codes[0]);
+      whereParts.push(`exists(select 1 from event_locations el join locations loc on loc.id = el.location_id where el.event_id = e.id and upper(loc.country_code) = upper($${values.length}))`);
+    } else if (codes.length > 1) {
+      values.push(codes.map((c) => c.toUpperCase()));
+      whereParts.push(`exists(select 1 from event_locations el join locations loc on loc.id = el.location_id where el.event_id = e.id and upper(loc.country_code) = ANY($${values.length}::text[]))`);
+    }
+  }
+
+  if (input.attendanceMode) {
+    const modes = input.attendanceMode.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(modes);
+    whereParts.push(`e.attendance_mode = ANY($${values.length}::text[])`);
+  }
+
+  if (input.languages) {
+    const langs = input.languages.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(langs);
+    whereParts.push(`e.languages && $${values.length}::text[]`);
+  }
+
+  if (input.cities) {
+    const cityList = input.cities.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(cityList);
+    whereParts.push(`exists(select 1 from event_locations el2 join locations l2 on l2.id = el2.location_id where el2.event_id = e.id and l2.city = ANY($${values.length}::text[]))`);
+  }
+
+  if (input.tags) {
+    const tagList = input.tags.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(tagList);
+    whereParts.push(`e.tags && $${values.length}::text[]`);
+  }
+
+  if (input.time === "upcoming") {
+    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
+  } else if (input.time === "past") {
+    whereParts.push(`not exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
+  }
+
+  const sortMap: Record<string, string> = {
+    upcoming: "next_occ.starts_at_utc asc nulls last",
+    edited: "e.updated_at desc",
+    created: "e.created_at desc",
+    title: "e.title asc",
+  };
+  const orderBy = sortMap[input.sort ?? ""] ?? "e.updated_at desc";
 
   const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
 
@@ -77,9 +163,13 @@ export async function listAdminEvents(
       published_at: string | null;
       practice_category_label: string | null;
       event_format_label: string | null;
+      event_format_key: string | null;
       location_city: string | null;
       location_country: string | null;
       next_occurrence: string | null;
+      next_ends_at: string | null;
+      event_timezone: string | null;
+      tags: string[] | null;
       host_names: string | null;
       created_by_name: string | null;
     }>(
@@ -103,11 +193,16 @@ export async function listAdminEvents(
           e.event_format_id,
           e.updated_at,
           e.published_at,
+          e.cover_image_path,
+          e.tags,
           pc.label as practice_category_label,
           ef.label as event_format_label,
+          ef.key as event_format_key,
           loc_sub.city as location_city,
           loc_sub.country_code as location_country,
           next_occ.starts_at_utc as next_occurrence,
+          next_occ.ends_at_utc as next_ends_at,
+          e.event_timezone,
           hosts_sub.host_names,
           u.display_name as created_by_name
         from events e
@@ -127,15 +222,14 @@ export async function listAdminEvents(
           where eo.event_id = e.id
         ) hosts_sub on true
         left join lateral (
-          select oc.starts_at_utc
-          from event_occurrences oc
-          where oc.event_id = e.id and oc.starts_at_utc > now()
-          order by oc.starts_at_utc
+          (select oc.starts_at_utc, oc.ends_at_utc from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() order by oc.starts_at_utc limit 1)
+          union all
+          (select oc.starts_at_utc, oc.ends_at_utc from event_occurrences oc where oc.event_id = e.id order by oc.starts_at_utc desc limit 1)
           limit 1
         ) next_occ on true
         left join users u on u.id = e.created_by_user_id
         ${whereSql}
-        order by e.updated_at desc
+        order by ${orderBy}
         limit $${values.length + 1}
         offset $${values.length + 2}
       `,
@@ -166,6 +260,9 @@ export async function listAdminOrganizers(
     practiceCategoryId?: string;
     profileRoleId?: string;
     countryCode?: string;
+    languages?: string;
+    cities?: string;
+    sort?: string;
     page: number;
     pageSize: number;
   },
@@ -173,6 +270,13 @@ export async function listAdminOrganizers(
   const page = Math.max(input.page, 1);
   const pageSize = Math.min(Math.max(input.pageSize, 1), 100);
   const offset = (page - 1) * pageSize;
+
+  const sortMap: Record<string, string> = {
+    edited: "o.updated_at desc",
+    created: "o.created_at desc",
+    name: "lower(o.name) asc",
+  };
+  const orderBy = sortMap[input.sort ?? ""] ?? "o.updated_at desc";
 
   const whereParts: string[] = [];
   const values: unknown[] = [];
@@ -189,18 +293,48 @@ export async function listAdminOrganizers(
   }
 
   if (input.practiceCategoryId) {
-    values.push(input.practiceCategoryId);
-    whereParts.push(`EXISTS(SELECT 1 FROM organizer_practices op WHERE op.organizer_id = o.id AND op.practice_id = $${values.length})`);
+    const ids = input.practiceCategoryId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_practices op WHERE op.organizer_id = o.id AND op.practice_id = $${values.length})`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_practices op WHERE op.organizer_id = o.id AND op.practice_id = ANY($${values.length}::uuid[]))`);
+    }
   }
 
   if (input.profileRoleId) {
-    values.push(input.profileRoleId);
-    whereParts.push(`EXISTS(SELECT 1 FROM organizer_profile_roles opr WHERE opr.organizer_id = o.id AND opr.role_id = $${values.length})`);
+    const ids = input.profileRoleId.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 1) {
+      values.push(ids[0]);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_profile_roles opr WHERE opr.organizer_id = o.id AND opr.role_id = $${values.length})`);
+    } else if (ids.length > 1) {
+      values.push(ids);
+      whereParts.push(`EXISTS(SELECT 1 FROM organizer_profile_roles opr WHERE opr.organizer_id = o.id AND opr.role_id = ANY($${values.length}::uuid[]))`);
+    }
   }
 
   if (input.countryCode) {
-    values.push(input.countryCode);
-    whereParts.push(`o.country_code = $${values.length}`);
+    const codes = input.countryCode.split(",").map((s) => s.trim()).filter(Boolean);
+    if (codes.length === 1) {
+      values.push(codes[0]);
+      whereParts.push(`upper(o.country_code) = upper($${values.length})`);
+    } else if (codes.length > 1) {
+      values.push(codes.map((c) => c.toUpperCase()));
+      whereParts.push(`upper(o.country_code) = ANY($${values.length}::text[])`);
+    }
+  }
+
+  if (input.languages) {
+    const langs = input.languages.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(langs);
+    whereParts.push(`o.languages && $${values.length}::text[]`);
+  }
+
+  if (input.cities) {
+    const cityList = input.cities.split(",").map((s) => s.trim()).filter(Boolean);
+    values.push(cityList);
+    whereParts.push(`EXISTS(SELECT 1 FROM organizer_locations ol WHERE ol.organizer_id = o.id AND ol.city = ANY($${values.length}::text[]))`);
   }
 
   const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
@@ -215,9 +349,14 @@ export async function listAdminOrganizers(
       managed_by_names: string | null;
       city: string | null;
       country_code: string | null;
+      image_url: string | null;
+      avatar_path: string | null;
       practice_labels: string | null;
       role_labels: string | null;
+      role_keys: string[] | null;
       event_count: string | null;
+      first_role_id: string | null;
+      languages: string[] | null;
     }>(
       `
         select
@@ -228,10 +367,15 @@ export async function listAdminOrganizers(
           o.updated_at,
           o.city,
           o.country_code,
+          o.image_url,
+          o.avatar_path,
+          o.languages,
           mgr.managed_by_names,
           practice_sub.practice_labels,
           role_sub.role_labels,
-          event_count_sub.event_count
+          role_sub.role_keys,
+          event_count_sub.event_count,
+          first_role_sub.first_role_id
         from organizers o
         left join lateral (
           select string_agg(u.display_name, ', ') as managed_by_names
@@ -246,7 +390,9 @@ export async function listAdminOrganizers(
           where op.organizer_id = o.id
         ) practice_sub on true
         left join lateral (
-          select string_agg(r.label, ', ') as role_labels
+          select
+            string_agg(r.label, ', ') as role_labels,
+            array_agg(r.key order by r.key) as role_keys
           from organizer_profile_roles opr
           join organizer_roles r on r.id = opr.role_id
           where opr.organizer_id = o.id
@@ -256,8 +402,15 @@ export async function listAdminOrganizers(
           from event_organizers eo
           where eo.organizer_id = o.id
         ) event_count_sub on true
+        left join lateral (
+          select opr.role_id as first_role_id
+          from organizer_profile_roles opr
+          where opr.organizer_id = o.id
+          order by opr.display_order
+          limit 1
+        ) first_role_sub on true
         ${whereSql}
-        order by lower(o.name) asc
+        order by ${orderBy}
         limit $${values.length + 1}
         offset $${values.length + 2}
       `,
@@ -379,13 +532,19 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
       role_id: string;
       display_order: number;
       organizer_name: string;
+      organizer_image_url: string | null;
+      organizer_avatar_path: string | null;
+      organizer_status: string;
     }>(
       `
         select
           rel.organizer_id,
           rel.role_id,
           rel.display_order,
-          o.name as organizer_name
+          o.name as organizer_name,
+          o.image_url as organizer_image_url,
+          o.avatar_path as organizer_avatar_path,
+          o.status as organizer_status
         from event_organizers rel
         join organizers o on o.id = rel.organizer_id
         where rel.event_id = $1
@@ -395,6 +554,7 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
     ),
     pool.query<{
       location_id: string;
+      label: string | null;
       formatted_address: string;
       city: string | null;
       country_code: string | null;
@@ -404,6 +564,7 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
       `
         select
           el.location_id,
+          l.label,
           l.formatted_address,
           l.city,
           l.country_code,
@@ -425,6 +586,7 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
     location: eventLocationResult.rows[0]
       ? {
           id: eventLocationResult.rows[0].location_id,
+          label: eventLocationResult.rows[0].label,
           formatted_address: eventLocationResult.rows[0].formatted_address,
           city: eventLocationResult.rows[0].city,
           country_code: eventLocationResult.rows[0].country_code,

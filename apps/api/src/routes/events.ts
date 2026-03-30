@@ -16,11 +16,12 @@ import {
   searchEventsFallback,
   setEventOrganizers,
   updateEvent,
+  eventHasOrganizers,
 } from "../db/eventRepo";
-import { getEventDefaultLocation, setEventDefaultLocation } from "../db/locationRepo";
+import { createLocation, getEventDefaultLocation, setEventDefaultLocation, updateLocation } from "../db/locationRepo";
 import { findOrCreateUserBySub } from "../db/userRepo";
 import { resolveUserId, requireEventAccess } from "../middleware/ownership";
-import { cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
+import { archiveEvent, cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
@@ -104,6 +105,7 @@ async function loadEventOrganizers(
       join organizers o on o.id = eo.organizer_id
       left join organizer_roles r on r.id = eo.role_id
       where eo.event_id = any($1::uuid[])
+        and o.status = 'published'
       order by eo.event_id, eo.display_order asc nulls last, o.name asc
     `,
     [eventIds],
@@ -321,7 +323,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const timezone = resolveSafeTimeZone(parsed.data.tz);
     const eventDateRangeMap = buildEventDateRangeMap(timezone, now);
     const selectedEventDateRanges = eventDatePresets.map((preset) => eventDateRangeMap[preset]);
-    const tags = csvToList(parsed.data.tags).map((t) => t.replace(/\b\w/g, (c) => c.toUpperCase()));
+    const tags = csvToList(parsed.data.tags).map((t) => t.toLowerCase());
     const languages = csvToList(parsed.data.languages);
     const rawAttendanceModes = csvToList(parsed.data.attendanceMode);
     const attendanceModes = rawAttendanceModes.filter(
@@ -741,6 +743,15 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
+    // Publish gate: if status is being set to published, check requirements
+    if (normalizedInput.status === "published" && previousEvent && previousEvent.status !== "published") {
+      const hasHosts = await eventHasOrganizers(app.db, params.data.id);
+      if (!hasHosts) {
+        reply.code(400);
+        return { error: "publish_requires_host" };
+      }
+    }
+
     let event;
     try {
       event = await updateEvent(app.db, params.data.id, normalizedInput as UpdateEventInput);
@@ -765,7 +776,34 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       await setEventOrganizers(app.db, params.data.id, normalizedInput.organizerRoles);
     }
 
-    if (normalizedInput.locationId !== undefined) {
+    // Location handling: if detail fields (lat/lng) are provided, update or create the location record
+    const locDetails = z.object({
+      locationLat: z.number().nullable().optional(),
+      locationLng: z.number().nullable().optional(),
+      locationCity: z.string().nullable().optional(),
+      locationCountry: z.string().nullable().optional(),
+      locationAddress: z.string().nullable().optional(),
+      locationLabel: z.string().nullable().optional(),
+    }).safeParse(request.body).data;
+
+    let newLocationCreated = false;
+    if (locDetails?.locationLat != null && locDetails?.locationLng != null) {
+      const lat = locDetails.locationLat;
+      const lng = locDetails.locationLng;
+      const city = locDetails.locationCity ?? null;
+      const country = locDetails.locationCountry ?? null;
+      const address = locDetails.locationAddress ?? "";
+
+      if (previousLocation) {
+        // Update in-place
+        await updateLocation(app.db, previousLocation.id, { formattedAddress: address, countryCode: country, city, lat, lng });
+      } else {
+        // No existing location — create one and link it
+        const newLoc = await createLocation(app.db, { formattedAddress: address, countryCode: country, city, lat, lng });
+        await setEventDefaultLocation(app.db, params.data.id, newLoc.id);
+        newLocationCreated = true;
+      }
+    } else if (normalizedInput.locationId !== undefined) {
       await setEventDefaultLocation(app.db, params.data.id, normalizedInput.locationId ?? null);
     }
 
@@ -773,19 +811,24 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       .safeParse(request.query).data?.skipSearch ?? false;
 
     if (!skipSearch && previousEvent && event.status === "published") {
-      const scheduleChanged = hasScheduleShapeChanges(previousEvent, event);
-      const locationChanged = normalizedInput.locationId !== undefined &&
-        normalizedInput.locationId !== (previousLocation?.id ?? null);
-
-      if (scheduleChanged || locationChanged) {
+      if (previousEvent.status !== "published") {
+        // Transition to published — regenerate occurrences
         await regenerateOccurrences(app.db, app.meiliService, params.data.id);
       } else {
-        // Metadata change (languages, tags, title, etc.) — resync without regenerating occurrences
-        await app.meiliService.upsertOccurrencesForEvent(app.db, params.data.id).catch(() => {});
-        clearSearchCache();
+        const scheduleChanged = hasScheduleShapeChanges(previousEvent, event);
+        const locationChanged = newLocationCreated || (normalizedInput.locationId !== undefined &&
+          normalizedInput.locationId !== (previousLocation?.id ?? null));
+
+        if (scheduleChanged || locationChanged) {
+          await regenerateOccurrences(app.db, app.meiliService, params.data.id);
+        } else {
+          // Metadata change (languages, tags, title, etc.) — resync without regenerating occurrences
+          await app.meiliService.upsertOccurrencesForEvent(app.db, params.data.id).catch(() => {});
+          clearSearchCache();
+        }
       }
     } else if (!skipSearch && previousEvent && previousEvent.status === "published"
-               && (event.status === "archived" || event.status === "draft")) {
+               && (event.status === "archived" || event.status === "draft" || event.status === "cancelled")) {
       await app.meiliService.deleteOccurrencesByEventId(params.data.id).catch(() => {});
       clearSearchCache();
     }
@@ -810,6 +853,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
     const skipSearch = z.object({ skipSearch: z.coerce.boolean().default(false) })
       .safeParse(request.query).data?.skipSearch ?? false;
+
+    const hasHosts = await eventHasOrganizers(app.db, params.data.id);
+    if (!hasHosts) {
+      reply.code(400);
+      return { error: "publish_requires_host" };
+    }
 
     try {
       await publishEvent(app.db, app.meiliService, params.data.id, skipSearch);
@@ -860,6 +909,67 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
     await cancelEvent(app.db, app.meiliService, params.data.id);
     return { ok: true };
+  });
+
+  app.post("/events/:id/archive", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    if (!auth.isAdmin) {
+      const userId = await resolveUserId(app.db, auth);
+      await requireEventAccess(app.db, userId, params.data.id, false);
+    }
+
+    await archiveEvent(app.db, app.meiliService, params.data.id);
+    return { ok: true };
+  });
+
+  app.delete("/events/:id", async (request, reply) => {
+    await app.requireEditor(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    const userId = await resolveUserId(app.db, auth);
+
+    if (!auth.isAdmin) {
+      await requireEventAccess(app.db, userId, params.data.id, false);
+    }
+
+    // Only allow deletion of draft or archived events
+    const event = await getEventById(app.db, params.data.id);
+    if (!event) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+    if (event.status !== "draft" && event.status !== "archived") {
+      reply.code(400);
+      return { error: "delete_only_draft_or_archived" };
+    }
+
+    // Hard delete with cascading cleanup
+    await app.db.query(`DELETE FROM event_occurrences WHERE event_id = $1`, [params.data.id]);
+    await app.db.query(`DELETE FROM event_organizers WHERE event_id = $1`, [params.data.id]);
+    await app.db.query(`DELETE FROM event_locations WHERE event_id = $1`, [params.data.id]);
+    await app.db.query(`DELETE FROM event_users WHERE event_id = $1`, [params.data.id]);
+    await app.db.query(`DELETE FROM events WHERE id = $1`, [params.data.id]);
+
+    try {
+      await app.meiliService.deleteOccurrencesByEventId(params.data.id);
+    } catch { /* ignore */ }
+    clearSearchCache();
+
+    return reply.code(204).send();
   });
 };
 

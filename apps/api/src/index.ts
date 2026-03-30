@@ -53,6 +53,7 @@ async function buildServer() {
           clientId: config.KEYCLOAK_ADMIN_CLIENT_ID,
           clientSecret: config.KEYCLOAK_ADMIN_CLIENT_SECRET,
           realm: config.KEYCLOAK_REALM,
+          rolesClientId: config.KEYCLOAK_ROLES_CLIENT_ID ?? config.KEYCLOAK_CLIENT_ID,
         })
       : null;
 

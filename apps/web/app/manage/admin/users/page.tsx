@@ -88,8 +88,8 @@ export default function AdminUsersPage() {
       roleDialogRef.current?.close();
       setEditRolesUserId(null);
       void load();
-    } catch {
-      // ignore
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update roles");
     }
   }
 
@@ -144,7 +144,6 @@ export default function AdminUsersPage() {
   async function addEventToUser(userId: string, eventId: string) {
     try {
       await authorizedPost(getToken, `/admin/users/${userId}/events`, { eventId });
-      // refresh linked data
       const events = await authorizedGet<LinkedEvent[]>(getToken, `/admin/users/${userId}/events`);
       setLinkedEvents(events);
       setAccessEventSearch("");
@@ -224,46 +223,46 @@ export default function AdminUsersPage() {
       ) : !error ? (
         <>
           <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
+          <table className="manage-table">
             <thead>
               <tr>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.name")}</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.email")}</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.common.roles")}</th>
-                <th style={{ textAlign: "center", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.hosts")}</th>
-                <th style={{ textAlign: "center", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.events")}</th>
-                <th style={{ textAlign: "left", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.joined")}</th>
-                <th style={{ textAlign: "right", padding: "8px", borderBottom: "1px solid var(--border)" }}>{t("manage.admin.users.actions")}</th>
+                <th>{t("manage.admin.users.name")}</th>
+                <th>{t("manage.admin.users.email")}</th>
+                <th>{t("manage.common.roles")}</th>
+                <th className="text-center">{t("manage.admin.users.hosts")}</th>
+                <th className="text-center">{t("manage.admin.users.events")}</th>
+                <th>{t("manage.admin.users.joined")}</th>
+                <th className="text-right">{t("manage.admin.users.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {users.map((user) => (
                 <tr key={user.id}>
-                  <td style={{ padding: "8px", borderBottom: "1px solid var(--border)" }}>
+                  <td>
                     {user.display_name ?? user.email ?? user.keycloak_sub.slice(0, 16)}
                   </td>
-                  <td style={{ padding: "8px", borderBottom: "1px solid var(--border)" }}>
+                  <td>
                     {user.email ?? "—"}
                   </td>
-                  <td style={{ padding: "8px", borderBottom: "1px solid var(--border)" }}>
+                  <td>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {(user.keycloak_roles ?? []).filter((r) => r.startsWith("dr_events_")).map((r) => (
+                      {(user.keycloak_roles ?? []).filter((r) => r === "admin" || r === "editor").map((r) => (
                         <span key={r} className="tag" style={{ fontSize: "0.7rem" }}>
-                          {r.replace("dr_events_", "")}
+                          {r}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td style={{ padding: "8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                  <td className="text-center">
                     {user.host_count}
                   </td>
-                  <td style={{ padding: "8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                  <td className="text-center">
                     {user.event_count}
                   </td>
-                  <td style={{ padding: "8px", borderBottom: "1px solid var(--border)" }}>
+                  <td>
                     {new Date(user.created_at).toLocaleDateString()}
                   </td>
-                  <td style={{ padding: "8px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>
+                  <td className="text-right">
                     <button
                       type="button"
                       className="ghost-btn"
@@ -287,7 +286,7 @@ export default function AdminUsersPage() {
           </table>
           </div>
           {(page > 1 || users.length === 20) && (
-            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16 }}>
+            <div className="manage-pagination">
               {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>{t("manage.common.previous")}</button>}
               {users.length === 20 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>{t("manage.common.next")}</button>}
             </div>
@@ -296,8 +295,8 @@ export default function AdminUsersPage() {
       ) : null}
 
       {/* Role editing dialog */}
-      <dialog ref={roleDialogRef} style={{ padding: 24, borderRadius: 8, border: "1px solid var(--border)", maxWidth: 400 }}>
-        <h3 style={{ marginTop: 0 }}>{t("manage.admin.users.editRoles")}</h3>
+      <dialog ref={roleDialogRef} className="manage-dialog">
+        <h3>{t("manage.admin.users.editRoles")}</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {[ROLE_EDITOR, ROLE_ADMIN].map((role) => (
             <label key={role} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
@@ -306,11 +305,11 @@ export default function AdminUsersPage() {
                 checked={editRoles.includes(role)}
                 onChange={() => toggleRole(role)}
               />
-              {role.replace("dr_events_", "")}
+              {role}
             </label>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+        <div className="manage-dialog-actions">
           <button type="button" className="ghost-btn" onClick={() => roleDialogRef.current?.close()}>
             {t("manage.common.cancel")}
           </button>
@@ -321,8 +320,8 @@ export default function AdminUsersPage() {
       </dialog>
 
       {/* Access management dialog */}
-      <dialog ref={accessDialogRef} style={{ padding: 24, borderRadius: 8, border: "1px solid var(--border)", maxWidth: 560, width: "100%" }}>
-        <h3 style={{ marginTop: 0 }}>{t("manage.admin.users.manageAccess")}</h3>
+      <dialog ref={accessDialogRef} className="manage-dialog manage-dialog--wide">
+        <h3>{t("manage.admin.users.manageAccess")}</h3>
 
         {/* Linked Hosts */}
         <h4 style={{ marginBottom: 8 }}>{t("manage.admin.users.linkedHosts")}</h4>
@@ -394,7 +393,7 @@ export default function AdminUsersPage() {
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div className="manage-dialog-actions">
           <button type="button" className="ghost-btn" onClick={() => accessDialogRef.current?.close()}>
             {t("manage.common.close")}
           </button>

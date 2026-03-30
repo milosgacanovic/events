@@ -18,7 +18,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
   });
   const tagsQuerySchema = z.object({
     q: z.string().trim().max(80).optional(),
-    limit: z.coerce.number().int().positive().max(20).default(20),
+    limit: z.coerce.number().int().positive().max(50).default(30),
   });
   const cache = new Map<string, { expiresAt: number; payload: unknown }>();
   const ttlMs = 30_000;

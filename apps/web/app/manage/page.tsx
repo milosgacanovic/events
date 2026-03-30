@@ -55,7 +55,7 @@ export default function ManageDashboard() {
   useEffect(() => { void load(); }, [load]);
 
   if (loading) {
-    return <div className="manage-loading">Loading dashboard...</div>;
+    return <div className="manage-loading">{t("common.loading")}</div>;
   }
 
   if (error) {
@@ -63,7 +63,7 @@ export default function ManageDashboard() {
       <div className="manage-empty">
         <p>{error}</p>
         <button type="button" className="secondary-btn" onClick={() => void load()} style={{ marginTop: 12 }}>
-          Retry
+          {t("common.action.retry")}
         </button>
       </div>
     );
@@ -74,6 +74,26 @@ export default function ManageDashboard() {
   return (
     <div>
       <h1 className="manage-page-title">{t("manage.dashboard.welcome", { name: displayName })}</h1>
+
+      {/* Onboarding banner for new editors */}
+      {!isAdmin && (data?.hostsCount ?? 0) === 0 && (
+        <div className="manage-onboarding-banner">
+          <h2>{(data?.totalEventsCount ?? 0) === 0 ? t("manage.onboarding.welcomeTitle") : t("manage.onboarding.needHostTitle")}</h2>
+          <p>{(data?.totalEventsCount ?? 0) === 0 ? t("manage.onboarding.welcomeMessage") : t("manage.onboarding.needHostMessage")}</p>
+          <Link href="/manage/hosts/new" className="primary-btn">
+            {t("manage.onboarding.createFirstHost")}
+          </Link>
+        </div>
+      )}
+      {!isAdmin && (data?.hostsCount ?? 0) > 0 && (data?.totalEventsCount ?? 0) === 0 && (
+        <div className="manage-onboarding-banner">
+          <h2>{t("manage.onboarding.hostReadyTitle")}</h2>
+          <p>{t("manage.onboarding.hostReadyMessage")}</p>
+          <Link href="/manage/events/new" className="primary-btn">
+            {t("manage.onboarding.createFirstEvent")}
+          </Link>
+        </div>
+      )}
 
       {/* Top stat cards — platform-wide for admins, personal for editors */}
       {isAdmin && data?.admin ? (
@@ -122,7 +142,7 @@ export default function ManageDashboard() {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
         <Link href="/manage/events/new" className="primary-btn">{t("manage.dashboard.createEvent")}</Link>
-        <Link href="/manage/hosts/new" className="secondary-btn">{t("manage.dashboard.createHost")}</Link>
+        <Link href="/manage/hosts/new" className="primary-btn">{t("manage.dashboard.createHost")}</Link>
       </div>
 
       {/* Recent Activity */}
@@ -133,14 +153,14 @@ export default function ManageDashboard() {
             {data.recentActivity.map((item) => (
               <div key={`${item.entityType}-${item.entityId}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 6, backgroundColor: "var(--surface, #f8f8f8)" }}>
                 <div>
-                  <span className="meta" style={{ marginRight: 6, textTransform: "capitalize" }}>{item.entityType}</span>
+                  <span className="meta" style={{ marginRight: 6 }}>{t(`manage.dashboard.entityType.${item.entityType}`)}</span>
                   <Link
                     href={item.entityType === "event" ? `/manage/events/${item.entityId}` : `/manage/hosts/${item.entityId}`}
                     style={{ textDecoration: "none", fontWeight: 500 }}
                   >
                     {item.entityName}
                   </Link>
-                  <span className="meta" style={{ marginLeft: 8 }}>{item.action}</span>
+                  <span className="meta" style={{ marginLeft: 8 }}>{t(`manage.dashboard.action.${item.action}`)}</span>
                 </div>
                 <span className="meta">{new Date(item.activityAt).toLocaleDateString()}</span>
               </div>

@@ -218,10 +218,7 @@ function downloadIcs(content: string, filename: string): void {
 }
 
 const URL_REGEX = /https?:\/\/[^\s<>"']+[^\s<>"'.,!?)]/g;
-function getRoleLabel(key: string, t: (k: string) => string): string {
-  const translated = t(`roleType.${key}`);
-  return translated === `roleType.${key}` ? key : translated;
-}
+import { getRoleLabel, getFormatLabel } from "../lib/filterHelpers";
 
 function linkifyHtml(html: string): string {
   return html.replace(/(<a[\s\S]*?<\/a>)|([^<]+)/g, (match, anchor, text) => {
@@ -236,19 +233,22 @@ function linkifyHtml(html: string): string {
   });
 }
 
-function getFormatLabel(key: string, label: string, t: (k: string) => string): string {
-  const translated = t(`eventFormat.${key}`);
-  return translated === `eventFormat.${key}` ? label : translated;
-}
+export type EventServerTranslations = {
+  locale: string;
+  regionLabels?: Record<string, string>;
+  languageLabels?: Record<string, string>;
+};
 
 export function EventDetailClient({
   slug,
   initialData,
   initialTaxonomy,
+  serverTranslations,
 }: {
   slug: string;
   initialData?: EventDetail | null;
   initialTaxonomy?: TaxonomyResponse | null;
+  serverTranslations?: EventServerTranslations;
 }) {
   const { locale, t } = useI18n();
   const router = useRouter();
@@ -258,6 +258,7 @@ export function EventDetailClient({
   });
   const [data, setData] = useState<EventDetail | null>(initialData ?? null);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
+  const [tagDisplayMap, setTagDisplayMap] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
@@ -284,9 +285,10 @@ export function EventDetailClient({
       return Promise.all([
         fetchJson<EventDetail>(`/events/${slug}`, headers ? { headers } : undefined),
         fetchJson<TaxonomyResponse>("/meta/taxonomies").catch(() => null),
+        fetchJson<{ items: Array<{ tag: string; display: string }> }>("/meta/tags?limit=30").catch(() => null),
       ]);
     })()
-      .then(([eventData, taxonomyData]) => {
+      .then(([eventData, taxonomyData, tagsData]) => {
         if (!active) {
           return;
         }
@@ -295,6 +297,11 @@ export function EventDetailClient({
         setError(null);
         setData(eventData);
         setTaxonomy(taxonomyData);
+        if (tagsData?.items) {
+          const map: Record<string, string> = {};
+          for (const t of tagsData.items) map[t.tag] = t.display;
+          setTagDisplayMap(map);
+        }
       })
       .catch((err) => {
         if (!active) {
@@ -408,14 +415,25 @@ export function EventDetailClient({
     }
   }, [locale]);
   const getLanguageLabel = useCallback(
-    (value: string) => labelForLanguageCode(value, languageNames),
-    [languageNames],
+    (value: string) => {
+      if (serverTranslations?.locale === locale) {
+        const s = serverTranslations.languageLabels?.[value.trim().toLowerCase()];
+        if (s) return s;
+      }
+      return labelForLanguageCode(value, languageNames);
+    },
+    [languageNames, serverTranslations, locale],
   );
   const getCountryLabel = useCallback((value: string) => {
     const normalized = value.trim().toUpperCase();
+    if (serverTranslations?.locale === locale) {
+      const s = serverTranslations.regionLabels?.[value.trim().toLowerCase()]
+        ?? serverTranslations.regionLabels?.[normalized];
+      if (s) return s;
+    }
     const localized = regionNames?.of(normalized);
     return localized && localized !== normalized ? localized : normalized;
-  }, [regionNames]);
+  }, [regionNames, serverTranslations, locale]);
 
   const rawDescriptionHtml = useMemo(
     () => getDescriptionHtml(data?.event.description_json),
@@ -588,7 +606,7 @@ export function EventDetailClient({
   const isImported = data.event.is_imported;
   const transparencySource = data.event.import_source ?? data.event.external_source ?? t("common.none");
   const hasEditorRole = auth.roles.some((role) =>
-    role === "dr_events_admin" || role === "dr_events_editor" || role === "admin" || role === "editor"
+    role === "admin" || role === "editor"
   );
   const canEdit = auth.ready && auth.authenticated && hasEditorRole;
   const lastSyncedRaw = data.event.lastSyncedAt ?? data.event.updated_at;
@@ -868,7 +886,7 @@ export function EventDetailClient({
             <span className="event-detail-meta-label">{t("organizerDetail.tags")}</span>
             <span className="event-detail-meta-value">
               {data.event.tags.map((tag, i) => (
-                <span key={tag}>{i > 0 && " · "}<Link href={`/events?tags=${encodeURIComponent(tag)}`}>{tag}</Link></span>
+                <span key={tag}>{i > 0 && " · "}<Link href={`/events?tags=${encodeURIComponent(tag)}`}>{(() => { const k = `tag.${tag.replace(/ /g, "-")}`; const v = t(k); return v !== k ? v : (tagDisplayMap[tag] ?? tag); })()}</Link></span>
               ))}
             </span>
           </div>

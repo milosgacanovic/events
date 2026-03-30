@@ -49,7 +49,7 @@ function buildApp() {
   app.decorate("db", {} as never);
   app.decorate("authenticate", async () => {});
   app.decorate("requireEditor", async (request) => {
-    request.auth = { sub: "test-user", roles: ["dr_events_admin"], isAdmin: true, isEditor: true };
+    request.auth = { sub: "test-user", roles: ["admin"], isAdmin: true, isEditor: true };
   });
   app.decorate("requireAdmin", async () => {});
   return app;
@@ -97,9 +97,13 @@ describe("admin content external ref filters", () => {
           published_at: null,
           practice_category_label: null,
           event_format_label: null,
+          event_format_key: null,
+          tags: null,
           location_city: null,
           location_country: null,
           next_occurrence: null,
+          next_ends_at: null,
+          event_timezone: null,
           host_names: null,
           created_by_name: null,
         },

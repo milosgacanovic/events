@@ -524,6 +524,15 @@ summary::-webkit-details-marker {
   display: none;
 }
 
+.filters details {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.filters .kv {
+  grid-template-columns: 1fr;
+}
+
 .filters details > summary {
   list-style: none;
   padding: 4px 0;
@@ -1167,9 +1176,9 @@ label.meta {
 }
 
 .host-card-avatar {
-  flex: 0 0 80px;
-  width: 80px;
-  height: 80px;
+  flex: 0 0 100px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
   overflow: hidden;
   background: var(--surface-placeholder);
@@ -1189,6 +1198,26 @@ label.meta {
   font-weight: 700;
   font-size: 1.5rem;
   color: #fff;
+}
+
+.host-card-avatar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.host-card-lang-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-start;
+}
+
+.host-card-lang-pills .tag {
+  font-size: 0.78rem;
+  padding: 3px 7px;
 }
 
 .host-card-body {
@@ -1918,6 +1947,7 @@ label.meta {
 /* Scrollable filter list (6.5 items visible) */
 .filter-scroll {
   display: grid;
+  grid-template-columns: 1fr;
   gap: 2px;
   margin-top: 8px;
   max-height: calc(6.5 * 36px);
@@ -1959,6 +1989,10 @@ label.meta {
 
 .tag-practice {
   border-width: 1.5px;
+}
+
+.tag-tag {
+  background: var(--surface-skeleton);
 }
 
 .title-xl {
@@ -2004,6 +2038,7 @@ label.meta {
 .map-shell {
   display: grid;
   gap: 10px;
+  isolation: isolate;
 }
 
 .leaflet-map {
@@ -2662,6 +2697,39 @@ button.tag, a.tag {
 button.tag:hover, a.tag:hover {
   background: var(--hover-bg);
   border-color: var(--border);
+}
+
+.sidebar-tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  max-height: 170px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sidebar-tag-chip {
+  font-size: 0.78rem !important;
+  padding: 3px 10px !important;
+  border-radius: 999px !important;
+  border: 1.5px solid var(--border) !important;
+  background: transparent !important;
+  color: var(--ink) !important;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sidebar-tag-chip:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+.sidebar-tag-chip--active {
+  background: var(--accent-bg, #e8f0fe) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  font-weight: 500;
 }
 
 /* org-past-event-row transition */

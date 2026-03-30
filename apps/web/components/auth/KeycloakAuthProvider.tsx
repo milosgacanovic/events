@@ -33,6 +33,12 @@ function normalizePath(value: string | undefined, fallback: string): string {
   return candidate.startsWith("/") ? candidate : `/${candidate}`;
 }
 
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 function extractRoles(tokenParsed: unknown, clientId?: string): string[] {
   if (!tokenParsed || typeof tokenParsed !== "object") {
     return [];
@@ -189,30 +195,19 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
           keycloak
             .updateToken(60)
             .then((refreshed: boolean) => {
-              if (refreshed || keycloak.authenticated) {
-                setToken(keycloak.token ?? null);
-                setRoles(extractRoles(keycloak.tokenParsed, keycloakClientId));
-                setUserName(
-                  (
-                    keycloak.tokenParsed as
-                      | { preferred_username?: string; name?: string; email?: string }
-                      | undefined
-                  )?.preferred_username
-                    ?? (
-                      keycloak.tokenParsed as
-                        | { preferred_username?: string; name?: string; email?: string }
-                        | undefined
-                    )?.name
-                    ?? (
-                      keycloak.tokenParsed as
-                        | { preferred_username?: string; name?: string; email?: string }
-                        | undefined
-                    )?.email
-                    ?? null,
-                );
-                setUserEmail(
-                  (keycloak.tokenParsed as { email?: string } | undefined)?.email ?? null,
-                );
+              if (refreshed) {
+                const newToken = keycloak.token ?? null;
+                const newRoles = extractRoles(keycloak.tokenParsed, keycloakClientId);
+                const parsed = keycloak.tokenParsed as
+                  | { preferred_username?: string; name?: string; email?: string }
+                  | undefined;
+                const newUserName = parsed?.preferred_username ?? parsed?.name ?? parsed?.email ?? null;
+                const newUserEmail = parsed?.email ?? null;
+
+                setToken((prev) => prev === newToken ? prev : newToken);
+                setRoles((prev) => arraysEqual(prev, newRoles) ? prev : newRoles);
+                setUserName((prev) => prev === newUserName ? prev : newUserName);
+                setUserEmail((prev) => prev === newUserEmail ? prev : newUserEmail);
                 setAuthenticated(Boolean(keycloak.authenticated));
               }
             })
@@ -277,8 +272,10 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
           return;
         }
 
+        const protectedPrefixes = ["/manage", "/admin", "/profile"];
+        const isProtected = protectedPrefixes.some((p) => window.location.pathname.startsWith(p));
         await keycloakRef.current.logout({
-          redirectUri: window.location.href,
+          redirectUri: isProtected ? `${window.location.origin}/` : window.location.href,
         });
       },
       getToken: async () => {

@@ -21,6 +21,7 @@ const configSchema = z.object({
   KEYCLOAK_ADMIN_CLIENT_ID: z.string().optional(),
   KEYCLOAK_ADMIN_CLIENT_SECRET: z.string().optional(),
   KEYCLOAK_REALM: z.string().optional(),
+  KEYCLOAK_ROLES_CLIENT_ID: z.string().optional(),
   MAX_UPLOAD_MB: z.coerce.number().default(5),
   SMTP_HOST: z.string().default("brevo-relay"),
   SMTP_PORT: z.coerce.number().default(2525),

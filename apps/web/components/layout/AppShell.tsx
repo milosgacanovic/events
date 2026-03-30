@@ -56,8 +56,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const userMobileRef = useRef<HTMLDivElement>(null);
   const userDesktopRef = useRef<HTMLDivElement>(null);
 
-  const canOpenManage = auth.roles.some((role) =>
-    role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
+  const canOpenManage = auth.ready && auth.roles.some((role) =>
+    role === "editor" || role === "admin"
   );
 
   useEffect(() => {
@@ -126,7 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link href="/hosts" className={"dropdown-item" + (pathname.startsWith("/hosts") ? " active" : "")}>
                 {t("nav.organizers")}
               </Link>
-              {canOpenManage ? (
+              {!auth.ready ? null : canOpenManage ? (
                 <Link href="/manage" className={"dropdown-item" + (pathname.startsWith("/manage") ? " active" : "")}>
                   {t("nav.manage")}
                 </Link>
@@ -154,7 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/hosts" className={pathname.startsWith("/hosts") ? "active" : ""}>
             {t("nav.organizers")}
           </Link>
-          {canOpenManage ? (
+          {!auth.ready ? null : canOpenManage ? (
             <Link href="/manage" className={pathname.startsWith("/manage") ? "active" : ""}>
               {t("nav.manage")}
             </Link>

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
+import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../lib/i18n/icuFallback";
 import { scrollToTopFast } from "../lib/scroll";
 import { useGeolocation } from "../lib/useGeolocation";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
@@ -73,10 +74,7 @@ type TaxonomyResponse = {
   };
 };
 
-function getRoleLabel(key: string, t: (k: string) => string): string {
-  const translated = t(`roleType.${key}`);
-  return translated === `roleType.${key}` ? key : translated;
-}
+import { getRoleLabel, formatCityLabel as formatCityLabelHelper } from "../lib/filterHelpers";
 
 export function OrganizerSearchClient({
   initialQuery,
@@ -92,7 +90,7 @@ export function OrganizerSearchClient({
   const authRef = useRef(auth);
   authRef.current = auth;
   const isEditor = auth.authenticated && auth.roles.some((role) =>
-    role === "dr_events_editor" || role === "dr_events_admin" || role === "editor" || role === "admin"
+    role === "editor" || role === "admin"
   );
   const canSeeDetailedErrors = isEditor;
   const router = useRouter();
@@ -115,7 +113,6 @@ export function OrganizerSearchClient({
   const [citySuggestions, setCitySuggestions] = useState<Array<{ city: string; count: number }>>([]);
   const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
   const [page, setPage] = useState<number>(initialQuery?.page ?? 1);
-  const [showArchived, setShowArchived] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarSkipTransition, setSidebarSkipTransition] = useState(false);
   useEffect(() => {
@@ -261,11 +258,10 @@ export function OrganizerSearchClient({
     if (languages.length) params.set("languages", languages.join(","));
     if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
-    if (showArchived) params.set("showArchived", "true");
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
     return params.toString();
-  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, showArchived]);
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
 
   const buildFacetQueryString = useCallback((exclude: "roleKey" | "practiceCategoryId" | "languages" | "countryCode") => {
     const params = new URLSearchParams();
@@ -276,11 +272,10 @@ export function OrganizerSearchClient({
     if (exclude !== "languages" && languages.length) params.set("languages", languages.join(","));
     if (exclude !== "countryCode" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
     if (cities.length) params.set("city", cities.join(","));
-    if (showArchived) params.set("showArchived", "true");
     params.set("page", "1");
     params.set("pageSize", "1");
     return params.toString();
-  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, showArchived]);
+  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
 
   const buildUiQueryString = useCallback(() => {
     const params = new URLSearchParams();
@@ -477,11 +472,8 @@ export function OrganizerSearchClient({
     setError(null);
 
     try {
-      const token = (showArchived && authRef.current.authenticated) ? await authRef.current.getToken() : null;
-      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
       const result = await fetchJson<OrganizerSearchResponse>(
         `/organizers/search?${buildQueryString(nextPage)}`,
-        headers ? { headers } : undefined,
       );
       setData(result);
       if (appendMode) {
@@ -496,7 +488,7 @@ export function OrganizerSearchClient({
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [buildQueryString, canSeeDetailedErrors, page, t, showArchived]);
+  }, [buildQueryString, canSeeDetailedErrors, page, t]);
 
   useEffect(() => {
     // Try restoring from snapshot saved by onNavigateAway (host card click)
@@ -699,20 +691,12 @@ export function OrganizerSearchClient({
     }
   }, [locale]);
   const getLanguageLabel = useCallback((value: string) => {
-    return labelForLanguageCode(value, languageNames);
-  }, [languageNames]);
+    return getLocalizedLanguageLabel(value, locale, languageNames);
+  }, [languageNames, locale]);
   const getCountryLabel = useCallback((value: string) => {
-    const normalized = value.trim().toUpperCase();
-    const localized = regionNames?.of(normalized);
-    return localized && localized !== normalized ? localized : normalized;
-  }, [regionNames]);
-  const formatCityLabel = useCallback((value: string) => {
-    const normalized = value.trim().toLowerCase();
-    if (!normalized) {
-      return normalized;
-    }
-    return normalized.replace(/(^|[\s-])([a-z])/g, (_match, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`);
-  }, []);
+    return getLocalizedRegionLabel(value, locale, regionNames);
+  }, [regionNames, locale]);
+  const formatCityLabel = formatCityLabelHelper;
   const categorySingularLabel = t("admin.placeholder.categorySingular");
   const visibleRoleFacets = useMemo(() => {
     const selectedSet = new Set(roleKeys);
@@ -1168,19 +1152,6 @@ export function OrganizerSearchClient({
           </div>
         )}
 
-        {isEditor && (
-          <label className="meta">
-            <input
-              type="checkbox"
-              checked={showArchived}
-              onChange={(e) => {
-                setShowArchived(e.target.checked);
-                setPage(1);
-              }}
-            />
-            {" Show archived"}
-          </label>
-        )}
         <div className="filters-mobile-footer">
           <button
             type="button"
@@ -1299,9 +1270,6 @@ export function OrganizerSearchClient({
               <div className="host-card-body">
                 <h3 style={{ margin: "0 0 4px" }}>
                   {item.name}
-                  {item.status === "archived" && (
-                    <span className="tag" style={{ marginLeft: "0.5em", fontSize: "0.75em" }}>Archived</span>
-                  )}
                 </h3>
                 {locationParts && <div className="meta">{locationParts}</div>}
                 {(primaryPractice || primaryRole) && (
@@ -1310,7 +1278,7 @@ export function OrganizerSearchClient({
                   </div>
                 )}
                 {pills.length > 0 && (
-                  <div className="kv event-card-pills" style={{ marginTop: "auto" }}>
+                  <div className="host-card-lang-pills">
                     {pills.map((pill, i) => (
                       <span className="tag" key={i}>{pill}</span>
                     ))}

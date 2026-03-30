@@ -8,11 +8,16 @@ export async function authorizedFetch<T>(
   const token = await getToken();
   if (!token) throw new Error("Not authenticated");
   const url = path.startsWith("http") ? path : `${apiBase}${path}`;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+  };
+  if (options?.body) {
+    headers["Content-Type"] = "application/json";
+  }
   const response = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      ...headers,
       ...(options?.headers ?? {}),
     },
     cache: "no-store",
@@ -20,13 +25,24 @@ export async function authorizedFetch<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({})) as Record<string, unknown>;
-    const error = new Error(
-      (body.error as string) ?? `Request failed: ${response.status}`,
-    );
+    const errorBody = body.error;
+    let message: string;
+    if (typeof errorBody === "string") {
+      message = errorBody;
+    } else if (errorBody && typeof errorBody === "object") {
+      // Zod flatten: { fieldErrors: {...}, formErrors: [...] }
+      const fe = errorBody as { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
+      const msgs = [...(fe.formErrors ?? []), ...Object.values(fe.fieldErrors ?? {}).flat()];
+      message = msgs.join("; ") || `Request failed: ${response.status}`;
+    } else {
+      message = `Request failed: ${response.status}`;
+    }
+    const error = new Error(message);
     (error as unknown as { status: number }).status = response.status;
     throw error;
   }
 
+  if (response.status === 204) return {} as T;
   return (await response.json()) as T;
 }
 

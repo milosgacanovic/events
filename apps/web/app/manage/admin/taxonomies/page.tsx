@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
@@ -53,6 +53,12 @@ export default function AdminTaxonomiesPage() {
   // Delete confirmation dialog
   const [deleteTarget, setDeleteTarget] = useState<{ endpoint: string; id: string; label: string } | null>(null);
   const [confirmText, setConfirmText] = useState("");
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
+
+  // Drag state
+  const [dragEndpoint, setDragEndpoint] = useState<string | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const loadTaxonomy = useCallback(async () => {
     try {
@@ -154,6 +160,7 @@ export default function AdminTaxonomiesPage() {
   function handleDeleteClick(endpoint: string, id: string, label: string) {
     setDeleteTarget({ endpoint, id, label });
     setConfirmText("");
+    setTimeout(() => deleteDialogRef.current?.showModal(), 0);
   }
 
   async function confirmDelete() {
@@ -162,6 +169,7 @@ export default function AdminTaxonomiesPage() {
       await authorizedDelete(getToken, `${deleteTarget.endpoint}/${deleteTarget.id}`);
       setStatus("Deleted!");
       setDeleteTarget(null);
+      deleteDialogRef.current?.close();
       void loadTaxonomy();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
@@ -182,7 +190,6 @@ export default function AdminTaxonomiesPage() {
       id: item.id,
       sortOrder: item.sort_order ?? i,
     }));
-    // Swap sort orders
     const tmp = updated[index].sortOrder;
     updated[index].sortOrder = updated[targetIndex].sortOrder;
     updated[targetIndex].sortOrder = tmp;
@@ -196,10 +203,73 @@ export default function AdminTaxonomiesPage() {
     }
   }
 
-  function renderItemRow(id: string, label: string, key: string, endpoint: string, indent = false, items?: TaxItem[], index?: number) {
+  async function handleDragDrop(endpoint: string, items: TaxItem[], fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+
+    // Build new sort order array: move item from fromIndex to toIndex
+    const reordered = [...items];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+
+    const updated = reordered.map((item, i) => ({
+      id: item.id,
+      sortOrder: i,
+    }));
+
+    try {
+      await authorizedPatch(getToken, `${endpoint}/reorder`, updated);
+      setStatus("Reordered!");
+      void loadTaxonomy();
+    } catch (err) {
+      setStatus(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+    }
+  }
+
+  function onDragStart(endpoint: string, index: number) {
+    setDragEndpoint(endpoint);
+    setDragIndex(index);
+  }
+
+  function onDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault();
+    setDragOverIndex(index);
+  }
+
+  function onDragEnd() {
+    setDragIndex(null);
+    setDragOverIndex(null);
+    setDragEndpoint(null);
+  }
+
+  function onDrop(endpoint: string, items: TaxItem[], toIndex: number) {
+    if (dragIndex !== null && dragEndpoint === endpoint) {
+      void handleDragDrop(endpoint, items, dragIndex, toIndex);
+    }
+    onDragEnd();
+  }
+
+  function renderItemRow(id: string, label: string, key: string, endpoint: string, indent: boolean, items?: TaxItem[], index?: number) {
     const isEditing = editingId === id;
+    const isDragging = dragIndex === index && dragEndpoint === endpoint;
+    const isDragOver = dragOverIndex === index && dragEndpoint === endpoint;
+
+    const className = [
+      "manage-taxonomy-item",
+      indent ? "manage-taxonomy-item--indent" : "",
+      isDragging ? "dragging" : "",
+      isDragOver ? "drag-over" : "",
+    ].filter(Boolean).join(" ");
+
     return (
-      <div key={id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, paddingLeft: indent ? 16 : 0 }}>
+      <div
+        key={id}
+        className={className}
+        draggable={!isEditing && items !== undefined}
+        onDragStart={items && index !== undefined ? () => onDragStart(endpoint, index) : undefined}
+        onDragOver={items && index !== undefined ? (e) => onDragOver(e, index) : undefined}
+        onDragEnd={onDragEnd}
+        onDrop={items && index !== undefined ? () => onDrop(endpoint, items, index) : undefined}
+      >
         {isEditing ? (
           <>
             <input
@@ -250,13 +320,12 @@ export default function AdminTaxonomiesPage() {
     <div>
       <h1 className="manage-page-title">{t("manage.admin.taxonomies.title")}</h1>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div className="manage-tab-bar">
         {(["practices", "formats", "roles", "labels"] as const).map((tabKey) => (
           <button
             key={tabKey}
             type="button"
             className={tab === tabKey ? "primary-btn" : "secondary-btn"}
-            style={{ fontSize: "0.85rem" }}
             onClick={() => setTab(tabKey)}
           >
             {tabKey === "practices" ? t("manage.admin.taxonomies.dancePractices") : tabKey === "formats" ? t("manage.admin.taxonomies.eventFormats") : tabKey === "roles" ? t("manage.admin.taxonomies.hostRoles") : t("manage.admin.taxonomies.uiLabels")}
@@ -266,7 +335,7 @@ export default function AdminTaxonomiesPage() {
 
       {tab === "practices" && (
         <div>
-          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.dancePractices") })}</h2>
+          <h2 className="manage-section-heading">{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.dancePractices") })}</h2>
           {taxonomy?.practices.categories.map((cat, catIdx) => (
             <div key={cat.id} style={{ marginBottom: 12 }}>
               {renderItemRow(cat.id, cat.label, cat.key, "/admin/practices", false, taxonomy.practices.categories, catIdx)}
@@ -279,7 +348,7 @@ export default function AdminTaxonomiesPage() {
               )}
             </div>
           ))}
-          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.dancePractices") })}</h2>
+          <h2 className="manage-section-heading manage-section-heading--spaced">{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.dancePractices") })}</h2>
           <form className="manage-form" onSubmit={(e) => void createPractice(e)}>
             <div>
               <label>{t("manage.admin.taxonomies.level")}</label>
@@ -314,11 +383,11 @@ export default function AdminTaxonomiesPage() {
 
       {tab === "formats" && (
         <div>
-          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.eventFormats") })}</h2>
+          <h2 className="manage-section-heading">{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.eventFormats") })}</h2>
           {taxonomy?.eventFormats?.map((f, fIdx) =>
             renderItemRow(f.id, f.label, f.key, "/admin/event-formats", false, taxonomy?.eventFormats, fIdx),
           )}
-          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.eventFormats") })}</h2>
+          <h2 className="manage-section-heading manage-section-heading--spaced">{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.eventFormats") })}</h2>
           <form className="manage-form" onSubmit={(e) => void createFormat(e)}>
             <div>
               <label>{t("common.field.key")}</label>
@@ -335,11 +404,11 @@ export default function AdminTaxonomiesPage() {
 
       {tab === "roles" && (
         <div>
-          <h2 style={{ fontSize: "1rem", marginBottom: 12 }}>{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.hostRoles") })}</h2>
+          <h2 className="manage-section-heading">{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.hostRoles") })}</h2>
           {taxonomy?.organizerRoles.map((r, rIdx) =>
             renderItemRow(r.id, r.label, r.key, "/admin/organizer-roles", false, taxonomy?.organizerRoles, rIdx),
           )}
-          <h2 style={{ fontSize: "1rem", marginTop: 24, marginBottom: 12 }}>{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.hostRoles") })}</h2>
+          <h2 className="manage-section-heading manage-section-heading--spaced">{t("manage.admin.taxonomies.create", { type: t("manage.admin.taxonomies.hostRoles") })}</h2>
           <form className="manage-form" onSubmit={(e) => void createRole(e)}>
             <div>
               <label>{t("common.field.key")}</label>
@@ -371,33 +440,10 @@ export default function AdminTaxonomiesPage() {
       {status && <div className="meta" style={{ padding: "8px 0" }}>{status}</div>}
 
       {/* Delete confirmation dialog */}
-      {deleteTarget && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 100,
-            background: "rgba(0,0,0,0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onClick={() => setDeleteTarget(null)}
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            style={{
-              background: "var(--bg, #fff)",
-              borderRadius: 8,
-              padding: "24px",
-              maxWidth: 400,
-              width: "90%",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ marginBottom: 12, fontSize: "1rem" }}>{t("manage.admin.taxonomies.confirmDeleteTitle")}</h3>
+      <dialog ref={deleteDialogRef} className="manage-dialog">
+        {deleteTarget && (
+          <>
+            <h3>{t("manage.admin.taxonomies.confirmDeleteTitle")}</h3>
             <p style={{ marginBottom: 16, fontSize: "0.9rem" }}>
               {t("manage.admin.taxonomies.confirmDelete", { label: deleteTarget.label })}
             </p>
@@ -419,11 +465,11 @@ export default function AdminTaxonomiesPage() {
                 }}
               />
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="manage-dialog-actions">
               <button
                 type="button"
                 className="ghost-btn"
-                onClick={() => setDeleteTarget(null)}
+                onClick={() => { setDeleteTarget(null); deleteDialogRef.current?.close(); }}
               >
                 {t("manage.common.cancel")}
               </button>
@@ -440,9 +486,9 @@ export default function AdminTaxonomiesPage() {
                 {t("manage.common.delete")}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </dialog>
     </div>
   );
 }

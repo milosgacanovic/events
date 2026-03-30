@@ -38,29 +38,27 @@ export async function listTagSuggestions(
 ) {
   const query = (input.q ?? "").trim().toLowerCase();
 
-  const result = await pool.query<{ tag: string; count: string }>(
+  const result = await pool.query<{ tag: string; display: string | null; count: string }>(
     `
-      with upcoming_events as (
-        select distinct eo.event_id
+      with usage as (
+        select lower(t.tag) as tag, count(*)::text as count
         from event_occurrences eo
-        where eo.starts_at_utc >= now()
+        join events e on e.id = eo.event_id
+        cross join unnest(e.tags) as t(tag)
+        where eo.starts_at_utc >= now() and e.status = 'published'
+        group by lower(t.tag)
       )
-      select
-        lower(tag) as tag,
-        count(*)::text as count
-      from upcoming_events ue
-      join events e on e.id = ue.event_id
-      cross join unnest(e.tags) as tag
-      where e.status = 'published'
-        and ($1 = '' or lower(tag) like $1 || '%')
-      group by lower(tag)
-      order by count(*) desc, lower(tag) asc
+      select t.tag, t.display, coalesce(u.count, '0') as count
+      from tags t
+      left join usage u on u.tag = t.tag
+      where ($1 = '' or t.tag like $1 || '%')
+      order by t.sort_order, t.tag
       limit $2
     `,
     [query, input.limit],
   );
 
-  return result.rows.map((row) => ({ tag: row.tag, count: Number(row.count) }));
+  return result.rows.map((row) => ({ tag: row.tag, display: row.display ?? row.tag, count: Number(row.count) }));
 }
 
 export async function listOrganizerCitySuggestions(

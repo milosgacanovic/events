@@ -346,6 +346,20 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       await app.keycloakAdmin.revokeRole(sub, role);
     }
 
+    // Sync DB roles column to reflect the Keycloak change immediately
+    for (const role of body.data.add ?? []) {
+      await app.db.query(
+        `update users set roles = array_append(roles, $2) where id = $1 and not ($2 = any(roles))`,
+        [params.data.id, role],
+      );
+    }
+    for (const role of body.data.remove ?? []) {
+      await app.db.query(
+        `update users set roles = array_remove(roles, $2) where id = $1`,
+        [params.data.id, role],
+      );
+    }
+
     return { ok: true };
   });
 
@@ -474,6 +488,22 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       })),
     };
   });
+  // --- Re-attach detached events/hosts to import ---
+  app.post("/admin/events/:id/reattach", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+
+    const result = await app.db.query(
+      `update events set detached_from_import = false, detached_at = null, detached_by_user_id = null
+       where id = $1 and detached_from_import = true
+       returning id`,
+      [params.data.id],
+    );
+    if (!result.rows[0]) { reply.code(404); return { error: "not_found_or_not_detached" }; }
+    return { ok: true };
+  });
+
 };
 
 export default adminRoutes;

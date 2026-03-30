@@ -7,15 +7,15 @@ describe("extractRolesFromPayload", () => {
     const roles = extractRolesFromPayload(
       {
         sub: "user-1",
-        realm_access: { roles: ["dr_events_editor", "viewer"] },
+        realm_access: { roles: ["viewer"] },
         resource_access: {
-          dr_events_web: { roles: ["dr_events_admin", "viewer"] },
+          events: { roles: ["admin", "editor", "viewer"] },
         },
       },
-      "dr_events_web",
+      "events",
     );
 
-    expect(roles.sort()).toEqual(["dr_events_admin", "dr_events_editor", "viewer"]);
+    expect(roles.sort()).toEqual(["admin", "editor", "viewer"]);
   });
 });
 

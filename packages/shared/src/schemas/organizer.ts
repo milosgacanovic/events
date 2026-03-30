@@ -3,6 +3,7 @@ import { organizerStatusSchema } from "./common";
 
 const organizerSchemaBase = z.object({
   name: z.string().min(1).max(200),
+  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(200).optional(),
   descriptionJson: z.record(z.any()).default({}),
   descriptionHtml: z.string().max(100000).nullable().optional(),
   websiteUrl: z.string().url().nullable().optional(),

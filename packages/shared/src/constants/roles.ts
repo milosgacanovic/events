@@ -1,2 +1,2 @@
-export const ROLE_ADMIN = "dr_events_admin";
-export const ROLE_EDITOR = "dr_events_editor";
+export const ROLE_ADMIN = "admin";
+export const ROLE_EDITOR = "editor";

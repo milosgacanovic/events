@@ -1,10 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 const BASE = "http://localhost:13000";
 
 // Fulfill Nominatim reverse-geocode with a fixed city + country
-function mockNominatim(page: Parameters<typeof test.beforeEach>[0]["page"], city: string, countryCode: string) {
-  return page.route("https://nominatim.openstreetmap.org/**", (route) =>
+function mockNominatim(page: Page, city: string, countryCode: string) {
+  return page.route("https://nominatim.openstreetmap.org/**", (route: Route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -18,10 +18,10 @@ function mockNominatim(page: Parameters<typeof test.beforeEach>[0]["page"], city
 //   - /api/organizers/search → city probe returns cityCount, country probe returns countryCount
 // Main search requests (pageSize=20) pass through to the real API.
 async function mockGeoProbes(
-  page: Parameters<typeof test.beforeEach>[0]["page"],
+  page: Page,
   { eventsHits, cityCount, countryCount }: { eventsHits: number; cityCount: number; countryCount: number },
 ) {
-  await page.route("**/api/events/search*", async (route) => {
+  await page.route("**/api/events/search*", async (route: Route) => {
     const url = new URL(route.request().url());
     if (url.searchParams.get("pageSize") !== "1") return route.continue();
     await route.fulfill({
@@ -31,7 +31,7 @@ async function mockGeoProbes(
     });
   });
 
-  await page.route("**/api/organizers/search*", async (route) => {
+  await page.route("**/api/organizers/search*", async (route: Route) => {
     const url = new URL(route.request().url());
     if (url.searchParams.get("pageSize") !== "1") return route.continue();
     const count = url.searchParams.get("city") ? cityCount : countryCount;

@@ -180,6 +180,47 @@ ${practicesRow$}
       return { error: "not_found" };
     }
 
+    // Send email notification to applicant
+    {
+      const applicantEmail = updated.email;
+      const applicantName = updated.name;
+      if (applicantEmail) {
+        const emailWrap = (body: string) => `
+<div style="max-width:560px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;">
+  <div style="text-align:center;padding:24px 0 16px;">
+    <img src="${config.PUBLIC_BASE_URL}/logo.jpg" alt="DanceResource" style="height:48px;" />
+  </div>
+  <div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:24px;">
+    ${body}
+  </div>
+  <div style="text-align:center;padding:16px 0;font-size:12px;color:#999;">
+    DanceResource Events &middot; <a href="${config.PUBLIC_BASE_URL}" style="color:#0f8a4a;">events.danceresource.org</a>
+  </div>
+</div>`;
+
+        const name = applicantName || "there";
+        const subjectMap: Record<string, string> = {
+          approved: "Your DanceResource Application Has Been Approved",
+          rejected: "Update on Your DanceResource Application",
+          more_info_requested: "Additional Information Needed - DanceResource Application",
+        };
+        const message = parsed.data.status === "rejected"
+          ? (parsed.data.rejectionReason || "")
+          : (parsed.data.adminNotes || "");
+
+        const subject = subjectMap[parsed.data.status];
+        if (subject) {
+          const htmlBody = emailWrap(`
+    <h2 style="margin:0 0 16px;font-size:18px;">${subject}</h2>
+    <p style="margin:0 0 12px;line-height:1.5;">Hi ${name},</p>
+    <div style="white-space:pre-line;margin:0 0 12px;line-height:1.5;">${message}</div>
+    <p style="margin-top:20px;color:#888;font-size:12px;">&mdash; DanceResource Team</p>
+          `);
+          void sendEmail(applicantEmail, subject, htmlBody, request.log);
+        }
+      }
+    }
+
     // Side-effects on approval: grant Keycloak editor role + claim host
     if (parsed.data.status === "approved") {
       try {
@@ -206,6 +247,91 @@ ${practicesRow$}
       } catch (err) {
         request.log.warn({ err }, "Application approval side-effects failed");
       }
+    }
+
+    return updated;
+  });
+
+  // ── Tag Suggestions ──────────────────────────────────────────────
+
+  const tagSuggestSchema = z.object({
+    tag: z.string().trim().min(1).max(60),
+    reason: z.string().trim().max(500).optional(),
+  });
+
+  const tagSuggestStatusSchema = z.object({
+    status: z.enum(["approved", "dismissed"]),
+    adminNotes: z.string().max(2000).optional(),
+  });
+
+  // Any authenticated user can suggest a tag
+  app.post("/admin/tag-suggestions", async (request, reply) => {
+    await app.authenticate(request);
+
+    const parsed = tagSuggestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const auth = request.auth!;
+    const userId = await resolveUserId(app.db, auth);
+
+    const { createTagSuggestion } = await import("../db/tagSuggestionRepo.js");
+    const suggestion = await createTagSuggestion(app.db, {
+      tag: parsed.data.tag,
+      reason: parsed.data.reason,
+      userId,
+    });
+
+    reply.code(201);
+    return suggestion;
+  });
+
+  // Admin: list tag suggestions
+  app.get("/admin/tag-suggestions", async (request, reply) => {
+    await app.requireAdmin(request);
+
+    const parsed = z.object({
+      status: z.enum(["pending", "approved", "dismissed"]).optional(),
+      page: z.coerce.number().int().positive().default(1),
+      pageSize: z.coerce.number().int().positive().max(100).default(20),
+    }).safeParse(request.query);
+
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const { listTagSuggestions } = await import("../db/tagSuggestionRepo.js");
+    return listTagSuggestions(app.db, parsed.data);
+  });
+
+  // Admin: approve or dismiss a tag suggestion
+  app.patch("/admin/tag-suggestions/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      reply.code(400);
+      return { error: params.error.flatten() };
+    }
+
+    const parsed = tagSuggestStatusSchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+
+    const { updateTagSuggestionStatus } = await import("../db/tagSuggestionRepo.js");
+    const updated = await updateTagSuggestionStatus(app.db, {
+      id: params.data.id,
+      ...parsed.data,
+    });
+
+    if (!updated) {
+      reply.code(404);
+      return { error: "not_found" };
     }
 
     return updated;
