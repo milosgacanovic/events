@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "未保存の変更があります。保存せずに移動しますか？",
   "manage.form.unsavedStay": "とどまる",
   "manage.form.unsavedTitle": "未保存の変更",
-  "manage.hostCard.confirmPublish": "このホストを公開してもよろしいですか？"
+  "manage.hostCard.confirmPublish": "このホストを公開してもよろしいですか？",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

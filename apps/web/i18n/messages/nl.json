@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "U heeft niet-opgeslagen wijzigingen. Verlaten zonder opslaan?",
   "manage.form.unsavedStay": "Blijven",
   "manage.form.unsavedTitle": "Niet-opgeslagen wijzigingen",
-  "manage.hostCard.confirmPublish": "Weet u zeker dat u deze gastheer wilt publiceren?"
+  "manage.hostCard.confirmPublish": "Weet u zeker dat u deze gastheer wilt publiceren?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

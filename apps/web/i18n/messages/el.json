@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Έχετε μη αποθηκευμένες αλλαγές. Θέλετε να φύγετε χωρίς αποθήκευση;",
   "manage.form.unsavedStay": "Παραμονή",
   "manage.form.unsavedTitle": "Μη αποθηκευμένες αλλαγές",
-  "manage.hostCard.confirmPublish": "Είστε σίγουροι ότι θέλετε να δημοσιεύσετε αυτόν τον διοργανωτή;"
+  "manage.hostCard.confirmPublish": "Είστε σίγουροι ότι θέλετε να δημοσιεύσετε αυτόν τον διοργανωτή;",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "თქვენ გაქვთ შეუნახავი ცვლილებები. გსურთ გასვლა შენახვის გარეშე?",
   "manage.form.unsavedStay": "დარჩენა",
   "manage.form.unsavedTitle": "შეუნახავი ცვლილებები",
-  "manage.hostCard.confirmPublish": "დარწმუნებული ხართ, რომ გსურთ ამ ორგანიზატორის გამოქვეყნება?"
+  "manage.hostCard.confirmPublish": "დარწმუნებული ხართ, რომ გსურთ ამ ორგანიზატორის გამოქვეყნება?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

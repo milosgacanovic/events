@@ -28,7 +28,7 @@ import { ManageResultsToolbar } from "../../../components/manage/ManageResultsTo
 import { ConfirmDialog } from "../../../components/manage/ConfirmDialog";
 import { authorizedGet, authorizedPatch, authorizedDelete } from "../../../lib/manageApi";
 import { apiBase } from "../../../lib/api";
-import { getRoleLabel, formatCityLabel } from "../../../lib/filterHelpers";
+import { getRoleLabel, formatCityLabel, toTitleCase } from "../../../lib/filterHelpers";
 import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../../../lib/i18n/icuFallback";
 
 type TaxonomyResponse = {
@@ -263,15 +263,52 @@ export default function MyHostsPage() {
     }
   }
 
+  const statusOptions = useMemo(
+    () => [
+      { value: "draft", label: t("common.status.draft") },
+      { value: "published", label: t("common.status.published") },
+      { value: "archived", label: t("common.status.archived") },
+    ],
+    [t],
+  );
+
+  /* ── filter chips ── */
+  const selectedFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
+    if (search.trim()) {
+      chips.push({ key: "q", label: `"${search.trim()}"`, onRemove: () => { setSearch(""); setPage(1); } });
+    }
+    if (statusFilter) {
+      const opt = statusOptions.find((o) => o.value === statusFilter);
+      chips.push({ key: `status:${statusFilter}`, label: opt?.label ?? statusFilter, onRemove: () => { setStatusFilter(""); setPage(1); } });
+    }
+    for (const roleId of profileRoleIds) {
+      const role = taxonomy?.organizerRoles?.find((r) => r.id === roleId);
+      chips.push({ key: `role:${roleId}`, label: role ? getRoleLabel(role.key, t) : roleId, onRemove: () => { setProfileRoleIds((cur) => cur.filter((x) => x !== roleId)); setPage(1); } });
+    }
+    for (const catId of practiceCategoryIds) {
+      const cat = taxonomy?.practices.categories.find((c) => c.id === catId);
+      chips.push({ key: `cat:${catId}`, label: cat?.label ?? catId, onRemove: () => { setPracticeCategoryIds((cur) => cur.filter((x) => x !== catId)); setPage(1); } });
+    }
+    for (const lang of languages) {
+      chips.push({ key: `lang:${lang}`, label: getLanguageLabel(lang), onRemove: () => { setLanguages((cur) => cur.filter((x) => x !== lang)); setPage(1); } });
+    }
+    for (const cc of countryCodes) {
+      chips.push({ key: `country:${cc}`, label: getCountryLabel(cc), onRemove: () => { setCountryCodes((cur) => cur.filter((x) => x !== cc)); setPage(1); } });
+    }
+    for (const city of cities) {
+      chips.push({ key: `city:${city}`, label: toTitleCase(city), onRemove: () => { setCities((cur) => cur.filter((x) => x !== city)); setPage(1); } });
+    }
+    return chips;
+  }, [search, statusFilter, statusOptions, profileRoleIds, practiceCategoryIds, languages, countryCodes, cities, taxonomy, t, getLanguageLabel, getCountryLabel]);
+
+  const clearFilters = useCallback(() => {
+    setSearch(""); setStatusFilter(""); setProfileRoleIds([]); setPracticeCategoryIds([]);
+    setLanguages([]); setCountryCodes([]); setCities([]); setPage(1);
+  }, []);
+
   /* ── derived ── */
-  const activeFilterCount = [
-    statusFilter,
-    ...profileRoleIds,
-    ...practiceCategoryIds,
-    ...countryCodes,
-    ...languages,
-    ...cities,
-  ].filter(Boolean).length;
+  const activeFilterCount = selectedFilterChips.length;
 
   const mapQueryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -283,15 +320,6 @@ export default function MyHostsPage() {
     if (cities.length) params.set("city", cities.join(","));
     return params.toString();
   }, [search, practiceCategoryIds, profileRoleIds, languages, countryCodes, cities]);
-
-  const statusOptions = useMemo(
-    () => [
-      { value: "draft", label: t("common.status.draft") },
-      { value: "published", label: t("common.status.published") },
-      { value: "archived", label: t("common.status.archived") },
-    ],
-    [t],
-  );
 
   const sortOptions = useMemo(
     () => [
@@ -375,6 +403,20 @@ export default function MyHostsPage() {
           onViewChange={setView}
         />
 
+        {/* Filter chips */}
+        {selectedFilterChips.length > 0 && (
+          <div className="filter-chips">
+            {selectedFilterChips.map((chip) => (
+              <button className="tag filter-chip" key={chip.key} type="button" onClick={chip.onRemove}>
+                {chip.label} ×
+              </button>
+            ))}
+            <button className="tag filter-chip-clear" type="button" onClick={clearFilters}>
+              {t("eventSearch.clearFilters")}
+            </button>
+          </div>
+        )}
+
         {/* Error state */}
         {error && (
           <div className="manage-empty">
@@ -399,7 +441,9 @@ export default function MyHostsPage() {
 
         {/* Loading state */}
         {view === "list" && !error && loading && hosts.length === 0 ? (
-          <div className="manage-loading">{t("manage.common.loading")}</div>
+          <div className="cards-loading-overlay" style={{ position: "relative", padding: 48 }}>
+            <div className="filter-spinner" />
+          </div>
         ) : view === "list" && !error && hosts.length === 0 ? (
           /* Empty state */
           <div className="manage-empty">
@@ -432,8 +476,13 @@ export default function MyHostsPage() {
           </div>
         ) : view === "list" && !error ? (
           /* Results */
-          <>
-            <div className={`manage-card-list${loading ? " manage-list-loading" : ""}`}>
+          <div className="cards-content">
+            {loading && hosts.length > 0 && (
+              <div className="cards-loading-overlay">
+                <div className="filter-spinner" />
+              </div>
+            )}
+            <div className="manage-card-list">
               {hosts.map((host) => (
                 <ManageHostCard
                   key={host.id}
@@ -482,7 +531,7 @@ export default function MyHostsPage() {
                 )}
               </div>
             )}
-          </>
+          </div>
         ) : null}
       </div>
 

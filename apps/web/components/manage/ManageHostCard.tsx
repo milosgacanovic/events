@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useI18n } from "../i18n/I18nProvider";
-import { ConfirmDialog } from "./ConfirmDialog";
 import { getRoleLabel } from "../../lib/filterHelpers";
 import { apiBase } from "../../lib/api";
-import { labelForLanguageCode } from "../../lib/i18n/languageLabels";
 import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../../lib/i18n/icuFallback";
 
+type ConfirmAction = { action: () => void; title: string; message: string; variant?: "warning" | "danger" | "info" };
 
 type ManageHostCardProps = {
   id: string;
@@ -60,7 +59,8 @@ export function ManageHostCard({
   onDelete,
 }: ManageHostCardProps) {
   const { t, locale } = useI18n();
-  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; variant?: "warning" | "danger" | "info" } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [chipHover, setChipHover] = useState<string | null>(null);
   const resolvedImage = resolveImageUrl(imageUrl || avatarPath);
   const statusKey = ["published", "draft", "archived"].includes(status) ? status : "draft";
   const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
@@ -155,10 +155,36 @@ export function ManageHostCard({
         </div>
       </div>
       <div className="kv event-card-pills">
-        {statusKey === "draft" ? (
-          <DraftChip id={id} />
+        {statusKey === "draft" && onPublish ? (
+          <button
+            type="button"
+            className="tag manage-status-pill manage-status-pill--draft manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("status")}
+            onMouseLeave={() => setChipHover(null)}
+            onClick={() => setConfirmAction({ action: onPublish, title: t("manage.confirm.title"), message: t("manage.hostCard.confirmPublish") })}
+          >
+            {chipHover === "status" ? t("manage.eventCard.publish") : t("common.status.draft")}
+          </button>
+        ) : statusKey === "published" && onUnpublish ? (
+          <button
+            type="button"
+            className="tag manage-status-pill manage-status-pill--published manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("status")}
+            onMouseLeave={() => setChipHover(null)}
+            onClick={() => setConfirmAction({ action: onUnpublish, title: t("manage.confirm.title"), message: t("manage.hostCard.confirmUnpublish"), variant: "warning" })}
+          >
+            {chipHover === "status" ? t("manage.eventCard.unpublish") : t("common.status.published")}
+          </button>
         ) : statusKey === "archived" && onUnarchive ? (
-          <ArchivedChip onUnarchive={onUnarchive} />
+          <button
+            type="button"
+            className="tag manage-status-pill manage-status-pill--archived manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("status")}
+            onMouseLeave={() => setChipHover(null)}
+            onClick={() => setConfirmAction({ action: onUnarchive, title: t("manage.confirm.title"), message: t("manage.hostCard.confirmUnarchive"), variant: "warning" })}
+          >
+            {chipHover === "status" ? t("manage.hostCard.unarchive") : t("common.status.archived")}
+          </button>
         ) : (
           <span className={`tag manage-status-pill manage-status-pill--${statusKey}`}>{t(`common.status.${statusKey}`)}</span>
         )}
@@ -174,48 +200,5 @@ export function ManageHostCard({
         </>
       )}
     </div>
-  );
-}
-
-function DraftChip({ id }: { id: string }) {
-  const { t } = useI18n();
-  const [hovered, setHovered] = useState(false);
-  return (
-    <Link
-      href={`/manage/hosts/${id}`}
-      className="tag manage-status-pill manage-status-pill--draft manage-status-chip-interactive"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {hovered ? t("manage.common.edit") : t("common.status.draft")}
-    </Link>
-  );
-}
-
-function ArchivedChip({ onUnarchive }: { onUnarchive: () => void }) {
-  const { t } = useI18n();
-  const [hovered, setHovered] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        className="tag manage-status-pill manage-status-pill--archived manage-status-chip-interactive"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={() => setShowConfirm(true)}
-      >
-        {hovered ? t("manage.hostCard.unarchive") : t("common.status.archived")}
-      </button>
-      <ConfirmDialog
-        open={showConfirm}
-        title={t("manage.confirm.title")}
-        message={t("manage.hostCard.confirmUnarchive")}
-        confirmLabel={t("common.action.ok")}
-        cancelLabel={t("manage.common.cancel")}
-        onConfirm={() => { setShowConfirm(false); onUnarchive(); }}
-        onCancel={() => setShowConfirm(false)}
-      />
-    </>
   );
 }

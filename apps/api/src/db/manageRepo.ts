@@ -116,27 +116,27 @@ export async function listManagedEvents(
   }
 
   if (input.time === "upcoming") {
-    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
+    whereParts.push(`(exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now()) or (e.schedule_kind = 'single' and e.single_start_at > now()))`);
   } else if (input.time === "past") {
-    whereParts.push(`not exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
+    whereParts.push(`not (exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now()) or (e.schedule_kind = 'single' and e.single_start_at > now()))`);
   } else if (input.time === "next_7_days") {
-    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() and oc.starts_at_utc < now() + interval '7 days')`);
+    whereParts.push(`(exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() and oc.starts_at_utc < now() + interval '7 days') or (e.schedule_kind = 'single' and e.single_start_at > now() and e.single_start_at < now() + interval '7 days'))`);
   } else if (input.time === "next_30_days") {
-    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() and oc.starts_at_utc < now() + interval '30 days')`);
+    whereParts.push(`(exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() and oc.starts_at_utc < now() + interval '30 days') or (e.schedule_kind = 'single' and e.single_start_at > now() and e.single_start_at < now() + interval '30 days'))`);
   } else if (input.time && (EVENT_DATE_PRESETS as readonly string[]).includes(input.time)) {
     const ranges = buildEventDateRangeMap("UTC");
     const range = ranges[input.time as EventDatePreset];
     values.push(range.fromUtc, range.toUtc);
-    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc >= $${values.length - 1} and oc.starts_at_utc < $${values.length})`);
+    whereParts.push(`(exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc >= $${values.length - 1} and oc.starts_at_utc < $${values.length}) or (e.schedule_kind = 'single' and e.single_start_at >= $${values.length - 1} and e.single_start_at < $${values.length}))`);
   }
 
   if (input.dateFrom) {
     values.push(input.dateFrom);
-    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc >= $${values.length}::date)`);
+    whereParts.push(`(exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc >= $${values.length}::date) or (e.schedule_kind = 'single' and e.single_start_at >= $${values.length}::date))`);
   }
   if (input.dateTo) {
     values.push(input.dateTo);
-    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc < ($${values.length}::date + interval '1 day'))`);
+    whereParts.push(`(exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc < ($${values.length}::date + interval '1 day')) or (e.schedule_kind = 'single' and e.single_start_at < ($${values.length}::date + interval '1 day')))`);
   }
 
   const extraWhere = whereParts.length ? `and ${whereParts.join(" and ")}` : "";
@@ -147,7 +147,7 @@ export async function listManagedEvents(
     created: "e.created_at desc",
     title: "e.title asc",
   };
-  const orderBy = sortMap[input.sort ?? ""] ?? "e.updated_at desc";
+  const orderBy = sortMap[input.sort ?? ""] ?? "e.created_at desc";
 
   const ownershipCte = `
     with managed_event_ids as (
@@ -470,6 +470,7 @@ export async function getEventFacets(
   countryCodes: Record<string, number>;
   cities: Record<string, number>;
   tags: Record<string, number>;
+  timeCounts: Record<string, number>;
 }> {
   const values: unknown[] = [userId];
   const filterClauses: string[] = [];
@@ -624,6 +625,32 @@ export async function getEventFacets(
           where tag is not null
           group by tag
         ) t
+      ),
+      'timeCounts', (
+        select json_build_object(
+          'upcoming', (
+            select count(distinct e.id)::int from events e join filtered f on f.id = e.id
+            where exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())
+               or (e.schedule_kind = 'single' and e.single_start_at > now())
+          ),
+          'next_7_days', (
+            select count(distinct e.id)::int from events e join filtered f on f.id = e.id
+            where exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() and oc.starts_at_utc < now() + interval '7 days')
+               or (e.schedule_kind = 'single' and e.single_start_at > now() and e.single_start_at < now() + interval '7 days')
+          ),
+          'next_30_days', (
+            select count(distinct e.id)::int from events e join filtered f on f.id = e.id
+            where exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now() and oc.starts_at_utc < now() + interval '30 days')
+               or (e.schedule_kind = 'single' and e.single_start_at > now() and e.single_start_at < now() + interval '30 days')
+          ),
+          'past', (
+            select count(distinct e.id)::int from events e join filtered f on f.id = e.id
+            where not (
+              exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())
+              or (e.schedule_kind = 'single' and e.single_start_at > now())
+            )
+          )
+        )
       )
     ) as result
     `,
@@ -640,6 +667,7 @@ export async function getEventFacets(
     countryCodes: (row.countryCodes as Record<string, number>) ?? {},
     cities: (row.cities as Record<string, number>) ?? {},
     tags: (row.tags as Record<string, number>) ?? {},
+    timeCounts: (row.timeCounts as Record<string, number>) ?? {},
   };
 }
 
@@ -1047,7 +1075,7 @@ export async function fetchManagedEventMapPoints(
       join locations loc on loc.id = el.location_id
       where loc.geom is not null
         ${extraWhere}
-      order by e.id, el.id
+      order by e.id, el.location_id
       limit 500
     `,
     values,

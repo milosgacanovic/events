@@ -10,6 +10,7 @@ export async function listAdminEvents(
     externalId?: string;
     organizerId?: string;
     ownerFilter?: "all" | "unassigned" | "has_owner";
+    sourceFilter?: "imported" | "manual" | "detached";
     practiceCategoryId?: string;
     eventFormatId?: string;
     countryCode?: string;
@@ -66,6 +67,14 @@ export async function listAdminEvents(
     whereParts.push(`e.created_by_user_id IS NULL AND NOT EXISTS(SELECT 1 FROM event_users eu WHERE eu.event_id = e.id)`);
   } else if (input.ownerFilter === "has_owner") {
     whereParts.push(`(e.created_by_user_id IS NOT NULL OR EXISTS(SELECT 1 FROM event_users eu WHERE eu.event_id = e.id))`);
+  }
+
+  if (input.sourceFilter === "imported") {
+    whereParts.push(`e.is_imported = true AND e.detached_from_import = false`);
+  } else if (input.sourceFilter === "manual") {
+    whereParts.push(`e.is_imported = false`);
+  } else if (input.sourceFilter === "detached") {
+    whereParts.push(`e.detached_from_import = true`);
   }
 
   if (input.practiceCategoryId) {

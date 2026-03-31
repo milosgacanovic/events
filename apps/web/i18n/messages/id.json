@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Anda memiliki perubahan yang belum disimpan. Keluar tanpa menyimpan?",
   "manage.form.unsavedStay": "Tetap",
   "manage.form.unsavedTitle": "Perubahan belum disimpan",
-  "manage.hostCard.confirmPublish": "Apakah Anda yakin ingin menerbitkan penyelenggara ini?"
+  "manage.hostCard.confirmPublish": "Apakah Anda yakin ingin menerbitkan penyelenggara ini?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

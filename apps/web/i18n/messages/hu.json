@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Nem mentett változtatásai vannak. Kilép mentés nélkül?",
   "manage.form.unsavedStay": "Maradás",
   "manage.form.unsavedTitle": "Nem mentett változtatások",
-  "manage.hostCard.confirmPublish": "Biztosan közzé szeretné tenni ezt a házigazdát?"
+  "manage.hostCard.confirmPublish": "Biztosan közzé szeretné tenni ezt a házigazdát?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

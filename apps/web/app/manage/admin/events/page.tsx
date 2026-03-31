@@ -160,6 +160,7 @@ export default function AdminAllEventsPage() {
       if (statusFilter) params.set("status", statusFilter);
       params.set("showUnlisted", "true");
       if (ownerFilter) params.set("ownerFilter", ownerFilter);
+      if (importFilter) params.set("sourceFilter", importFilter);
       if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
       if (eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
       if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
@@ -170,15 +171,7 @@ export default function AdminAllEventsPage() {
       if (timeFilter) params.set("time", timeFilter);
       if (sortBy) params.set("sort", sortBy);
       const data = await authorizedGet<EventsResponse>(getToken, `/admin/events?${params}`);
-      let items = data.items;
-      if (importFilter === "imported") {
-        items = items.filter((e) => e.is_imported);
-      } else if (importFilter === "manual") {
-        items = items.filter((e) => !e.is_imported);
-      } else if (importFilter === "detached") {
-        items = items.filter((e) => e.detached_from_import);
-      }
-      setEvents(items);
+      setEvents(data.items);
       setTotalItems(data.pagination.totalItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("manage.error.loadFailed"));

@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก ออกโดยไม่บันทึกหรือไม่?",
   "manage.form.unsavedStay": "อยู่",
   "manage.form.unsavedTitle": "มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก",
-  "manage.hostCard.confirmPublish": "คุณแน่ใจหรือไม่ว่าต้องการเผยแพร่ผู้จัดนี้?"
+  "manage.hostCard.confirmPublish": "คุณแน่ใจหรือไม่ว่าต้องการเผยแพร่ผู้จัดนี้?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Máte neuložené změny. Chcete odejít bez uložení?",
   "manage.form.unsavedStay": "Zůstat",
   "manage.form.unsavedTitle": "Neuložené změny",
-  "manage.hostCard.confirmPublish": "Opravdu chcete tohoto hostitele zveřejnit?"
+  "manage.hostCard.confirmPublish": "Opravdu chcete tohoto hostitele zveřejnit?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

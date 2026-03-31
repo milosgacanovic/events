@@ -1027,6 +1027,7 @@ label.meta {
   gap: 8px;
   padding: 12px;
   overflow: hidden;
+  min-width: 0;
   animation: card-appear 220ms ease both;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
@@ -1046,6 +1047,7 @@ label.meta {
   display: flex;
   gap: 14px;
   align-items: flex-start;
+  min-width: 0;
 }
 
 .event-card-thumb-h {
@@ -2696,6 +2698,8 @@ label.meta {
 /* Loading overlay for stale card results */
 .cards-content {
   position: relative;
+  min-width: 0;
+  overflow: hidden;
 }
 .cards-loading-overlay {
   position: absolute;

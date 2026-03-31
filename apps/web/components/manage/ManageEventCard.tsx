@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useI18n } from "../i18n/I18nProvider";
-import { ConfirmDialog } from "./ConfirmDialog";
 import { apiBase } from "../../lib/api";
 import { formatDateTimeRange } from "../../lib/datetime";
 import { getLocalizedRegionLabel } from "../../lib/i18n/icuFallback";
+
+type ConfirmAction = { action: () => void; title: string; message: string; variant?: "warning" | "danger" | "info" };
 
 type ManageEventCardProps = {
   id: string;
@@ -36,6 +37,7 @@ type ManageEventCardProps = {
   onUnarchive?: () => void;
   onDelete?: () => void;
   onReattach?: () => void;
+  onMakePublic?: () => void;
 };
 
 function resolveImageUrl(path: string | null | undefined): string | null {
@@ -72,9 +74,11 @@ export function ManageEventCard({
   onUnarchive,
   onDelete,
   onReattach,
+  onMakePublic,
 }: ManageEventCardProps) {
   const { t, locale } = useI18n();
-  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; variant?: "warning" | "danger" | "info" } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [chipHover, setChipHover] = useState<string | null>(null);
   const imageUrl = resolveImageUrl(coverImagePath);
   const statusKey = ["published", "draft", "cancelled", "archived", "unlisted"].includes(status) ? status : "draft";
 
@@ -92,6 +96,13 @@ export function ManageEventCard({
     : nextOccurrence
       ? new Date(nextOccurrence).toLocaleDateString()
       : null;
+
+  const publishConfirm: ConfirmAction | undefined = onPublish ? {
+    action: onPublish,
+    title: !hostNames ? t("manage.eventForm.noHostWarningTitle") : t("manage.confirm.title"),
+    message: !hostNames ? t("manage.eventForm.noHostWarningMessage") : t("manage.eventCard.confirmPublish"),
+    variant: !hostNames ? "warning" : undefined,
+  } : undefined;
 
   return (
     <div className="card event-card-h" style={{ cursor: "default", position: "relative" }}>
@@ -143,13 +154,8 @@ export function ManageEventCard({
           <Link href={`/manage/events/${id}`} className="manage-card-action-btn secondary-btn">
             {t("manage.common.edit")}
           </Link>
-          {status === "draft" && onPublish && (
-            <button type="button" className="manage-card-action-btn manage-btn-publish" onClick={() => setConfirmAction({
-              action: onPublish,
-              title: !hostNames ? t("manage.eventForm.noHostWarningTitle") : t("manage.confirm.title"),
-              message: !hostNames ? t("manage.eventForm.noHostWarningMessage") : t("manage.eventCard.confirmPublish"),
-              variant: !hostNames ? "warning" : undefined,
-            })}>
+          {status === "draft" && publishConfirm && (
+            <button type="button" className="manage-card-action-btn manage-btn-publish" onClick={() => setConfirmAction(publishConfirm)}>
               {t("manage.eventCard.publish")}
             </button>
           )}
@@ -179,33 +185,92 @@ export function ManageEventCard({
         </div>
       </div>
       <div className="kv event-card-pills">
-        {statusKey === "draft" ? (
-          <DraftChip id={id} kind="events" />
+        {statusKey === "draft" && publishConfirm ? (
+          <button
+            type="button"
+            className="tag manage-status-pill manage-status-pill--draft manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("status")}
+            onMouseLeave={() => setChipHover(null)}
+            onClick={() => setConfirmAction(publishConfirm)}
+          >
+            {chipHover === "status" ? t("manage.eventCard.publish") : t("common.status.draft")}
+          </button>
+        ) : statusKey === "published" && onUnpublish ? (
+          <button
+            type="button"
+            className="tag manage-status-pill manage-status-pill--published manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("status")}
+            onMouseLeave={() => setChipHover(null)}
+            onClick={() => setConfirmAction({ action: onUnpublish, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmUnpublish"), variant: "warning" })}
+          >
+            {chipHover === "status" ? t("manage.eventCard.unpublish") : t("common.status.published")}
+          </button>
+        ) : statusKey === "cancelled" && onArchive ? (
+          <button
+            type="button"
+            className="tag manage-status-pill manage-status-pill--cancelled manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("status")}
+            onMouseLeave={() => setChipHover(null)}
+            onClick={() => setConfirmAction({ action: onArchive, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmArchive"), variant: "warning" })}
+          >
+            {chipHover === "status" ? t("manage.eventCard.archive") : t("common.status.cancelled")}
+          </button>
         ) : statusKey === "archived" && onUnarchive ? (
-          <ArchivedChip onUnarchive={onUnarchive} confirmKey="manage.eventCard.confirmUnarchive" />
+          <button
+            type="button"
+            className="tag manage-status-pill manage-status-pill--archived manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("status")}
+            onMouseLeave={() => setChipHover(null)}
+            onClick={() => setConfirmAction({ action: onUnarchive, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmUnarchive"), variant: "warning" })}
+          >
+            {chipHover === "status" ? t("manage.eventCard.unarchive") : t("common.status.archived")}
+          </button>
         ) : (
           <span className={`tag manage-status-pill manage-status-pill--${statusKey}`}>{t(`common.status.${statusKey}`)}</span>
         )}
-        {visibility === "unlisted" && (
+        {visibility === "unlisted" && onMakePublic ? (
+          <button
+            type="button"
+            className="tag manage-status-pill manage-status-pill--unlisted manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("visibility")}
+            onMouseLeave={() => setChipHover(null)}
+            onClick={() => setConfirmAction({ action: onMakePublic, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmMakePublic") })}
+          >
+            {chipHover === "visibility" ? t("manage.eventCard.makePublic") : t("common.visibility.unlisted")}
+          </button>
+        ) : visibility === "unlisted" ? (
           <span className="tag manage-status-pill manage-status-pill--unlisted">{t("common.visibility.unlisted")}</span>
+        ) : null}
+        {!hostNames && status === "draft" && (
+          <Link
+            href={`/manage/events/${id}#hosts`}
+            className="tag manage-no-host-chip manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("nohost")}
+            onMouseLeave={() => setChipHover(null)}
+          >
+            {chipHover === "nohost" ? t("manage.common.edit") : t("manage.eventCard.noHost")}
+          </Link>
         )}
-        {!hostNames && status === "draft" && <NoHostChip eventId={id} />}
         {isImported && !detachedFromImport && (
           <span className="tag manage-tag-imported">
             {t("manage.eventCard.importedLabel")}
           </span>
         )}
-        {isImported && detachedFromImport && onReattach && (
-          <span className="tag manage-tag-detached" onClick={onReattach} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") onReattach(); }}>
-            <span className="manage-detached-chip-label">{t("manage.eventCard.detachedLabel")}</span>
-            <span className="manage-detached-chip-action">{t("manage.eventCard.reattachLabel")}</span>
-          </span>
-        )}
-        {isImported && detachedFromImport && !onReattach && (
+        {isImported && detachedFromImport && onReattach ? (
+          <button
+            type="button"
+            className="tag manage-tag-detached manage-status-chip-interactive"
+            onMouseEnter={() => setChipHover("detached")}
+            onMouseLeave={() => setChipHover(null)}
+            onClick={() => setConfirmAction({ action: onReattach, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmReattach") })}
+          >
+            {chipHover === "detached" ? t("manage.eventCard.reattachLabel") : t("manage.eventCard.detachedLabel")}
+          </button>
+        ) : isImported && detachedFromImport ? (
           <span className="tag manage-tag-detached">
             {t("manage.eventCard.detachedLabel")}
           </span>
-        )}
+        ) : null}
         {practiceCategoryLabel && <span className="tag tag-practice">{practiceCategoryLabel}</span>}
         {eventFormatKey && <span className="tag">{t(`eventFormat.${eventFormatKey}`)}</span>}
         {tags && tags.length > 0 && tags.map((tag) => (
@@ -215,63 +280,5 @@ export function ManageEventCard({
         </>
       )}
     </div>
-  );
-}
-
-function DraftChip({ id, kind }: { id: string; kind: "events" | "hosts" }) {
-  const { t } = useI18n();
-  const [hovered, setHovered] = useState(false);
-  return (
-    <Link
-      href={`/manage/${kind}/${id}`}
-      className="tag manage-status-pill manage-status-pill--draft manage-status-chip-interactive"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {hovered ? t("manage.common.edit") : t("common.status.draft")}
-    </Link>
-  );
-}
-
-function ArchivedChip({ onUnarchive, confirmKey }: { onUnarchive: () => void; confirmKey: string }) {
-  const { t } = useI18n();
-  const [hovered, setHovered] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        className="tag manage-status-pill manage-status-pill--archived manage-status-chip-interactive"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={() => setShowConfirm(true)}
-      >
-        {hovered ? t("manage.eventCard.unarchive") : t("common.status.archived")}
-      </button>
-      <ConfirmDialog
-        open={showConfirm}
-        title={t("manage.confirm.title")}
-        message={t(confirmKey)}
-        confirmLabel={t("common.action.ok")}
-        cancelLabel={t("manage.common.cancel")}
-        onConfirm={() => { setShowConfirm(false); onUnarchive(); }}
-        onCancel={() => setShowConfirm(false)}
-      />
-    </>
-  );
-}
-
-function NoHostChip({ eventId }: { eventId: string }) {
-  const { t } = useI18n();
-  const [hovered, setHovered] = useState(false);
-  return (
-    <Link
-      href={`/manage/events/${eventId}#hosts`}
-      className="tag manage-no-host-chip"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {hovered ? t("manage.eventCard.addHost") : t("manage.eventCard.noHost")}
-    </Link>
   );
 }

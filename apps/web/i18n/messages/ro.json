@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Aveți modificări nesalvate. Părăsiți fără a salva?",
   "manage.form.unsavedStay": "Rămâi",
   "manage.form.unsavedTitle": "Modificări nesalvate",
-  "manage.hostCard.confirmPublish": "Sunteți sigur că doriți să publicați acest organizator?"
+  "manage.hostCard.confirmPublish": "Sunteți sigur că doriți să publicați acest organizator?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

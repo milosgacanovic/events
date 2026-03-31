@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "لديك تغييرات غير محفوظة. هل تريد المغادرة بدون حفظ؟",
   "manage.form.unsavedStay": "البقاء",
   "manage.form.unsavedTitle": "تغييرات غير محفوظة",
-  "manage.hostCard.confirmPublish": "هل أنت متأكد أنك تريد نشر هذا المضيف؟"
+  "manage.hostCard.confirmPublish": "هل أنت متأكد أنك تريد نشر هذا المضيف؟",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

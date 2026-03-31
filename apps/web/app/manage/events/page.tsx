@@ -29,7 +29,7 @@ import {
 } from "../../../components/manage/ManageFilterSections";
 import { ManageResultsToolbar } from "../../../components/manage/ManageResultsToolbar";
 import { ConfirmDialog } from "../../../components/manage/ConfirmDialog";
-import { authorizedGet, authorizedPost, authorizedDelete } from "../../../lib/manageApi";
+import { authorizedGet, authorizedPost, authorizedPatch, authorizedDelete } from "../../../lib/manageApi";
 import { apiBase } from "../../../lib/api";
 import { useDisjunctiveFacets, FacetGroupSpec } from "../../../lib/useDisjunctiveFacets";
 import { getFormatLabel, formatCityLabel, toTitleCase } from "../../../lib/filterHelpers";
@@ -384,21 +384,15 @@ export default function MyEventsPage() {
     }
   }
 
-  /* ── derived ── */
-  const activeFilterCount = [
-    ...statuses,
-    ...visibilities,
-    timeFilter,
-    dateFrom,
-    dateTo,
-    ...practiceCategoryIds,
-    ...eventFormatIds,
-    ...countryCodes,
-    ...attendanceModes,
-    ...languages,
-    ...cities,
-    ...tags,
-  ].filter(Boolean).length;
+  async function setEventVisibility(eventId: string, visibility: "public" | "unlisted") {
+    try {
+      await authorizedPatch(getToken, `/events/${eventId}`, { visibility });
+      setFacetRefreshKey((k) => k + 1);
+      load();
+    } catch (err) {
+      setAlertMsg(err instanceof Error ? err.message : t("manage.form.unknownError"));
+    }
+  }
 
   const mapQueryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -425,9 +419,9 @@ export default function MyEventsPage() {
 
   const sortOptions = useMemo(
     () => [
-      { value: "", label: t("manage.events.sortRecent") },
+      { value: "", label: t("manage.events.sortCreated") },
+      { value: "edited", label: t("manage.events.sortRecent") },
       { value: "upcoming", label: t("manage.events.sortNextOccurrence") },
-      { value: "created", label: t("manage.events.sortCreated") },
       { value: "title", label: t("manage.events.sortTitle") },
     ],
     [t],
@@ -435,6 +429,63 @@ export default function MyEventsPage() {
 
   const hasSubcategories =
     taxonomy?.practices.categories.some((c) => (c.subcategories?.length ?? 0) > 0) ?? false;
+
+  /* ── filter chips ── */
+  const selectedFilterChips = useMemo(() => {
+    const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
+    if (q.trim()) {
+      chips.push({ key: "q", label: `"${q.trim()}"`, onRemove: () => { setFilters({ q: "", page: 1 }); } });
+    }
+    for (const s of statuses) {
+      const opt = statusOptions.find((o) => o.value === s);
+      chips.push({ key: `status:${s}`, label: opt?.label ?? s, onRemove: () => { setFilters({ statuses: statuses.filter((x) => x !== s), page: 1 }); } });
+    }
+    for (const v of visibilities) {
+      chips.push({ key: `vis:${v}`, label: v === "unlisted" ? t("common.visibility.unlisted") : t("common.visibility.public"), onRemove: () => { setFilters({ visibilities: visibilities.filter((x) => x !== v), page: 1 }); } });
+    }
+    if (timeFilter) {
+      chips.push({ key: `time:${timeFilter}`, label: t(`eventSearch.eventDateOption.${timeFilter}`), onRemove: () => { setFilters({ timeFilter: "", page: 1 }); } });
+    }
+    if (dateFrom || dateTo) {
+      const fromLabel = dateFrom ? new Date(`${dateFrom}T12:00:00Z`).toLocaleDateString(locale, { month: "short", day: "numeric" }) : "";
+      const toLabel = dateTo ? new Date(`${dateTo}T12:00:00Z`).toLocaleDateString(locale, { month: "short", day: "numeric" }) : "";
+      const label = dateFrom && dateTo ? `${fromLabel} – ${toLabel}` : dateFrom ? `${t("eventSearch.dateFrom")} ${fromLabel}` : `${t("eventSearch.dateTo")} ${toLabel}`;
+      chips.push({ key: "dateRange", label, onRemove: () => { setFilters({ dateFrom: "", dateTo: "", page: 1 }); setDateRangeOpen(false); } });
+    }
+    for (const mode of attendanceModes) {
+      chips.push({ key: `att:${mode}`, label: t(`eventSearch.attendance.${mode}`), onRemove: () => { setFilters({ attendanceModes: attendanceModes.filter((x) => x !== mode), page: 1 }); } });
+    }
+    for (const catId of practiceCategoryIds) {
+      const cat = taxonomy?.practices.categories.find((c) => c.id === catId);
+      chips.push({ key: `cat:${catId}`, label: cat?.label ?? catId, onRemove: () => { setFilters({ practiceCategoryIds: practiceCategoryIds.filter((x) => x !== catId), page: 1 }); } });
+    }
+    for (const fmtId of eventFormatIds) {
+      const fmt = taxonomy?.eventFormats?.find((f) => f.id === fmtId);
+      chips.push({ key: `fmt:${fmtId}`, label: fmt ? getFormatLabel(fmt.key, fmt.label, t) : fmtId, onRemove: () => { setFilters({ eventFormatIds: eventFormatIds.filter((x) => x !== fmtId), page: 1 }); } });
+    }
+    for (const lang of languages) {
+      chips.push({ key: `lang:${lang}`, label: getLanguageLabel(lang), onRemove: () => { setFilters({ languages: languages.filter((x) => x !== lang), page: 1 }); } });
+    }
+    for (const cc of countryCodes) {
+      chips.push({ key: `country:${cc}`, label: getCountryLabel(cc), onRemove: () => { setFilters({ countryCodes: countryCodes.filter((x) => x !== cc), page: 1 }); } });
+    }
+    for (const city of cities) {
+      chips.push({ key: `city:${city}`, label: toTitleCase(city), onRemove: () => { setFilters({ cities: cities.filter((x) => x !== city), page: 1 }); } });
+    }
+    for (const tag of tags) {
+      const key = `tag.${tag.replace(/ /g, "-")}`;
+      const translated = t(key);
+      chips.push({ key: `tag:${tag}`, label: translated !== key ? translated : toTitleCase(tag), onRemove: () => { setFilters({ tags: tags.filter((x) => x !== tag), page: 1 }); } });
+    }
+    return chips;
+  }, [q, statuses, statusOptions, visibilities, timeFilter, dateFrom, dateTo, attendanceModes, practiceCategoryIds, eventFormatIds, languages, countryCodes, cities, tags, taxonomy, t, locale, getLanguageLabel, getCountryLabel, setFilters]);
+
+  const clearFilters = useCallback(() => {
+    setFiltersRaw((prev) => ({ ...DEFAULT_FILTERS, sortBy: prev.sortBy }));
+    setDateRangeOpen(false);
+  }, []);
+
+  const activeFilterCount = selectedFilterChips.length;
 
   const selectedCategory =
     practiceCategoryIds.length === 1
@@ -479,7 +530,7 @@ export default function MyEventsPage() {
                 >
                   <span className="filter-row-icon">{selected ? "\u2212" : "+"}</span>
                   <span className="filter-row-label">{t(`eventSearch.eventDateOption.${preset}`)}</span>
-                  <span className="filter-row-count" />
+                  {facets?.timeCounts?.[preset] != null && <span className="filter-row-count">{facets.timeCounts[preset]}</span>}
                 </button>
               );
             })}
@@ -550,7 +601,7 @@ export default function MyEventsPage() {
             >
               <span className="filter-row-icon">{isPast ? "\u2212" : "+"}</span>
               <span className="filter-row-label">{t("eventSearch.eventDateOption.past")}</span>
-              <span className="filter-row-count" />
+              {facets?.timeCounts?.past != null && <span className="filter-row-count">{facets.timeCounts.past}</span>}
             </button>
           </div>
         </details>
@@ -655,6 +706,20 @@ export default function MyEventsPage() {
           onViewChange={setView}
         />
 
+        {/* Filter chips */}
+        {selectedFilterChips.length > 0 && (
+          <div className="filter-chips">
+            {selectedFilterChips.map((chip) => (
+              <button className="tag filter-chip" key={chip.key} type="button" onClick={chip.onRemove}>
+                {chip.label} ×
+              </button>
+            ))}
+            <button className="tag filter-chip-clear" type="button" onClick={clearFilters}>
+              {t("eventSearch.clearFilters")}
+            </button>
+          </div>
+        )}
+
         {/* Error state */}
         {error && (
           <div className="manage-empty">
@@ -679,7 +744,9 @@ export default function MyEventsPage() {
 
         {/* Loading state */}
         {view === "list" && !error && loading && events.length === 0 ? (
-          <div className="manage-loading">{t("manage.common.loading")}</div>
+          <div className="cards-loading-overlay" style={{ position: "relative", padding: 48 }}>
+            <div className="filter-spinner" />
+          </div>
         ) : view === "list" && !error && events.length === 0 ? (
           /* Empty state */
           <div className="manage-empty">
@@ -718,8 +785,13 @@ export default function MyEventsPage() {
           </div>
         ) : view === "list" && !error ? (
           /* Results */
-          <>
-            <div className={`manage-card-list${loading ? " manage-list-loading" : ""}`}>
+          <div className="cards-content">
+            {loading && events.length > 0 && (
+              <div className="cards-loading-overlay">
+                <div className="filter-spinner" />
+              </div>
+            )}
+            <div className="manage-card-list">
               {events.map((event) => (
                 <ManageEventCard
                   key={event.id}
@@ -753,6 +825,7 @@ export default function MyEventsPage() {
                   }
                   onUnarchive={event.status === "archived" ? () => void runAction(event.id, "unpublish") : undefined}
                   onDelete={event.status === "archived" ? () => void deleteEvent(event.id) : undefined}
+                  onMakePublic={event.visibility === "unlisted" ? () => void setEventVisibility(event.id, "public") : undefined}
                 />
               ))}
             </div>
@@ -780,7 +853,7 @@ export default function MyEventsPage() {
                 )}
               </div>
             )}
-          </>
+          </div>
         ) : null}
       </div>
 

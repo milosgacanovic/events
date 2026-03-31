@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "저장하지 않은 변경 사항이 있습니다. 저장하지 않고 나가시겠습니까?",
   "manage.form.unsavedStay": "머무르기",
   "manage.form.unsavedTitle": "저장하지 않은 변경 사항",
-  "manage.hostCard.confirmPublish": "이 호스트를 게시하시겠습니까?"
+  "manage.hostCard.confirmPublish": "이 호스트를 게시하시겠습니까?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

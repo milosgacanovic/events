@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "יש לך שינויים שלא נשמרו. לצאת בלי לשמור?",
   "manage.form.unsavedStay": "הישאר",
   "manage.form.unsavedTitle": "שינויים שלא נשמרו",
-  "manage.hostCard.confirmPublish": "האם אתה בטוח שברצונך לפרסם מארח זה?"
+  "manage.hostCard.confirmPublish": "האם אתה בטוח שברצונך לפרסם מארח זה?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

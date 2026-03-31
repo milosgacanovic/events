@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Bạn có thay đổi chưa lưu. Rời đi mà không lưu?",
   "manage.form.unsavedStay": "Ở lại",
   "manage.form.unsavedTitle": "Thay đổi chưa lưu",
-  "manage.hostCard.confirmPublish": "Bạn có chắc chắn muốn xuất bản người tổ chức này không?"
+  "manage.hostCard.confirmPublish": "Bạn có chắc chắn muốn xuất bản người tổ chức này không?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

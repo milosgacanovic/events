@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Sie haben nicht gespeicherte Änderungen. Ohne Speichern verlassen?",
   "manage.form.unsavedStay": "Bleiben",
   "manage.form.unsavedTitle": "Nicht gespeicherte Änderungen",
-  "manage.hostCard.confirmPublish": "Sind Sie sicher, dass Sie diesen Gastgeber veröffentlichen möchten?"
+  "manage.hostCard.confirmPublish": "Sind Sie sicher, dass Sie diesen Gastgeber veröffentlichen möchten?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

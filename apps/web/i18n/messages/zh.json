@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "您有未保存的更改。不保存就离开吗？",
   "manage.form.unsavedStay": "留下",
   "manage.form.unsavedTitle": "未保存的更改",
-  "manage.hostCard.confirmPublish": "您确定要发布此主办方吗？"
+  "manage.hostCard.confirmPublish": "您确定要发布此主办方吗？",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

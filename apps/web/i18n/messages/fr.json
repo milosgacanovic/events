@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Vous avez des modifications non enregistrées. Quitter sans enregistrer ?",
   "manage.form.unsavedStay": "Rester",
   "manage.form.unsavedTitle": "Modifications non enregistrées",
-  "manage.hostCard.confirmPublish": "Êtes-vous sûr de vouloir publier cet hôte ?"
+  "manage.hostCard.confirmPublish": "Êtes-vous sûr de vouloir publier cet hôte ?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

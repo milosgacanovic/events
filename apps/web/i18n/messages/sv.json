@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Du har osparade ändringar. Lämna utan att spara?",
   "manage.form.unsavedStay": "Stanna",
   "manage.form.unsavedTitle": "Osparade ändringar",
-  "manage.hostCard.confirmPublish": "Är du säker på att du vill publicera denna värd?"
+  "manage.hostCard.confirmPublish": "Är du säker på att du vill publicera denna värd?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

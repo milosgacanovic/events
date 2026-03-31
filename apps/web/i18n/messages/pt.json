@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Você tem alterações não salvas. Sair sem salvar?",
   "manage.form.unsavedStay": "Ficar",
   "manage.form.unsavedTitle": "Alterações não salvas",
-  "manage.hostCard.confirmPublish": "Tem certeza de que deseja publicar este anfitrião?"
+  "manage.hostCard.confirmPublish": "Tem certeza de que deseja publicar este anfitrião?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Sinulla on tallentamattomia muutoksia. Poistu tallentamatta?",
   "manage.form.unsavedStay": "Pysy",
   "manage.form.unsavedTitle": "Tallentamattomat muutokset",
-  "manage.hostCard.confirmPublish": "Haluatko varmasti julkaista tämän järjestäjän?"
+  "manage.hostCard.confirmPublish": "Haluatko varmasti julkaista tämän järjestäjän?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

@@ -32,6 +32,7 @@ const eventQuerySchema = z.object({
   practiceCategoryId: z.string().optional(),
   eventFormatId: z.string().optional(),
   ownerFilter: z.enum(["all", "unassigned", "has_owner"]).optional(),
+  sourceFilter: z.enum(["imported", "manual", "detached"]).optional(),
   countryCode: z.string().optional(),
   attendanceMode: z.string().optional(),
   languages: z.string().optional(),
@@ -235,6 +236,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       status: parsed.data.status ?? "published",
       organizerId: parsed.data.organizerId,
       ownerFilter: parsed.data.ownerFilter,
+      sourceFilter: parsed.data.sourceFilter,
       time: (parsed.data.time === "upcoming" || parsed.data.time === "past") ? parsed.data.time : undefined,
       sort: parsed.data.sort,
     });

@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Imate neshranjene spremembe. Zapustiti brez shranjevanja?",
   "manage.form.unsavedStay": "Ostani",
   "manage.form.unsavedTitle": "Neshranjene spremembe",
-  "manage.hostCard.confirmPublish": "Ali ste prepričani, da želite objaviti tega gostitelja?"
+  "manage.hostCard.confirmPublish": "Ali ste prepričani, da želite objaviti tega gostitelja?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

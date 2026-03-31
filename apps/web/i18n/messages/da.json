@@ -887,5 +887,8 @@
   "manage.form.unsavedMessage": "Du har ikke-gemte ændringer. Vil du forlade uden at gemme?",
   "manage.form.unsavedStay": "Bliv",
   "manage.form.unsavedTitle": "Ikke-gemte ændringer",
-  "manage.hostCard.confirmPublish": "Er du sikker på, at du vil offentliggøre denne vært?"
+  "manage.hostCard.confirmPublish": "Er du sikker på, at du vil offentliggøre denne vært?",
+  "manage.eventCard.makePublic": "Make public",
+  "manage.eventCard.confirmMakePublic": "Are you sure you want to make this event public? It is currently unlisted.",
+  "manage.eventCard.confirmReattach": "Are you sure you want to reattach this event to the import source? Future imports will overwrite your manual changes."
 }

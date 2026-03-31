@@ -253,6 +253,10 @@ textarea.field-invalid {
   gap: 12px;
   max-width: 100%;
   min-width: 0;
+  overflow: hidden;
+}
+.manage-card-list > .card {
+  max-width: 100%;
 }
 
 /* Action buttons column on right side of card */
