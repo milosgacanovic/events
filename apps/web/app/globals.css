@@ -2022,19 +2022,19 @@ label.meta {
 }
 
 .filter-chip-clear {
-  background: rgba(220, 53, 69, 0.08);
-  border: 1px solid rgba(220, 53, 69, 0.25);
+  background: rgba(220, 53, 69, 0.04);
+  border: 1px solid rgba(220, 53, 69, 0.15);
   border-radius: var(--radius-pill);
   padding: 4px 8px;
   font-size: 0.8rem;
   cursor: pointer;
-  color: #b02a37;
+  color: #9e3a42;
 }
 
 [data-theme="dark"] .filter-chip-clear {
-  background: rgba(220, 53, 69, 0.12);
-  border-color: rgba(220, 53, 69, 0.3);
-  color: #e8838c;
+  background: rgba(220, 53, 69, 0.06);
+  border-color: rgba(220, 53, 69, 0.18);
+  color: #c27a80;
 }
 
 .tag {

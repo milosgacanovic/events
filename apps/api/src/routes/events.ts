@@ -740,7 +740,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     ]);
 
     // Detachment logic: if imported + not yet detached + content fields actually changed → detach
-    if (previousEvent && previousEvent.is_imported && !(previousEvent as { detached_from_import?: boolean }).detached_from_import) {
+    // Skip detachment for service accounts (e.g. the importer syncing its own events)
+    const isServiceAccount = auth.preferredUsername?.startsWith("service-account-") ?? false;
+    if (!isServiceAccount && previousEvent && previousEvent.is_imported && !(previousEvent as { detached_from_import?: boolean }).detached_from_import) {
       const prev = previousEvent as Record<string, unknown>;
       const differs = (key: string, inputKey?: string) => {
         const newVal = (normalizedInput as Record<string, unknown>)[inputKey ?? key];
