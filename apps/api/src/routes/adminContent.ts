@@ -233,11 +233,13 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
 
     return listAdminEvents(app.db, {
       ...parsed.data,
-      status: parsed.data.status ?? "published",
+      status: parsed.data.status,
       organizerId: parsed.data.organizerId,
       ownerFilter: parsed.data.ownerFilter,
       sourceFilter: parsed.data.sourceFilter,
       time: (parsed.data.time === "upcoming" || parsed.data.time === "past") ? parsed.data.time : undefined,
+      dateFrom: parsed.data.dateFrom,
+      dateTo: parsed.data.dateTo,
       sort: parsed.data.sort,
     });
   });

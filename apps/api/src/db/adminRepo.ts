@@ -19,6 +19,8 @@ export async function listAdminEvents(
     cities?: string;
     tags?: string;
     time?: "upcoming" | "past";
+    dateFrom?: string;
+    dateTo?: string;
     sort?: string;
     page: number;
     pageSize: number;
@@ -138,6 +140,15 @@ export async function listAdminEvents(
     whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
   } else if (input.time === "past") {
     whereParts.push(`not exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc > now())`);
+  }
+
+  if (input.dateFrom) {
+    values.push(input.dateFrom);
+    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc >= $${values.length}::date)`);
+  }
+  if (input.dateTo) {
+    values.push(input.dateTo);
+    whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc < ($${values.length}::date + interval '1 day'))`);
   }
 
   const sortMap: Record<string, string> = {

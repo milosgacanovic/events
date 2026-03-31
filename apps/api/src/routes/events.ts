@@ -739,15 +739,24 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       getEventDefaultLocation(app.db, params.data.id),
     ]);
 
-    // Detachment logic: if imported + not yet detached + content fields changed → detach
+    // Detachment logic: if imported + not yet detached + content fields actually changed → detach
     if (previousEvent && previousEvent.is_imported && !(previousEvent as { detached_from_import?: boolean }).detached_from_import) {
-      const contentChanged = normalizedInput.title !== undefined
-        || normalizedInput.descriptionJson !== undefined
-        || normalizedInput.scheduleKind !== undefined
-        || normalizedInput.rrule !== undefined
-        || normalizedInput.singleStartAt !== undefined
-        || normalizedInput.singleEndAt !== undefined
-        || normalizedInput.locationId !== undefined;
+      const prev = previousEvent as Record<string, unknown>;
+      const differs = (key: string, inputKey?: string) => {
+        const newVal = (normalizedInput as Record<string, unknown>)[inputKey ?? key];
+        if (newVal === undefined) return false;
+        const oldVal = prev[key];
+        // Treat null/undefined/"" as equivalent for comparison
+        const norm = (v: unknown) => (v === null || v === undefined || v === "") ? null : typeof v === "object" ? JSON.stringify(v) : String(v);
+        return norm(newVal) !== norm(oldVal);
+      };
+      const contentChanged = differs("title")
+        || differs("description_json", "descriptionJson")
+        || differs("schedule_kind", "scheduleKind")
+        || differs("rrule")
+        || differs("single_start_at", "singleStartAt")
+        || differs("single_end_at", "singleEndAt")
+        || (normalizedInput.locationId !== undefined && String(normalizedInput.locationId ?? "") !== String(previousLocation?.id ?? ""));
 
       if (contentChanged) {
         const detachUserId = await resolveUserId(app.db, auth);

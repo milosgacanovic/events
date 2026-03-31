@@ -2022,13 +2022,19 @@ label.meta {
 }
 
 .filter-chip-clear {
-  background: transparent;
-  border: 1px solid var(--line);
+  background: rgba(220, 53, 69, 0.08);
+  border: 1px solid rgba(220, 53, 69, 0.25);
   border-radius: var(--radius-pill);
   padding: 4px 8px;
   font-size: 0.8rem;
   cursor: pointer;
-  color: var(--muted);
+  color: #b02a37;
+}
+
+[data-theme="dark"] .filter-chip-clear {
+  background: rgba(220, 53, 69, 0.12);
+  border-color: rgba(220, 53, 69, 0.3);
+  color: #e8838c;
 }
 
 .tag {

@@ -60,6 +60,24 @@ type EventsResponse = {
 
 const EVENT_DATE_PRESETS = ["today", "tomorrow", "this_weekend", "this_week", "next_week", "this_month", "next_month"] as const;
 
+function presetToDateRange(preset: string): { dateFrom: string; dateTo: string } | null {
+  const d = new Date();
+  const fmt = (dt: Date) => dt.toISOString().slice(0, 10);
+  const today = fmt(d);
+  switch (preset) {
+    case "today": return { dateFrom: today, dateTo: today };
+    case "tomorrow": { const t = new Date(d); t.setDate(t.getDate() + 1); return { dateFrom: fmt(t), dateTo: fmt(t) }; }
+    case "this_weekend": { const day = d.getDay(); const sat = new Date(d); sat.setDate(d.getDate() + (6 - day)); const sun = new Date(sat); sun.setDate(sat.getDate() + 1); return { dateFrom: fmt(sat), dateTo: fmt(sun) }; }
+    case "this_week": { const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { dateFrom: fmt(mon), dateTo: fmt(sun) }; }
+    case "next_week": { const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 7); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { dateFrom: fmt(mon), dateTo: fmt(sun) }; }
+    case "this_month": { const start = new Date(d.getFullYear(), d.getMonth(), 1); const end = new Date(d.getFullYear(), d.getMonth() + 1, 0); return { dateFrom: fmt(start), dateTo: fmt(end) }; }
+    case "next_month": { const start = new Date(d.getFullYear(), d.getMonth() + 1, 1); const end = new Date(d.getFullYear(), d.getMonth() + 2, 0); return { dateFrom: fmt(start), dateTo: fmt(end) }; }
+    case "upcoming": return null;
+    case "past": return null;
+    default: return null;
+  }
+}
+
 export default function AdminAllEventsPage() {
   const { getToken } = useKeycloakAuth();
   const { locale, t } = useI18n();
@@ -68,7 +86,7 @@ export default function AdminAllEventsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   /* manage-specific */
-  const [statusFilter, setStatusFilter] = useState("published");
+  const [statusFilter, setStatusFilter] = useState("");
   const [importFilter, setImportFilter] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("");
   /* public-matching filters */
@@ -168,7 +186,14 @@ export default function AdminAllEventsPage() {
       if (languages.length) params.set("languages", languages.join(","));
       if (cities.length) params.set("cities", cities.join(","));
       if (tags.length) params.set("tags", tags.join(","));
-      if (timeFilter) params.set("time", timeFilter);
+      if (timeFilter) {
+        if (timeFilter === "upcoming" || timeFilter === "past") {
+          params.set("time", timeFilter);
+        } else {
+          const range = presetToDateRange(timeFilter);
+          if (range) { params.set("dateFrom", range.dateFrom); params.set("dateTo", range.dateTo); }
+        }
+      }
       if (sortBy) params.set("sort", sortBy);
       const data = await authorizedGet<EventsResponse>(getToken, `/admin/events?${params}`);
       setEvents(data.items);
