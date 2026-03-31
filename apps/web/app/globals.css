@@ -2129,6 +2129,8 @@ label.meta {
 .secondary-btn.filters-toggle-btn {
   border-color: var(--accent);
   background: var(--accent-bg);
+  padding: 5px 10px;
+  font-size: 0.85rem;
 }
 
 .ghost-btn {
