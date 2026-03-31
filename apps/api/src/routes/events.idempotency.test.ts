@@ -19,6 +19,7 @@ vi.mock("../db/locationRepo", () => ({
 
 vi.mock("../db/userRepo", () => ({
   findOrCreateUserBySub: vi.fn(),
+  isServiceAccount: vi.fn().mockResolvedValue(false),
 }));
 
 vi.mock("../services/eventLifecycleService", () => ({

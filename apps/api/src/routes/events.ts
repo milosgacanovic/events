@@ -19,7 +19,7 @@ import {
   eventHasOrganizers,
 } from "../db/eventRepo";
 import { createLocation, getEventDefaultLocation, setEventDefaultLocation, updateLocation } from "../db/locationRepo";
-import { findOrCreateUserBySub } from "../db/userRepo";
+import { findOrCreateUserBySub, isServiceAccount } from "../db/userRepo";
 import { resolveUserId, requireEventAccess } from "../middleware/ownership";
 import { canUserEditEvent } from "../db/manageRepo";
 import { archiveEvent, cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
@@ -741,8 +741,8 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
     // Detachment logic: if imported + not yet detached + content fields actually changed → detach
     // Skip detachment for service accounts (e.g. the importer syncing its own events)
-    const isServiceAccount = auth.preferredUsername?.startsWith("service-account-") ?? false;
-    if (!isServiceAccount && previousEvent && previousEvent.is_imported && !(previousEvent as { detached_from_import?: boolean }).detached_from_import) {
+    const serviceAccount = await isServiceAccount(app.db, auth.sub);
+    if (!serviceAccount && previousEvent && previousEvent.is_imported && !(previousEvent as { detached_from_import?: boolean }).detached_from_import) {
       const prev = previousEvent as Record<string, unknown>;
       const differs = (key: string, inputKey?: string) => {
         const newVal = (normalizedInput as Record<string, unknown>)[inputKey ?? key];

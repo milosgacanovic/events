@@ -45,6 +45,14 @@ export async function getUserProfileBySub(pool: Pool, keycloakSub: string): Prom
   return result.rows[0];
 }
 
+export async function isServiceAccount(pool: Pool, keycloakSub: string): Promise<boolean> {
+  const result = await pool.query<{ is_service_account: boolean }>(
+    `SELECT is_service_account FROM users WHERE keycloak_sub = $1`,
+    [keycloakSub],
+  );
+  return result.rows[0]?.is_service_account ?? false;
+}
+
 export async function updateUserProfileBySub(
   pool: Pool,
   keycloakSub: string,
