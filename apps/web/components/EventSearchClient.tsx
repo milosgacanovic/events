@@ -203,7 +203,7 @@ export function EventSearchClient({
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>(() => readTimeDisplayMode());
-  const [dateOpen, setDateOpen] = useState((initialQuery?.eventDates?.length ?? 0) > 0 || !!(initialQuery?.dateFrom) || !!(initialQuery?.dateTo));
+  const [dateOpen, setDateOpen] = useState(true);
   const [dateRangeOpen, setDateRangeOpen] = useState(!!(initialQuery?.dateFrom) || !!(initialQuery?.dateTo));
   const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);
   const [eventFormatOpen, setEventFormatOpen] = useState((initialQuery?.eventFormatIds?.length ?? 0) > 0);
@@ -1769,14 +1769,11 @@ export function EventSearchClient({
         <div className="results-toolbar">
           <button
             type="button"
-            className="secondary-btn filters-toggle-btn"
+            className={activeFilterCount > 0 ? "filters-toggle-btn filters-toggle-btn--active" : sidebarOpen ? "filters-toggle-btn filters-toggle-btn--open" : "filters-toggle-btn filters-toggle-btn--default"}
             onClick={toggleSidebar}
             aria-expanded={sidebarOpen}
           >
-            {t("eventSearch.filtersButton")}
-            {activeFilterCount > 0 && (
-              <span className="filters-badge">{activeFilterCount}</span>
-            )}
+            {activeFilterCount > 0 ? `${t("eventSearch.filtersButton")} (${activeFilterCount})` : t("eventSearch.filtersButton")}
           </button>
           <div className="meta results-count">
             {data

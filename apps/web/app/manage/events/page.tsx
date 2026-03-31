@@ -702,6 +702,7 @@ export default function MyEventsPage() {
           onSortChange={(v) => { setFilters({ sortBy: v, page: 1 }); }}
           onToggleFilters={() => setSidebarOpen((o) => !o)}
           activeFilterCount={activeFilterCount}
+          filtersOpen={sidebarOpen}
           view={view}
           onViewChange={setView}
         />

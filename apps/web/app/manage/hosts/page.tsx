@@ -399,6 +399,7 @@ export default function MyHostsPage() {
           onSortChange={(v) => { setSortBy(v); setPage(1); }}
           onToggleFilters={() => setSidebarOpen((o) => !o)}
           activeFilterCount={activeFilterCount}
+          filtersOpen={sidebarOpen}
           view={view}
           onViewChange={setView}
         />

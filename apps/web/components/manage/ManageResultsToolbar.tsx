@@ -13,6 +13,7 @@ export function ManageResultsToolbar({
   onSortChange,
   onToggleFilters,
   activeFilterCount,
+  filtersOpen,
   view,
   onViewChange,
 }: {
@@ -24,6 +25,7 @@ export function ManageResultsToolbar({
   onSortChange: (v: string) => void;
   onToggleFilters: () => void;
   activeFilterCount: number;
+  filtersOpen?: boolean;
   view?: "list" | "map";
   onViewChange?: (v: "list" | "map") => void;
 }) {
@@ -33,13 +35,10 @@ export function ManageResultsToolbar({
     <div className="results-toolbar" style={{ marginBottom: 12 }}>
       <button
         type="button"
-        className="secondary-btn filters-toggle-btn manage-filters-toggle"
+        className={activeFilterCount > 0 ? "filters-toggle-btn filters-toggle-btn--active" : filtersOpen ? "filters-toggle-btn filters-toggle-btn--open" : "filters-toggle-btn filters-toggle-btn--default"}
         onClick={onToggleFilters}
       >
-        {t("manage.filters.title")}
-        {activeFilterCount > 0 && (
-          <span className="filters-badge">{activeFilterCount}</span>
-        )}
+        {activeFilterCount > 0 ? `${t("manage.filters.title")} (${activeFilterCount})` : t("manage.filters.title")}
       </button>
       <Link href={createHref} className="primary-btn" style={{ whiteSpace: "nowrap" }}>
         {createLabel}

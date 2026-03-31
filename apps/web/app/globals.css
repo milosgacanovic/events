@@ -831,13 +831,37 @@ label.meta {
   display: none;
 }
 
+/* Filters toggle — base (shared) */
 .filters-toggle-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
   font-size: 0.85rem;
-  position: relative;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* State 1: default — ghost style */
+.filters-toggle-btn--default {
+  background: transparent;
+  color: var(--ink);
+}
+
+/* State 2: sidebar open, no filters — subtle accent */
+.filters-toggle-btn--open {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* State 3: filters active — filled accent */
+.filters-toggle-btn--active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .filters-inline-count {
@@ -867,22 +891,6 @@ label.meta {
   }
 }
 
-.filters-badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 0 4px;
-}
 
 .results-count {
   flex: 1;
@@ -2126,12 +2134,6 @@ label.meta {
   color: var(--ink);
 }
 
-.secondary-btn.filters-toggle-btn {
-  border-color: var(--accent);
-  background: var(--accent-bg);
-  padding: 5px 10px;
-  font-size: 0.85rem;
-}
 
 .ghost-btn {
   background: transparent;

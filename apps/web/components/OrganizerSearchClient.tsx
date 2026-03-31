@@ -1156,14 +1156,11 @@ export function OrganizerSearchClient({
         <div className="results-toolbar">
           <button
             type="button"
-            className="secondary-btn filters-toggle-btn"
+            className={activeFilterCount > 0 ? "filters-toggle-btn filters-toggle-btn--active" : sidebarOpen ? "filters-toggle-btn filters-toggle-btn--open" : "filters-toggle-btn filters-toggle-btn--default"}
             onClick={toggleSidebar}
             aria-expanded={sidebarOpen}
           >
-            {t("eventSearch.filtersButton")}
-            {activeFilterCount > 0 && (
-              <span className="filters-badge">{activeFilterCount}</span>
-            )}
+            {activeFilterCount > 0 ? `${t("eventSearch.filtersButton")} (${activeFilterCount})` : t("eventSearch.filtersButton")}
           </button>
           <div className="meta results-count">
             {data
