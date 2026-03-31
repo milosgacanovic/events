@@ -167,7 +167,7 @@ export function OrganizerSearchClient({
   const [countryFacetCounts, setCountryFacetCounts] = useState<Record<string, number>>(initialResults?.facets?.countryCode ?? {});
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [hostTypeOpen, setHostTypeOpen] = useState((initialQuery?.roleKeys?.length ?? 0) > 0);
-  const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);
+  const [practiceOpen, setPracticeOpen] = useState(true);
   const [languageOpen, setLanguageOpen] = useState((initialQuery?.languages?.length ?? 0) > 0);
   const [countryOpen, setCountryOpen] = useState((initialQuery?.countryCodes?.length ?? 0) > 0);
   const restoredKeyRef = useRef<string | null>(null);
@@ -952,36 +952,6 @@ export function OrganizerSearchClient({
       )}
       <aside className="panel filters">
 
-        <details
-          open={hostTypeOpen}
-          onToggle={(event) => setHostTypeOpen((event.currentTarget as HTMLDetailsElement).open)}
-        >
-          <summary>{t("organizerSearch.hostType")}</summary>
-          <div className="kv">
-            {visibleRoleFacets.map(([value, count]) => {
-              const checked = roleKeys.includes(value);
-              return (
-                <button
-                  type="button"
-                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
-                  key={`role-${value}`}
-                  onClick={() => {
-                    setPendingKey(`role:${value}`);
-                    setRoleKeys((current) => (
-                      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
-                    ));
-                    setPage(1);
-                  }}
-                >
-                  <span className="filter-row-icon">{pendingKey === `role:${value}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
-                  <span className="filter-row-label">{getRoleLabel(value, t)}</span>
-                  <span className="filter-row-count">{count}</span>
-                </button>
-              );
-            })}
-          </div>
-        </details>
-
         {(taxonomy?.practices.categories.length ?? 0) > 0 && (
           <details
             open={practiceOpen}
@@ -1022,6 +992,36 @@ export function OrganizerSearchClient({
             </div>
           </details>
         )}
+
+        <details
+          open={hostTypeOpen}
+          onToggle={(event) => setHostTypeOpen((event.currentTarget as HTMLDetailsElement).open)}
+        >
+          <summary>{t("organizerSearch.hostType")}</summary>
+          <div className="kv">
+            {visibleRoleFacets.map(([value, count]) => {
+              const checked = roleKeys.includes(value);
+              return (
+                <button
+                  type="button"
+                  className={"filter-row" + (checked ? " filter-row-selected" : "")}
+                  key={`role-${value}`}
+                  onClick={() => {
+                    setPendingKey(`role:${value}`);
+                    setRoleKeys((current) => (
+                      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+                    ));
+                    setPage(1);
+                  }}
+                >
+                  <span className="filter-row-icon">{pendingKey === `role:${value}` ? <span className="filter-spinner" /> : (checked ? "\u2212" : "+")}</span>
+                  <span className="filter-row-label">{getRoleLabel(value, t)}</span>
+                  <span className="filter-row-count">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </details>
 
         <details
           open={languageOpen}
