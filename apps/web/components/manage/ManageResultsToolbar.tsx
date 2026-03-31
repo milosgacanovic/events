@@ -35,7 +35,7 @@ export function ManageResultsToolbar({
     <div className="results-toolbar" style={{ marginBottom: 12 }}>
       <button
         type="button"
-        className={activeFilterCount > 0 ? "filters-toggle-btn filters-toggle-btn--active" : filtersOpen ? "filters-toggle-btn filters-toggle-btn--open" : "filters-toggle-btn filters-toggle-btn--default"}
+        className={`manage-filters-toggle ${activeFilterCount > 0 ? "filters-toggle-btn filters-toggle-btn--active" : filtersOpen ? "filters-toggle-btn filters-toggle-btn--open" : "filters-toggle-btn filters-toggle-btn--default"}`}
         onClick={onToggleFilters}
       >
         {activeFilterCount > 0 ? `${t("manage.filters.title")} (${activeFilterCount})` : t("manage.filters.title")}
