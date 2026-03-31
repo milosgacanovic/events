@@ -17,6 +17,7 @@ type UserItem = {
   host_count: number;
   event_count: number;
   keycloak_roles?: string[];
+  is_service_account?: boolean;
 };
 
 type UsersResponse = {
@@ -183,6 +184,15 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function toggleServiceAccount(userId: string, current: boolean) {
+    try {
+      await authorizedPatch(getToken, `/admin/users/${userId}/service-account`, { is_service_account: !current });
+      void load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update service account flag");
+    }
+  }
+
   function toggleRole(role: string) {
     setEditRoles((prev) =>
       prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
@@ -240,6 +250,11 @@ export default function AdminUsersPage() {
                 <tr key={user.id}>
                   <td>
                     {user.display_name ?? user.email ?? user.keycloak_sub.slice(0, 16)}
+                    {user.is_service_account && (
+                      <span className="tag" style={{ fontSize: "0.65rem", marginLeft: 6, verticalAlign: "middle", background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }}>
+                        {t("manage.admin.users.serviceAccount")}
+                      </span>
+                    )}
                   </td>
                   <td>
                     {user.email ?? "—"}
@@ -278,6 +293,15 @@ export default function AdminUsersPage() {
                       onClick={() => void openAccessManage(user.id)}
                     >
                       {t("manage.common.access")}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      style={{ fontSize: "0.75rem", marginLeft: 4 }}
+                      onClick={() => void toggleServiceAccount(user.id, !!user.is_service_account)}
+                      title={user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
+                    >
+                      {user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
                     </button>
                   </td>
                 </tr>

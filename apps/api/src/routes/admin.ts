@@ -364,6 +364,20 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     return { ok: true };
   });
 
+  app.patch("/admin/users/:id/service-account", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const body = z.object({ is_service_account: z.boolean() }).safeParse(request.body);
+    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+
+    await app.db.query(
+      `UPDATE users SET is_service_account = $2 WHERE id = $1`,
+      [params.data.id, body.data.is_service_account],
+    );
+    return { ok: true };
+  });
+
   app.get("/admin/users/:id/hosts", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
