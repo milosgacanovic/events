@@ -489,10 +489,9 @@ textarea.field-invalid {
   text-decoration: underline;
 }
 
-/* Interactive status chips (draft → edit, archived → un-archive) */
+/* Interactive status chips (draft → publish, archived → un-archive, etc.) */
 .manage-status-chip-interactive {
   cursor: pointer;
-  transition: opacity 0.15s;
   text-decoration: none;
   min-width: 60px;
   text-align: center;
@@ -500,6 +499,41 @@ textarea.field-invalid {
   font: inherit;
   line-height: inherit;
   padding: inherit;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Chip crossfade: two stacked text layers */
+.manage-status-chip-interactive .chip-label {
+  display: inline-grid;
+}
+
+.manage-status-chip-interactive .chip-label > span {
+  grid-area: 1 / 1;
+  transition: opacity 0.25s ease, filter 0.25s ease;
+  white-space: nowrap;
+}
+
+.manage-status-chip-interactive .chip-label-idle {
+  opacity: 1;
+  filter: blur(0);
+}
+
+.manage-status-chip-interactive .chip-label-hover {
+  opacity: 0;
+  filter: blur(4px);
+}
+
+.manage-status-chip-interactive:hover .chip-label-idle,
+.manage-status-chip-interactive:focus-visible .chip-label-idle {
+  opacity: 0;
+  filter: blur(4px);
+}
+
+.manage-status-chip-interactive:hover .chip-label-hover,
+.manage-status-chip-interactive:focus-visible .chip-label-hover {
+  opacity: 1;
+  filter: blur(0);
 }
 
 /* No-host chip on event cards */

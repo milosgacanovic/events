@@ -60,7 +60,6 @@ export function ManageHostCard({
 }: ManageHostCardProps) {
   const { t, locale } = useI18n();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [chipHover, setChipHover] = useState<string | null>(null);
   const resolvedImage = resolveImageUrl(imageUrl || avatarPath);
   const statusKey = ["published", "draft", "archived"].includes(status) ? status : "draft";
   const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
@@ -159,31 +158,34 @@ export function ManageHostCard({
           <button
             type="button"
             className="tag manage-status-pill manage-status-pill--draft manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("status")}
-            onMouseLeave={() => setChipHover(null)}
             onClick={() => setConfirmAction({ action: onPublish, title: t("manage.confirm.title"), message: t("manage.hostCard.confirmPublish") })}
           >
-            {chipHover === "status" ? t("manage.eventCard.publish") : t("common.status.draft")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("common.status.draft")}</span>
+              <span className="chip-label-hover">{t("manage.eventCard.publish")}</span>
+            </span>
           </button>
         ) : statusKey === "published" && onUnpublish ? (
           <button
             type="button"
             className="tag manage-status-pill manage-status-pill--published manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("status")}
-            onMouseLeave={() => setChipHover(null)}
             onClick={() => setConfirmAction({ action: onUnpublish, title: t("manage.confirm.title"), message: t("manage.hostCard.confirmUnpublish"), variant: "warning" })}
           >
-            {chipHover === "status" ? t("manage.eventCard.unpublish") : t("common.status.published")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("common.status.published")}</span>
+              <span className="chip-label-hover">{t("manage.eventCard.unpublish")}</span>
+            </span>
           </button>
         ) : statusKey === "archived" && onUnarchive ? (
           <button
             type="button"
             className="tag manage-status-pill manage-status-pill--archived manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("status")}
-            onMouseLeave={() => setChipHover(null)}
             onClick={() => setConfirmAction({ action: onUnarchive, title: t("manage.confirm.title"), message: t("manage.hostCard.confirmUnarchive"), variant: "warning" })}
           >
-            {chipHover === "status" ? t("manage.hostCard.unarchive") : t("common.status.archived")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("common.status.archived")}</span>
+              <span className="chip-label-hover">{t("manage.hostCard.unarchive")}</span>
+            </span>
           </button>
         ) : (
           <span className={`tag manage-status-pill manage-status-pill--${statusKey}`}>{t(`common.status.${statusKey}`)}</span>

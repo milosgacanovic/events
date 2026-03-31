@@ -24,13 +24,8 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [displayName, setDisplayName] = useState("");
-  const [timeDisplayMode, setTimeDisplayMode] = useState<"event" | "user">("user");
-  const [userTimeZone, setUserTimeZone] = useState("UTC");
-
-  useEffect(() => {
-    setTimeDisplayMode(readTimeDisplayMode());
-    setUserTimeZone(getUserTimeZone());
-  }, []);
+  const [timeDisplayMode, setTimeDisplayMode] = useState<"event" | "user">(() => readTimeDisplayMode());
+  const [userTimeZone, setUserTimeZone] = useState(() => typeof window !== "undefined" ? getUserTimeZone() : "UTC");
 
   useEffect(() => {
     if (!auth.ready) {

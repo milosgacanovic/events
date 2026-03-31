@@ -202,7 +202,7 @@ export function EventSearchClient({
   });
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
-  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
+  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>(() => readTimeDisplayMode());
   const [dateOpen, setDateOpen] = useState((initialQuery?.eventDates?.length ?? 0) > 0 || !!(initialQuery?.dateFrom) || !!(initialQuery?.dateTo));
   const [dateRangeOpen, setDateRangeOpen] = useState(!!(initialQuery?.dateFrom) || !!(initialQuery?.dateTo));
   const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);

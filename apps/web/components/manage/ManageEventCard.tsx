@@ -78,7 +78,6 @@ export function ManageEventCard({
 }: ManageEventCardProps) {
   const { t, locale } = useI18n();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [chipHover, setChipHover] = useState<string | null>(null);
   const imageUrl = resolveImageUrl(coverImagePath);
   const statusKey = ["published", "draft", "cancelled", "archived", "unlisted"].includes(status) ? status : "draft";
 
@@ -189,41 +188,45 @@ export function ManageEventCard({
           <button
             type="button"
             className="tag manage-status-pill manage-status-pill--draft manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("status")}
-            onMouseLeave={() => setChipHover(null)}
             onClick={() => setConfirmAction(publishConfirm)}
           >
-            {chipHover === "status" ? t("manage.eventCard.publish") : t("common.status.draft")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("common.status.draft")}</span>
+              <span className="chip-label-hover">{t("manage.eventCard.publish")}</span>
+            </span>
           </button>
         ) : statusKey === "published" && onUnpublish ? (
           <button
             type="button"
             className="tag manage-status-pill manage-status-pill--published manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("status")}
-            onMouseLeave={() => setChipHover(null)}
             onClick={() => setConfirmAction({ action: onUnpublish, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmUnpublish"), variant: "warning" })}
           >
-            {chipHover === "status" ? t("manage.eventCard.unpublish") : t("common.status.published")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("common.status.published")}</span>
+              <span className="chip-label-hover">{t("manage.eventCard.unpublish")}</span>
+            </span>
           </button>
         ) : statusKey === "cancelled" && onArchive ? (
           <button
             type="button"
             className="tag manage-status-pill manage-status-pill--cancelled manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("status")}
-            onMouseLeave={() => setChipHover(null)}
             onClick={() => setConfirmAction({ action: onArchive, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmArchive"), variant: "warning" })}
           >
-            {chipHover === "status" ? t("manage.eventCard.archive") : t("common.status.cancelled")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("common.status.cancelled")}</span>
+              <span className="chip-label-hover">{t("manage.eventCard.archive")}</span>
+            </span>
           </button>
         ) : statusKey === "archived" && onUnarchive ? (
           <button
             type="button"
             className="tag manage-status-pill manage-status-pill--archived manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("status")}
-            onMouseLeave={() => setChipHover(null)}
             onClick={() => setConfirmAction({ action: onUnarchive, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmUnarchive"), variant: "warning" })}
           >
-            {chipHover === "status" ? t("manage.eventCard.unarchive") : t("common.status.archived")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("common.status.archived")}</span>
+              <span className="chip-label-hover">{t("manage.eventCard.unarchive")}</span>
+            </span>
           </button>
         ) : (
           <span className={`tag manage-status-pill manage-status-pill--${statusKey}`}>{t(`common.status.${statusKey}`)}</span>
@@ -232,11 +235,12 @@ export function ManageEventCard({
           <button
             type="button"
             className="tag manage-status-pill manage-status-pill--unlisted manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("visibility")}
-            onMouseLeave={() => setChipHover(null)}
             onClick={() => setConfirmAction({ action: onMakePublic, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmMakePublic") })}
           >
-            {chipHover === "visibility" ? t("manage.eventCard.makePublic") : t("common.visibility.unlisted")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("common.visibility.unlisted")}</span>
+              <span className="chip-label-hover">{t("manage.eventCard.makePublic")}</span>
+            </span>
           </button>
         ) : visibility === "unlisted" ? (
           <span className="tag manage-status-pill manage-status-pill--unlisted">{t("common.visibility.unlisted")}</span>
@@ -245,10 +249,11 @@ export function ManageEventCard({
           <Link
             href={`/manage/events/${id}#hosts`}
             className="tag manage-no-host-chip manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("nohost")}
-            onMouseLeave={() => setChipHover(null)}
           >
-            {chipHover === "nohost" ? t("manage.common.edit") : t("manage.eventCard.noHost")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("manage.eventCard.noHost")}</span>
+              <span className="chip-label-hover">{t("manage.common.edit")}</span>
+            </span>
           </Link>
         )}
         {isImported && !detachedFromImport && (
@@ -260,11 +265,12 @@ export function ManageEventCard({
           <button
             type="button"
             className="tag manage-tag-detached manage-status-chip-interactive"
-            onMouseEnter={() => setChipHover("detached")}
-            onMouseLeave={() => setChipHover(null)}
             onClick={() => setConfirmAction({ action: onReattach, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmReattach") })}
           >
-            {chipHover === "detached" ? t("manage.eventCard.reattachLabel") : t("manage.eventCard.detachedLabel")}
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("manage.eventCard.detachedLabel")}</span>
+              <span className="chip-label-hover">{t("manage.eventCard.reattachLabel")}</span>
+            </span>
           </button>
         ) : isImported && detachedFromImport ? (
           <span className="tag manage-tag-detached">

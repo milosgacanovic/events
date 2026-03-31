@@ -198,6 +198,7 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
     try { return !!sessionStorage.getItem("search-cache-snapshot"); } catch { return false; }
   });
   const [data, setData] = useState<OrganizerDetail | null>(initialData ?? null);
+  const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(50);
   const [alertCity, setAlertCity] = useState("");
@@ -217,21 +218,21 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
 
     // Phase 1: fetch publicly without waiting for auth
     fetchJson<OrganizerDetail>(`/organizers/${slug}`)
-      .then((d) => { if (active) setData(d); })
+      .then((d) => { if (active) { setNotFound(false); setData(d); } })
       .catch(async (err) => {
         if (!active) return;
         const message = err instanceof Error ? err.message : t("organizerDetail.error.fetchFailed");
         if (!message.includes("404")) { setError(message); return; }
         // Phase 2: 404 — retry with auth if available
         if (!auth.ready) return; // effect re-runs when auth.ready flips
-        if (!auth.authenticated) { setError(message); return; }
+        if (!auth.authenticated) { setNotFound(true); return; }
         try {
           const token = await auth.getToken();
           const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
           const d = await fetchJson<OrganizerDetail>(`/organizers/${slug}`, headers ? { headers } : undefined);
-          if (active) setData(d);
-        } catch (retryErr) {
-          if (active) setError(retryErr instanceof Error ? retryErr.message : t("organizerDetail.error.fetchFailed"));
+          if (active) { setNotFound(false); setData(d); }
+        } catch {
+          if (active) setNotFound(true);
         }
       });
 
@@ -302,6 +303,19 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
       )}
     </nav>
   );
+
+  if (notFound) {
+    return (
+      <section className="panel cards">
+        {breadcrumb}
+        <h1 className="title-xl">{t("organizerDetail.notFound.title")}</h1>
+        <p className="muted">{t("organizerDetail.notFound.description")}</p>
+        <p>
+          <Link href="/hosts">{t("organizerDetail.notFound.backToHosts")}</Link>
+        </p>
+      </section>
+    );
+  }
 
   if (error) {
     return (

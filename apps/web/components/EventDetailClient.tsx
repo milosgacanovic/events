@@ -263,7 +263,7 @@ export function EventDetailClient({
   const [tagDisplayMap, setTagDisplayMap] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("user");
+  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>(() => readTimeDisplayMode());
   const [descExpanded, setDescExpanded] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
