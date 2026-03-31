@@ -835,8 +835,8 @@ label.meta {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  font-size: 0.9rem;
+  padding: 5px 10px;
+  font-size: 0.85rem;
   position: relative;
 }
 

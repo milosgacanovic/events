@@ -944,11 +944,6 @@ export function OrganizerSearchClient({
             </button>
           ))}
         </div>
-        {data && data.total > 0 && (
-          <div className="hero-stats">
-            {t("organizerSearch.totalCount", { count: data.total })}
-          </div>
-        )}
       </div>
     </div>
     <section className={["grid", sidebarOpen && "sidebar-open", sidebarSkipTransition && "sidebar-no-transition"].filter(Boolean).join(" ")}>
@@ -956,12 +951,6 @@ export function OrganizerSearchClient({
         <div className="filters-overlay" onClick={() => setSidebarOpen(false)} aria-hidden />
       )}
       <aside className="panel filters">
-        <h2 className="title-xl">
-          {t("organizerSearch.title")}
-          {data && (
-            <span className="filters-panel-count">{t("organizerSearch.totalCount", { count: data.total })}</span>
-          )}
-        </h2>
 
         <details
           open={hostTypeOpen}

@@ -29,9 +29,6 @@ export function ManageFilterSidebar({
     <>
       {open && <div className="filters-overlay" onClick={onClose} />}
       <aside className={`panel filters${open ? "" : ""}`}>
-        <h2 className="title-xl">
-          {t("manage.filters.title")}
-        </h2>
         {children}
         <div className="filters-mobile-footer">
           <button type="button" className="primary-btn" onClick={onClose}>

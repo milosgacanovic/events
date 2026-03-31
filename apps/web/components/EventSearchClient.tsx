@@ -1329,11 +1329,6 @@ export function EventSearchClient({
                 </button>
               ))}
             </div>
-            {data && data.totalHits > 0 && (
-              <div className="hero-stats">
-                {t("eventSearch.hero.statsCount", { count: data.totalHits })}
-              </div>
-            )}
         </div>
       </div>
       <section className={["grid", sidebarOpen && "sidebar-open", sidebarSkipTransition && "sidebar-no-transition"].filter(Boolean).join(" ")}>
@@ -1345,12 +1340,6 @@ export function EventSearchClient({
         />
       )}
       <aside className="panel filters">
-        <h2 className="title-xl">
-          {t("eventSearch.title")}
-          {data && (
-            <span className="filters-panel-count">{t("eventSearch.resultsCount", { count: data.totalHits })}</span>
-          )}
-        </h2>
         <details open={dateOpen} onToggle={(event) => setDateOpen((event.currentTarget as HTMLDetailsElement).open)}>
           <summary>{t("eventSearch.eventDate")}</summary>
           <div className="kv">
