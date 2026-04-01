@@ -33,7 +33,7 @@ export type OccurrenceDoc = {
   country_code: string | null;
   city: string | null;
   has_geo: boolean;
-  geo: { lat: number; lng: number } | null;
+  _geo: { lat: number; lng: number } | null;
   published_at: string | null;
   published_at_ts: number | null;
   visibility: string;
@@ -66,6 +66,7 @@ export class MeilisearchService {
       "country_code",
       "city",
       "has_geo",
+      "_geo",
       "visibility",
       "event_id",
     ]);
@@ -182,7 +183,7 @@ export class MeilisearchService {
         country_code: row.country_code,
         city: row.city,
         has_geo: Boolean(lat !== null && lng !== null),
-        geo: lat !== null && lng !== null ? { lat, lng } : null,
+        _geo: lat !== null && lng !== null ? { lat, lng } : null,
         published_at: row.published_at,
         published_at_ts: row.published_at ? Date.parse(row.published_at) : null,
       };

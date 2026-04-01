@@ -339,6 +339,26 @@
   color: var(--muted);
 }
 
+.discover-card__status {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.discover-card__status--error {
+  color: #b86868;
+}
+
+.discover-card--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.discover-card--disabled:hover {
+  transform: none;
+  background: var(--discover-card-bg);
+}
+
 /* ============================================
    Summary Screen
    ============================================ */

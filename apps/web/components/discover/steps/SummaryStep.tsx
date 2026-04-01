@@ -29,7 +29,7 @@ const WHEN_LABELS: Record<WhenPreset, string> = {
 
 const WHERE_LABELS: Record<WhereChoice, string> = {
   near_me: "Near me",
-  my_region: "My country",
+  my_region: "My region",
   anywhere: "Anywhere",
   europe: "Europe",
   americas: "Americas",

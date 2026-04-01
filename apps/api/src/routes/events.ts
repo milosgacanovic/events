@@ -50,6 +50,9 @@ const searchQuerySchema = z.object({
   countryCode: z.string().optional(),
   city: z.string().optional(),
   hasGeo: z.enum(["true", "false"]).optional(),
+  geoLat: z.coerce.number().min(-90).max(90).optional(),
+  geoLng: z.coerce.number().min(-180).max(180).optional(),
+  geoRadius: z.coerce.number().positive().optional(),
   eventDate: z.string().optional(),
   tz: z.string().optional(),
   skipEventDateFacet: z.enum(["true", "false"]).optional(),
@@ -211,6 +214,9 @@ function buildMeiliFilters(input: {
   countryCodes?: string[];
   cities?: string[];
   hasGeo?: boolean;
+  geoLat?: number;
+  geoLng?: number;
+  geoRadius?: number;
 }) {
   const filters: string[] = [
     `starts_at_ts >= ${input.fromTs}`,
@@ -265,6 +271,9 @@ function buildMeiliFilters(input: {
   }
   if (typeof input.hasGeo === "boolean") {
     filters.push(`has_geo = ${input.hasGeo}`);
+  }
+  if (input.geoLat !== undefined && input.geoLng !== undefined && input.geoRadius !== undefined) {
+    filters.push(`_geoRadius(${input.geoLat}, ${input.geoLng}, ${input.geoRadius})`);
   }
 
   return filters;
@@ -393,6 +402,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       countryCode: countryCodes.join(",") || null,
       city: cityFilters.join(",") || null,
       hasGeo: hasGeo ?? null,
+      geoLat: parsed.data.geoLat ?? null,
+      geoLng: parsed.data.geoLng ?? null,
+      geoRadius: parsed.data.geoRadius ?? null,
       eventDate: eventDatePresets,
       tz: timezone,
       skipEventDateFacet: parsed.data.skipEventDateFacet === "true",
@@ -422,6 +434,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         countryCodes,
         cities: cityFilters,
         hasGeo,
+        geoLat: parsed.data.geoLat,
+        geoLng: parsed.data.geoLng,
+        geoRadius: parsed.data.geoRadius,
       });
       if (!showUnlisted) {
         baseMeiliFilters.push(`visibility = "public"`);
@@ -505,13 +520,13 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             externalUrl: doc.external_url ?? null,
             lastSyncedAt: doc.updated_at ?? null,
           },
-          location: doc.geo || doc.city || doc.country_code
+          location: doc._geo || doc.city || doc.country_code
             ? {
                 formatted_address: null,
                 city: doc.city,
                 country_code: doc.country_code,
-                lat: doc.geo?.lat ?? null,
-                lng: doc.geo?.lng ?? null,
+                lat: doc._geo?.lat ?? null,
+                lng: doc._geo?.lng ?? null,
               }
             : null,
           organizers: organizerMap.get(doc.event_id) ?? doc.organizer_ids.map((id: string, index2: number) => ({

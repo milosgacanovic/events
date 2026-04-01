@@ -24,6 +24,7 @@ import {
   REGION_COUNTRY_CODES,
 } from "./discoverMappings";
 import { fetchJson } from "../../lib/api";
+import type { GeoState } from "../../lib/useGeolocation";
 import { MoodStep } from "./steps/MoodStep";
 import { WhenStep } from "./steps/WhenStep";
 import { WhereStep } from "./steps/WhereStep";
@@ -31,6 +32,7 @@ import { FeaturesStep } from "./steps/FeaturesStep";
 import { SummaryStep } from "./steps/SummaryStep";
 
 const TOTAL_STEPS = 5; // 0=mood, 1=where, 2=when, 3=features, 4=summary
+const GEO_RADIUS_METERS = 300_000; // 300 km
 
 const initialState: WizardState = {
   currentStep: 0,
@@ -86,11 +88,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
   }
 }
 
-type GeoHook = {
-  status: string;
-  city: string | null;
-  countryCode: string | null;
-};
+type GeoHook = GeoState & { detect: () => void };
 
 async function fetchCount(params: URLSearchParams): Promise<number> {
   try {
@@ -101,9 +99,38 @@ async function fetchCount(params: URLSearchParams): Promise<number> {
   }
 }
 
+function applyGeoRadius(params: URLSearchParams, lat: number, lng: number) {
+  params.set("geoLat", String(lat));
+  params.set("geoLng", String(lng));
+  params.set("geoRadius", String(GEO_RADIUS_METERS));
+}
+
+function applyWhereToParams(
+  params: URLSearchParams,
+  where: WhereChoice | null,
+  geo: GeoHook | undefined,
+) {
+  if (where === "near_me" && geo?.lat != null && geo?.lng != null) {
+    params.set("city", geo.city ?? "");
+    if (!geo.city && geo.countryCode) params.set("countryCode", geo.countryCode);
+  } else if (where === "my_region" && geo?.lat != null && geo?.lng != null) {
+    applyGeoRadius(params, geo.lat, geo.lng);
+  } else if (where && where !== "anywhere") {
+    const codes = resolveWhereChoice(where);
+    if (codes.length) params.set("countryCode", codes.join(","));
+  }
+}
+
 export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: DiscoverWizardProps & { geo?: GeoHook }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Trigger geolocation detection when entering Where step
+  useEffect(() => {
+    if (state.currentStep === 1 && geo && geo.status === "idle") {
+      geo.detect();
+    }
+  }, [state.currentStep, geo]);
 
   // Fetch mood counts on mount (step 0)
   useEffect(() => {
@@ -122,32 +149,45 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
   }, [state.currentStep, taxonomy]);
 
   // Step 1 = Where — fetch counts per location option
+  // Re-runs when geo becomes ready
   useEffect(() => {
     if (state.currentStep !== 1) return;
     let cancelled = false;
 
+    const geoReady = geo?.status === "ready" && geo.lat != null && geo.lng != null;
+
     Promise.all(
       WHERE_IDS.map(async (whereId) => {
         const params = buildMoodSearchParams(state.mood, taxonomy);
-        if (whereId === "near_me" && geo?.city) {
-          params.set("city", geo.city);
-        } else if (whereId === "my_region" && geo?.countryCode) {
-          params.set("countryCode", geo.countryCode);
+
+        if (whereId === "near_me") {
+          if (!geoReady) return [whereId, undefined] as const;
+          if (geo!.city) params.set("city", geo!.city);
+          else if (geo!.countryCode) params.set("countryCode", geo!.countryCode);
+        } else if (whereId === "my_region") {
+          if (!geoReady) return [whereId, undefined] as const;
+          applyGeoRadius(params, geo!.lat!, geo!.lng!);
         } else if (whereId === "europe") {
           params.set("countryCode", REGION_COUNTRY_CODES.europe.join(","));
         } else if (whereId === "americas") {
           params.set("countryCode", REGION_COUNTRY_CODES.americas.join(","));
         }
-        // "anywhere" = no location filter (base params only)
+        // "anywhere" = no location filter
         const count = await fetchCount(params);
         return [whereId, count] as const;
       }),
     ).then((entries) => {
-      if (!cancelled) dispatch({ type: "SET_WHERE_COUNTS", counts: Object.fromEntries(entries) });
+      if (!cancelled) {
+        const counts: Partial<Record<WhereChoice, number>> = {};
+        for (const [key, val] of entries) {
+          if (val !== undefined) counts[key as WhereChoice] = val;
+        }
+        dispatch({ type: "SET_WHERE_COUNTS", counts });
+      }
     });
 
     return () => { cancelled = true; };
-  }, [state.currentStep, state.mood, taxonomy, geo]);
+  }, [state.currentStep, state.mood, taxonomy, geo?.status, geo?.lat, geo?.lng, geo?.city, geo?.countryCode]);
 
   // Step 2 = When — fetch counts per date preset
   useEffect(() => {
@@ -158,15 +198,7 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
       WHEN_PRESETS.map(async (preset) => {
         const params = buildMoodSearchParams(state.mood, taxonomy);
         params.set("eventDate", preset);
-        // Apply where filter if selected
-        if (state.where === "near_me" && geo?.city) {
-          params.set("city", geo.city);
-        } else if (state.where === "my_region" && geo?.countryCode) {
-          params.set("countryCode", geo.countryCode);
-        } else if (state.where && state.where !== "anywhere") {
-          const codes = resolveWhereChoice(state.where);
-          if (codes.length) params.set("countryCode", codes.join(","));
-        }
+        applyWhereToParams(params, state.where, geo);
         const count = await fetchCount(params);
         return [preset, count] as const;
       }),
@@ -187,15 +219,7 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
         const params = buildMoodSearchParams(state.mood, taxonomy);
         const tags = FEATURE_TAG_MAP[featureId];
         if (tags.length) params.set("tags", tags.join(","));
-        // Apply where + when filters
-        if (state.where === "near_me" && geo?.city) {
-          params.set("city", geo.city);
-        } else if (state.where === "my_region" && geo?.countryCode) {
-          params.set("countryCode", geo.countryCode);
-        } else if (state.where && state.where !== "anywhere") {
-          const codes = resolveWhereChoice(state.where);
-          if (codes.length) params.set("countryCode", codes.join(","));
-        }
+        applyWhereToParams(params, state.where, geo);
         if (state.when.length) params.set("eventDate", state.when.join(","));
         const count = await fetchCount(params);
         return [featureId, count] as const;
@@ -250,6 +274,9 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
         countryCodes = [geo.countryCode];
       }
     } else if (state.where === "my_region" && geo?.countryCode) {
+      // For "Show events" we use country code as a fallback since the
+      // main search page doesn't support geo radius in the URL yet.
+      // The wizard count uses the API's geoRadius param directly.
       countryCodes = [geo.countryCode];
     }
 
@@ -299,6 +326,7 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
           <WhereStep
             selected={state.where}
             counts={state.whereCounts}
+            geoStatus={geo?.status ?? "idle"}
             onSelect={(choice: WhereChoice) => dispatch({ type: "SET_WHERE", choice })}
           />
         )}
