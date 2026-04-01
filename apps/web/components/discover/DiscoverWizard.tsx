@@ -262,18 +262,18 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
 
     let countryCodes = resolveWhereChoice(state.where);
     let cities: string[] = [];
+    let geoRadius: number | null = null;
 
     if (state.where === "near_me" && geo) {
-      if (geo.city) {
+      if (geo.lat != null && geo.lng != null) {
+        geoRadius = 100000; // 100km for "near me"
+      } else if (geo.city) {
         cities = [geo.city];
       } else if (geo.countryCode) {
         countryCodes = [geo.countryCode];
       }
-    } else if (state.where === "my_region" && geo?.countryCode) {
-      // For "Show events" we use country code as a fallback since the
-      // main search page doesn't support geo radius in the URL yet.
-      // The wizard count uses the API's geoRadius param directly.
-      countryCodes = [geo.countryCode];
+    } else if (state.where === "my_region" && geo?.lat != null && geo?.lng != null) {
+      geoRadius = 300000; // 300km for "my region"
     }
 
     onComplete({
@@ -284,6 +284,7 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
       countryCodes,
       cities,
       attendanceModes: [],
+      geoRadius,
     });
   }, [state, taxonomy, geo, onComplete]);
 

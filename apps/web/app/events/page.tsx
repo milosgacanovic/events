@@ -149,6 +149,10 @@ export default async function EventsPage({
     sort: sortParam === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc",
     view: viewParam === "map" ? "map" : viewParam === "discover" ? "discover" : "list",
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
+    geoRadius: (() => {
+      const nearMe = Number(getSingle(searchParams, "nearMe"));
+      return Number.isFinite(nearMe) && nearMe > 0 ? nearMe * 1000 : undefined;
+    })(),
   };
 
   const initialTaxonomy = await fetchServerJson<TaxonomyResponse>("/meta/taxonomies");

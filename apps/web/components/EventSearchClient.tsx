@@ -108,6 +108,7 @@ export type EventSearchInitialQuery = {
   includePast?: boolean;
   dateFrom?: string;
   dateTo?: string;
+  geoRadius?: number;
 };
 
 type EventDatePreset =
@@ -237,13 +238,22 @@ export function EventSearchClient({
   const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
   const geo = useGeolocation();
+  const [geoRadius, setGeoRadius] = useState<number | null>(initialQuery?.geoRadius ?? null);
   const geoAutoApplyRef = useRef(false);
+  const geoRadiusPendingRef = useRef<number | null>(initialQuery?.geoRadius ?? null);
 
   // Auto-apply geo filter when detection completes
   useEffect(() => {
     if (geo.status === "ready" && geoAutoApplyRef.current) {
       geoAutoApplyRef.current = false;
-      if (geo.filterMode === "city" && geo.city) {
+      if (geoRadiusPendingRef.current) {
+        // Geo radius mode — apply radius and clear country/city
+        setGeoRadius(geoRadiusPendingRef.current);
+        setCountryCodes([]);
+        setCities([]);
+        setCityQuery("");
+        geoRadiusPendingRef.current = null;
+      } else if (geo.filterMode === "city" && geo.city) {
         setCities([geo.city]);
         setCountryCodes(geo.countryCode ? [geo.countryCode.toLowerCase()] : []);
       } else if (geo.filterMode === "country" && geo.countryCode) {
@@ -253,6 +263,16 @@ export function EventSearchClient({
       setPage(1);
     }
   }, [geo.status, geo.filterMode, geo.city, geo.countryCode]);
+
+  // Auto-trigger geo detection on mount if geoRadius was set from URL
+  useEffect(() => {
+    if (geoRadius && geo.status === "idle") {
+      geoAutoApplyRef.current = true;
+      geoRadiusPendingRef.current = geoRadius;
+      geo.detect();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.history.scrollRestoration !== "manual") {
@@ -285,9 +305,16 @@ export function EventSearchClient({
     setEventFormatIds(filters.eventFormatIds);
     setTags(filters.tags);
     setEventDates(filters.eventDates);
-    setCountryCodes(filters.countryCodes);
-    setCities(filters.cities);
     setAttendanceModes(filters.attendanceModes);
+    if (filters.geoRadius) {
+      setGeoRadius(filters.geoRadius);
+      setCountryCodes([]);
+      setCities([]);
+    } else {
+      setGeoRadius(null);
+      setCountryCodes(filters.countryCodes);
+      setCities(filters.cities);
+    }
     setView("list");
     setPage(1);
   }, []);
@@ -430,8 +457,14 @@ export function EventSearchClient({
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
     if (attendanceModes.length) params.set("attendanceMode", attendanceModes.join(","));
-    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (cities.length) params.set("city", cities.join(","));
+    if (geoRadius && geo.lat != null && geo.lng != null) {
+      params.set("geoLat", String(geo.lat));
+      params.set("geoLng", String(geo.lng));
+      params.set("geoRadius", String(geoRadius));
+    } else {
+      if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+      if (cities.length) params.set("city", cities.join(","));
+    }
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
     if (customFrom) params.set("from", `${customFrom}T00:00:00.000Z`);
     if (customTo) params.set("to", `${customTo}T23:59:59.999Z`);
@@ -460,6 +493,9 @@ export function EventSearchClient({
     userTimeZone,
     sort,
     includePast,
+    geoRadius,
+    geo.lat,
+    geo.lng,
   ]);
 
   const buildUiQueryString = useCallback(() => {
@@ -477,8 +513,12 @@ export function EventSearchClient({
     if (tags.length) params.set("tags", tags.join(","));
     if (languages.length) params.set("languages", languages.join(","));
     if (attendanceModes.length) params.set("attendanceMode", attendanceModes.join(","));
-    if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (cities.length) params.set("city", cities.join(","));
+    if (geoRadius) {
+      params.set("nearMe", String(geoRadius / 1000));
+    } else {
+      if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
+      if (cities.length) params.set("city", cities.join(","));
+    }
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
     if (customFrom) params.set("dateFrom", customFrom);
     if (customTo) params.set("dateTo", customTo);
@@ -506,6 +546,7 @@ export function EventSearchClient({
     includePast,
     categoryKeyById,
     eventFormatKeyById,
+    geoRadius,
   ]);
 
   const buildFacetQueryString = useCallback((exclude: "practice" | "eventFormat" | "languages" | "attendance" | "country") => {
@@ -519,8 +560,14 @@ export function EventSearchClient({
     if (tags.length) params.set("tags", tags.join(","));
     if (exclude !== "languages" && languages.length) params.set("languages", languages.join(","));
     if (exclude !== "attendance" && attendanceModes.length) params.set("attendanceMode", attendanceModes.join(","));
-    if (exclude !== "country" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (cities.length) params.set("city", cities.join(","));
+    if (geoRadius && geo.lat != null && geo.lng != null) {
+      params.set("geoLat", String(geo.lat));
+      params.set("geoLng", String(geo.lng));
+      params.set("geoRadius", String(geoRadius));
+    } else {
+      if (exclude !== "country" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
+      if (cities.length) params.set("city", cities.join(","));
+    }
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
     if (includePast) {
       params.set("includePast", "true");
@@ -544,6 +591,9 @@ export function EventSearchClient({
     eventDates,
     includePast,
     userTimeZone,
+    geoRadius,
+    geo.lat,
+    geo.lng,
   ]);
 
   const handleCustomFrom = useCallback((value: string) => {
@@ -605,6 +655,8 @@ export function EventSearchClient({
     const parsedPage = Number(searchParams.get("page") ?? "1");
     let nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
     const nextIncludePast = searchParams.get("includePast") === "true";
+    const nearMeKm = Number(searchParams.get("nearMe"));
+    const nextGeoRadius = Number.isFinite(nearMeKm) && nearMeKm > 0 ? nearMeKm * 1000 : null;
 
     // If cache restored a page beyond what the URL has, preserve it
     if (cacheRestoredPageRef.current !== null) {
@@ -627,6 +679,7 @@ export function EventSearchClient({
     setView(nextView);
     setPage(nextPage);
     setIncludePast(nextIncludePast);
+    setGeoRadius(nextGeoRadius);
     window.setTimeout(() => {
       syncingFromUrlRef.current = false;
     }, 0);
@@ -967,6 +1020,7 @@ export function EventSearchClient({
     setCustomTo("");
     setDateRangeOpen(false);
     setIncludePast(false);
+    setGeoRadius(null);
     setPage(1);
     setSort("startsAtAsc");
     clearSearchCache();
@@ -1150,6 +1204,15 @@ export function EventSearchClient({
         onRemove: () => { setIncludePast(false); setPage(1); },
       });
     }
+    if (geoRadius) {
+      const km = geoRadius / 1000;
+      const locationHint = geo.city ? ` (${geo.city})` : "";
+      chips.push({
+        key: "nearMe",
+        label: `${t("eventSearch.nearMe")} ${km} km${locationHint}`,
+        onRemove: () => { setGeoRadius(null); setPage(1); },
+      });
+    }
     return chips;
   }, [
     q,
@@ -1170,6 +1233,8 @@ export function EventSearchClient({
     customTo,
     locale,
     taxonomy?.eventFormats,
+    geoRadius,
+    geo.city,
   ]);
 
   const toTitleCase = toTitleCaseHelper;
@@ -1188,6 +1253,7 @@ export function EventSearchClient({
     }
     setCities((current) => (current.includes(value) ? current : [...current, value]));
     setCityQuery("");
+    setGeoRadius(null);
     setPage(1);
   }
 
@@ -1220,7 +1286,8 @@ export function EventSearchClient({
     eventDates.length ||
     customFrom ||
     customTo ||
-    includePast
+    includePast ||
+    geoRadius
   );
 
   const topPracticePills = useMemo(() => {
@@ -1265,11 +1332,15 @@ export function EventSearchClient({
         <div className="hero-collapsible">
             <div className="hero-pills">
               {/* Geo pill */}
-              {geo.status === "idle" && (
+              {geo.status === "idle" && !geoRadius && (
                 <button
                   type="button"
                   className="hero-pill hero-pill-geo"
-                  onClick={() => { geoAutoApplyRef.current = true; geo.detect(); }}
+                  onClick={() => {
+                    geoAutoApplyRef.current = true;
+                    geoRadiusPendingRef.current = 300000;
+                    geo.detect();
+                  }}
                 >
                   {t("eventSearch.hero.nearYou")}
                 </button>
@@ -1284,22 +1355,15 @@ export function EventSearchClient({
                   {t("eventSearch.hero.noEventsNearby")}
                 </span>
               )}
-              {geo.status === "ready" && geo.countryCode && (
+              {geo.status === "ready" && geo.lat != null && !geoRadius && (
                 <button
                   type="button"
-                  className={
-                    countryCodes.includes(geo.countryCode.toLowerCase())
-                      ? "hero-pill hero-pill-geo hero-pill-active"
-                      : "hero-pill hero-pill-geo"
-                  }
+                  className="hero-pill hero-pill-geo"
                   onClick={() => {
-                    if (geo.filterMode === "city" && geo.city) {
-                      setCities([geo.city]);
-                      setCountryCodes(geo.countryCode ? [geo.countryCode.toLowerCase()] : []);
-                    } else if (geo.countryCode) {
-                      setCountryCodes([geo.countryCode.toLowerCase()]);
-                      setCities([]);
-                    }
+                    setGeoRadius(300000);
+                    setCountryCodes([]);
+                    setCities([]);
+                    setCityQuery("");
                     setPage(1);
                   }}
                 >
@@ -1601,11 +1665,65 @@ export function EventSearchClient({
             })}
           </div>
         </details>
+        {/* Near me — geo radius filter */}
+        <div className="near-me-section">
+          <button
+            type="button"
+            className={`near-me-toggle${geoRadius ? " near-me-toggle--active" : ""}`}
+            onClick={() => {
+              if (geoRadius) {
+                setGeoRadius(null);
+                setPage(1);
+              } else if (geo.status === "idle") {
+                geoAutoApplyRef.current = true;
+                geoRadiusPendingRef.current = 300000;
+                geo.detect();
+              } else if (geo.status === "ready" && geo.lat != null) {
+                setGeoRadius(300000);
+                setCountryCodes([]);
+                setCities([]);
+                setCityQuery("");
+                setPage(1);
+              }
+            }}
+            disabled={geo.status === "detecting"}
+          >
+            <span className="near-me-toggle__icon">{geoRadius ? "\u2212" : "+"}</span>
+            <span className="near-me-toggle__label">{t("eventSearch.nearMe")}</span>
+            {geo.status === "detecting" && <span className="filter-spinner" />}
+          </button>
+          {geoRadius && (
+            <div className="near-me-radii">
+              {[50000, 100000, 300000, 500000, 1000000].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className={`near-me-radius${geoRadius === r ? " near-me-radius--active" : ""}`}
+                  onClick={() => { setGeoRadius(r); setPage(1); }}
+                >
+                  {r / 1000} km
+                </button>
+              ))}
+            </div>
+          )}
+          {geo.status === "detecting" && (
+            <span className="near-me-status">{t("eventSearch.hero.detecting")}</span>
+          )}
+          {geo.status === "ready" && geo.city && geoRadius && (
+            <span className="near-me-status">{geo.city}</span>
+          )}
+          {(geo.status === "denied" || geo.status === "unavailable") && (
+            <span className="near-me-status near-me-status--error">
+              {geo.status === "denied" ? t("eventSearch.nearMeDenied") : t("eventSearch.nearMeUnavailable")}
+            </span>
+          )}
+        </div>
         <details
-          open={countryOpen}
+          open={countryOpen && !geoRadius}
           onToggle={(event) => setCountryOpen((event.currentTarget as HTMLDetailsElement).open)}
         >
-          <summary>{t("eventSearch.country")}</summary>
+          <summary className={geoRadius ? "filter-summary--disabled" : ""}>{t("eventSearch.country")}</summary>
+          {!geoRadius && (
           <div className="filter-scroll">
             {[...visibleCountryFacets].sort((a, b) => getCountryLabel(a.value).localeCompare(getCountryLabel(b.value))).map(({ value, count }) => {
               const checked = countryCodes.includes(value);
@@ -1631,15 +1749,17 @@ export function EventSearchClient({
               );
             })}
           </div>
+          )}
         </details>
-        <div className="autocomplete-wrap">
+        <div className={`autocomplete-wrap${geoRadius ? " autocomplete-wrap--disabled" : ""}`}>
           <input
             ref={cityInputRef}
             value={cityQuery}
-            onFocus={() => setCitySuggestionsOpen(true)}
+            onFocus={() => !geoRadius && setCitySuggestionsOpen(true)}
             onBlur={() => window.setTimeout(() => setCitySuggestionsOpen(false), 120)}
-            onChange={(event) => setCityQuery(event.target.value)}
+            onChange={(event) => !geoRadius && setCityQuery(event.target.value)}
             onKeyDown={(event) => {
+              if (geoRadius) return;
               if (event.key === "Enter") {
                 event.preventDefault();
                 const query = cityQuery.trim();
@@ -1653,6 +1773,7 @@ export function EventSearchClient({
               }
             }}
             placeholder={t("eventSearch.placeholder.city")}
+            disabled={!!geoRadius}
           />
           {citySuggestionsOpen && visibleCitySuggestions.length > 0 && (
             <div className="autocomplete-menu">

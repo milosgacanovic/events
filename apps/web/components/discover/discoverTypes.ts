@@ -53,6 +53,7 @@ export type ResolvedFilters = {
   countryCodes: string[];
   cities: string[];
   attendanceModes: string[];
+  geoRadius: number | null;
 };
 
 export type DiscoverWizardProps = {
