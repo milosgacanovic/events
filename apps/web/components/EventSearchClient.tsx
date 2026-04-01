@@ -1665,65 +1665,12 @@ export function EventSearchClient({
             })}
           </div>
         </details>
-        {/* Near me — geo radius filter */}
-        <div className="near-me-section">
-          {geo.status === "detecting" && (
-            <span className="near-me-status">{t("eventSearch.hero.detecting")}</span>
-          )}
-          {(geo.status === "denied" || geo.status === "unavailable") && (
-            <span className="near-me-status near-me-status--error">
-              {geo.status === "denied" ? t("eventSearch.nearMeDenied") : t("eventSearch.nearMeUnavailable")}
-            </span>
-          )}
-          <label className="near-me-toggle toggle-control">
-            <input
-              className="toggle-control-input"
-              type="checkbox"
-              checked={!!geoRadius}
-              disabled={geo.status === "detecting" || geo.status === "denied" || geo.status === "unavailable"}
-              onChange={() => {
-                if (geoRadius) {
-                  setGeoRadius(null);
-                  setPage(1);
-                } else if (geo.status === "idle") {
-                  geoAutoApplyRef.current = true;
-                  geoRadiusPendingRef.current = 300000;
-                  geo.detect();
-                } else if (geo.status === "ready" && geo.lat != null) {
-                  setGeoRadius(300000);
-                  setCountryCodes([]);
-                  setCities([]);
-                  setCityQuery("");
-                  setPage(1);
-                }
-              }}
-            />
-            <span className="toggle-control-track" aria-hidden />
-            <span className="near-me-toggle__label">{t("eventSearch.nearMe")}</span>
-          </label>
-          {geo.status === "ready" && geo.city && geoRadius && (
-            <span className="near-me-city">{geo.city}</span>
-          )}
-          {geoRadius && (
-            <div className="near-me-radii">
-              {[50000, 100000, 300000, 500000, 1000000].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  className={`near-me-radius${geoRadius === r ? " near-me-radius--active" : ""}`}
-                  onClick={() => { setGeoRadius(r); setPage(1); }}
-                >
-                  {r / 1000} km
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
         <details
           open={countryOpen && !geoRadius}
-          onToggle={(event) => setCountryOpen((event.currentTarget as HTMLDetailsElement).open)}
+          onToggle={(event) => !geoRadius && setCountryOpen((event.currentTarget as HTMLDetailsElement).open)}
+          className={geoRadius ? "filter-details--disabled" : ""}
         >
-          <summary className={geoRadius ? "filter-summary--disabled" : ""}>{t("eventSearch.country")}</summary>
+          <summary>{t("eventSearch.country")}</summary>
           {!geoRadius && (
           <div className="filter-scroll">
             {[...visibleCountryFacets].sort((a, b) => getCountryLabel(a.value).localeCompare(getCountryLabel(b.value))).map(({ value, count }) => {
@@ -1809,6 +1756,52 @@ export function EventSearchClient({
                 }}
               >
                 {toTitleCase(item)} ×
+              </button>
+            ))}
+          </div>
+        )}
+        {/* Near me — geo radius filter */}
+        <button
+          type="button"
+          className={`filter-row${geoRadius ? " filter-row-selected" : ""}`}
+          onClick={() => {
+            if (geoRadius) {
+              setGeoRadius(null);
+              setPage(1);
+            } else if (geo.status === "idle") {
+              geoAutoApplyRef.current = true;
+              geoRadiusPendingRef.current = 300000;
+              geo.detect();
+            } else if (geo.status === "ready" && geo.lat != null) {
+              setGeoRadius(300000);
+              setCountryCodes([]);
+              setCities([]);
+              setCityQuery("");
+              setPage(1);
+            }
+          }}
+        >
+          <span className="filter-row-icon">{geoRadius ? "\u2212" : "+"}</span>
+          <span className="filter-row-label">
+            {geoRadius && geo.status === "detecting"
+              ? `${t("eventSearch.nearMe")} (${t("eventSearch.nearMeDetecting")})`
+              : geoRadius && (geo.status === "denied" || geo.status === "unavailable")
+              ? `${t("eventSearch.nearMe")} (${t("eventSearch.nearMeFailed")})`
+              : geoRadius && geo.status === "ready" && geo.city
+              ? `${t("eventSearch.nearMe")}: ${geo.city}`
+              : t("eventSearch.nearMe")}
+          </span>
+        </button>
+        {geoRadius && (
+          <div className="near-me-radii">
+            {[50000, 100000, 300000, 500000, 1000000].map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`near-me-radius${geoRadius === r ? " near-me-radius--active" : ""}`}
+                onClick={() => { setGeoRadius(r); setPage(1); }}
+              >
+                {r / 1000} km
               </button>
             ))}
           </div>

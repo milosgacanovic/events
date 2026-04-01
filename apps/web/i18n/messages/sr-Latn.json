@@ -280,6 +280,8 @@
   "eventSearch.hero.heading": "Pronađi svoj sledeći ples",
   "eventSearch.hero.nearYou": "📍 Blizu mene",
   "eventSearch.nearMe": "Blizu mene",
+  "eventSearch.nearMeDetecting": "otkrivanje lokacije",
+  "eventSearch.nearMeFailed": "otkrivanje lokacije neuspelo",
   "eventSearch.nearMeDenied": "Pristup lokaciji odbijen",
   "eventSearch.nearMeUnavailable": "Lokacija nedostupna",
   "eventSearch.hero.noEventsNearby": "Nema događaja u blizini",

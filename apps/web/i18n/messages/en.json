@@ -122,6 +122,8 @@
   "eventSearch.hero.eventsIn": "Events in {city}",
   "eventSearch.hero.thisWeekend": "This weekend",
   "eventSearch.nearMe": "Near me",
+  "eventSearch.nearMeDetecting": "detecting location",
+  "eventSearch.nearMeFailed": "detecting location failed",
   "eventSearch.nearMeDenied": "Location access denied",
   "eventSearch.nearMeUnavailable": "Location unavailable",
   "eventSearch.hero.noEventsNearby": "No events found nearby",

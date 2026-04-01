@@ -1998,32 +1998,7 @@ label.meta {
   flex-shrink: 0;
 }
 
-/* Near me — geo radius filter */
-.near-me-section {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-.near-me-toggle {
-  padding: 4px 0;
-}
-
-.near-me-toggle__label {
-  font-size: 0.88rem;
-}
-
-.near-me-city {
-  display: inline-block;
-  margin-top: 6px;
-  margin-left: 10px;
-  padding: 2px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--accent-bg);
-  color: var(--accent);
-  font-size: 0.88rem;
-}
-
+/* Near me — geo radius pills */
 .near-me-radii {
   display: flex;
   flex-wrap: wrap;
@@ -2054,26 +2029,22 @@ label.meta {
   border-color: var(--accent);
 }
 
-.near-me-status {
-  display: block;
-  padding: 2px 10px;
-  margin-bottom: 4px;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.near-me-status--error {
-  color: var(--danger, #c62828);
-}
-
-.filter-summary--disabled {
+.filter-details--disabled {
   opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.filter-details--disabled summary {
   pointer-events: none;
 }
 
 .autocomplete-wrap--disabled {
   opacity: 0.45;
-  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.autocomplete-wrap--disabled input {
+  cursor: not-allowed;
 }
 
 /* Scrollable filter list (6.5 items visible) */
