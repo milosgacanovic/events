@@ -729,6 +729,7 @@
   "manage.sidebar.myHosts": "Omat järjestäjät",
   "manage.sidebar.openMenu": "Avaa valikko",
   "manage.sidebar.tagSuggestions": "Tunniste-ehdotukset",
+  "manage.sidebar.activityLogs": "Activity Logs",
   "manage.sidebar.taxonomies": "Taksonomiat",
   "manage.sidebar.users": "Käyttäjät",
   "map.note.geoOnly": "Kartalla näytetään vain tapahtumat, joilla on sijaintikoordinaatit.",

@@ -729,6 +729,7 @@
   "manage.sidebar.myHosts": "Mes hôtes",
   "manage.sidebar.openMenu": "Ouvrir le menu",
   "manage.sidebar.tagSuggestions": "Suggestions de tags",
+  "manage.sidebar.activityLogs": "Activity Logs",
   "manage.sidebar.taxonomies": "Taxonomies",
   "manage.sidebar.users": "Utilisateurs",
   "map.note.geoOnly": "Seuls les événements avec des coordonnées de localisation apparaissent sur la carte.",

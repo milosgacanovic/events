@@ -729,6 +729,7 @@
   "manage.sidebar.myHosts": "내 호스트",
   "manage.sidebar.openMenu": "메뉴 열기",
   "manage.sidebar.tagSuggestions": "태그 제안",
+  "manage.sidebar.activityLogs": "Activity Logs",
   "manage.sidebar.taxonomies": "분류 체계",
   "manage.sidebar.users": "사용자",
   "map.note.geoOnly": "위치 좌표가 있는 이벤트만 지도에 표시됩니다.",

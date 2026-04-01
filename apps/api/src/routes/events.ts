@@ -24,6 +24,7 @@ import { resolveUserId, requireEventAccess } from "../middleware/ownership";
 import { canUserEditEvent } from "../db/manageRepo";
 import { archiveEvent, cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
+import { recordActivity } from "../services/activityLogger";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 import {
@@ -717,6 +718,14 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       await setEventDefaultLocation(app.db, event.id, normalizedInput.locationId ?? null);
     }
 
+    recordActivity(app.db, request, {
+      action: "event.create",
+      targetType: "event",
+      targetId: event.id,
+      targetLabel: event.title,
+      snapshot: event as unknown as Record<string, unknown>,
+    });
+
     reply.code(201);
     return event;
   });
@@ -874,6 +883,17 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       clearSearchCache();
     }
 
+    recordActivity(app.db, request, {
+      action: "event.edit",
+      targetType: "event",
+      targetId: params.data.id,
+      targetLabel: event.title,
+      snapshot: event as unknown as Record<string, unknown>,
+      metadata: previousEvent && event.visibility !== previousEvent.visibility
+        ? { visibilityChange: { old: previousEvent.visibility, new: event.visibility } }
+        : undefined,
+    });
+
     return event;
   });
 
@@ -914,6 +934,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       throw error;
     }
     recordPublish();
+    recordActivity(app.db, request, {
+      action: "event.publish",
+      targetType: "event",
+      targetId: params.data.id,
+      metadata: { force },
+    });
     return { ok: true };
   });
 
@@ -933,6 +959,11 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     }
 
     await unpublishEvent(app.db, app.meiliService, params.data.id);
+    recordActivity(app.db, request, {
+      action: "event.unpublish",
+      targetType: "event",
+      targetId: params.data.id,
+    });
     return { ok: true };
   });
 
@@ -952,6 +983,11 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     }
 
     await cancelEvent(app.db, app.meiliService, params.data.id);
+    recordActivity(app.db, request, {
+      action: "event.cancel",
+      targetType: "event",
+      targetId: params.data.id,
+    });
     return { ok: true };
   });
 
@@ -971,6 +1007,11 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     }
 
     await archiveEvent(app.db, app.meiliService, params.data.id);
+    recordActivity(app.db, request, {
+      action: "event.archive",
+      targetType: "event",
+      targetId: params.data.id,
+    });
     return { ok: true };
   });
 
@@ -1000,6 +1041,15 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       reply.code(400);
       return { error: "delete_only_draft_or_archived" };
     }
+
+    // Snapshot before deletion for audit trail
+    recordActivity(app.db, request, {
+      action: "event.delete",
+      targetType: "event",
+      targetId: params.data.id,
+      targetLabel: event.title,
+      snapshot: event as unknown as Record<string, unknown>,
+    });
 
     // Hard delete with cascading cleanup
     await app.db.query(`DELETE FROM event_occurrences WHERE event_id = $1`, [params.data.id]);

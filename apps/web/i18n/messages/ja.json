@@ -729,6 +729,7 @@
   "manage.sidebar.myHosts": "マイホスト",
   "manage.sidebar.openMenu": "メニューを開く",
   "manage.sidebar.tagSuggestions": "タグの提案",
+  "manage.sidebar.activityLogs": "Activity Logs",
   "manage.sidebar.taxonomies": "タクソノミー",
   "manage.sidebar.users": "ユーザー",
   "map.note.geoOnly": "位置座標のあるイベントのみマップに表示されます。",

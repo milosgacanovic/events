@@ -7,6 +7,7 @@ import {
   listAdminEvents,
   listAdminOrganizers,
 } from "../db/adminRepo";
+import { recordActivity } from "../services/activityLogger";
 import { getEventById, setEventOrganizersByRoleKey } from "../db/eventRepo";
 import { createLocation } from "../db/locationRepo";
 import { listManagedEvents, listManagedOrganizers, getEventFacets, getHostFacets } from "../db/manageRepo";
@@ -449,6 +450,13 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
         externalId: parsed.data.externalId,
       });
       clearSearchCache();
+      recordActivity(app.db, request, {
+        action: "host.edit",
+        targetType: "host",
+        targetId: updated?.id ?? existing.id,
+        targetLabel: parsed.data.name,
+        metadata: { via: "external_import", externalSource: parsed.data.externalSource, externalId: parsed.data.externalId },
+      });
       return {
         id: updated?.id ?? existing.id,
         slug: updated?.slug ?? existing.slug,
@@ -477,6 +485,13 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       externalId: parsed.data.externalId,
     });
     clearSearchCache();
+    recordActivity(app.db, request, {
+      action: "host.create",
+      targetType: "host",
+      targetId: created.id,
+      targetLabel: parsed.data.name,
+      metadata: { via: "external_import", externalSource: parsed.data.externalSource, externalId: parsed.data.externalId },
+    });
     reply.code(201);
     return { id: created.id, slug: created.slug, created: true };
   });
@@ -509,6 +524,13 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
         missingRoleKeys: result.missingRoleKeys,
       };
     }
+    recordActivity(app.db, request, {
+      action: "ownership.replace",
+      targetType: "event",
+      targetId: event.id,
+      targetLabel: event.title,
+      metadata: { organizers: parsed.data },
+    });
     return { ok: true };
   });
 
@@ -529,6 +551,16 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       reply.code(404);
       return { error: "not_found" };
     }
+
+    // Snapshot before deletion
+    const eventSnap = await getEventById(app.db, params.data.id);
+    recordActivity(app.db, request, {
+      action: "event.delete",
+      targetType: "event",
+      targetId: params.data.id,
+      targetLabel: eventSnap?.title ?? null,
+      snapshot: eventSnap as unknown as Record<string, unknown>,
+    });
 
     // Delete event and related data
     await app.db.query(`delete from event_occurrences where event_id = $1`, [params.data.id]);
@@ -571,6 +603,8 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       return { dryRun: true, related };
     }
 
+    // Snapshot before deletion
+    const hostSnap = await getAdminOrganizerById(app.db, params.data.id);
     const { found, affectedEventIds } = await deleteOrganizer(app.db, params.data.id);
     if (!found) {
       reply.code(404);
@@ -586,6 +620,14 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       );
       clearSearchCache();
     }
+
+    recordActivity(app.db, request, {
+      action: "host.delete",
+      targetType: "host",
+      targetId: params.data.id,
+      targetLabel: hostSnap?.name ?? null,
+      snapshot: hostSnap as unknown as Record<string, unknown>,
+    });
 
     reply.code(204);
   });

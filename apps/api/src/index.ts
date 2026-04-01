@@ -21,7 +21,9 @@ import profileRoutes from "./routes/profile";
 import applicationRoutes from "./routes/applications";
 import manageRoutes from "./routes/manage";
 import uploadRoutes from "./routes/uploads";
+import { logError } from "./db/activityLogRepo";
 import { getEventsExternalRefSchemaStatus } from "./db/startupChecks";
+import { sanitizeBody } from "./services/activityLogger";
 import { checkRateLimit, resolveAdminRateLimit, resolvePublicRateLimit } from "./middleware/rateLimit";
 import { AuthService } from "./services/authService";
 import { KeycloakAdminService } from "./services/keycloakAdminService";
@@ -144,6 +146,22 @@ async function buildServer() {
 
     request.log.error({ err }, "Request failed");
     const code = (error as { statusCode?: number }).statusCode ?? 500;
+
+    if (code >= 500) {
+      logError(pool, {
+        errorMessage: err.message,
+        stackTrace: err.stack ?? null,
+        requestMethod: request.method,
+        requestUrl: request.url,
+        requestBody: sanitizeBody(request.body),
+        actorId: null,
+        actorName: (request as { auth?: { preferredUsername?: string } }).auth?.preferredUsername ?? null,
+        statusCode: code,
+        ipAddress: request.ip ?? null,
+        userAgent: request.headers["user-agent"] ?? null,
+      }).catch(() => {});
+    }
+
     reply.code(code).send({ error: err.message || "internal_error" });
   });
 

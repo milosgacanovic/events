@@ -2,6 +2,8 @@ import type { FastifyPluginAsync } from "fastify";
 import { DateTime } from "luxon";
 import { z } from "zod";
 
+import { listActivityLogs, getActivityLogById, listErrorLogs, getErrorLogById } from "../db/activityLogRepo";
+import { recordActivity } from "../services/activityLogger";
 import { runAlertsDry } from "../db/alertRepo";
 import { OCCURRENCES_INDEX } from "../services/meiliService";
 import {
@@ -361,6 +363,13 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       );
     }
 
+    recordActivity(app.db, request, {
+      action: "user.role_change",
+      targetType: "user",
+      targetId: params.data.id,
+      metadata: { added: body.data.add ?? [], removed: body.data.remove ?? [] },
+    });
+
     return { ok: true };
   });
 
@@ -375,6 +384,12 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       `UPDATE users SET is_service_account = $2 WHERE id = $1`,
       [params.data.id, body.data.is_service_account],
     );
+    recordActivity(app.db, request, {
+      action: "user.service_account_change",
+      targetType: "user",
+      targetId: params.data.id,
+      metadata: { is_service_account: body.data.is_service_account },
+    });
     return { ok: true };
   });
 
@@ -516,6 +531,11 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       [params.data.id],
     );
     if (!result.rows[0]) { reply.code(404); return { error: "not_found_or_not_detached" }; }
+    recordActivity(app.db, request, {
+      action: "event.reattach",
+      targetType: "event",
+      targetId: params.data.id,
+    });
     return { ok: true };
   });
 
@@ -542,6 +562,53 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       status: q.status,
       practiceCategoryId: q.practiceCategoryId,
     });
+  });
+
+  // --- Activity & Error Logs ---
+
+  app.get("/admin/activity-logs", async (request) => {
+    await app.requireAdmin(request);
+    const q = z.object({
+      q: z.string().optional(),
+      action: z.string().optional(),
+      targetType: z.string().optional(),
+      actorId: z.string().uuid().optional(),
+      dateFrom: z.string().optional(),
+      dateTo: z.string().optional(),
+      page: z.coerce.number().int().min(1).default(1),
+      pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    }).parse(request.query);
+    return listActivityLogs(app.db, q);
+  });
+
+  app.get("/admin/activity-logs/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const log = await getActivityLogById(app.db, params.data.id);
+    if (!log) { reply.code(404); return { error: "not_found" }; }
+    return log;
+  });
+
+  app.get("/admin/error-logs", async (request) => {
+    await app.requireAdmin(request);
+    const q = z.object({
+      q: z.string().optional(),
+      dateFrom: z.string().optional(),
+      dateTo: z.string().optional(),
+      page: z.coerce.number().int().min(1).default(1),
+      pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    }).parse(request.query);
+    return listErrorLogs(app.db, q);
+  });
+
+  app.get("/admin/error-logs/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const log = await getErrorLogById(app.db, params.data.id);
+    if (!log) { reply.code(404); return { error: "not_found" }; }
+    return log;
   });
 
 };
