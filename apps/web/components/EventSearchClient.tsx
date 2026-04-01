@@ -14,7 +14,10 @@ import { scrollToTopFast } from "../lib/scroll";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useGeolocation } from "../lib/useGeolocation";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
+import type { ResolvedFilters } from "./discover/discoverTypes";
 import { useI18n } from "./i18n/I18nProvider";
+
+const DiscoverWizard = dynamic(() => import("./discover/DiscoverWizard").then((m) => ({ default: m.DiscoverWizard })), { ssr: false });
 
 
 export type SearchResponse = {
@@ -100,7 +103,7 @@ export type EventSearchInitialQuery = {
   cities?: string[];
   eventDates?: EventDatePreset[];
   sort?: "startsAtAsc" | "startsAtDesc";
-  view?: "list" | "map";
+  view?: "list" | "map" | "discover";
   page?: number;
   includePast?: boolean;
   dateFrom?: string;
@@ -162,7 +165,7 @@ export function EventSearchClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [view, setView] = useState<"list" | "map">(initialQuery?.view ?? "list");
+  const [view, setView] = useState<"list" | "map" | "discover">(initialQuery?.view ?? "list");
   const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc">(initialQuery?.sort ?? "startsAtAsc");
   const [q, setQ] = useState(initialQuery?.q ?? "");
   const [practiceCategoryIds, setPracticeCategoryIds] = useState(initialQuery?.practiceCategoryIds ?? []);
@@ -276,6 +279,18 @@ export function EventSearchClient({
     const raf = requestAnimationFrame(() => setSidebarSkipTransition(false));
     return () => cancelAnimationFrame(raf);
   }, [sidebarSkipTransition]);
+
+  const handleDiscoverComplete = useCallback((filters: ResolvedFilters) => {
+    setPracticeCategoryIds(filters.practiceCategoryIds);
+    setEventFormatIds(filters.eventFormatIds);
+    setTags(filters.tags);
+    setEventDates(filters.eventDates);
+    setCountryCodes(filters.countryCodes);
+    setCities(filters.cities);
+    setAttendanceModes(filters.attendanceModes);
+    setView("list");
+    setPage(1);
+  }, []);
 
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => {
@@ -586,7 +601,7 @@ export function EventSearchClient({
       .map((item) => item.toLowerCase())
       .filter((item): item is EventDatePreset => EVENT_DATE_PRESETS.includes(item as EventDatePreset));
     const nextSort = searchParams.get("sort") === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc";
-    const nextView = searchParams.get("view") === "map" ? "map" : "list";
+    const nextView = searchParams.get("view") === "map" ? "map" : searchParams.get("view") === "discover" ? "discover" : "list";
     const parsedPage = Number(searchParams.get("page") ?? "1");
     let nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
     const nextIncludePast = searchParams.get("includePast") === "true";
@@ -1831,6 +1846,22 @@ export function EventSearchClient({
               </span>
               <span className="icon-label">{t("eventSearch.view.map")}</span>
             </button>
+            {auth.authenticated && auth.roles.includes("admin") && (
+            <button
+              type="button"
+              className={view === "discover" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
+              onClick={() => setView("discover")}
+              aria-label="Discover"
+              title="Discover"
+            >
+              <span aria-hidden className="icon-glyph">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" />
+                </svg>
+              </span>
+              <span className="icon-label">Discover</span>
+            </button>
+            )}
             </div>
           </div>
         </div>
@@ -1847,7 +1878,14 @@ export function EventSearchClient({
             </button>
           </div>
         )}
-        {view === "map" ? (
+        {view === "discover" ? (
+          <DiscoverWizard
+            taxonomy={taxonomy}
+            geo={geo}
+            onComplete={handleDiscoverComplete}
+            onCancel={() => setView("list")}
+          />
+        ) : view === "map" ? (
           <LeafletClusterMap
             queryString={activeQueryString}
             refreshToken={refreshToken}

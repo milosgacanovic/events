@@ -1,0 +1,589 @@
+/* ============================================
+   Discover Wizard — Colors
+   ============================================ */
+:root {
+  --mood-gentle-bg: #1a2f2e;
+  --mood-gentle-wave1: #4db6ac;
+  --mood-gentle-wave2: #80cbc4;
+  --mood-gentle-wave3: #b2dfdb;
+  --mood-gentle-dot: #80cbc4;
+  --mood-gentle-stroke: #4db6ac;
+  --mood-gentle-card-border: #2a4a48;
+
+  --mood-wild-bg: #2e1a1e;
+  --mood-wild-stroke1: #ef9a9a;
+  --mood-wild-stroke2: #f48fb1;
+  --mood-wild-spark: #ffab91;
+  --mood-wild-card-border: #4a2a30;
+
+  --mood-deep-bg: #1e1a2e;
+  --mood-deep-ring: #b39ddb;
+  --mood-deep-dot: #ce93d8;
+  --mood-deep-card-border: #302a4a;
+
+  --mood-open-bg: #2e2818;
+  --mood-open-ray: #ffcc80;
+  --mood-open-dot: #ffe082;
+  --mood-open-glow: #ffa726;
+  --mood-open-card-border: #4a4228;
+
+  --discover-card-bg: var(--surface);
+  --discover-card-border: var(--line);
+  --discover-card-hover: var(--hover-bg);
+  --discover-step-dot: var(--line);
+  --discover-step-dot-active: var(--accent);
+  --discover-step-dot-done: var(--accent);
+}
+
+[data-theme="dark"] {
+  --mood-gentle-bg: #0f1f1e;
+  --mood-gentle-wave1: #2e7d72;
+  --mood-gentle-wave2: #4a9e92;
+  --mood-gentle-wave3: #6bb5aa;
+  --mood-gentle-dot: #5aafa2;
+  --mood-gentle-stroke: #3d9488;
+  --mood-gentle-card-border: #1a3533;
+
+  --mood-wild-bg: #1f0f14;
+  --mood-wild-stroke1: #c77070;
+  --mood-wild-stroke2: #c76e8a;
+  --mood-wild-spark: #d4886e;
+  --mood-wild-card-border: #351a22;
+
+  --mood-deep-bg: #140f1f;
+  --mood-deep-ring: #7e6aab;
+  --mood-deep-dot: #a06dab;
+  --mood-deep-card-border: #221a35;
+
+  --mood-open-bg: #1f1a0f;
+  --mood-open-ray: #c99a50;
+  --mood-open-dot: #d4ad55;
+  --mood-open-glow: #c98520;
+  --mood-open-card-border: #352e1a;
+}
+
+/* ============================================
+   Wizard Container
+   ============================================ */
+.discover-wizard {
+  position: relative;
+  width: 100%;
+  min-height: 400px;
+  padding: 24px 0;
+}
+
+/* ============================================
+   Step Indicator Dots
+   ============================================ */
+.discover-steps {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.discover-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--discover-step-dot);
+  border: none;
+  padding: 0;
+  cursor: default;
+  transition: all 300ms ease;
+}
+
+.discover-step-dot--current {
+  width: 24px;
+  background: var(--discover-step-dot-active);
+}
+
+.discover-step-dot--done {
+  background: var(--discover-step-dot-done);
+}
+
+/* ============================================
+   Step Container & Transitions
+   ============================================ */
+.discover-step-container {
+  position: relative;
+}
+
+.discover-step {
+  animation: discover-step-enter 350ms ease both;
+}
+
+@keyframes discover-step-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.discover-step-title {
+  text-align: center;
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.discover-step-subtitle {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0 0 28px;
+}
+
+/* ============================================
+   Navigation
+   ============================================ */
+.discover-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.discover-nav-btn {
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.discover-nav-btn:hover {
+  background: var(--hover-bg);
+}
+
+.discover-nav-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.discover-nav-btn--primary:hover {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
+.discover-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.discover-skip {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.discover-skip:hover {
+  color: var(--ink);
+}
+
+/* ============================================
+   Mood Cards (Step 1) — 2×2 Grid
+   ============================================ */
+.mood-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.mood-card {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  aspect-ratio: 4 / 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.mood-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.mood-card--gentle { border-color: var(--mood-gentle-card-border); }
+.mood-card--wild { border-color: var(--mood-wild-card-border); }
+.mood-card--deep { border-color: var(--mood-deep-card-border); }
+.mood-card--open { border-color: var(--mood-open-card-border); }
+
+.mood-card__svg-wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.mood-card__label {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 100%);
+}
+
+.mood-card__title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 2px;
+}
+
+.mood-card__desc {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+}
+
+/* Mood card transition states */
+.mood-card--exiting {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 300ms ease, transform 300ms ease;
+  pointer-events: none;
+}
+
+.mood-card--expanding {
+  position: absolute;
+  z-index: 10;
+  transition: all 750ms cubic-bezier(0.22, 1, 0.36, 1);
+  inset: 0;
+  aspect-ratio: auto;
+  border-radius: var(--radius-md);
+}
+
+.mood-card--expanding .mood-card__label {
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+/* ============================================
+   Selection Cards (Steps 2-4)
+   ============================================ */
+.discover-card-grid {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.discover-card-grid--3col { grid-template-columns: repeat(3, 1fr); }
+.discover-card-grid--4col { grid-template-columns: repeat(4, 1fr); }
+
+.discover-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--discover-card-border);
+  background: var(--discover-card-bg);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+  font: inherit;
+  color: var(--ink);
+  gap: 6px;
+}
+
+.discover-card:hover {
+  background: var(--discover-card-hover);
+  transform: translateY(-1px);
+}
+
+.discover-card--selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.discover-card__icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.discover-card__label {
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.discover-card__count {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* ============================================
+   Summary Screen
+   ============================================ */
+.discover-summary {
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.discover-summary-selections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.discover-summary-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.discover-summary-row__label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.discover-summary-row__value {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.discover-summary-count {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.discover-summary-count-label {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+
+.discover-summary-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* ============================================
+   SVG Animations — Gentle (waves)
+   ============================================ */
+.mood-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.gentle-wave--1 { animation: gentle-sway 6s ease-in-out infinite; }
+.gentle-wave--2 { animation: gentle-sway 7s ease-in-out infinite -2s; }
+.gentle-wave--3 { animation: gentle-sway 8s ease-in-out infinite -4s; }
+
+@keyframes gentle-sway {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(10px); }
+}
+
+.gentle-dot--1 { animation: gentle-rise 5s ease-in-out infinite; }
+.gentle-dot--2 { animation: gentle-rise 6s ease-in-out infinite -1.5s; }
+.gentle-dot--3 { animation: gentle-rise 7s ease-in-out infinite -3s; }
+.gentle-dot--4 { animation: gentle-rise 5.5s ease-in-out infinite -2s; }
+.gentle-dot--5 { animation: gentle-rise 6.5s ease-in-out infinite -4s; }
+.gentle-dot--6 { animation: gentle-rise 7s ease-in-out infinite -1s; }
+.gentle-dot--7 { animation: gentle-rise 5.5s ease-in-out infinite -3.5s; }
+.gentle-dot--8 { animation: gentle-rise 6s ease-in-out infinite -5s; }
+
+@keyframes gentle-rise {
+  0%, 100% { transform: translateY(0); opacity: 0.3; }
+  50% { transform: translateY(-12px); opacity: 0.6; }
+}
+
+.gentle-flow--1 { animation: gentle-drift 8s ease-in-out infinite; }
+.gentle-flow--2 { animation: gentle-drift 9s ease-in-out infinite -3s; }
+.gentle-flow--3 { animation: gentle-drift 10s ease-in-out infinite -5s; }
+
+@keyframes gentle-drift {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-5px) translateX(5px); }
+}
+
+/* ============================================
+   SVG Animations — Wild (strokes + sparks)
+   ============================================ */
+.wild-stroke--1 { animation: wild-jitter 3s ease-in-out infinite; transform-origin: bottom; }
+.wild-stroke--2 { animation: wild-jitter 3.5s ease-in-out infinite -0.7s; transform-origin: bottom; }
+.wild-stroke--3 { animation: wild-jitter 2.8s ease-in-out infinite -1.4s; transform-origin: bottom; }
+.wild-stroke--4 { animation: wild-jitter 3.2s ease-in-out infinite -2s; transform-origin: bottom; }
+.wild-stroke--5 { animation: wild-jitter 3.6s ease-in-out infinite -0.3s; transform-origin: bottom; }
+.wild-stroke--6 { animation: wild-jitter 3.4s ease-in-out infinite -1s; transform-origin: bottom; }
+.wild-stroke--7 { animation: wild-jitter 3.1s ease-in-out infinite -2.2s; transform-origin: bottom; }
+
+@keyframes wild-jitter {
+  0%, 100% { transform: rotate(0deg) scaleY(1); }
+  25% { transform: rotate(1.5deg) scaleY(1.02); }
+  50% { transform: rotate(-1deg) scaleY(0.98); }
+  75% { transform: rotate(1deg) scaleY(1.01); }
+}
+
+.wild-spark--1 { animation: wild-wander 4s ease-in-out infinite; }
+.wild-spark--2 { animation: wild-wander 5s ease-in-out infinite -1.5s; }
+.wild-spark--3 { animation: wild-wander 4.5s ease-in-out infinite -3s; }
+.wild-spark--4 { animation: wild-wander 3.8s ease-in-out infinite -2s; }
+.wild-spark--5 { animation: wild-wander 4.2s ease-in-out infinite -1s; }
+.wild-spark--6 { animation: wild-wander 5.2s ease-in-out infinite -3.5s; }
+
+@keyframes wild-wander {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(6px, -4px); }
+  50% { transform: translate(-3px, 5px); }
+  75% { transform: translate(4px, 2px); }
+}
+
+.wild-flow--1 { animation: wild-flow-drift 6s ease-in-out infinite; }
+.wild-flow--2 { animation: wild-flow-drift 7s ease-in-out infinite -2.5s; }
+
+@keyframes wild-flow-drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* ============================================
+   SVG Animations — Deep (rings + orbits)
+   ============================================ */
+.deep-ring--1 { animation: deep-breathe 4s ease-in-out infinite; }
+.deep-ring--2 { animation: deep-breathe 5s ease-in-out infinite -1s; }
+.deep-ring--3 { animation: deep-breathe 6s ease-in-out infinite -2s; }
+.deep-ring--4 { animation: deep-breathe 7s ease-in-out infinite -3s; }
+.deep-ring--5 { animation: deep-breathe 8s ease-in-out infinite -4s; }
+
+@keyframes deep-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.25; }
+  50% { transform: scale(1.08); opacity: 0.4; }
+}
+
+.deep-orbit--cw {
+  transform-origin: 100px 100px;
+  animation: deep-spin-cw 20s linear infinite;
+}
+
+.deep-orbit--ccw {
+  transform-origin: 100px 100px;
+  animation: deep-spin-ccw 25s linear infinite;
+}
+
+@keyframes deep-spin-cw { to { transform: rotate(360deg); } }
+@keyframes deep-spin-ccw { to { transform: rotate(-360deg); } }
+
+.deep-particle--1 { animation: deep-float 5s ease-in-out infinite; }
+.deep-particle--2 { animation: deep-float 6s ease-in-out infinite -1.5s; }
+.deep-particle--3 { animation: deep-float 5.5s ease-in-out infinite -3s; }
+.deep-particle--4 { animation: deep-float 6.5s ease-in-out infinite -4s; }
+.deep-particle--5 { animation: deep-float 7s ease-in-out infinite -2s; }
+.deep-particle--6 { animation: deep-float 5.8s ease-in-out infinite -4.5s; }
+.deep-particle--7 { animation: deep-float 6.2s ease-in-out infinite -1s; }
+.deep-particle--8 { animation: deep-float 5.3s ease-in-out infinite -3.5s; }
+
+@keyframes deep-float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(3px, -4px); }
+}
+
+/* ============================================
+   SVG Animations — Open (rays + glow)
+   ============================================ */
+.open-glow { animation: open-pulse-glow 4s ease-in-out infinite; }
+
+@keyframes open-pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.open-ray--1 { animation: open-ray-pulse 3s ease-in-out infinite; }
+.open-ray--2 { animation: open-ray-pulse 3.5s ease-in-out infinite -0.5s; }
+.open-ray--3 { animation: open-ray-pulse 3s ease-in-out infinite -1s; }
+.open-ray--4 { animation: open-ray-pulse 3.5s ease-in-out infinite -1.5s; }
+.open-ray--5 { animation: open-ray-pulse 3s ease-in-out infinite -2s; }
+.open-ray--6 { animation: open-ray-pulse 3.5s ease-in-out infinite -2.5s; }
+.open-ray--7 { animation: open-ray-pulse 3s ease-in-out infinite -0.3s; }
+.open-ray--8 { animation: open-ray-pulse 3.5s ease-in-out infinite -1.8s; }
+.open-ray--9 { animation: open-ray-pulse 3.2s ease-in-out infinite -0.8s; }
+.open-ray--10 { animation: open-ray-pulse 3.3s ease-in-out infinite -2.2s; }
+
+@keyframes open-ray-pulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.35; }
+}
+
+.open-dot--1 { animation: open-wander 6s ease-in-out infinite; }
+.open-dot--2 { animation: open-wander 7s ease-in-out infinite -2s; }
+.open-dot--3 { animation: open-wander 6.5s ease-in-out infinite -4s; }
+.open-dot--4 { animation: open-wander 5.5s ease-in-out infinite -1s; }
+.open-dot--5 { animation: open-wander 6s ease-in-out infinite -3s; }
+.open-dot--6 { animation: open-wander 7s ease-in-out infinite -5s; }
+
+@keyframes open-wander {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(5px, -3px); }
+  50% { transform: translate(-2px, 5px); }
+  75% { transform: translate(3px, 1px); }
+}
+
+.open-arc--1 { animation: open-arc-breathe 5s ease-in-out infinite; }
+.open-arc--2 { animation: open-arc-breathe 6s ease-in-out infinite -2.5s; }
+
+@keyframes open-arc-breathe {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.3; }
+}
+
+/* ============================================
+   Mobile Responsive
+   ============================================ */
+@media (max-width: 600px) {
+  .mood-grid {
+    grid-template-columns: 1fr;
+    max-width: 320px;
+  }
+
+  .mood-card {
+    aspect-ratio: 16 / 9;
+  }
+
+  .discover-card-grid--3col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .discover-card-grid--4col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .discover-step-title {
+    font-size: 1.15rem;
+  }
+
+  .discover-summary-actions {
+    flex-direction: column;
+  }
+}

@@ -147,7 +147,7 @@ export default async function EventsPage({
     dateFrom: getSingle(searchParams, "dateFrom") ?? undefined,
     dateTo: getSingle(searchParams, "dateTo") ?? undefined,
     sort: sortParam === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc",
-    view: viewParam === "map" ? "map" : "list",
+    view: viewParam === "map" ? "map" : viewParam === "discover" ? "discover" : "list",
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
   };
 
