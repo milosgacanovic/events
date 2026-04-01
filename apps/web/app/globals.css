@@ -1998,7 +1998,15 @@ label.meta {
   flex-shrink: 0;
 }
 
-/* Near me — geo radius pills */
+/* Near me — icon & radius pills */
+.near-me-icon {
+  border: none;
+  color: var(--accent);
+}
+
+.filter-row-selected .near-me-icon {
+  background: none;
+}
 .near-me-radii {
   display: flex;
   flex-wrap: wrap;

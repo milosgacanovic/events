@@ -1781,7 +1781,11 @@ export function EventSearchClient({
             }
           }}
         >
-          <span className="filter-row-icon">{geoRadius ? "\u2212" : "+"}</span>
+          <span className="filter-row-icon near-me-icon">
+            <svg viewBox="0 0 90 90" fill="currentColor" width="14" height="14">
+              <path d="M45 90c-1.415 0-2.725-.748-3.444-1.966l-4.385-7.417C28.167 65.396 19.664 51.02 16.759 45.189c-2.112-4.331-3.175-8.955-3.175-13.773C13.584 14.093 27.677 0 45 0c17.323 0 31.416 14.093 31.416 31.416c0 4.815-1.063 9.438-3.157 13.741a3.97 3.97 0 01-.08.155c-2.961 5.909-11.41 20.193-20.353 35.309l-4.382 7.413C47.725 89.252 46.415 90 45 90z"/>
+            </svg>
+          </span>
           <span className="filter-row-label">
             {geoRadius && geo.status === "detecting"
               ? `${t("eventSearch.nearMe")} (${t("eventSearch.nearMeDetecting")})`
