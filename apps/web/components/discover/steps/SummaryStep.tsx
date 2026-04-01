@@ -52,6 +52,8 @@ type Props = {
   taxonomy: TaxonomyResponse | null;
   geoCity: string | null;
   geoCountryCode: string | null;
+  geoLat: number | null;
+  geoLng: number | null;
   onShowEvents: () => void;
   onStartOver: () => void;
 };
@@ -64,6 +66,8 @@ export function SummaryStep({
   taxonomy,
   geoCity,
   geoCountryCode,
+  geoLat,
+  geoLng,
   onShowEvents,
   onStartOver,
 }: Props) {
@@ -83,7 +87,11 @@ export function SummaryStep({
       if (geoCity) params.set("city", geoCity);
       else if (geoCountryCode) params.set("countryCode", geoCountryCode);
     } else if (where === "my_region") {
-      if (geoCountryCode) params.set("countryCode", geoCountryCode);
+      if (geoLat != null && geoLng != null) {
+        params.set("geoLat", String(geoLat));
+        params.set("geoLng", String(geoLng));
+        params.set("geoRadius", "300000");
+      }
     } else if (where && where !== "anywhere") {
       const codes = resolveWhereChoice(where);
       if (codes.length) params.set("countryCode", codes.join(","));
@@ -100,7 +108,7 @@ export function SummaryStep({
       .then((res) => { if (!cancelled) setResultCount(res.totalHits); })
       .catch(() => { if (!cancelled) setResultCount(null); });
     return () => { cancelled = true; };
-  }, [mood, when, where, features, taxonomy, geoCity, geoCountryCode]);
+  }, [mood, when, where, features, taxonomy, geoCity, geoCountryCode, geoLat, geoLng]);
 
   return (
     <div className="discover-step">

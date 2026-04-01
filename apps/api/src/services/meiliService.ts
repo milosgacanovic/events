@@ -108,7 +108,7 @@ export class MeilisearchService {
         e.visibility,
         eo.country_code,
         eo.city,
-        eo.geom,
+        ST_AsText(eo.geom) as geom,
         e.published_at,
         coalesce(array_agg(distinct o.id) filter (where o.id is not null), '{}') as organizer_ids,
         coalesce(array_agg(distinct o.name) filter (where o.name is not null), '{}') as organizer_names

@@ -105,8 +105,10 @@ function applyWhereToParams(
 ) {
   if (where === "near_me" && geo?.city) {
     params.set("city", geo.city);
-  } else if (where === "my_region" && geo?.countryCode) {
-    params.set("countryCode", geo.countryCode);
+  } else if (where === "my_region" && geo?.lat != null && geo?.lng != null) {
+    params.set("geoLat", String(geo.lat));
+    params.set("geoLng", String(geo.lng));
+    params.set("geoRadius", "300000");
   } else if (where && where !== "anywhere" && where !== "near_me" && where !== "my_region") {
     const codes = resolveWhereChoice(where);
     if (codes.length) params.set("countryCode", codes.join(","));
@@ -158,7 +160,9 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
           else if (geo!.countryCode) params.set("countryCode", geo!.countryCode);
         } else if (whereId === "my_region") {
           if (!geoReady) return [whereId, undefined] as const;
-          if (geo!.countryCode) params.set("countryCode", geo!.countryCode);
+          params.set("geoLat", String(geo!.lat));
+          params.set("geoLng", String(geo!.lng));
+          params.set("geoRadius", "300000");
         } else if (whereId === "europe") {
           params.set("countryCode", REGION_COUNTRY_CODES.europe.join(","));
         } else if (whereId === "americas") {
@@ -345,6 +349,8 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
             taxonomy={taxonomy}
             geoCity={geo?.city ?? null}
             geoCountryCode={geo?.countryCode ?? null}
+            geoLat={geo?.lat ?? null}
+            geoLng={geo?.lng ?? null}
             onShowEvents={handleShowEvents}
             onStartOver={handleStartOver}
           />
