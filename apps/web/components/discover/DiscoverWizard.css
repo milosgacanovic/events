@@ -256,6 +256,12 @@
   margin: 0;
 }
 
+.mood-card__count {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 4px 0 0;
+}
+
 /* Mood card transition states */
 .mood-card--exiting {
   opacity: 0;

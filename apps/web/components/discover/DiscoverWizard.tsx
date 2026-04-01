@@ -15,7 +15,13 @@ import {
   resolveMoodMapping,
   resolveWhereChoice,
   resolveFeatureTags,
+  buildMoodSearchParams,
   WHEN_PRESETS,
+  WHERE_IDS,
+  FEATURE_IDS,
+  FEATURE_TAG_MAP,
+  MOOD_IDS,
+  REGION_COUNTRY_CODES,
 } from "./discoverMappings";
 import { fetchJson } from "../../lib/api";
 import { MoodStep } from "./steps/MoodStep";
@@ -24,7 +30,7 @@ import { WhereStep } from "./steps/WhereStep";
 import { FeaturesStep } from "./steps/FeaturesStep";
 import { SummaryStep } from "./steps/SummaryStep";
 
-const TOTAL_STEPS = 5; // 0-4
+const TOTAL_STEPS = 5; // 0=mood, 1=where, 2=when, 3=features, 4=summary
 
 const initialState: WizardState = {
   currentStep: 0,
@@ -34,6 +40,9 @@ const initialState: WizardState = {
   features: [],
   moodTransition: false,
   dateCounts: {},
+  whereCounts: {},
+  featureCounts: {},
+  moodCounts: {},
 };
 
 function reducer(state: WizardState, action: WizardAction): WizardState {
@@ -64,6 +73,12 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, currentStep: action.step, moodTransition: false };
     case "SET_DATE_COUNTS":
       return { ...state, dateCounts: action.counts };
+    case "SET_WHERE_COUNTS":
+      return { ...state, whereCounts: action.counts };
+    case "SET_FEATURE_COUNTS":
+      return { ...state, featureCounts: action.counts };
+    case "SET_MOOD_COUNTS":
+      return { ...state, moodCounts: action.counts };
     case "RESET":
       return { ...initialState };
     default:
@@ -77,41 +92,122 @@ type GeoHook = {
   countryCode: string | null;
 };
 
+async function fetchCount(params: URLSearchParams): Promise<number> {
+  try {
+    const res = await fetchJson<{ totalHits: number }>(`/events/search?${params}`);
+    return res.totalHits;
+  } catch {
+    return 0;
+  }
+}
+
 export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: DiscoverWizardProps & { geo?: GeoHook }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch date counts when mood is selected and we reach step 1
+  // Fetch mood counts on mount (step 0)
+  useEffect(() => {
+    if (state.currentStep !== 0 || !taxonomy) return;
+    let cancelled = false;
+    Promise.all(
+      MOOD_IDS.map(async (moodId) => {
+        const params = buildMoodSearchParams(moodId, taxonomy);
+        const count = await fetchCount(params);
+        return [moodId, count] as const;
+      }),
+    ).then((entries) => {
+      if (!cancelled) dispatch({ type: "SET_MOOD_COUNTS", counts: Object.fromEntries(entries) });
+    });
+    return () => { cancelled = true; };
+  }, [state.currentStep, taxonomy]);
+
+  // Step 1 = Where — fetch counts per location option
   useEffect(() => {
     if (state.currentStep !== 1) return;
     let cancelled = false;
 
-    const moodFilters = resolveMoodMapping(state.mood, taxonomy);
-
     Promise.all(
-      WHEN_PRESETS.map(async (preset) => {
-        const params = new URLSearchParams({ pageSize: "1", page: "1", eventDate: preset });
-        if (moodFilters.practiceCategoryIds.length)
-          params.set("practiceCategoryId", moodFilters.practiceCategoryIds.join(","));
-        if (moodFilters.tags.length)
-          params.set("tags", moodFilters.tags.join(","));
-        try {
-          const res = await fetchJson<{ totalHits: number }>(`/events/search?${params}`);
-          return [preset, res.totalHits] as const;
-        } catch {
-          return [preset, 0] as const;
+      WHERE_IDS.map(async (whereId) => {
+        const params = buildMoodSearchParams(state.mood, taxonomy);
+        if (whereId === "near_me" && geo?.city) {
+          params.set("city", geo.city);
+        } else if (whereId === "my_region" && geo?.countryCode) {
+          params.set("countryCode", geo.countryCode);
+        } else if (whereId === "europe") {
+          params.set("countryCode", REGION_COUNTRY_CODES.europe.join(","));
+        } else if (whereId === "americas") {
+          params.set("countryCode", REGION_COUNTRY_CODES.americas.join(","));
         }
+        // "anywhere" = no location filter (base params only)
+        const count = await fetchCount(params);
+        return [whereId, count] as const;
       }),
     ).then((entries) => {
-      if (!cancelled) {
-        dispatch({ type: "SET_DATE_COUNTS", counts: Object.fromEntries(entries) });
-      }
+      if (!cancelled) dispatch({ type: "SET_WHERE_COUNTS", counts: Object.fromEntries(entries) });
     });
 
     return () => { cancelled = true; };
-  }, [state.currentStep, state.mood, taxonomy]);
+  }, [state.currentStep, state.mood, taxonomy, geo]);
 
-  // Handle mood selection → expand animation → advance to step 1
+  // Step 2 = When — fetch counts per date preset
+  useEffect(() => {
+    if (state.currentStep !== 2) return;
+    let cancelled = false;
+
+    Promise.all(
+      WHEN_PRESETS.map(async (preset) => {
+        const params = buildMoodSearchParams(state.mood, taxonomy);
+        params.set("eventDate", preset);
+        // Apply where filter if selected
+        if (state.where === "near_me" && geo?.city) {
+          params.set("city", geo.city);
+        } else if (state.where === "my_region" && geo?.countryCode) {
+          params.set("countryCode", geo.countryCode);
+        } else if (state.where && state.where !== "anywhere") {
+          const codes = resolveWhereChoice(state.where);
+          if (codes.length) params.set("countryCode", codes.join(","));
+        }
+        const count = await fetchCount(params);
+        return [preset, count] as const;
+      }),
+    ).then((entries) => {
+      if (!cancelled) dispatch({ type: "SET_DATE_COUNTS", counts: Object.fromEntries(entries) });
+    });
+
+    return () => { cancelled = true; };
+  }, [state.currentStep, state.mood, state.where, taxonomy, geo]);
+
+  // Step 3 = Features — fetch counts per feature tag
+  useEffect(() => {
+    if (state.currentStep !== 3) return;
+    let cancelled = false;
+
+    Promise.all(
+      FEATURE_IDS.map(async (featureId) => {
+        const params = buildMoodSearchParams(state.mood, taxonomy);
+        const tags = FEATURE_TAG_MAP[featureId];
+        if (tags.length) params.set("tags", tags.join(","));
+        // Apply where + when filters
+        if (state.where === "near_me" && geo?.city) {
+          params.set("city", geo.city);
+        } else if (state.where === "my_region" && geo?.countryCode) {
+          params.set("countryCode", geo.countryCode);
+        } else if (state.where && state.where !== "anywhere") {
+          const codes = resolveWhereChoice(state.where);
+          if (codes.length) params.set("countryCode", codes.join(","));
+        }
+        if (state.when.length) params.set("eventDate", state.when.join(","));
+        const count = await fetchCount(params);
+        return [featureId, count] as const;
+      }),
+    ).then((entries) => {
+      if (!cancelled) dispatch({ type: "SET_FEATURE_COUNTS", counts: Object.fromEntries(entries) });
+    });
+
+    return () => { cancelled = true; };
+  }, [state.currentStep, state.mood, state.where, state.when, taxonomy, geo]);
+
+  // Handle mood selection → expand animation → advance to step 1 (Where)
   const handleMoodSelect = useCallback((mood: MoodId) => {
     dispatch({ type: "SET_MOOD", mood });
     transitionTimerRef.current = setTimeout(() => {
@@ -141,12 +237,10 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
 
   const handleShowEvents = useCallback(() => {
     const moodFilters = resolveMoodMapping(state.mood, taxonomy);
-    const whereCountryCodes = resolveWhereChoice(state.where);
     const featureTags = resolveFeatureTags(state.features);
-
     const allTags = [...new Set([...moodFilters.tags, ...featureTags])];
 
-    let countryCodes = whereCountryCodes;
+    let countryCodes = resolveWhereChoice(state.where);
     let cities: string[] = [];
 
     if (state.where === "near_me" && geo) {
@@ -155,6 +249,8 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
       } else if (geo.countryCode) {
         countryCodes = [geo.countryCode];
       }
+    } else if (state.where === "my_region" && geo?.countryCode) {
+      countryCodes = [geo.countryCode];
     }
 
     onComplete({
@@ -184,10 +280,6 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
     );
   });
 
-  const canGoNext =
-    state.currentStep === 0 ? state.mood !== null :
-    true;
-
   const isSkippable = state.currentStep >= 1 && state.currentStep <= 3;
   const showNav = state.currentStep >= 1 && state.currentStep <= 3;
 
@@ -199,25 +291,28 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
           <MoodStep
             selectedMood={state.mood}
             moodTransition={state.moodTransition}
+            counts={state.moodCounts}
             onSelect={handleMoodSelect}
           />
         )}
         {state.currentStep === 1 && (
+          <WhereStep
+            selected={state.where}
+            counts={state.whereCounts}
+            onSelect={(choice: WhereChoice) => dispatch({ type: "SET_WHERE", choice })}
+          />
+        )}
+        {state.currentStep === 2 && (
           <WhenStep
             selected={state.when}
             dateCounts={state.dateCounts}
             onToggle={(preset: WhenPreset) => dispatch({ type: "TOGGLE_WHEN", preset })}
           />
         )}
-        {state.currentStep === 2 && (
-          <WhereStep
-            selected={state.where}
-            onSelect={(choice: WhereChoice) => dispatch({ type: "SET_WHERE", choice })}
-          />
-        )}
         {state.currentStep === 3 && (
           <FeaturesStep
             selected={state.features}
+            counts={state.featureCounts}
             onToggle={(feature: FeatureTag) => dispatch({ type: "TOGGLE_FEATURE", feature })}
           />
         )}
@@ -250,7 +345,6 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
             type="button"
             className="discover-nav-btn discover-nav-btn--primary"
             onClick={goNext}
-            disabled={!canGoNext}
           >
             {state.currentStep === 3 ? "Review" : "Next"}
           </button>

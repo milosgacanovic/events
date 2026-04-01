@@ -19,10 +19,11 @@ const FEATURE_OPTIONS: FeatureOption[] = [
 
 type Props = {
   selected: FeatureTag[];
+  counts: Partial<Record<FeatureTag, number>>;
   onToggle: (feature: FeatureTag) => void;
 };
 
-export function FeaturesStep({ selected, onToggle }: Props) {
+export function FeaturesStep({ selected, counts, onToggle }: Props) {
   return (
     <div className="discover-step">
       <h2 className="discover-step-title">Any special features?</h2>
@@ -30,6 +31,7 @@ export function FeaturesStep({ selected, onToggle }: Props) {
       <div className="discover-card-grid discover-card-grid--3col">
         {FEATURE_OPTIONS.map((opt) => {
           const isSelected = selected.includes(opt.id);
+          const count = counts[opt.id];
           return (
             <button
               key={opt.id}
@@ -40,6 +42,11 @@ export function FeaturesStep({ selected, onToggle }: Props) {
             >
               <span className="discover-card__icon">{opt.icon}</span>
               <span className="discover-card__label">{opt.label}</span>
+              {count !== undefined && (
+                <span className="discover-card__count">
+                  {count} {count === 1 ? "event" : "events"}
+                </span>
+              )}
             </button>
           );
         })}

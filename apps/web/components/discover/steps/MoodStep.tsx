@@ -24,10 +24,11 @@ const MOOD_OPTIONS: MoodOption[] = [
 type Props = {
   selectedMood: MoodId | null;
   moodTransition: boolean;
+  counts: Partial<Record<MoodId, number>>;
   onSelect: (mood: MoodId) => void;
 };
 
-export function MoodStep({ selectedMood, moodTransition, onSelect }: Props) {
+export function MoodStep({ selectedMood, moodTransition, counts, onSelect }: Props) {
   const gridRef = useRef<HTMLDivElement>(null);
 
   const handleClick = useCallback(
@@ -47,6 +48,7 @@ export function MoodStep({ selectedMood, moodTransition, onSelect }: Props) {
           const isSelected = selectedMood === opt.id;
           const isExiting = moodTransition && !isSelected;
           const isExpanding = moodTransition && isSelected;
+          const count = counts[opt.id];
 
           return (
             <button
@@ -62,6 +64,11 @@ export function MoodStep({ selectedMood, moodTransition, onSelect }: Props) {
               <div className="mood-card__label">
                 <p className="mood-card__title">{opt.title}</p>
                 <p className="mood-card__desc">{opt.desc}</p>
+                {count !== undefined && (
+                  <p className="mood-card__count">
+                    {count} {count === 1 ? "event" : "events"}
+                  </p>
+                )}
               </div>
             </button>
           );

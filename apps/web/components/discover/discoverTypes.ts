@@ -10,7 +10,7 @@ export type WhenPreset =
   | "next_week"
   | "next_month";
 
-export type WhereChoice = "near_me" | "anywhere" | "europe" | "americas";
+export type WhereChoice = "near_me" | "my_region" | "anywhere" | "europe" | "americas";
 
 export type FeatureTag =
   | "live-music"
@@ -28,6 +28,9 @@ export type WizardState = {
   features: FeatureTag[];
   moodTransition: boolean;
   dateCounts: Partial<Record<WhenPreset, number>>;
+  whereCounts: Partial<Record<WhereChoice, number>>;
+  featureCounts: Partial<Record<FeatureTag, number>>;
+  moodCounts: Partial<Record<MoodId, number>>;
 };
 
 export type WizardAction =
@@ -37,6 +40,9 @@ export type WizardAction =
   | { type: "TOGGLE_FEATURE"; feature: FeatureTag }
   | { type: "GO_TO_STEP"; step: WizardState["currentStep"] }
   | { type: "SET_DATE_COUNTS"; counts: Partial<Record<WhenPreset, number>> }
+  | { type: "SET_WHERE_COUNTS"; counts: Partial<Record<WhereChoice, number>> }
+  | { type: "SET_FEATURE_COUNTS"; counts: Partial<Record<FeatureTag, number>> }
+  | { type: "SET_MOOD_COUNTS"; counts: Partial<Record<MoodId, number>> }
   | { type: "RESET" };
 
 export type ResolvedFilters = {

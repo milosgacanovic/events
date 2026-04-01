@@ -29,6 +29,7 @@ const WHEN_LABELS: Record<WhenPreset, string> = {
 
 const WHERE_LABELS: Record<WhereChoice, string> = {
   near_me: "Near me",
+  my_region: "My country",
   anywhere: "Anywhere",
   europe: "Europe",
   americas: "Americas",
@@ -81,6 +82,8 @@ export function SummaryStep({
     if (where === "near_me") {
       if (geoCity) params.set("city", geoCity);
       else if (geoCountryCode) params.set("countryCode", geoCountryCode);
+    } else if (where === "my_region") {
+      if (geoCountryCode) params.set("countryCode", geoCountryCode);
     } else if (where && where !== "anywhere") {
       const codes = resolveWhereChoice(where);
       if (codes.length) params.set("countryCode", codes.join(","));
