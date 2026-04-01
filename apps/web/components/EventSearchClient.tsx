@@ -1091,6 +1091,15 @@ export function EventSearchClient({
       checked: eventDates.includes(preset),
     }));
   }, [disjunctiveFacets.eventDate, eventDates]);
+  const toTitleCase = toTitleCaseHelper;
+
+  function tagDisplay(tag: string): string {
+    const i18nKey = `tag.${tag.replace(/ /g, "-")}`;
+    const translated = t(i18nKey);
+    if (translated !== i18nKey) return translated;
+    return tagSuggestions.find((s) => s.tag === tag)?.display ?? toTitleCase(tag);
+  }
+
   const selectedFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
 
@@ -1236,15 +1245,6 @@ export function EventSearchClient({
     geoRadius,
     geo.city,
   ]);
-
-  const toTitleCase = toTitleCaseHelper;
-
-  function tagDisplay(tag: string): string {
-    const i18nKey = `tag.${tag.replace(/ /g, "-")}`;
-    const translated = t(i18nKey);
-    if (translated !== i18nKey) return translated;
-    return tagSuggestions.find((s) => s.tag === tag)?.display ?? toTitleCase(tag);
-  }
 
   function addCityFromInput(rawValue: string) {
     const value = rawValue.trim();
