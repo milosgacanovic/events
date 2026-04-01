@@ -889,7 +889,8 @@ export function OrganizerSearchClient({
           {geo.status === "idle" && (
             <button type="button" className="hero-pill hero-pill-geo"
               onClick={() => { geoAutoApplyRef.current = true; geo.detect(); }}>
-              {t("organizerSearch.hero.nearYou")}
+              <svg className="hero-pill-pin" viewBox="0 0 90 90" fill="currentColor" width="14" height="14" fillRule="evenodd"><path d="M45 90c-1.415 0-2.725-.748-3.444-1.966l-4.385-7.417C28.167 65.396 19.664 51.02 16.759 45.189c-2.112-4.331-3.175-8.955-3.175-13.773C13.584 14.093 27.677 0 45 0c17.323 0 31.416 14.093 31.416 31.416c0 4.815-1.063 9.438-3.157 13.741a3.97 3.97 0 01-.08.155c-2.961 5.909-11.41 20.193-20.353 35.309l-4.382 7.413C47.725 89.252 46.415 90 45 90zM45 14.941c-8.474 0-15.369 6.895-15.369 15.369S36.526 45.678 45 45.678c8.474 0 15.368-6.894 15.368-15.368S53.474 14.941 45 14.941z"/></svg>
+              {" "}{t("organizerSearch.hero.nearYou")}
             </button>
           )}
           {(geo.status === "detecting" || (geo.status === "ready" && geoHostInfo === null)) && (

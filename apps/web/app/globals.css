@@ -764,6 +764,11 @@ label.meta {
   border-style: dashed;
 }
 
+.hero-pill-pin {
+  vertical-align: -2px;
+  flex-shrink: 0;
+}
+
 .hero-pill-geo:disabled {
   opacity: 0.6;
   cursor: default;
