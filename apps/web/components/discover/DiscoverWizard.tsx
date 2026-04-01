@@ -32,7 +32,6 @@ import { FeaturesStep } from "./steps/FeaturesStep";
 import { SummaryStep } from "./steps/SummaryStep";
 
 const TOTAL_STEPS = 5; // 0=mood, 1=where, 2=when, 3=features, 4=summary
-const GEO_RADIUS_METERS = 300_000; // 300 km
 
 const initialState: WizardState = {
   currentStep: 0,
@@ -99,23 +98,16 @@ async function fetchCount(params: URLSearchParams): Promise<number> {
   }
 }
 
-function applyGeoRadius(params: URLSearchParams, lat: number, lng: number) {
-  params.set("geoLat", String(lat));
-  params.set("geoLng", String(lng));
-  params.set("geoRadius", String(GEO_RADIUS_METERS));
-}
-
 function applyWhereToParams(
   params: URLSearchParams,
   where: WhereChoice | null,
   geo: GeoHook | undefined,
 ) {
-  if (where === "near_me" && geo?.lat != null && geo?.lng != null) {
-    params.set("city", geo.city ?? "");
-    if (!geo.city && geo.countryCode) params.set("countryCode", geo.countryCode);
-  } else if (where === "my_region" && geo?.lat != null && geo?.lng != null) {
-    applyGeoRadius(params, geo.lat, geo.lng);
-  } else if (where && where !== "anywhere") {
+  if (where === "near_me" && geo?.city) {
+    params.set("city", geo.city);
+  } else if (where === "my_region" && geo?.countryCode) {
+    params.set("countryCode", geo.countryCode);
+  } else if (where && where !== "anywhere" && where !== "near_me" && where !== "my_region") {
     const codes = resolveWhereChoice(where);
     if (codes.length) params.set("countryCode", codes.join(","));
   }
@@ -166,7 +158,7 @@ export function DiscoverWizard({ taxonomy, onComplete, onCancel, geo }: Discover
           else if (geo!.countryCode) params.set("countryCode", geo!.countryCode);
         } else if (whereId === "my_region") {
           if (!geoReady) return [whereId, undefined] as const;
-          applyGeoRadius(params, geo!.lat!, geo!.lng!);
+          if (geo!.countryCode) params.set("countryCode", geo!.countryCode);
         } else if (whereId === "europe") {
           params.set("countryCode", REGION_COUNTRY_CODES.europe.join(","));
         } else if (whereId === "americas") {
