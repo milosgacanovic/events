@@ -2099,7 +2099,7 @@ label.meta {
   border-color: var(--line);
 }
 
-.filter-chip-clear {
+.tag.filter-chip-clear {
   background: none;
   border: none;
   padding: 4px 8px;
