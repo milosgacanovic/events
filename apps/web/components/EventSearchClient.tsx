@@ -1243,7 +1243,7 @@ export function EventSearchClient({
     const i18nKey = `tag.${tag.replace(/ /g, "-")}`;
     const translated = t(i18nKey);
     if (translated !== i18nKey) return translated;
-    return tagSuggestions.find((t) => t.tag === tag)?.display ?? toTitleCase(tag);
+    return tagSuggestions.find((s) => s.tag === tag)?.display ?? toTitleCase(tag);
   }
 
   function addCityFromInput(rawValue: string) {
