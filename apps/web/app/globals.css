@@ -2004,6 +2004,10 @@ label.meta {
 }
 
 /* Near me — icon & radius pills */
+.near-me-filter {
+  gap: 3px;
+}
+
 .near-me-icon {
   border: none;
   color: var(--accent);

@@ -1764,7 +1764,7 @@ export function EventSearchClient({
         {/* Near me — geo radius filter */}
         <button
           type="button"
-          className={`filter-row${geoRadius ? " filter-row-selected" : ""}`}
+          className={`filter-row near-me-filter${geoRadius ? " filter-row-selected" : ""}`}
           onClick={() => {
             if (geoRadius) {
               setGeoRadius(null);
