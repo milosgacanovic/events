@@ -767,6 +767,14 @@ export function EventDetailClient({
           alt={data.event.title}
           loading="eager"
           decoding="async"
+          onError={(e) => {
+            const img = e.currentTarget;
+            img.onerror = null;
+            img.src = "/logo.jpg";
+            img.style.objectFit = "contain";
+            img.style.padding = "24px";
+            img.style.background = "var(--surface-skeleton)";
+          }}
         />
       )}
 

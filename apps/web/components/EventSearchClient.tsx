@@ -2152,6 +2152,12 @@ export function EventSearchClient({
                         alt={hit.event.title}
                         loading="lazy"
                         decoding="async"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          img.onerror = null;
+                          img.src = "/logo.jpg";
+                          img.className = "event-card-fallback-logo";
+                        }}
                       />
                     ) : (
                       <img className="event-card-fallback-logo" src="/logo.jpg" alt="" aria-hidden />

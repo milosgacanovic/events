@@ -459,7 +459,7 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
       <div className="organizer-profile-header">
         <div className="organizer-avatar-shell" aria-hidden={!organizerImage}>
           {organizerImage ? (
-            <img src={organizerImage} alt={data.organizer.name} loading="lazy" decoding="async" />
+            <img src={organizerImage} alt={data.organizer.name} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/logo.jpg"; e.currentTarget.style.objectFit = "contain"; e.currentTarget.style.padding = "8px"; }} />
           ) : (
             <span className="organizer-thumb-placeholder">{data.organizer.name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("")}</span>
           )}

@@ -1247,6 +1247,7 @@ export function OrganizerSearchClient({
                     alt={item.name}
                     loading="lazy"
                     decoding="async"
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/logo.jpg"; e.currentTarget.style.objectFit = "contain"; e.currentTarget.style.padding = "8px"; }}
                   />
                 ) : (
                   <span className="host-card-avatar-initials" aria-hidden>
