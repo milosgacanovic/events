@@ -163,8 +163,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {t("nav.postEvent")}
             </Link>
           )}
-          <a href="https://danceresource.org" target="_blank" rel="noopener noreferrer">DanceResource</a>
-          <a href="https://wiki.danceresource.org" target="_blank" rel="noopener noreferrer">Wiki</a>
+          <a href="https://danceresource.org" target="_blank" rel="noopener noreferrer" className="nav-external">DanceResource</a>
+          <a href="https://wiki.danceresource.org" target="_blank" rel="noopener noreferrer" className="nav-external">Wiki</a>
         </nav>
 
         {/* Desktop: right-side controls */}
