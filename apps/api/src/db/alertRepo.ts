@@ -20,6 +20,8 @@ export async function createUserAlert(
     countryCode?: string | null;
   },
 ): Promise<UserAlertRow> {
+  const city = input.city?.trim() || null;
+  const countryCode = input.countryCode?.trim().toLowerCase() || null;
   const result = await pool.query<UserAlertRow>(
     `
       insert into user_alerts (
@@ -30,17 +32,24 @@ export async function createUserAlert(
         country_code
       )
       values ($1::uuid, $2::uuid, $3, $4, $5)
+      on conflict (user_id, organizer_id, coalesce(city, ''), coalesce(country_code, ''), radius_km)
+        do nothing
       returning *
     `,
-    [
-      input.userId,
-      input.organizerId,
-      input.radiusKm,
-      input.city?.trim() || null,
-      input.countryCode?.trim().toLowerCase() || null,
-    ],
+    [input.userId, input.organizerId, input.radiusKm, city, countryCode],
   );
-  return result.rows[0];
+  if (result.rows[0]) return result.rows[0];
+  // Conflict: return existing row
+  const existing = await pool.query<UserAlertRow>(
+    `select * from user_alerts
+     where user_id = $1::uuid and organizer_id = $2::uuid
+       and coalesce(city, '') = coalesce($3, '')
+       and coalesce(country_code, '') = coalesce($4, '')
+       and radius_km = $5
+     limit 1`,
+    [input.userId, input.organizerId, city, countryCode, input.radiusKm],
+  );
+  return existing.rows[0];
 }
 
 export async function listUserAlerts(pool: Pool, userId: string) {

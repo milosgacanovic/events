@@ -536,6 +536,7 @@
   "manage.form.visibilityHint.unlisted": "Only accessible via direct link. Does not appear in search.",
   "manage.form.errorPrefix": "Error: {message}",
   "manage.form.required": "Required",
+  "manage.form.endBeforeStart": "End date must not be before start date",
   "manage.form.unknownError": "Unknown error",
   "manage.eventForm.createEvent": "Create Event",
   "manage.eventForm.editEvent": "Edit Event",

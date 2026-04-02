@@ -91,9 +91,9 @@ export async function authorizedUpload(
   const token = await getToken();
   if (!token) throw new Error("Not authenticated");
   const formData = new FormData();
-  formData.append("file", file);
   formData.append("kind", kind);
   formData.append("entityId", entityId);
+  formData.append("file", file);
 
   const response = await fetch(`${apiBase}/uploads`, {
     method: "POST",

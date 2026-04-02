@@ -304,6 +304,9 @@ export function EventForm({
     if (form.scheduleKind === "single") {
       if (!form.singleStartAt) errors.singleStartAt = t("manage.form.required");
       if (!form.singleEndAt) errors.singleEndAt = t("manage.form.required");
+      if (form.singleStartAt && form.singleEndAt && form.singleEndAt < form.singleStartAt) {
+        errors.singleEndAt = t("manage.form.endBeforeStart");
+      }
     } else {
       if (!form.rruleDtstartLocal) errors.rruleDtstartLocal = t("manage.form.required");
     }
@@ -399,7 +402,16 @@ export function EventForm({
       }
 
       if (coverFile) {
-        await authorizedUpload(getToken, "eventCover", resultId, coverFile);
+        try {
+          await authorizedUpload(getToken, "eventCover", resultId, coverFile);
+        } catch (uploadErr) {
+          // Event was already created — redirect to edit page so re-saving won't create duplicates
+          if (mode === "create") {
+            router.replace(`/manage/events/${resultId}?saved=draft&uploadError=1`);
+            return;
+          }
+          throw uploadErr;
+        }
       }
 
       if (mode === "create") {
@@ -458,7 +470,17 @@ export function EventForm({
         resultId = result.id;
         resultSlug = result.slug;
       }
-      if (coverFile) await authorizedUpload(getToken, "eventCover", resultId, coverFile);
+      if (coverFile) {
+        try {
+          await authorizedUpload(getToken, "eventCover", resultId, coverFile);
+        } catch (uploadErr) {
+          if (mode === "create") {
+            router.replace(`/manage/events/${resultId}?saved=draft&uploadError=1`);
+            return;
+          }
+          throw uploadErr;
+        }
+      }
       // Now publish (force if no host and user chose to proceed)
       const publishBody = form.organizerRoles.length === 0 ? { force: true } : {};
       await authorizedPost(getToken, `/events/${resultId}/publish`, publishBody);

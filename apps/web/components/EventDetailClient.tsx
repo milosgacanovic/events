@@ -624,9 +624,11 @@ export function EventDetailClient({
   const whenLabel = whenFormatted?.primary ?? t("eventDetail.timeTbd");
 
   const modalityLabel = t(`attendanceMode.${data.event.attendance_mode}`);
-  const locationLabel = data.defaultLocation?.city
-    ? `${data.defaultLocation.city}${data.defaultLocation.country_code ? `, ${getCountryLabel(data.defaultLocation.country_code)}` : ""}`
-    : data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd");
+  const locationLabel = data.defaultLocation?.formatted_address
+    ? `${data.defaultLocation.formatted_address}${data.defaultLocation.country_code && !data.defaultLocation.formatted_address.includes(getCountryLabel(data.defaultLocation.country_code)) ? `, ${getCountryLabel(data.defaultLocation.country_code)}` : ""}`
+    : data.defaultLocation?.city
+      ? `${data.defaultLocation.city}${data.defaultLocation.country_code ? `, ${getCountryLabel(data.defaultLocation.country_code)}` : ""}`
+      : t("eventDetail.locationTbd");
   const importSource = data.event.external_source || t("common.none");
   const updatedLabel = data.event.updated_at ? new Date(data.event.updated_at).toLocaleString(locale) : null;
   const coverImageUrl = data.event.coverImageUrl ?? data.event.cover_image_path;
@@ -854,12 +856,15 @@ export function EventDetailClient({
             <span className="event-detail-meta-value">{modalityLabel}</span>
           ) : (
             <>
+              {data.defaultLocation?.formatted_address && data.defaultLocation.formatted_address !== data.defaultLocation.city ? (
+                <span className="event-detail-meta-value">{data.defaultLocation.formatted_address}</span>
+              ) : null}
               <span className="event-detail-meta-value">
                 {data.defaultLocation?.city && !data.defaultLocation.city.includes(',') && data.defaultLocation?.country_code ? (
                   <Link href={`/events?city=${encodeURIComponent(data.defaultLocation.city.toLowerCase())}&countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit", textDecoration: "none" }}>{data.defaultLocation.city}</Link>
-                ) : (
-                  data.defaultLocation?.city ?? data.defaultLocation?.formatted_address ?? t("eventDetail.locationTbd")
-                )}
+                ) : !data.defaultLocation?.formatted_address ? (
+                  data.defaultLocation?.city ?? t("eventDetail.locationTbd")
+                ) : null}
               </span>
               {data.defaultLocation?.country_code && (
                 <span className="event-detail-meta-value" style={{ color: "var(--muted)" }}>

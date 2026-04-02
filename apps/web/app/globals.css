@@ -221,6 +221,8 @@ main {
   align-items: center;
   gap: 0;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .nav a {
@@ -268,6 +270,7 @@ main {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .header-sep {

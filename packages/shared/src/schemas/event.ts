@@ -37,7 +37,7 @@ const createEventBaseSchema = z.object({
     singleStartAt: z.string().datetime().nullable().optional(),
     singleEndAt: z.string().datetime().nullable().optional(),
     rrule: z.string().nullable().optional(),
-    rruleDtstartLocal: z.string().datetime().nullable().optional(),
+    rruleDtstartLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?/, "Invalid datetime").nullable().optional(),
     durationMinutes: z.number().int().positive().nullable().optional(),
     visibility: z.enum(["public", "unlisted"]).default("public"),
     locationId: uuidSchema.nullable().optional(),
@@ -98,6 +98,18 @@ export const createEventSchema = createEventBaseSchema
       message:
         "single schedules require singleStartAt/singleEndAt, recurring schedules require rrule/rruleDtstartLocal/durationMinutes",
       path: ["scheduleKind"],
+    },
+  )
+  .refine(
+    (value) => {
+      if (value.scheduleKind === "single" && value.singleStartAt && value.singleEndAt) {
+        return new Date(value.singleEndAt) >= new Date(value.singleStartAt);
+      }
+      return true;
+    },
+    {
+      message: "End date must not be before start date",
+      path: ["singleEndAt"],
     },
   )
   .refine(
