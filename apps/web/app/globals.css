@@ -224,6 +224,11 @@ main {
   min-width: 0;
 }
 
+.nav-compact .nav .nav-external,
+.nav-compact .nav .nav-external::before {
+  display: none;
+}
+
 .nav a {
   font-size: 0.92rem;
   color: var(--muted);
@@ -2320,10 +2325,6 @@ label.meta {
 }
 
 @media (max-width: 900px) {
-  .nav .nav-external {
-    display: none;
-  }
-
   .hero {
     width: auto;
     margin-left: -16px;

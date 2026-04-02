@@ -55,6 +55,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hamburgerRef = useRef<HTMLDivElement>(null);
   const userMobileRef = useRef<HTMLDivElement>(null);
   const userDesktopRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const [navOverflow, setNavOverflow] = useState(false);
 
   const canOpenManage = auth.ready && auth.roles.some((role) =>
     role === "editor" || role === "admin"
@@ -81,6 +83,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setHamburgerOpen(false);
     setUserDropdownOpen(false);
   }, [pathname]);
+
+  // Hide external nav links (DanceResource, Wiki) when the topbar overflows
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const topbar = nav.parentElement;
+    if (!topbar) return;
+
+    function check() {
+      if (!topbar) return;
+      // Temporarily show external links to measure true width
+      const wasHidden = topbar.classList.contains("nav-compact");
+      topbar.classList.remove("nav-compact");
+      const overflows = topbar.scrollWidth > topbar.clientWidth + 1;
+      if (overflows) {
+        topbar.classList.add("nav-compact");
+      } else if (wasHidden) {
+        // Was hidden but no longer needed — already removed above
+      }
+      setNavOverflow(overflows);
+    }
+
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(topbar);
+    return () => ro.disconnect();
+  }, [auth.ready, auth.authenticated, pathname]);
 
   function handleLogin() {
     pushDataLayer({
@@ -147,7 +176,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         {/* Desktop: nav links with separators */}
-        <nav className="nav">
+        <nav className="nav" ref={navRef}>
           <Link href="/events" className={pathname.startsWith("/events") ? "active" : ""}>
             {t("nav.events")}
           </Link>
