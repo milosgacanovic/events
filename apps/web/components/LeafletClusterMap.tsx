@@ -5,8 +5,11 @@ import "leaflet/dist/leaflet.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Map as LeafletMap } from "leaflet";
+import type { GeoJsonObject } from "geojson";
 import {
+  Circle,
   CircleMarker,
+  GeoJSON as GeoJSONLayer,
   MapContainer,
   TileLayer,
   Tooltip,
@@ -104,14 +107,29 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
   return base;
 }
 
+export type MapCircleOverlay = {
+  lat: number;
+  lng: number;
+  radiusMeters: number;
+};
+
+export type MapCountryOverlay = {
+  code: string;
+  geoJson: GeoJsonObject;
+};
+
 export function LeafletClusterMap({
   queryString,
   refreshToken,
   timeDisplayMode,
+  circleOverlays = [],
+  countryOverlays = [],
 }: {
   queryString: string;
   refreshToken: number;
   timeDisplayMode: TimeDisplayMode;
+  circleOverlays?: MapCircleOverlay[];
+  countryOverlays?: MapCountryOverlay[];
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -272,6 +290,33 @@ export function LeafletClusterMap({
           }}
         />
         {markers}
+        {circleOverlays.map((c, i) => (
+          <Circle
+            key={`circle-${i}-${c.lat}-${c.lng}-${c.radiusMeters}`}
+            center={[c.lat, c.lng]}
+            radius={c.radiusMeters}
+            pathOptions={{
+              color: "#e8910c",
+              fillColor: "#f5a623",
+              fillOpacity: 0.10,
+              weight: 1.5,
+              opacity: 0.5,
+            }}
+          />
+        ))}
+        {countryOverlays.map((c) => (
+          <GeoJSONLayer
+            key={`country-${c.code}`}
+            data={c.geoJson}
+            style={{
+              color: "#e8910c",
+              fillColor: "#f5a623",
+              fillOpacity: 0.12,
+              weight: 1.5,
+              opacity: 0.5,
+            }}
+          />
+        ))}
       </MapContainer>
 
       {status === "error" ? <div className="map-status">{t("map.status.error")}</div> : null}

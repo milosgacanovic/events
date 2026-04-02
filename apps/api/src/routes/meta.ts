@@ -176,6 +176,48 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
     return payload;
   });
 
+  // Return average lat/lng for given city names (for map circle overlays)
+  const cityCoordSchema = z.object({
+    cities: z.string().trim().min(1).max(500),
+  });
+
+  app.get("/meta/city-coords", async (request, reply) => {
+    const parsed = cityCoordSchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+    const cityNames = csvToList(parsed.data.cities).map((c) => c.toLowerCase()).slice(0, 10);
+    if (cityNames.length === 0) return { items: [] };
+
+    const cacheKey = `city-coords:${cityNames.join(",")}`;
+    const now = Date.now();
+    const cached = cache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.payload;
+    }
+
+    const placeholders = cityNames.map((_, i) => `$${i + 1}`);
+    const result = await app.db.query<{ city: string; lat: string; lng: string }>(
+      `SELECT lower(city) as city,
+              avg(ST_Y(geom::geometry))::text as lat,
+              avg(ST_X(geom::geometry))::text as lng
+       FROM event_occurrences
+       WHERE lower(city) IN (${placeholders.join(",")})
+         AND geom IS NOT NULL
+       GROUP BY lower(city)`,
+      cityNames,
+    );
+    const items = result.rows.map((r) => ({
+      city: r.city,
+      lat: parseFloat(r.lat),
+      lng: parseFloat(r.lng),
+    }));
+    const payload = { items };
+    cache.set(cacheKey, { expiresAt: now + 300_000, payload });
+    return payload;
+  });
+
   app.get("/meta/organizer-tags", async (request, reply) => {
     const parsed = tagsQuerySchema.safeParse(request.query);
     if (!parsed.success) {

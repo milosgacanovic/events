@@ -1,5 +1,6 @@
 "use client";
 
+import type { GeoJsonObject } from "geojson";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -13,9 +14,11 @@ import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../lib/i18n/
 import { scrollToTopFast } from "../lib/scroll";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useGeolocation } from "../lib/useGeolocation";
+import { alpha2ToAlpha3 } from "../lib/countryAlpha3";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import type { ResolvedFilters } from "./discover/discoverTypes";
 import { useI18n } from "./i18n/I18nProvider";
+import type { MapCircleOverlay, MapCountryOverlay } from "./LeafletClusterMap";
 
 const DiscoverWizard = dynamic(() => import("./discover/DiscoverWizard").then((m) => ({ default: m.DiscoverWizard })), { ssr: false });
 
@@ -206,7 +209,7 @@ export function EventSearchClient({
   });
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
-  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>(() => readTimeDisplayMode());
+  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("event");
   const [dateOpen, setDateOpen] = useState(true);
   const [dateRangeOpen, setDateRangeOpen] = useState(!!(initialQuery?.dateFrom) || !!(initialQuery?.dateTo));
   const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);
@@ -999,6 +1002,81 @@ export function EventSearchClient({
     writeTimeDisplayMode(timeDisplayMode);
   }, [timeDisplayMode]);
 
+  // --- Map overlay data ---
+  const [cityCoords, setCityCoords] = useState<Array<{ city: string; lat: number; lng: number }>>([]);
+  const [countryGeoJsonCache, setCountryGeoJsonCache] = useState<Record<string, GeoJsonObject>>({});
+
+  // Fetch city coordinates when cities change and map is visible
+  useEffect(() => {
+    if (view !== "map" || cities.length === 0) {
+      setCityCoords([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchJson<{ items: Array<{ city: string; lat: number; lng: number }> }>(
+      `/meta/city-coords?cities=${encodeURIComponent(cities.join(","))}`,
+    ).then((data) => {
+      if (!cancelled) setCityCoords(data.items);
+    }).catch(() => {
+      if (!cancelled) setCityCoords([]);
+    });
+    return () => { cancelled = true; };
+  }, [view, cities]);
+
+  // Fetch country GeoJSON when countries change and map is visible
+  useEffect(() => {
+    if (view !== "map" || countryCodes.length === 0) return;
+    const missing = countryCodes.filter((c) => !countryGeoJsonCache[c]);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    void Promise.all(
+      missing.map(async (code) => {
+        const alpha3 = alpha2ToAlpha3(code);
+        if (!alpha3) return null;
+        try {
+          const resp = await fetch(
+            `https://raw.githubusercontent.com/johan/world.geo.json/master/countries/${alpha3}.geo.json`,
+          );
+          if (!resp.ok) throw new Error("not found");
+          const geoJson = await resp.json() as GeoJsonObject;
+          return { code, geoJson };
+        } catch {
+          return null;
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      const newEntries: Record<string, GeoJsonObject> = {};
+      for (const r of results) {
+        if (r) newEntries[r.code] = r.geoJson;
+      }
+      if (Object.keys(newEntries).length > 0) {
+        setCountryGeoJsonCache((prev) => ({ ...prev, ...newEntries }));
+      }
+    });
+    return () => { cancelled = true; };
+  }, [view, countryCodes, countryGeoJsonCache]);
+
+  // Build map overlays
+  const mapCircleOverlays = useMemo((): MapCircleOverlay[] => {
+    const circles: MapCircleOverlay[] = [];
+    // Near-me circle
+    if (geoRadius && geo.lat != null && geo.lng != null) {
+      circles.push({ lat: geo.lat, lng: geo.lng, radiusMeters: geoRadius });
+    }
+    // City circles (50km each)
+    for (const cc of cityCoords) {
+      circles.push({ lat: cc.lat, lng: cc.lng, radiusMeters: 50000 });
+    }
+    return circles;
+  }, [geoRadius, geo.lat, geo.lng, cityCoords]);
+
+  const mapCountryOverlays = useMemo((): MapCountryOverlay[] => {
+    return countryCodes
+      .filter((c) => countryGeoJsonCache[c])
+      .map((c) => ({ code: c, geoJson: countryGeoJsonCache[c] }));
+  }, [countryCodes, countryGeoJsonCache]);
+
   const clearSearchCache = useCallback(() => {
     try { sessionStorage.removeItem("search-cache-snapshot"); } catch { /* ignore */ }
   }, []);
@@ -1338,7 +1416,7 @@ export function EventSearchClient({
                   className="hero-pill hero-pill-geo"
                   onClick={() => {
                     geoAutoApplyRef.current = true;
-                    geoRadiusPendingRef.current = 300000;
+                    geoRadiusPendingRef.current = 100000;
                     geo.detect();
                   }}
                 >
@@ -1361,7 +1439,7 @@ export function EventSearchClient({
                   type="button"
                   className="hero-pill hero-pill-geo"
                   onClick={() => {
-                    setGeoRadius(300000);
+                    setGeoRadius(100000);
                     setCountryCodes([]);
                     setCities([]);
                     setCityQuery("");
@@ -1771,10 +1849,10 @@ export function EventSearchClient({
               setPage(1);
             } else if (geo.status === "idle") {
               geoAutoApplyRef.current = true;
-              geoRadiusPendingRef.current = 300000;
+              geoRadiusPendingRef.current = 100000;
               geo.detect();
             } else if (geo.status === "ready" && geo.lat != null) {
-              setGeoRadius(300000);
+              setGeoRadius(100000);
               setCountryCodes([]);
               setCities([]);
               setCityQuery("");
@@ -2010,6 +2088,8 @@ export function EventSearchClient({
             queryString={activeQueryString}
             refreshToken={refreshToken}
             timeDisplayMode={timeDisplayMode}
+            circleOverlays={mapCircleOverlays}
+            countryOverlays={mapCountryOverlays}
           />
         ) : null}
 

@@ -218,47 +218,45 @@ export default function AdminLogsPage() {
       {/* Activity tab */}
       {tab === "activity" && (
         <>
-          <div className="manage-filter-bar" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12, alignItems: "center" }}>
-            <input
-              type="search"
-              placeholder="Search logs..."
-              value={activitySearch}
-              onChange={(e) => { setActivitySearch(e.target.value); setActivityPage(1); }}
-              style={{ flex: 1, minWidth: 180, height: 36, padding: "0 12px" }}
-            />
-            <select
-              value={actionFilter}
-              onChange={(e) => { setActionFilter(e.target.value); setActivityPage(1); }}
-              style={{ height: 36, padding: "0 8px" }}
-            >
-              {ACTION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <select
-              value={targetTypeFilter}
-              onChange={(e) => { setTargetTypeFilter(e.target.value); setActivityPage(1); }}
-              style={{ height: 36, padding: "0 8px" }}
-            >
-              {TARGET_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <input
-              type="date"
-              value={activityDateFrom}
-              onChange={(e) => { setActivityDateFrom(e.target.value); setActivityPage(1); }}
-              style={{ height: 36 }}
-              title="From date"
-            />
-            <input
-              type="date"
-              value={activityDateTo}
-              onChange={(e) => { setActivityDateTo(e.target.value); setActivityPage(1); }}
-              style={{ height: 36 }}
-              title="To date"
-            />
-            <span className="manage-meta" style={{ whiteSpace: "nowrap" }}>{activityTotal} entries</span>
+          <div className="manage-filter-bar">
+            <div className="manage-filter-row">
+              <input
+                type="search"
+                placeholder="Search logs..."
+                value={activitySearch}
+                onChange={(e) => { setActivitySearch(e.target.value); setActivityPage(1); }}
+                style={{ flex: 1, minWidth: 120 }}
+              />
+              <select
+                value={actionFilter}
+                onChange={(e) => { setActionFilter(e.target.value); setActivityPage(1); }}
+              >
+                {ACTION_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <select
+                value={targetTypeFilter}
+                onChange={(e) => { setTargetTypeFilter(e.target.value); setActivityPage(1); }}
+              >
+                {TARGET_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={activityDateFrom}
+                onChange={(e) => { setActivityDateFrom(e.target.value); setActivityPage(1); }}
+                title="From date"
+              />
+              <input
+                type="date"
+                value={activityDateTo}
+                onChange={(e) => { setActivityDateTo(e.target.value); setActivityPage(1); }}
+                title="To date"
+              />
+              <span className="meta">{activityTotal} entries</span>
+            </div>
           </div>
 
           {activityError && (
@@ -326,29 +324,29 @@ export default function AdminLogsPage() {
       {/* Error tab */}
       {tab === "errors" && (
         <>
-          <div className="manage-filter-bar" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12, alignItems: "center" }}>
-            <input
-              type="search"
-              placeholder="Search errors..."
-              value={errorSearch}
-              onChange={(e) => { setErrorSearch(e.target.value); setErrorPage(1); }}
-              style={{ flex: 1, minWidth: 180, height: 36, padding: "0 12px" }}
-            />
-            <input
-              type="date"
-              value={errorDateFrom}
-              onChange={(e) => { setErrorDateFrom(e.target.value); setErrorPage(1); }}
-              style={{ height: 36 }}
-              title="From date"
-            />
-            <input
-              type="date"
-              value={errorDateTo}
-              onChange={(e) => { setErrorDateTo(e.target.value); setErrorPage(1); }}
-              style={{ height: 36 }}
-              title="To date"
-            />
-            <span className="manage-meta" style={{ whiteSpace: "nowrap" }}>{errorTotal} entries</span>
+          <div className="manage-filter-bar">
+            <div className="manage-filter-row">
+              <input
+                type="search"
+                placeholder="Search errors..."
+                value={errorSearch}
+                onChange={(e) => { setErrorSearch(e.target.value); setErrorPage(1); }}
+                style={{ flex: 1, minWidth: 120 }}
+              />
+              <input
+                type="date"
+                value={errorDateFrom}
+                onChange={(e) => { setErrorDateFrom(e.target.value); setErrorPage(1); }}
+                title="From date"
+              />
+              <input
+                type="date"
+                value={errorDateTo}
+                onChange={(e) => { setErrorDateTo(e.target.value); setErrorPage(1); }}
+                title="To date"
+              />
+              <span className="meta">{errorTotal} entries</span>
+            </div>
           </div>
 
           {errorError && (
