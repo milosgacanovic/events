@@ -222,6 +222,7 @@ main {
   gap: 0;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .nav-compact .nav .nav-external,

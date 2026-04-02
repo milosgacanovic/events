@@ -84,7 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setUserDropdownOpen(false);
   }, [pathname]);
 
-  // Hide external nav links (DanceResource, Wiki) when the topbar overflows
+  // Hide external nav links (DanceResource, Wiki) when the nav overflows
   useEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
@@ -92,23 +92,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!topbar) return;
 
     function check() {
-      if (!topbar) return;
-      // Temporarily show external links to measure true width
-      const wasHidden = topbar.classList.contains("nav-compact");
+      if (!nav || !topbar) return;
+      // Temporarily show external links to measure true content width
       topbar.classList.remove("nav-compact");
-      const overflows = topbar.scrollWidth > topbar.clientWidth + 1;
+      // Force layout recalc
+      void nav.offsetWidth;
+      const overflows = nav.scrollWidth > nav.clientWidth + 1;
       if (overflows) {
         topbar.classList.add("nav-compact");
-      } else if (wasHidden) {
-        // Was hidden but no longer needed — already removed above
       }
       setNavOverflow(overflows);
     }
 
-    check();
+    // Delay initial check to ensure layout is settled
+    const timer = setTimeout(check, 50);
     const ro = new ResizeObserver(check);
     ro.observe(topbar);
-    return () => ro.disconnect();
+    return () => { clearTimeout(timer); ro.disconnect(); };
   }, [auth.ready, auth.authenticated, pathname]);
 
   function handleLogin() {
