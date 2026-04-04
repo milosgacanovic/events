@@ -19,11 +19,13 @@ const mapQuerySchema = z.object({
   tags: z.string().optional(),
   languages: z.string().optional(),
   attendanceMode: z.string().optional(),
+  eventFormatId: z.string().optional(),
   organizerId: z.string().uuid().optional(),
   countryCode: z.string().optional(),
   city: z.string().optional(),
   hasGeo: z.enum(["true", "false"]).optional(),
   eventDate: z.string().optional(),
+  includePast: z.enum(["true", "false"]).optional(),
   tz: z.string().optional(),
   geoLat: z.coerce.number().min(-90).max(90).optional(),
   geoLng: z.coerce.number().min(-180).max(180).optional(),
@@ -81,8 +83,9 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const now = DateTime.utc();
-    const from = parsed.data.from ?? now.toISO()!;
-    const to = parsed.data.to ?? now.plus({ days: 90 }).toISO()!;
+    const includePast = parsed.data.includePast === "true";
+    const from = parsed.data.from ?? (includePast ? now.minus({ years: 1 }).toISO()! : now.toISO()!);
+    const to = parsed.data.to ?? (includePast ? now.toISO()! : now.plus({ days: 90 }).toISO()!);
     const eventDatePresets = parseEventDatePresets(parsed.data.eventDate);
     const timezone = resolveSafeTimeZone(parsed.data.tz);
     const dateRangeMap = buildEventDateRangeMap(timezone, now);
@@ -104,6 +107,11 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       reply.code(400);
       return { error: "invalid_uuid_list" };
     }
+    const eventFormatIds = parseUuidCsv(parsed.data.eventFormatId);
+    if (!eventFormatIds) {
+      reply.code(400);
+      return { error: "invalid_uuid_list" };
+    }
     const roundedBbox = bboxParts.map((value) => Number(value.toFixed(4)));
     const cacheKeyPayload = {
       q: parsed.data.q?.trim().toLowerCase() ?? null,
@@ -115,6 +123,8 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       tags,
       languages,
       attendanceMode: attendanceModes.join(",") || null,
+      eventFormatIds: eventFormatIds ?? [],
+      includePast,
       organizerId: parsed.data.organizerId ?? null,
       countryCode: parsed.data.countryCode ?? null,
       city: parsed.data.city ?? null,
@@ -144,6 +154,7 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       tags,
       languages,
       attendanceModes,
+      eventFormatIds: eventFormatIds ?? [],
       organizerId: parsed.data.organizerId,
       countryCode: parsed.data.countryCode,
       city: parsed.data.city,

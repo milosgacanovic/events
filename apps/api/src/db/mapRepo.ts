@@ -14,6 +14,7 @@ export type MapFilterInput = {
   tags?: string[];
   languages?: string[];
   attendanceModes?: Array<"in_person" | "online" | "hybrid">;
+  eventFormatIds?: string[];
   organizerId?: string;
   countryCode?: string;
   city?: string;
@@ -96,6 +97,13 @@ function buildWhere(input: Omit<MapFilterInput, "bbox">): { whereSql: string; va
   if (input.languages?.length) {
     values.push(input.languages);
     where.push(`e.languages && $${values.length}::text[]`);
+  }
+  if (input.eventFormatIds?.length === 1) {
+    values.push(input.eventFormatIds[0]);
+    where.push(`e.event_format_id = $${values.length}::uuid`);
+  } else if (input.eventFormatIds && input.eventFormatIds.length > 1) {
+    values.push(input.eventFormatIds);
+    where.push(`e.event_format_id = any($${values.length}::uuid[])`);
   }
   if (input.attendanceModes?.length === 1) {
     values.push(input.attendanceModes[0]);
