@@ -64,6 +64,12 @@ type MarkerDescriptor = {
   lng: number;
 };
 
+function eventFeatureKey(f: ClusterFeature): string {
+  const [lng, lat] = f.geometry.coordinates;
+  if (f.properties.cluster) return `c:${lat.toFixed(4)}:${lng.toFixed(4)}`;
+  return `e:${f.properties.occurrence_id ?? `${lat}:${lng}`}`;
+}
+
 function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescriptor[] {
   const base: MarkerDescriptor[] = features.map((feature) => ({
     feature,
@@ -138,6 +144,8 @@ export function LeafletClusterMap({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [features, setFeatures] = useState<ClusterFeature[]>([]);
+  const [leavingMarkers, setLeavingMarkers] = useState<MarkerDescriptor[]>([]);
+  const prevMarkersRef = useRef<MarkerDescriptor[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [currentZoom, setCurrentZoom] = useState(2);
   const [mapReady, setMapReady] = useState(false);
@@ -209,9 +217,36 @@ export function LeafletClusterMap({
     }
   }, []);
 
+  const activeMarkers = useMemo(
+    () => spiderfyMarkers(features, currentZoom),
+    [features, currentZoom],
+  );
+
+  const { enteringKeys, departingMarkers } = useMemo(() => {
+    const prevKeys = new Set(prevMarkersRef.current.map((m) => eventFeatureKey(m.feature)));
+    const curKeys = new Set(activeMarkers.map((m) => eventFeatureKey(m.feature)));
+    return {
+      enteringKeys: new Set(activeMarkers.filter((m) => !prevKeys.has(eventFeatureKey(m.feature))).map((m) => eventFeatureKey(m.feature))),
+      departingMarkers: prevMarkersRef.current.filter((m) => !curKeys.has(eventFeatureKey(m.feature))),
+    };
+  }, [activeMarkers]);
+
+  useEffect(() => {
+    prevMarkersRef.current = activeMarkers;
+    if (departingMarkers.length > 0) {
+      setLeavingMarkers(departingMarkers);
+    }
+  }, [activeMarkers, departingMarkers]);
+
+  useEffect(() => {
+    if (leavingMarkers.length === 0) return;
+    const timer = setTimeout(() => setLeavingMarkers([]), 550);
+    return () => clearTimeout(timer);
+  }, [leavingMarkers]);
+
   const markers = useMemo(
     () =>
-      spiderfyMarkers(features, currentZoom).map((marker, index) => {
+      activeMarkers.map((marker, index) => {
         const { feature, lat, lng } = marker;
         const pointCount = feature.properties.point_count ?? 1;
         const isCluster = feature.properties.cluster;
@@ -227,11 +262,19 @@ export function LeafletClusterMap({
           ? t("map.tooltip.cluster", { count: pointCount })
           : t("map.tooltip.eventWithDate", { title, date: dateLabel || t("common.unknown") });
 
+        const isEntering = enteringKeys.has(eventFeatureKey(feature));
+
         return (
           <CircleMarker
             center={[lat, lng]}
             key={`${lat}-${lng}-${feature.properties.occurrence_id ?? "cluster"}-${index}`}
             eventHandlers={{
+              add: isEntering
+                ? (e) => {
+                    const path = (e.target as any)._path as SVGElement | undefined;
+                    if (path) path.classList.add("marker-entering");
+                  }
+                : undefined,
               click: () => {
                 if (isCluster) {
                   if (!mapRef.current) {
@@ -259,7 +302,38 @@ export function LeafletClusterMap({
           </CircleMarker>
         );
       }),
-    [currentZoom, features, router, scheduleRefresh, t, timeDisplayMode],
+    [activeMarkers, enteringKeys, router, scheduleRefresh, t, timeDisplayMode],
+  );
+
+  const leavingMarkerElements = useMemo(
+    () =>
+      leavingMarkers.map((marker, index) => {
+        const { feature, lat, lng } = marker;
+        const pointCount = feature.properties.point_count ?? 1;
+        const isCluster = feature.properties.cluster;
+        return (
+          <CircleMarker
+            center={[lat, lng]}
+            key={`leaving-${lat}-${lng}-${index}`}
+            interactive={false}
+            eventHandlers={{
+              add: (e) => {
+                const path = (e.target as any)._path as SVGElement | undefined;
+                if (path) path.classList.add("marker-leaving");
+              },
+            }}
+            pathOptions={{
+              color: isCluster ? "#408657" : "#0f8a4a",
+              fillColor: isCluster ? "#408657" : "#0f8a4a",
+              fillOpacity: isCluster ? 0.5 : 1,
+              opacity: isCluster ? 0.45 : 1,
+              weight: isCluster ? 2 : 1,
+            }}
+            radius={isCluster ? Math.min(20, 8 + Math.log(pointCount) * 4) : 7}
+          />
+        );
+      }),
+    [leavingMarkers],
   );
 
   return (
@@ -290,6 +364,7 @@ export function LeafletClusterMap({
           }}
         />
         {markers}
+        {leavingMarkerElements}
         {circleOverlays.map((c, i) => (
           <Circle
             key={`circle-${i}-${c.lat}-${c.lng}-${c.radiusMeters}`}

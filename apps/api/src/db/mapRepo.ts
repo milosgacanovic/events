@@ -17,6 +17,9 @@ export type MapFilterInput = {
   organizerId?: string;
   countryCode?: string;
   city?: string;
+  geoLat?: number;
+  geoLng?: number;
+  geoRadius?: number;
   hasGeo?: boolean;
   bbox: {
     west: number;
@@ -112,6 +115,12 @@ function buildWhere(input: Omit<MapFilterInput, "bbox">): { whereSql: string; va
   if (input.city) {
     values.push(input.city.toLowerCase());
     where.push(`lower(eo.city) = $${values.length}`);
+  }
+  if (input.geoLat != null && input.geoLng != null && input.geoRadius != null) {
+    values.push(input.geoLng, input.geoLat, input.geoRadius);
+    where.push(
+      `ST_DWithin(eo.geom, ST_SetSRID(ST_MakePoint($${values.length - 2}, $${values.length - 1}), 4326)::geography, $${values.length})`,
+    );
   }
   if (typeof input.hasGeo === "boolean") {
     where.push(input.hasGeo ? "eo.geom is not null" : "eo.geom is null");
