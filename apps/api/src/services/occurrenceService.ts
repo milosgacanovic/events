@@ -53,11 +53,20 @@ export function generateOccurrences(
   const zone = event.event_timezone;
   const dtStartLocal = DateTime.fromISO(event.rrule_dtstart_local, { zone });
 
+  if (!dtStartLocal.isValid) {
+    return [];
+  }
+
   const parsedOptions = RRule.parseString(event.rrule);
   parsedOptions.dtstart = dtStartLocal.toJSDate();
   parsedOptions.tzid = zone;
 
-  const rule = new RRule(parsedOptions);
+  let rule: InstanceType<typeof RRule>;
+  try {
+    rule = new RRule(parsedOptions);
+  } catch {
+    return [];
+  }
   const rangeStartLocal = horizon.fromUtc.setZone(zone);
   const rangeEndLocal = horizon.toUtc.setZone(zone);
 

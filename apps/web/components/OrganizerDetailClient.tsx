@@ -593,6 +593,9 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
               />
             </label>
           </div>
+          {!alertCity.trim() && !alertCountryCode.trim() && (
+            <div className="meta">{t("organizerDetail.alert.globalNote")}</div>
+          )}
           <button className="primary-btn" type="button" onClick={() => void createAlert()} disabled={savingAlert}>
             {savingAlert ? t("organizerDetail.alert.saving") : t("organizerDetail.alert.follow")}
           </button>

@@ -838,7 +838,7 @@ export function EventDetailClient({
                     {t("eventDetail.timeMode.event")}{" "}
                     {(() => {
                       const tz = data.event.event_timezone;
-                      const unknown = !tz || tz === "UTC";
+                      const unknown = !tz;
                       return unknown ? (
                         <span style={{ opacity: 0.6 }}>
                           (<span style={{ color: "var(--warning-ink)" }}>{t("common.timezoneUnknown")}</span>)
@@ -956,7 +956,7 @@ export function EventDetailClient({
                 {t("eventDetail.timeMode.event")}{" "}
                 {(() => {
                   const tz = data.event.event_timezone;
-                  const unknown = !tz || tz === "UTC";
+                  const unknown = !tz;
                   return unknown ? (
                     <span style={{ opacity: 0.6 }}>
                       (<span style={{ color: "var(--warning-ink)" }}>{t("common.timezoneUnknown")}</span>)

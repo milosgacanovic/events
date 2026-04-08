@@ -125,6 +125,7 @@ export function EventForm({
   const savedFormRef = useRef<string>(JSON.stringify(initialState ?? newEventFormState()));
   const isDirty = JSON.stringify(form) !== savedFormRef.current || coverFile !== null;
 
+
   function saveMessage(newStatus: string): string {
     const prev = savedStatusRef.current;
     savedStatusRef.current = newStatus;
@@ -301,14 +302,21 @@ export function EventForm({
     const errors: Record<string, string> = {};
     if (!form.title.trim()) errors.title = t("manage.form.required");
     if (!form.practiceCategoryId) errors.practiceCategoryId = t("manage.form.required");
+    const nowLocal = new Date().toISOString().slice(0, 16);
     if (form.scheduleKind === "single") {
       if (!form.singleStartAt) errors.singleStartAt = t("manage.form.required");
       if (!form.singleEndAt) errors.singleEndAt = t("manage.form.required");
       if (form.singleStartAt && form.singleEndAt && form.singleEndAt < form.singleStartAt) {
         errors.singleEndAt = t("manage.form.endBeforeStart");
       }
+      if (mode === "create" && form.singleStartAt && form.singleStartAt < nowLocal) {
+        errors.singleStartAt = t("manage.form.dateInPast");
+      }
     } else {
       if (!form.rruleDtstartLocal) errors.rruleDtstartLocal = t("manage.form.required");
+      if (mode === "create" && form.rruleDtstartLocal && form.rruleDtstartLocal < nowLocal) {
+        errors.rruleDtstartLocal = t("manage.form.dateInPast");
+      }
     }
     return errors;
   }
@@ -403,7 +411,8 @@ export function EventForm({
 
       if (coverFile) {
         try {
-          await authorizedUpload(getToken, "eventCover", resultId, coverFile);
+          const uploadResult = await authorizedUpload(getToken, "eventCover", resultId, coverFile);
+          await authorizedPatch(getToken, `/events/${resultId}`, { coverImagePath: uploadResult.stored_path });
         } catch (uploadErr) {
           // Event was already created — redirect to edit page so re-saving won't create duplicates
           if (mode === "create") {
@@ -414,10 +423,10 @@ export function EventForm({
         }
       }
 
+      savedFormRef.current = JSON.stringify(form);
       if (mode === "create") {
         router.replace(`/manage/events/${resultId}?saved=draft`);
       } else {
-        savedFormRef.current = JSON.stringify(form);
         setCoverFile(null);
         setStatus(saveMessage(form.status));
         onStatusChange?.(form.status);
@@ -472,7 +481,8 @@ export function EventForm({
       }
       if (coverFile) {
         try {
-          await authorizedUpload(getToken, "eventCover", resultId, coverFile);
+          const uploadResult = await authorizedUpload(getToken, "eventCover", resultId, coverFile);
+          await authorizedPatch(getToken, `/events/${resultId}`, { coverImagePath: uploadResult.stored_path });
         } catch (uploadErr) {
           if (mode === "create") {
             router.replace(`/manage/events/${resultId}?saved=draft&uploadError=1`);
@@ -513,7 +523,8 @@ export function EventForm({
         await authorizedPatch<{ id: string; slug: string }>(getToken, `/events/${form.id}`, payload);
       }
       if (coverFile && form.id) {
-        await authorizedUpload(getToken, "eventCover", form.id, coverFile);
+        const uploadResult = await authorizedUpload(getToken, "eventCover", form.id, coverFile);
+        await authorizedPatch(getToken, `/events/${form.id}`, { coverImagePath: uploadResult.stored_path });
       }
       router.push("/manage/hosts/new");
     } catch (err) {
@@ -680,7 +691,7 @@ export function EventForm({
               {filteredTimezones.length === 0 ? (
                 <div className="tz-dropdown-empty">{t("manage.eventForm.noMatchingTimezones")}</div>
               ) : (
-                filteredTimezones.slice(0, 50).map((tz) => (
+                filteredTimezones.map((tz) => (
                   <button
                     key={tz}
                     type="button"

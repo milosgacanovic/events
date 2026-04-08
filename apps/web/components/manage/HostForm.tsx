@@ -376,13 +376,14 @@ export function HostForm({
       }
 
       if (avatarFile) {
-        await authorizedUpload(getToken, "organizerAvatar", resultId, avatarFile);
+        const uploadResult = await authorizedUpload(getToken, "organizerAvatar", resultId, avatarFile);
+        await authorizedPatch(getToken, `/organizers/${resultId}`, { avatarPath: uploadResult.stored_path });
       }
 
+      savedFormRef.current = JSON.stringify(form);
       if (mode === "create") {
         router.replace(`/manage/hosts/${resultId}?saved=draft`);
       } else {
-        savedFormRef.current = JSON.stringify(form);
         setAvatarFile(null);
         setStatus(saveMessage(form.status));
         onStatusChange?.(form.status);
@@ -406,7 +407,10 @@ export function HostForm({
     setSaving(true);
     try {
       const result = await authorizedPatch<{ id: string; slug: string }>(getToken, `/organizers/${form.id}`, { ...payload, force: true });
-      if (avatarFile) await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
+      if (avatarFile) {
+        const uploadResult = await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
+        await authorizedPatch(getToken, `/organizers/${result.id}`, { avatarPath: uploadResult.stored_path });
+      }
       savedFormRef.current = JSON.stringify(form);
       setAvatarFile(null);
       setStatus(saveMessage(form.status));
@@ -468,7 +472,8 @@ export function HostForm({
 
       const result = await authorizedPost<{ id: string; slug: string }>(getToken, "/organizers", payload);
       if (avatarFile) {
-        await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
+        const uploadResult = await authorizedUpload(getToken, "organizerAvatar", result.id, avatarFile);
+        await authorizedPatch(getToken, `/organizers/${result.id}`, { avatarPath: uploadResult.stored_path });
       }
       savedStatusRef.current = "published";
       setStatus(t("manage.form.savedAndPublished"));

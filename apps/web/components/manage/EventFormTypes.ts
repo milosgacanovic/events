@@ -115,7 +115,7 @@ export function eventFormStateFromApi(data: AdminEventDetailResponse): EventForm
     singleStartAt: isoToDatetimeLocal(data.single_start_at),
     singleEndAt: isoToDatetimeLocal(data.single_end_at),
     rrule: data.rrule ?? "FREQ=WEEKLY;INTERVAL=1",
-    rruleDtstartLocal: data.rrule_dtstart_local ?? "",
+    rruleDtstartLocal: (data.rrule_dtstart_local ?? "").slice(0, 16),
     durationMinutes: data.duration_minutes?.toString() ?? "90",
     visibility: data.visibility ?? "public",
     coverImageUrl: data.cover_image_path ?? "",

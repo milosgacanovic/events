@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DAYS = [
   { code: "MO", label: "Mon" },
@@ -141,11 +141,17 @@ export function RruleBuilder({
     return `${startDate}T${startTime || "00:00"}`;
   }, [startDate, startTime]);
 
-  // Emit changes on any state change
+  // Emit changes on any state change, but skip if values haven't actually changed
+  const lastEmittedRef = useRef({ rrule, dtstart: dtstartLocal.slice(0, 16), duration: durationMinutes });
   useEffect(() => {
     const newRrule = buildRrule();
     const newDtstart = buildDtstart();
     const newDuration = String(duration);
+    const prev = lastEmittedRef.current;
+    if (newRrule === prev.rrule && newDtstart === prev.dtstart && newDuration === prev.duration) {
+      return;
+    }
+    lastEmittedRef.current = { rrule: newRrule, dtstart: newDtstart, duration: newDuration };
     onChange(newRrule, newDtstart, newDuration);
   }, [freq, interval, byDay, startDate, startTime, endTime, hasEndDate, untilDate]); // eslint-disable-line react-hooks/exhaustive-deps
 

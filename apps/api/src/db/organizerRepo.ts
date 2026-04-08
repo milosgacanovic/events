@@ -552,8 +552,8 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
     status: input.status,
   };
 
-  if (input.name) {
-    fields.slug = await generateUniqueSlug(pool, "organizers", input.name, id);
+  if (input.slug) {
+    fields.slug = input.slug;
   }
 
   const client = await pool.connect();

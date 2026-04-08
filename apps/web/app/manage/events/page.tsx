@@ -370,6 +370,8 @@ export default function MyEventsPage() {
         } catch (retryErr) {
           setAlertMsg(retryErr instanceof Error ? retryErr.message : t("manage.form.unknownError"));
         }
+      } else {
+        setAlertMsg(err instanceof Error ? err.message : t("manage.form.unknownError"));
       }
     }
   }
