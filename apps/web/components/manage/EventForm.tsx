@@ -302,19 +302,20 @@ export function EventForm({
     const errors: Record<string, string> = {};
     if (!form.title.trim()) errors.title = t("manage.form.required");
     if (!form.practiceCategoryId) errors.practiceCategoryId = t("manage.form.required");
-    const nowLocal = new Date().toISOString().slice(0, 16);
+    // "now" in the event's own timezone so the comparison is apples-to-apples
+    const nowInTz = new Date().toLocaleString("sv-SE", { timeZone: form.eventTimezone || "UTC" }).replace(" ", "T").slice(0, 16);
     if (form.scheduleKind === "single") {
       if (!form.singleStartAt) errors.singleStartAt = t("manage.form.required");
       if (!form.singleEndAt) errors.singleEndAt = t("manage.form.required");
       if (form.singleStartAt && form.singleEndAt && form.singleEndAt < form.singleStartAt) {
         errors.singleEndAt = t("manage.form.endBeforeStart");
       }
-      if (mode === "create" && form.singleStartAt && form.singleStartAt < nowLocal) {
+      if (form.singleStartAt && form.singleStartAt < nowInTz) {
         errors.singleStartAt = t("manage.form.dateInPast");
       }
     } else {
       if (!form.rruleDtstartLocal) errors.rruleDtstartLocal = t("manage.form.required");
-      if (mode === "create" && form.rruleDtstartLocal && form.rruleDtstartLocal < nowLocal) {
+      if (form.rruleDtstartLocal && form.rruleDtstartLocal < nowInTz) {
         errors.rruleDtstartLocal = t("manage.form.dateInPast");
       }
     }
