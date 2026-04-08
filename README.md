@@ -1,4 +1,4 @@
-# DR Events Platform
+# Events Platform
 
 A fullstack TypeScript monorepo for event discovery and publishing, built for the [DanceResource](https://danceresource.org) community.
 
