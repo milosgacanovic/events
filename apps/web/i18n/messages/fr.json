@@ -739,6 +739,7 @@
   "map.status.loading": "Chargement des clusters...",
   "map.status.truncated": "Affichage d'une vue cartographique échantillonnée pour cette zone. Zoomez pour des résultats plus précis.",
   "map.tooltip.cluster": "{count, number} événements dans le cluster",
+  "map.tooltip.hostCluster": "{count, number} organisateurs dans le cluster",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Occurrence {id}",
   "map.tooltip.unknownOccurrence": "inconnu",

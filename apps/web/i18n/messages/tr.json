@@ -739,6 +739,7 @@
   "map.status.loading": "Kümeler yükleniyor...",
   "map.status.truncated": "Bu alan için örneklenmiş harita görünümü gösteriliyor. Daha kesin sonuçlar için yakınlaştırın.",
   "map.tooltip.cluster": "Kümede {count, number} etkinlik",
+  "map.tooltip.hostCluster": "Kümede {count, number} organizatör",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Etkinlik {id}",
   "map.tooltip.unknownOccurrence": "bilinmiyor",

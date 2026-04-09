@@ -739,6 +739,7 @@
   "map.status.loading": "클러스터 불러오는 중...",
   "map.status.truncated": "이 영역에 대한 샘플 지도 보기가 표시됩니다. 더 정확한 결과를 보려면 확대하세요.",
   "map.tooltip.cluster": "클러스터 내 {count, number}개 이벤트",
+  "map.tooltip.hostCluster": "클러스터 내 {count, number}개 호스트",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "일정 {id}",
   "map.tooltip.unknownOccurrence": "알 수 없음",

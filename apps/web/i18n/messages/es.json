@@ -739,6 +739,7 @@
   "map.status.loading": "Cargando clústeres...",
   "map.status.truncated": "Se muestra una vista de mapa de muestra para esta área. Amplíe para obtener resultados más precisos.",
   "map.tooltip.cluster": "{count, number} eventos en el clúster",
+  "map.tooltip.hostCluster": "{count, number} organizadores en el clúster",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Ocurrencia {id}",
   "map.tooltip.unknownOccurrence": "desconocido",

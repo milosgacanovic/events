@@ -739,6 +739,7 @@
   "map.status.loading": "Se încarcă clusterele...",
   "map.status.truncated": "Se afișează o vedere eșantionată a hărții pentru această zonă. Apropiați pentru rezultate mai precise.",
   "map.tooltip.cluster": "{count, number} evenimente în cluster",
+  "map.tooltip.hostCluster": "{count, number} organizatori în cluster",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Apariție {id}",
   "map.tooltip.unknownOccurrence": "necunoscut",

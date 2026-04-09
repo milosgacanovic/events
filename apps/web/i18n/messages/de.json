@@ -739,6 +739,7 @@
   "map.status.loading": "Cluster werden geladen...",
   "map.status.truncated": "Es wird eine Stichprobenkartenansicht für diesen Bereich angezeigt. Zoomen Sie herein für genauere Ergebnisse.",
   "map.tooltip.cluster": "{count, number} Veranstaltungen im Cluster",
+  "map.tooltip.hostCluster": "{count, number} Veranstalter im Cluster",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Termin {id}",
   "map.tooltip.unknownOccurrence": "unbekannt",

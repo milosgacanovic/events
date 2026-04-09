@@ -739,6 +739,7 @@
   "map.status.loading": "جارٍ تحميل المجموعات...",
   "map.status.truncated": "يعرض عرض خريطة مُختصر لهذه المنطقة. قرّب الخريطة للحصول على نتائج أدق.",
   "map.tooltip.cluster": "{count, number} فعالية في المجموعة",
+  "map.tooltip.hostCluster": "{count, number} منظم في المجموعة",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "تكرار {id}",
   "map.tooltip.unknownOccurrence": "غير معروف",

@@ -739,6 +739,7 @@
   "map.status.loading": "Učitavanje klastera...",
   "map.status.truncated": "Prikazan je uzorak za ovu oblast. Uvećaj mapu za preciznije rezultate.",
   "map.tooltip.cluster": "{count, number} događaja u klasteru",
+  "map.tooltip.hostCluster": "{count, number} organizatora u klasteru",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Termin {id}",
   "map.tooltip.unknownOccurrence": "nepoznat",

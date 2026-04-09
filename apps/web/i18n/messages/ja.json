@@ -739,6 +739,7 @@
   "map.status.loading": "クラスターを読み込んでいます...",
   "map.status.truncated": "このエリアのサンプリングされたマップビューを表示しています。より正確な結果を得るにはズームインしてください。",
   "map.tooltip.cluster": "クラスター内{count, number}件のイベント",
+  "map.tooltip.hostCluster": "クラスター内{count, number}件のホスト",
   "map.tooltip.eventWithDate": "{title}（{date}）",
   "map.tooltip.occurrence": "開催 {id}",
   "map.tooltip.unknownOccurrence": "不明",

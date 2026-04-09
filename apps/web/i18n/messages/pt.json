@@ -739,6 +739,7 @@
   "map.status.loading": "A carregar clusters...",
   "map.status.truncated": "A mostrar uma vista amostrada do mapa para esta área. Amplie para resultados mais precisos.",
   "map.tooltip.cluster": "{count, number} eventos no cluster",
+  "map.tooltip.hostCluster": "{count, number} organizadores no cluster",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Ocorrência {id}",
   "map.tooltip.unknownOccurrence": "desconhecido",

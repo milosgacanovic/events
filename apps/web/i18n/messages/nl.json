@@ -739,6 +739,7 @@
   "map.status.loading": "Clusters worden geladen...",
   "map.status.truncated": "Er wordt een steekproefkaartweergave voor dit gebied getoond. Zoom in voor nauwkeurigere resultaten.",
   "map.tooltip.cluster": "{count, number} evenementen in cluster",
+  "map.tooltip.hostCluster": "{count, number} organisatoren in cluster",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Datum {id}",
   "map.tooltip.unknownOccurrence": "onbekend",

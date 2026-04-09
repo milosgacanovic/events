@@ -692,22 +692,27 @@ export function EventForm({
               {filteredTimezones.length === 0 ? (
                 <div className="tz-dropdown-empty">{t("manage.eventForm.noMatchingTimezones")}</div>
               ) : (
-                filteredTimezones.map((tz) => (
-                  <button
-                    key={tz}
-                    type="button"
-                    className={`tz-dropdown-item${tz === form.eventTimezone ? " tz-dropdown-item-active" : ""}`}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      clearTimeout(tzBlurTimer.current);
-                      update("eventTimezone", tz);
-                      setTzSearch("");
-                      setTzOpen(false);
-                    }}
-                  >
-                    {tz} <span className="tz-dropdown-offset">({getTzOffset(tz)})</span>
-                  </button>
-                ))
+                <>
+                  {!tzSearch && filteredTimezones.length > 50 && (
+                    <div className="tz-dropdown-hint">{t("manage.eventForm.timezoneHint", { count: String(filteredTimezones.length) })}</div>
+                  )}
+                  {filteredTimezones.map((tz) => (
+                    <button
+                      key={tz}
+                      type="button"
+                      className={`tz-dropdown-item${tz === form.eventTimezone ? " tz-dropdown-item-active" : ""}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        clearTimeout(tzBlurTimer.current);
+                        update("eventTimezone", tz);
+                        setTzSearch("");
+                        setTzOpen(false);
+                      }}
+                    >
+                      {tz} <span className="tz-dropdown-offset">({getTzOffset(tz)})</span>
+                    </button>
+                  ))}
+                </>
               )}
             </div>
           )}

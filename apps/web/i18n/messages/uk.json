@@ -739,6 +739,7 @@
   "map.status.loading": "Завантаження кластерів...",
   "map.status.truncated": "Показано вибіркове відображення карти для цієї області. Збільшіть масштаб для більш точних результатів.",
   "map.tooltip.cluster": "{count, number} подій у кластері",
+  "map.tooltip.hostCluster": "{count, number} організаторів у кластері",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Подія {id}",
   "map.tooltip.unknownOccurrence": "невідомо",

@@ -739,6 +739,7 @@
   "map.status.loading": "Ładowanie skupisk...",
   "map.status.truncated": "Wyświetlanie przykładowego widoku mapy dla tego obszaru. Przybliż, aby uzyskać dokładniejsze wyniki.",
   "map.tooltip.cluster": "{count, number} wydarzeń w grupie",
+  "map.tooltip.hostCluster": "{count, number} organizatorów w grupie",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Termin {id}",
   "map.tooltip.unknownOccurrence": "nieznane",

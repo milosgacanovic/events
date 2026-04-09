@@ -739,6 +739,7 @@
   "map.status.loading": "Klaszterek betöltése...",
   "map.status.truncated": "Mintavételezett térképnézet jelenik meg ezen a területen. Nagyítson a pontosabb eredményekért.",
   "map.tooltip.cluster": "{count, number} esemény a klaszterben",
+  "map.tooltip.hostCluster": "{count, number} szervező a klaszterben",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "{id}. alkalom",
   "map.tooltip.unknownOccurrence": "ismeretlen",

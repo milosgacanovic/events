@@ -739,6 +739,7 @@
   "map.status.loading": "Memuat kluster...",
   "map.status.truncated": "Menampilkan tampilan peta sampel untuk area ini. Perbesar untuk hasil yang lebih tepat.",
   "map.tooltip.cluster": "{count, number} acara dalam kluster",
+  "map.tooltip.hostCluster": "{count, number} penyelenggara dalam kluster",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Kejadian {id}",
   "map.tooltip.unknownOccurrence": "tidak diketahui",

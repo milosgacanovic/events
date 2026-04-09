@@ -739,6 +739,7 @@
   "map.status.loading": "Загрузка кластеров...",
   "map.status.truncated": "Показан выборочный вид карты для этой области. Увеличьте масштаб для более точных результатов.",
   "map.tooltip.cluster": "{count, number} мероприятий в кластере",
+  "map.tooltip.hostCluster": "{count, number} организаторов в кластере",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Событие {id}",
   "map.tooltip.unknownOccurrence": "неизвестно",

@@ -739,6 +739,7 @@
   "map.status.loading": "Iyalayisha amaqembu...",
   "map.status.truncated": "Ibonisa isibonelo somephu kulendawo. Sondeza ukuze uthole imiphumela engcono.",
   "map.tooltip.cluster": "Imicimbi engu-{count, number} emaqenjini",
+  "map.tooltip.hostCluster": "Abahlelekisi abangu-{count, number} emaqenjini",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Isigameko {id}",
   "map.tooltip.unknownOccurrence": "akwaziwa",

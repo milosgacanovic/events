@@ -739,6 +739,7 @@
   "map.status.loading": "Laster klynger...",
   "map.status.truncated": "Viser et utvalgt kartvisning for dette området. Zoom inn for mer presise resultater.",
   "map.tooltip.cluster": "{count, number} arrangementer i klynge",
+  "map.tooltip.hostCluster": "{count, number} arrangører i klynge",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Forekomst {id}",
   "map.tooltip.unknownOccurrence": "ukjent",

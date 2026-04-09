@@ -739,6 +739,7 @@
   "map.status.loading": "Φόρτωση clusters...",
   "map.status.truncated": "Εμφάνιση δειγματοληπτικής προβολής χάρτη για αυτή την περιοχή. Μεγεθύνετε για πιο ακριβή αποτελέσματα.",
   "map.tooltip.cluster": "{count, number} εκδηλώσεις στο cluster",
+  "map.tooltip.hostCluster": "{count, number} διοργανωτές στο cluster",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Εμφάνιση {id}",
   "map.tooltip.unknownOccurrence": "άγνωστο",

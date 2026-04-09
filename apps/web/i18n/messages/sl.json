@@ -739,6 +739,7 @@
   "map.status.loading": "Nalaganje skupin...",
   "map.status.truncated": "Prikazuje se vzorčeni pogled zemljevida za to področje. Povečajte za natančnejše rezultate.",
   "map.tooltip.cluster": "{count, number} dogodkov v skupini",
+  "map.tooltip.hostCluster": "{count, number} organizatorjev v skupini",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Termin {id}",
   "map.tooltip.unknownOccurrence": "neznano",

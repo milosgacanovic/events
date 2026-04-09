@@ -57,12 +57,11 @@ export function generateOccurrences(
     return [];
   }
 
-  const parsedOptions = RRule.parseString(event.rrule);
-  parsedOptions.dtstart = dtStartLocal.toJSDate();
-  parsedOptions.tzid = zone;
-
   let rule: InstanceType<typeof RRule>;
   try {
+    const parsedOptions = RRule.parseString(event.rrule);
+    parsedOptions.dtstart = dtStartLocal.toJSDate();
+    parsedOptions.tzid = zone;
     rule = new RRule(parsedOptions);
   } catch {
     return [];

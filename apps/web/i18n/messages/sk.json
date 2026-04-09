@@ -739,6 +739,7 @@
   "map.status.loading": "Načítavam zhluky...",
   "map.status.truncated": "Zobrazuje sa vzorkový pohľad mapy pre túto oblasť. Priblížte sa pre presnejšie výsledky.",
   "map.tooltip.cluster": "{count, number} podujatí v zhluku",
+  "map.tooltip.hostCluster": "{count, number} organizátorov v zhluku",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Termín {id}",
   "map.tooltip.unknownOccurrence": "neznáme",

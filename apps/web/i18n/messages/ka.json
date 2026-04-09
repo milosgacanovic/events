@@ -739,6 +739,7 @@
   "map.status.loading": "კლასტერები იტვირთება...",
   "map.status.truncated": "ამ არისთვის ნიმუშური რუქის ხედი ნაჩვენებია. უფრო ზუსტი შედეგებისთვის გაადიდეთ.",
   "map.tooltip.cluster": "{count, number} ღონისძიება კლასტერში",
+  "map.tooltip.hostCluster": "{count, number} ორგანიზატორი კლასტერში",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "შემთხვევა {id}",
   "map.tooltip.unknownOccurrence": "უცნობი",

@@ -739,6 +739,7 @@
   "map.status.loading": "Ladataan klustereita...",
   "map.status.truncated": "Näytetään otanta karttanäkymässä tältä alueelta. Zoomaa sisään tarkempien tulosten saamiseksi.",
   "map.tooltip.cluster": "{count, number} tapahtumaa klusterissa",
+  "map.tooltip.hostCluster": "{count, number} järjestäjää klusterissa",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Kerta {id}",
   "map.tooltip.unknownOccurrence": "tuntematon",

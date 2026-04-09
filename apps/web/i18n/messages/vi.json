@@ -739,6 +739,7 @@
   "map.status.loading": "Đang tải cụm...",
   "map.status.truncated": "Đang hiển thị chế độ xem bản đồ mẫu cho khu vực này. Phóng to để có kết quả chính xác hơn.",
   "map.tooltip.cluster": "{count, number} sự kiện trong cụm",
+  "map.tooltip.hostCluster": "{count, number} nhà tổ chức trong cụm",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Lần xuất hiện {id}",
   "map.tooltip.unknownOccurrence": "không rõ",

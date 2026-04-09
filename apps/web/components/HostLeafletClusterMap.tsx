@@ -271,7 +271,7 @@ export function HostLeafletClusterMap({
           >
             <Tooltip>
               {isCluster
-                ? t("map.tooltip.cluster", { count: pointCount })
+                ? t("map.tooltip.hostCluster", { count: pointCount })
                 : (() => {
                     const name = feature.properties.organizer_name?.trim() || t("common.unknown");
                     const practices = (feature.properties.practice_labels ?? []).filter(Boolean);

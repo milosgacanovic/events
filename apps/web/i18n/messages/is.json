@@ -739,6 +739,7 @@
   "map.status.loading": "Hleður klasa...",
   "map.status.truncated": "Sýnir sýnishorn af kortasvæðinu. Þysjaðu inn fyrir nákvæmari niðurstöður.",
   "map.tooltip.cluster": "{count, number} viðburðir í klasa",
+  "map.tooltip.hostCluster": "{count, number} skipuleggjendur í klasa",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Tilvik {id}",
   "map.tooltip.unknownOccurrence": "óþekkt",

@@ -739,6 +739,7 @@
   "map.status.loading": "กำลังโหลดกลุ่ม...",
   "map.status.truncated": "แสดงมุมมองแผนที่ตัวอย่างสำหรับพื้นที่นี้ ซูมเข้าเพื่อผลลัพธ์ที่แม่นยำกว่า",
   "map.tooltip.cluster": "{count, number} กิจกรรมในกลุ่ม",
+  "map.tooltip.hostCluster": "{count, number} ผู้จัดในกลุ่ม",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "รายการ {id}",
   "map.tooltip.unknownOccurrence": "ไม่ทราบ",

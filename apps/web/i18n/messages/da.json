@@ -739,6 +739,7 @@
   "map.status.loading": "Indlæser klynger...",
   "map.status.truncated": "Viser en samplet kortvisning for dette område. Zoom ind for mere præcise resultater.",
   "map.tooltip.cluster": "{count, number} begivenheder i klynge",
+  "map.tooltip.hostCluster": "{count, number} arrangører i klynge",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Forekomst {id}",
   "map.tooltip.unknownOccurrence": "ukendt",

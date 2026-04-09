@@ -739,6 +739,7 @@
   "map.status.loading": "טוען אשכולות...",
   "map.status.truncated": "מוצגת תצוגת מפה מדגמית לאזור זה. התקרבו לתוצאות מדויקות יותר.",
   "map.tooltip.cluster": "{count, number} אירועים באשכול",
+  "map.tooltip.hostCluster": "{count, number} מארגנים באשכול",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "מופע {id}",
   "map.tooltip.unknownOccurrence": "לא ידוע",

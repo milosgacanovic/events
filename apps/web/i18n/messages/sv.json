@@ -739,6 +739,7 @@
   "map.status.loading": "Laddar kluster...",
   "map.status.truncated": "Visar ett samplade kartvyn för detta område. Zooma in för mer exakta resultat.",
   "map.tooltip.cluster": "{count, number} evenemang i kluster",
+  "map.tooltip.hostCluster": "{count, number} arrangörer i kluster",
   "map.tooltip.eventWithDate": "{title} ({date})",
   "map.tooltip.occurrence": "Tillfälle {id}",
   "map.tooltip.unknownOccurrence": "okänt",

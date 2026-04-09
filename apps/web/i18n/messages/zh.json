@@ -739,6 +739,7 @@
   "map.status.loading": "加载集群中...",
   "map.status.truncated": "显示此区域的抽样地图视图，放大以获取更精确的结果。",
   "map.tooltip.cluster": "集群中有 {count, number} 个活动",
+  "map.tooltip.hostCluster": "集群中有 {count, number} 个主办方",
   "map.tooltip.eventWithDate": "{title}（{date}）",
   "map.tooltip.occurrence": "场次 {id}",
   "map.tooltip.unknownOccurrence": "未知",
