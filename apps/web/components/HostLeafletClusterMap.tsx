@@ -142,6 +142,7 @@ export function HostLeafletClusterMap({
     }
     const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(",");
     const zoom = Math.round(mapRef.current.getZoom());
+    console.log("[HostMap] zoom:", zoom);
     setCurrentZoom(zoom);
     const requestKey = `${queryString}|${bbox}|${zoom}`;
     if (lastRequestKeyRef.current === requestKey) {
@@ -254,7 +255,12 @@ export function HostLeafletClusterMap({
                   }
                   const currentZm = mapRef.current.getZoom();
                   const expansion = feature.properties.expansion_zoom ?? currentZm + 3;
-                  const targetZoom = Math.min(Math.max(expansion, currentZm + 3), currentZm + 5, 15);
+                  // Co-located points (expansion >= 13): jump straight to 13
+                  // Spread-out clusters: progressive zoom +3 to +5
+                  const targetZoom = expansion >= 13
+                    ? Math.min(13, 15)
+                    : Math.min(Math.max(expansion, currentZm + 3), currentZm + 5, 15);
+                  console.log("[HostMap] cluster click: current=%d expansion=%d target=%d", currentZm, expansion, targetZoom);
                   mapRef.current.setView([lat, lng], targetZoom);
                   scheduleRefresh();
                   return;
