@@ -75,12 +75,18 @@ export async function buildClusters(
     features: clusters.map((cluster) => {
       if ((cluster.properties as { cluster?: boolean }).cluster) {
         const clusterProps = cluster.properties as { cluster: true; point_count: number };
+        const clusterId = cluster.id as number;
+        let expansionZoom = input.zoom + 2;
+        try {
+          expansionZoom = supercluster.getClusterExpansionZoom(clusterId);
+        } catch { /* fallback to zoom + 2 */ }
         return {
           type: "Feature",
           geometry: cluster.geometry,
           properties: {
             cluster: true,
             point_count: clusterProps.point_count,
+            expansion_zoom: Math.min(expansionZoom, 20),
           },
         };
       }
@@ -162,12 +168,18 @@ export async function buildOrganizerClusters(
     features: clusters.map((cluster) => {
       if ((cluster.properties as { cluster?: boolean }).cluster) {
         const clusterProps = cluster.properties as { cluster: true; point_count: number };
+        const clusterId = cluster.id as number;
+        let expansionZoom = input.zoom + 2;
+        try {
+          expansionZoom = supercluster.getClusterExpansionZoom(clusterId);
+        } catch { /* fallback to zoom + 2 */ }
         return {
           type: "Feature",
           geometry: cluster.geometry,
           properties: {
             cluster: true,
             point_count: clusterProps.point_count,
+            expansion_zoom: Math.min(expansionZoom, 20),
           },
         };
       }

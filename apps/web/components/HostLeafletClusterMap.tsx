@@ -24,6 +24,7 @@ type ClusterFeature = {
   properties: {
     cluster: boolean;
     point_count?: number;
+    expansion_zoom?: number;
     organizer_id?: string;
     organizer_slug?: string;
     organizer_name?: string;
@@ -251,7 +252,8 @@ export function HostLeafletClusterMap({
                   if (!mapRef.current) {
                     return;
                   }
-                  mapRef.current.setView([lat, lng], Math.min(mapRef.current.getZoom() + 2, 20));
+                  const targetZoom = feature.properties.expansion_zoom ?? Math.min(mapRef.current.getZoom() + 2, 20);
+                  mapRef.current.setView([lat, lng], targetZoom);
                   scheduleRefresh();
                   return;
                 }
