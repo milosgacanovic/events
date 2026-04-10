@@ -38,7 +38,7 @@ export async function buildClusters(
     },
   }));
 
-  if (input.zoom >= 8) {
+  if (input.zoom >= 13) {
     return {
       collection: {
         type: "FeatureCollection",
@@ -132,7 +132,7 @@ export async function buildOrganizerClusters(
     },
   }));
 
-  if (input.zoom >= 8) {
+  if (input.zoom >= 13) {
     return {
       collection: {
         type: "FeatureCollection",

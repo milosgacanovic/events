@@ -77,7 +77,7 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
     lat: feature.geometry.coordinates[1],
     lng: feature.geometry.coordinates[0],
   }));
-  if (zoom < 8) {
+  if (zoom < 13) {
     return base;
   }
 
@@ -99,7 +99,7 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
     }
     const centerLat = markers[0].lat;
     const cosLat = Math.max(Math.cos((centerLat * Math.PI) / 180), 0.2);
-    const baseMeters = zoom <= 8 ? 1800 : zoom === 9 ? 1560 : zoom === 10 ? 1320 : zoom === 11 ? 1080 : 840;
+    const baseMeters = zoom <= 13 ? 840 : zoom === 14 ? 600 : 420;
     for (let i = 0; i < markers.length; i += 1) {
       const ring = Math.floor(i / 8);
       const radiusMeters = baseMeters + ring * 300;
@@ -165,6 +165,7 @@ export function LeafletClusterMap({
     }
     const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(",");
     const zoom = Math.round(mapRef.current.getZoom());
+    console.log("[EventMap] zoom:", zoom);
     setCurrentZoom(zoom);
 
     const requestId = requestRef.current + 1;
