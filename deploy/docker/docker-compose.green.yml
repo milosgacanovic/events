@@ -24,7 +24,7 @@ services:
       SMTP_HOST: brevo-relay
       SMTP_PORT: 2525
       SMTP_FROM: noreply@danceresource.org
-      SMTP_ADMIN_TO: hello@danceresource.org
+      SMTP_ADMIN_TO: hello@danceresource.org, milos@danceresource.org, milosgacanovic@gmail.com
     networks:
       - default
       - mail-relay
