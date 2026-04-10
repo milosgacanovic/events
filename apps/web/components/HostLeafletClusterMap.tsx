@@ -94,7 +94,7 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
     }
     const centerLat = markers[0].lat;
     const cosLat = Math.max(Math.cos((centerLat * Math.PI) / 180), 0.2);
-    const radiusMeters = zoom <= 13 ? 840 : zoom === 14 ? 600 : 420;
+    const radiusMeters = 500;
     for (let i = 0; i < markers.length; i += 1) {
       const angle = (2 * Math.PI * i) / markers.length;
       const latOffset = (radiusMeters / 111_320) * Math.sin(angle);
