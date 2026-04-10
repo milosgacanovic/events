@@ -252,7 +252,9 @@ export function HostLeafletClusterMap({
                   if (!mapRef.current) {
                     return;
                   }
-                  const targetZoom = feature.properties.expansion_zoom ?? Math.min(mapRef.current.getZoom() + 2, 20);
+                  const currentZm = mapRef.current.getZoom();
+                  const expansion = feature.properties.expansion_zoom ?? currentZm + 2;
+                  const targetZoom = Math.min(expansion, currentZm + 3, 14);
                   mapRef.current.setView([lat, lng], targetZoom);
                   scheduleRefresh();
                   return;
