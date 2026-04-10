@@ -165,7 +165,6 @@ export function LeafletClusterMap({
     }
     const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(",");
     const zoom = Math.round(mapRef.current.getZoom());
-    console.log("[EventMap] zoom:", zoom);
     setCurrentZoom(zoom);
 
     const requestId = requestRef.current + 1;

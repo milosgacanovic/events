@@ -142,7 +142,6 @@ export function HostLeafletClusterMap({
     }
     const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(",");
     const zoom = Math.round(mapRef.current.getZoom());
-    console.log("[HostMap] zoom:", zoom);
     setCurrentZoom(zoom);
     const requestKey = `${queryString}|${bbox}|${zoom}`;
     if (lastRequestKeyRef.current === requestKey) {
