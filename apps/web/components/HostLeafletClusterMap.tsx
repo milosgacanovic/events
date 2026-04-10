@@ -96,8 +96,8 @@ function spiderfyMarkers(features: ClusterFeature[], zoom: number): MarkerDescri
     const cosLat = Math.max(Math.cos((centerLat * Math.PI) / 180), 0.2);
     for (let i = 0; i < markers.length; i += 1) {
       const ring = Math.floor(i / 8);
-      const baseMeters = zoom <= 8 ? 900 : zoom === 9 ? 780 : zoom === 10 ? 660 : zoom === 11 ? 540 : 420;
-      const radiusMeters = baseMeters + ring * 150;
+      const baseMeters = zoom <= 8 ? 1800 : zoom === 9 ? 1560 : zoom === 10 ? 1320 : zoom === 11 ? 1080 : 840;
+      const radiusMeters = baseMeters + ring * 300;
       const angle = (2 * Math.PI * i) / Math.max(markers.length, 1);
       const latOffset = (radiusMeters / 111_320) * Math.sin(angle);
       const lngOffset = (radiusMeters / (111_320 * cosLat)) * Math.cos(angle);
@@ -254,7 +254,7 @@ export function HostLeafletClusterMap({
                   }
                   const currentZm = mapRef.current.getZoom();
                   const expansion = feature.properties.expansion_zoom ?? currentZm + 3;
-                  const targetZoom = Math.min(Math.max(expansion, currentZm + 3), currentZm + 5, 14);
+                  const targetZoom = Math.min(Math.max(expansion, currentZm + 3), currentZm + 5, 15);
                   mapRef.current.setView([lat, lng], targetZoom);
                   scheduleRefresh();
                   return;
