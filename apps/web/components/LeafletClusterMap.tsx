@@ -300,11 +300,11 @@ export function LeafletClusterMap({
             pathOptions={{
               color: isCluster ? "#408657" : "#0f8a4a",
               fillColor: isCluster ? "#408657" : "#0f8a4a",
-              fillOpacity: isCluster ? 0.5 : 1,
+              fillOpacity: isCluster ? 0.5 : 0.8,
               opacity: isCluster ? 0.45 : 1,
               weight: isCluster ? 2 : 1,
             }}
-            radius={isCluster ? Math.min(40, 16 + Math.log(pointCount) * 8) : 14}
+            radius={isCluster ? Math.min(22, 9 + Math.log(pointCount) * 4.4) : 14}
           >
             <Tooltip>{tooltipLabel}</Tooltip>
           </CircleMarker>
@@ -333,11 +333,11 @@ export function LeafletClusterMap({
             pathOptions={{
               color: isCluster ? "#408657" : "#0f8a4a",
               fillColor: isCluster ? "#408657" : "#0f8a4a",
-              fillOpacity: isCluster ? 0.5 : 1,
+              fillOpacity: isCluster ? 0.5 : 0.8,
               opacity: isCluster ? 0.45 : 1,
               weight: isCluster ? 2 : 1,
             }}
-            radius={isCluster ? Math.min(40, 16 + Math.log(pointCount) * 8) : 14}
+            radius={isCluster ? Math.min(22, 9 + Math.log(pointCount) * 4.4) : 14}
           />
         );
       }),
