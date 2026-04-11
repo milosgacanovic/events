@@ -246,6 +246,8 @@ export function HostLeafletClusterMap({
                     if (path) path.classList.add("marker-entering");
                   }
                 : undefined,
+              mouseover: (e) => { (e.target as any).setStyle({ fillOpacity: 1 }); },
+              mouseout: (e) => { (e.target as any).setStyle({ fillOpacity: isCluster ? 0.5 : 0.8 }); },
               click: () => {
                 if (isCluster) {
                   if (!mapRef.current) {
@@ -253,8 +255,6 @@ export function HostLeafletClusterMap({
                   }
                   const currentZm = mapRef.current.getZoom();
                   const expansion = feature.properties.expansion_zoom ?? currentZm + 3;
-                  // Co-located points (expansion >= 13): jump straight to 13
-                  // Spread-out clusters: progressive zoom +3 to +5
                   const targetZoom = expansion >= 13
                     ? Math.min(13, 15)
                     : Math.min(Math.max(expansion, currentZm + 3), currentZm + 5, 15);
