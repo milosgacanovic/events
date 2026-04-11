@@ -275,7 +275,7 @@ export function HostLeafletClusterMap({
               opacity: isCluster ? 0.45 : 1,
               weight: isCluster ? 2 : 1,
             }}
-            radius={isCluster ? Math.min(20, 8 + Math.log(pointCount) * 4) : 7}
+            radius={isCluster ? Math.min(40, 16 + Math.log(pointCount) * 8) : 14}
           >
             <Tooltip>
               {isCluster
@@ -319,7 +319,7 @@ export function HostLeafletClusterMap({
               opacity: isCluster ? 0.45 : 1,
               weight: isCluster ? 2 : 1,
             }}
-            radius={isCluster ? Math.min(20, 8 + Math.log(pointCount) * 4) : 7}
+            radius={isCluster ? Math.min(40, 16 + Math.log(pointCount) * 8) : 14}
           />
         );
       }),
