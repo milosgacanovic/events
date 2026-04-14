@@ -17,6 +17,7 @@ type ActivityLogItem = {
   targetType: string;
   targetId: string | null;
   targetLabel: string | null;
+  targetSlug: string | null;
   metadata: Record<string, unknown>;
   ipAddress: string | null;
   userAgent: string | null;
@@ -199,6 +200,13 @@ export default function AdminLogsPage() {
       + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
 
+  function targetUrl(item: ActivityLogItem): string | null {
+    if (!item.targetSlug) return null;
+    if (item.targetType === "event") return `/events/${item.targetSlug}`;
+    if (item.targetType === "host") return `/hosts/${item.targetSlug}`;
+    return null;
+  }
+
   function actionBadgeClass(action: string) {
     if (action.includes("delete")) return "manage-badge manage-badge--red";
     if (action.includes("create")) return "manage-badge manage-badge--green";
@@ -323,9 +331,19 @@ export default function AdminLogsPage() {
                       <td><span className={actionBadgeClass(item.action)}>{item.action}</span></td>
                       <td>{item.actorName ?? <span className="manage-meta">system</span>}</td>
                       <td>
-                        {item.targetLabel && <span>{item.targetLabel}</span>}
-                        {!item.targetLabel && item.targetId && (
+                        {item.targetLabel ? (
+                          targetUrl(item) ? (
+                            <a href={targetUrl(item)!} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "none" }}>
+                              {item.targetLabel}
+                            </a>
+                          ) : (
+                            <span>{item.targetLabel}</span>
+                          )
+                        ) : item.targetId ? (
                           <span className="manage-meta" style={{ fontSize: "0.8em" }}>{item.targetId.slice(0, 8)}...</span>
+                        ) : null}
+                        {item.targetType && (
+                          <span className="manage-meta" style={{ fontSize: "0.75em", marginLeft: 6 }}>{item.targetType}</span>
                         )}
                       </td>
                       <td>

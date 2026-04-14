@@ -139,49 +139,56 @@ export async function listActivityLogs(
 
   if (input.q) {
     values.push(input.q);
-    whereParts.push(`to_tsvector('simple', coalesce(action, '') || ' ' || coalesce(actor_name, '') || ' ' || coalesce(target_label, '')) @@ plainto_tsquery('simple', $${values.length})`);
+    whereParts.push(`to_tsvector('simple', coalesce(al.action, '') || ' ' || coalesce(al.actor_name, '') || ' ' || coalesce(al.target_label, '')) @@ plainto_tsquery('simple', $${values.length})`);
   }
   if (input.action) {
     if (input.action.includes(".")) {
       values.push(input.action);
-      whereParts.push(`action = $${values.length}`);
+      whereParts.push(`al.action = $${values.length}`);
     } else {
       values.push(`${input.action}.%`);
-      whereParts.push(`action LIKE $${values.length}`);
+      whereParts.push(`al.action LIKE $${values.length}`);
     }
   }
   if (input.targetType) {
     values.push(input.targetType);
-    whereParts.push(`target_type = $${values.length}`);
+    whereParts.push(`al.target_type = $${values.length}`);
   }
   if (input.actorId) {
     values.push(input.actorId);
-    whereParts.push(`actor_id = $${values.length}`);
+    whereParts.push(`al.actor_id = $${values.length}`);
   }
   if (input.excludeServiceAccounts) {
-    whereParts.push(`(actor_id IS NULL OR actor_id NOT IN (SELECT id FROM users WHERE is_service_account = true))`);
+    whereParts.push(`(al.actor_id IS NULL OR al.actor_id NOT IN (SELECT id FROM users WHERE is_service_account = true))`);
   }
   if (input.dateFrom) {
     values.push(input.dateFrom);
-    whereParts.push(`created_at >= $${values.length}::timestamptz`);
+    whereParts.push(`al.created_at >= $${values.length}::timestamptz`);
   }
   if (input.dateTo) {
     values.push(`${input.dateTo}T23:59:59.999Z`);
-    whereParts.push(`created_at <= $${values.length}::timestamptz`);
+    whereParts.push(`al.created_at <= $${values.length}::timestamptz`);
   }
 
   const whereSQL = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
 
   const [itemsResult, totalResult] = await Promise.all([
-    pool.query<ActivityLogRow>(
-      `SELECT id, actor_id, actor_name, action, target_type, target_id, target_label, metadata, ip_address, user_agent, created_at
-       FROM activity_log ${whereSQL}
-       ORDER BY created_at DESC
+    pool.query<ActivityLogRow & { resolved_name: string | null; resolved_slug: string | null }>(
+      `SELECT al.id, al.actor_id, al.actor_name, al.action, al.target_type, al.target_id, al.target_label,
+              al.metadata, al.ip_address, al.user_agent, al.created_at,
+              COALESCE(al.target_label, e.title, o.name, u.display_name, u.email) AS resolved_name,
+              COALESCE(e.slug, o.slug) AS resolved_slug
+       FROM activity_log al
+       LEFT JOIN events e ON al.target_type = 'event' AND al.target_id::text = e.id::text
+       LEFT JOIN organizers o ON al.target_type = 'host' AND al.target_id::text = o.id::text
+       LEFT JOIN users u ON al.target_type = 'user' AND al.target_id::text = u.id::text
+       ${whereSQL}
+       ORDER BY al.created_at DESC
        LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
       [...values, pageSize, offset],
     ),
     pool.query<{ total: string }>(
-      `SELECT COUNT(*) as total FROM activity_log ${whereSQL}`,
+      `SELECT COUNT(*) as total FROM activity_log al ${whereSQL}`,
       values,
     ),
   ]);
@@ -196,7 +203,8 @@ export async function listActivityLogs(
       action: row.action,
       targetType: row.target_type,
       targetId: row.target_id,
-      targetLabel: row.target_label,
+      targetLabel: row.resolved_name ?? row.target_label,
+      targetSlug: row.resolved_slug,
       metadata: row.metadata,
       ipAddress: row.ip_address,
       userAgent: row.user_agent,
