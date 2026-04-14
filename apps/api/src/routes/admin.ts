@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { DateTime } from "luxon";
 import { z } from "zod";
 
-import { listActivityLogs, getActivityLogById, listErrorLogs, getErrorLogById } from "../db/activityLogRepo";
+import { listActivityLogs, listActivityActors, getActivityLogById, listErrorLogs, getErrorLogById } from "../db/activityLogRepo";
 import { recordActivity } from "../services/activityLogger";
 import { runAlertsDry } from "../db/alertRepo";
 import { OCCURRENCES_INDEX } from "../services/meiliService";
@@ -582,6 +582,11 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
 
   // --- Activity & Error Logs ---
 
+  app.get("/admin/activity-logs/actors", async (request) => {
+    await app.requireAdmin(request);
+    return listActivityActors(app.db);
+  });
+
   app.get("/admin/activity-logs", async (request) => {
     await app.requireAdmin(request);
     const q = z.object({
@@ -589,6 +594,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       action: z.string().optional(),
       targetType: z.string().optional(),
       actorId: z.string().uuid().optional(),
+      excludeServiceAccounts: z.enum(["true", "false"]).optional().transform((v) => v === "true"),
       dateFrom: z.string().optional(),
       dateTo: z.string().optional(),
       page: z.coerce.number().int().min(1).default(1),

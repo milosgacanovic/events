@@ -106,6 +106,16 @@ export async function logError(pool: Pool, entry: ErrorLogEntry): Promise<void> 
 // Read — Activity Logs
 // ---------------------------------------------------------------------------
 
+export async function listActivityActors(pool: Pool) {
+  const result = await pool.query<{ actor_id: string; actor_name: string }>(
+    `SELECT DISTINCT actor_id, actor_name
+     FROM activity_log
+     WHERE actor_id IS NOT NULL AND actor_name IS NOT NULL
+     ORDER BY actor_name`,
+  );
+  return result.rows.map((r) => ({ id: r.actor_id, name: r.actor_name }));
+}
+
 export async function listActivityLogs(
   pool: Pool,
   input: {
@@ -113,6 +123,7 @@ export async function listActivityLogs(
     action?: string;
     targetType?: string;
     actorId?: string;
+    excludeServiceAccounts?: boolean;
     dateFrom?: string;
     dateTo?: string;
     page: number;
@@ -146,6 +157,9 @@ export async function listActivityLogs(
   if (input.actorId) {
     values.push(input.actorId);
     whereParts.push(`actor_id = $${values.length}`);
+  }
+  if (input.excludeServiceAccounts) {
+    whereParts.push(`(actor_id IS NULL OR actor_id NOT IN (SELECT id FROM users WHERE is_service_account = true))`);
   }
   if (input.dateFrom) {
     values.push(input.dateFrom);

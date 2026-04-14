@@ -95,6 +95,9 @@ export default function AdminLogsPage() {
   const [targetTypeFilter, setTargetTypeFilter] = useState("");
   const [activityDateFrom, setActivityDateFrom] = useState("");
   const [activityDateTo, setActivityDateTo] = useState("");
+  const [actorFilter, setActorFilter] = useState("");
+  const [excludeServiceAccounts, setExcludeServiceAccounts] = useState(false);
+  const [actors, setActors] = useState<Array<{ id: string; name: string }>>([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState("");
 
@@ -114,6 +117,16 @@ export default function AdminLogsPage() {
   const [detailType, setDetailType] = useState<"activity" | "error">("activity");
   const [detailLoading, setDetailLoading] = useState(false);
 
+  // --- Load actors for filter ---
+  useEffect(() => {
+    void (async () => {
+      try {
+        const data = await authorizedGet<Array<{ id: string; name: string }>>(getToken, "/admin/activity-logs/actors");
+        setActors(data);
+      } catch { /* ignore */ }
+    })();
+  }, [getToken]);
+
   // --- Load activity logs ---
   const loadActivity = useCallback(async () => {
     setActivityLoading(true);
@@ -123,6 +136,8 @@ export default function AdminLogsPage() {
       if (activitySearch) params.set("q", activitySearch);
       if (actionFilter) params.set("action", actionFilter);
       if (targetTypeFilter) params.set("targetType", targetTypeFilter);
+      if (actorFilter) params.set("actorId", actorFilter);
+      if (excludeServiceAccounts) params.set("excludeServiceAccounts", "true");
       if (activityDateFrom) params.set("dateFrom", activityDateFrom);
       if (activityDateTo) params.set("dateTo", activityDateTo);
       const data = await authorizedGet<{ items: ActivityLogItem[]; pagination: Pagination }>(
@@ -135,7 +150,7 @@ export default function AdminLogsPage() {
     } finally {
       setActivityLoading(false);
     }
-  }, [getToken, activityPage, activitySearch, actionFilter, targetTypeFilter, activityDateFrom, activityDateTo]);
+  }, [getToken, activityPage, activitySearch, actionFilter, targetTypeFilter, actorFilter, excludeServiceAccounts, activityDateFrom, activityDateTo]);
 
   // --- Load error logs ---
   const loadErrors = useCallback(async () => {
@@ -243,6 +258,23 @@ export default function AdminLogsPage() {
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
+              <select
+                value={actorFilter}
+                onChange={(e) => { setActorFilter(e.target.value); setActivityPage(1); }}
+              >
+                <option value="">All actors</option>
+                {actors.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="filter-pill"
+                data-active={excludeServiceAccounts}
+                onClick={() => { setExcludeServiceAccounts((v) => !v); setActivityPage(1); }}
+              >
+                Exclude service accounts
+              </button>
               <input
                 type="date"
                 value={activityDateFrom}
