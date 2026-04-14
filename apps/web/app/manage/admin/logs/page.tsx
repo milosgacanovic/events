@@ -303,7 +303,7 @@ export default function AdminLogsPage() {
                 data-active={excludeServiceAccounts}
                 onClick={() => { setExcludeServiceAccounts((v) => !v); setActivityPage(1); }}
               >
-                Exclude service accounts
+                {excludeServiceAccounts ? "Excluding service accounts" : "Exclude service accounts"}
               </button>
               <input
                 type="date"
