@@ -1161,7 +1161,7 @@ textarea.field-invalid {
 }
 .manage-table .note-btn-add {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--accent, #2e7d32);
 }
 .manage-table .action-btns {
   display: flex;
@@ -1173,16 +1173,16 @@ textarea.field-invalid {
   font-size: 0.75rem;
   padding: 3px 10px;
   border-radius: 4px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--accent, #2e7d32);
   background: var(--surface);
-  color: var(--ink);
+  color: var(--accent, #2e7d32);
   cursor: pointer;
   white-space: nowrap;
   transition: var(--transition-fast);
 }
 .manage-table .action-btns button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--accent, #2e7d32);
+  color: #fff;
 }
 
 /* Standalone filter pill (toggle on/off) */
