@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { authorizedGet } from "../../../../lib/manageApi";
@@ -85,19 +86,23 @@ const PAGE_SIZE = 20;
 
 export default function AdminLogsPage() {
   const { getToken } = useKeycloakAuth();
-  const [tab, setTab] = useState<"activity" | "errors">("activity");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [tab, setTab] = useState<"activity" | "errors">(() => (searchParams.get("tab") as "activity" | "errors") || "activity");
 
   // --- Activity state ---
   const [activityItems, setActivityItems] = useState<ActivityLogItem[]>([]);
   const [activityTotal, setActivityTotal] = useState(0);
-  const [activityPage, setActivityPage] = useState(1);
-  const [activitySearch, setActivitySearch] = useState("");
-  const [actionFilter, setActionFilter] = useState("");
-  const [targetTypeFilter, setTargetTypeFilter] = useState("");
-  const [activityDateFrom, setActivityDateFrom] = useState("");
-  const [activityDateTo, setActivityDateTo] = useState("");
-  const [actorFilter, setActorFilter] = useState("");
-  const [excludeServiceAccounts, setExcludeServiceAccounts] = useState(false);
+  const [activityPage, setActivityPage] = useState(() => parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const [activitySearch, setActivitySearch] = useState(() => searchParams.get("q") ?? "");
+  const [actionFilter, setActionFilter] = useState(() => searchParams.get("action") ?? "");
+  const [targetTypeFilter, setTargetTypeFilter] = useState(() => searchParams.get("targetType") ?? "");
+  const [activityDateFrom, setActivityDateFrom] = useState(() => searchParams.get("dateFrom") ?? "");
+  const [activityDateTo, setActivityDateTo] = useState(() => searchParams.get("dateTo") ?? "");
+  const [actorFilter, setActorFilter] = useState(() => searchParams.get("actorId") ?? "");
+  const [excludeServiceAccounts, setExcludeServiceAccounts] = useState(() => searchParams.get("esa") !== "false");
   const [actors, setActors] = useState<Array<{ id: string; name: string }>>([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState("");
@@ -111,6 +116,23 @@ export default function AdminLogsPage() {
   const [errorDateTo, setErrorDateTo] = useState("");
   const [errorLoading, setErrorLoading] = useState(false);
   const [errorError, setErrorError] = useState("");
+
+  // Sync state to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (tab !== "activity") params.set("tab", tab);
+    if (activitySearch) params.set("q", activitySearch);
+    if (actionFilter) params.set("action", actionFilter);
+    if (targetTypeFilter) params.set("targetType", targetTypeFilter);
+    if (actorFilter) params.set("actorId", actorFilter);
+    if (!excludeServiceAccounts) params.set("esa", "false");
+    if (activityDateFrom) params.set("dateFrom", activityDateFrom);
+    if (activityDateTo) params.set("dateTo", activityDateTo);
+    if (activityPage > 1) params.set("page", String(activityPage));
+    const qs = params.toString();
+    const url = qs ? `${pathname}?${qs}` : pathname;
+    router.replace(url, { scroll: false });
+  }, [tab, activitySearch, actionFilter, targetTypeFilter, actorFilter, excludeServiceAccounts, activityDateFrom, activityDateTo, activityPage, pathname, router]);
 
   // --- Detail dialog ---
   const detailDialogRef = useRef<HTMLDialogElement>(null);
