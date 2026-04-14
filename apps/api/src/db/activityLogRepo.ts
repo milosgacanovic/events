@@ -220,8 +220,15 @@ export async function listActivityLogs(
 }
 
 export async function getActivityLogById(pool: Pool, id: string) {
-  const result = await pool.query<ActivityLogRow>(
-    `SELECT * FROM activity_log WHERE id = $1`,
+  const result = await pool.query<ActivityLogRow & { resolved_name: string | null; resolved_slug: string | null }>(
+    `SELECT al.*,
+            COALESCE(al.target_label, e.title, o.name, u.display_name, u.email) AS resolved_name,
+            COALESCE(e.slug, o.slug) AS resolved_slug
+     FROM activity_log al
+     LEFT JOIN events e ON al.target_type = 'event' AND al.target_id::text = e.id::text
+     LEFT JOIN organizers o ON al.target_type = 'host' AND al.target_id::text = o.id::text
+     LEFT JOIN users u ON al.target_type = 'user' AND al.target_id::text = u.id::text
+     WHERE al.id = $1`,
     [id],
   );
   const row = result.rows[0];
@@ -233,7 +240,8 @@ export async function getActivityLogById(pool: Pool, id: string) {
     action: row.action,
     targetType: row.target_type,
     targetId: row.target_id,
-    targetLabel: row.target_label,
+    targetLabel: row.resolved_name ?? row.target_label,
+    targetSlug: row.resolved_slug,
     metadata: row.metadata,
     snapshot: row.snapshot,
     ipAddress: row.ip_address,

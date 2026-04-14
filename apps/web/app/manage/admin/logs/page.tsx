@@ -200,10 +200,10 @@ export default function AdminLogsPage() {
       + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
 
-  function targetUrl(item: ActivityLogItem): string | null {
-    if (!item.targetSlug) return null;
-    if (item.targetType === "event") return `/events/${item.targetSlug}`;
-    if (item.targetType === "host") return `/hosts/${item.targetSlug}`;
+  function targetUrl(item: { targetType: string; targetSlug?: string | null; targetLabel?: string | null }): string | null {
+    if (item.targetType === "event" && item.targetSlug) return `/events/${item.targetSlug}`;
+    if (item.targetType === "host" && item.targetSlug) return `/hosts/${item.targetSlug}`;
+    if (item.targetType === "user" && item.targetLabel) return `/manage/admin/users?q=${encodeURIComponent(item.targetLabel)}`;
     return null;
   }
 
@@ -332,13 +332,7 @@ export default function AdminLogsPage() {
                       <td>{item.actorName ?? <span className="manage-meta">system</span>}</td>
                       <td>
                         {item.targetLabel ? (
-                          targetUrl(item) ? (
-                            <a href={targetUrl(item)!} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "none" }}>
-                              {item.targetLabel}
-                            </a>
-                          ) : (
-                            <span>{item.targetLabel}</span>
-                          )
+                          <span>{item.targetLabel}</span>
                         ) : item.targetId ? (
                           <span className="manage-meta" style={{ fontSize: "0.8em" }}>{item.targetId.slice(0, 8)}...</span>
                         ) : null}
@@ -482,7 +476,14 @@ export default function AdminLogsPage() {
                   {d.actorId && <span className="manage-meta" style={{ marginLeft: 8 }}>({d.actorId.slice(0, 8)}...)</span>}
                 </div>
                 <div>
-                  <strong>Target:</strong> {d.targetType} {d.targetLabel ? `— ${d.targetLabel}` : ""}
+                  <strong>Target:</strong> {d.targetType}
+                  {d.targetLabel && (
+                    targetUrl(d) ? (
+                      <> — <a href={targetUrl(d)!} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>{d.targetLabel}</a></>
+                    ) : (
+                      <> — {d.targetLabel}</>
+                    )
+                  )}
                   {d.targetId && <span className="manage-meta" style={{ marginLeft: 8 }}>({d.targetId})</span>}
                 </div>
                 {d.ipAddress && <div><strong>IP:</strong> {d.ipAddress}</div>}

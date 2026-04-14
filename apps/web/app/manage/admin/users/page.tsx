@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 import { ROLE_ADMIN, ROLE_EDITOR } from "@dr-events/shared";
 
@@ -34,15 +35,33 @@ type SortKey = "created" | "name" | "email" | "hosts" | "events";
 export default function AdminUsersPage() {
   const { getToken } = useKeycloakAuth();
   const { t } = useI18n();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [users, setUsers] = useState<UserItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(() => parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [loading, setLoading] = useState(true);
-  const [sort, setSort] = useState<SortKey>("created");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [hasNotesFilter, setHasNotesFilter] = useState(false);
+  const [sort, setSort] = useState<SortKey>(() => (searchParams.get("sort") as SortKey) || "created");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (searchParams.get("sortDir") as "asc" | "desc") || "desc");
+  const [roleFilter, setRoleFilter] = useState(() => searchParams.get("role") ?? "");
+  const [hasNotesFilter, setHasNotesFilter] = useState(() => searchParams.get("hasNotes") === "true");
+
+  // Sync state to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search) params.set("q", search);
+    if (roleFilter) params.set("role", roleFilter);
+    if (hasNotesFilter) params.set("hasNotes", "true");
+    if (sort !== "created") params.set("sort", sort);
+    if (sortDir !== "desc") params.set("sortDir", sortDir);
+    if (page > 1) params.set("page", String(page));
+    const qs = params.toString();
+    const url = qs ? `${pathname}?${qs}` : pathname;
+    router.replace(url, { scroll: false });
+  }, [search, roleFilter, hasNotesFilter, sort, sortDir, page, pathname, router]);
 
   // Role editing
   const [editRolesUserId, setEditRolesUserId] = useState<string | null>(null);
