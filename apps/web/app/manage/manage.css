@@ -1185,6 +1185,24 @@ textarea.field-invalid {
   color: #fff;
 }
 
+/* Role tag colors */
+.tag.tag--admin {
+  background: #fef2f2;
+  border-color: #dc2626;
+  color: #dc2626;
+}
+.tag.tag--editor {
+  background: #f0fdf4;
+  border-color: var(--accent, #2e7d32);
+  color: var(--accent, #2e7d32);
+}
+[data-theme="dark"] .tag.tag--admin {
+  background: rgba(220, 38, 38, 0.15);
+}
+[data-theme="dark"] .tag.tag--editor {
+  background: rgba(46, 125, 50, 0.15);
+}
+
 /* Standalone filter pill (toggle on/off) */
 .filter-pill {
   padding: 5px 14px;

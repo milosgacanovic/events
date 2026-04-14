@@ -371,7 +371,7 @@ export default function AdminUsersPage() {
                     <td>
                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                         {(user.keycloak_roles ?? []).filter((r) => r === "admin" || r === "editor").map((r) => (
-                          <span key={r} className="tag" style={{ fontSize: "0.7rem" }}>
+                          <span key={r} className={`tag tag--${r}`} style={{ fontSize: "0.7rem" }}>
                             {r}
                           </span>
                         ))}
