@@ -263,31 +263,41 @@ export default function AdminUsersPage() {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             style={{ flex: 1, minWidth: 180 }}
           />
-          <select
-            value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-          >
-            <option value="">{t("manage.admin.users.allRoles")}</option>
-            <option value="admin">Admin</option>
-            <option value="editor">Editor</option>
-          </select>
-          <label className="filter-toggle">
-            <input
-              type="checkbox"
-              checked={hasNotesFilter}
-              onChange={(e) => { setHasNotesFilter(e.target.checked); setPage(1); }}
-            />
-            {t("manage.admin.users.hasNotes")}
-          </label>
           {process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL && (
             <a href={process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL} target="_blank" rel="noopener noreferrer" className="ghost-btn" style={{ fontSize: "0.8rem", marginLeft: "auto" }}>
               {t("manage.admin.users.inviteUser")}
             </a>
           )}
         </div>
-        {totalItems > 0 && (
-          <span className="meta">{t("manage.pagination.showing", { start: (page - 1) * 20 + 1, end: (page - 1) * 20 + users.length, total: totalItems })}</span>
-        )}
+        <div className="manage-filter-row">
+          <div className="manage-status-pills">
+            {([
+              { value: "", label: t("manage.admin.users.allRoles") },
+              { value: "admin", label: "Admin" },
+              { value: "editor", label: "Editor" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                data-active={roleFilter === opt.value}
+                onClick={() => { setRoleFilter(opt.value); setPage(1); }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="filter-pill"
+            data-active={hasNotesFilter}
+            onClick={() => { setHasNotesFilter((v) => !v); setPage(1); }}
+          >
+            {t("manage.admin.users.hasNotes")}
+          </button>
+          {totalItems > 0 && (
+            <span className="meta" style={{ marginLeft: "auto" }}>{t("manage.pagination.showing", { start: (page - 1) * 20 + 1, end: (page - 1) * 20 + users.length, total: totalItems })}</span>
+          )}
+        </div>
       </div>
 
       {error && (

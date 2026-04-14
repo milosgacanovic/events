@@ -1185,24 +1185,21 @@ textarea.field-invalid {
   color: var(--accent);
 }
 
-/* Filter bar enhancements for admin tables */
-.manage-filter-bar select {
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  border: 1px solid var(--border);
+/* Standalone filter pill (toggle on/off) */
+.filter-pill {
+  padding: 5px 14px;
+  border: 1px solid var(--border, #e0e0e0);
   border-radius: 6px;
-  background: var(--surface);
-  color: var(--ink);
-}
-.manage-filter-bar .filter-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  background: var(--bg, #fff);
+  color: var(--ink, #333);
   font-size: 0.85rem;
-  color: var(--muted);
   cursor: pointer;
-  user-select: none;
+  white-space: nowrap;
+  line-height: 1.4;
+  transition: background 0.15s, color 0.15s;
 }
-.manage-filter-bar .filter-toggle input[type="checkbox"] {
-  width: auto;
+.filter-pill[data-active="true"] {
+  background: var(--accent, #2e7d32);
+  color: #fff;
+  border-color: var(--accent, #2e7d32);
 }
