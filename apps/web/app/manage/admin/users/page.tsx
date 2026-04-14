@@ -313,15 +313,8 @@ export default function AdminUsersPage() {
                     className={`sortable${sort === "name" ? " sorted" : ""}`}
                     onClick={() => handleSort("name")}
                   >
-                    {t("manage.admin.users.name")}
+                    {t("manage.admin.users.usernameEmail")}
                     <span className="sort-arrow">{sortArrow("name")}</span>
-                  </th>
-                  <th
-                    className={`sortable${sort === "email" ? " sorted" : ""}`}
-                    onClick={() => handleSort("email")}
-                  >
-                    {t("manage.admin.users.email")}
-                    <span className="sort-arrow">{sortArrow("email")}</span>
                   </th>
                   <th>{t("manage.common.roles")}</th>
                   <th
@@ -353,15 +346,17 @@ export default function AdminUsersPage() {
                 {users.map((user) => (
                   <tr key={user.id}>
                     <td>
-                      {user.display_name ?? user.email ?? user.keycloak_sub.slice(0, 16)}
-                      {user.is_service_account && (
-                        <span className="tag" style={{ fontSize: "0.65rem", marginLeft: 6, verticalAlign: "middle", background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }}>
-                          {t("manage.admin.users.serviceAccount")}
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ color: user.email ? undefined : "var(--muted)" }}>
-                      {user.email ?? "\u2014"}
+                      <div>
+                        {user.display_name ?? user.keycloak_sub.slice(0, 16)}
+                        {user.is_service_account && (
+                          <span className="tag" style={{ fontSize: "0.65rem", marginLeft: 6, verticalAlign: "middle", background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }}>
+                            {t("manage.admin.users.serviceAccount")}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                        {user.email ?? "\u2014"}
+                      </div>
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -374,16 +369,13 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="text-center">{user.host_count}</td>
                     <td className="text-center">{user.event_count}</td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <td className="note-cell">
+                      <div className="note-cell-inner" onClick={() => openNoteEdit(user)} title={user.admin_notes || t("manage.admin.users.notePlaceholder")}>
                         {user.admin_notes ? (
-                          <span className="note-preview" title={user.admin_notes}>
-                            {user.admin_notes.length > 40 ? user.admin_notes.slice(0, 40) + "\u2026" : user.admin_notes}
-                          </span>
-                        ) : null}
-                        <button type="button" className="note-btn" onClick={() => openNoteEdit(user)}>
-                          {user.admin_notes ? "\u270E" : "+"}
-                        </button>
+                          <span className="note-preview">{user.admin_notes}</span>
+                        ) : (
+                          <span className="note-btn-add">+</span>
+                        )}
                       </div>
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>

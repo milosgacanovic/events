@@ -427,6 +427,7 @@
   "manage.admin.users.actions": "Akcije",
   "manage.admin.users.editRoles": "Izmeni uloge",
   "manage.admin.users.email": "Email",
+  "manage.admin.users.usernameEmail": "Korisnik / Email",
   "manage.admin.users.events": "Događaji",
   "manage.admin.users.hosts": "Domaćini",
   "manage.admin.users.inviteUser": "Pozovi korisnika (Keycloak)",

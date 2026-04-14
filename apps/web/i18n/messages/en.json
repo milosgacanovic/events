@@ -755,6 +755,7 @@
   "manage.admin.users.removeServiceAccount": "Remove service",
   "manage.admin.users.name": "Name",
   "manage.admin.users.email": "Email",
+  "manage.admin.users.usernameEmail": "Username / Email",
   "manage.admin.users.hosts": "Hosts",
   "manage.admin.users.events": "Events",
   "manage.admin.users.joined": "Joined",
