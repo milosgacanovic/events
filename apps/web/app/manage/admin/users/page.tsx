@@ -18,6 +18,7 @@ type UserItem = {
   event_count: number;
   keycloak_roles?: string[];
   is_service_account?: boolean;
+  admin_notes?: string;
 };
 
 type UsersResponse = {
@@ -28,6 +29,8 @@ type UsersResponse = {
 type LinkedHost = { id: string; organizer_id: string; organizer_name: string };
 type LinkedEvent = { id: string; title: string; status: string };
 
+type SortKey = "created" | "name" | "email" | "hosts" | "events";
+
 export default function AdminUsersPage() {
   const { getToken } = useKeycloakAuth();
   const { t } = useI18n();
@@ -36,6 +39,10 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<SortKey>("created");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [hasNotesFilter, setHasNotesFilter] = useState(false);
 
   // Role editing
   const [editRolesUserId, setEditRolesUserId] = useState<string | null>(null);
@@ -48,14 +55,23 @@ export default function AdminUsersPage() {
   const [linkedEvents, setLinkedEvents] = useState<LinkedEvent[]>([]);
   const accessDialogRef = useRef<HTMLDialogElement>(null);
 
+  // Notes
+  const [noteUserId, setNoteUserId] = useState<string | null>(null);
+  const [noteUserName, setNoteUserName] = useState("");
+  const [noteText, setNoteText] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const noteDialogRef = useRef<HTMLDialogElement>(null);
+
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      const params = new URLSearchParams({ page: String(page), pageSize: "20", sort, sortDir });
       if (search) params.set("search", search);
+      if (roleFilter) params.set("role", roleFilter);
+      if (hasNotesFilter) params.set("hasNotes", "true");
       const data = await authorizedGet<UsersResponse>(getToken, `/admin/users?${params}`);
       setUsers(data.items);
       setTotalItems(data.pagination.totalItems);
@@ -64,10 +80,26 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, search]);
+  }, [getToken, page, search, sort, sortDir, roleFilter, hasNotesFilter]);
 
   useEffect(() => { void load(); }, [load]);
 
+  function handleSort(key: SortKey) {
+    if (sort === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSort(key);
+      setSortDir(key === "name" || key === "email" ? "asc" : "desc");
+    }
+    setPage(1);
+  }
+
+  function sortArrow(key: SortKey) {
+    if (sort !== key) return "";
+    return sortDir === "asc" ? "\u25B2" : "\u25BC";
+  }
+
+  // ── Role editing ──
   function openRoleEdit(user: UserItem) {
     setEditRolesUserId(user.id);
     setEditRoles(user.keycloak_roles ?? []);
@@ -94,7 +126,13 @@ export default function AdminUsersPage() {
     }
   }
 
-  // Access dialog search state
+  function toggleRole(role: string) {
+    setEditRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
+    );
+  }
+
+  // ── Access management ──
   const [accessHostSearch, setAccessHostSearch] = useState("");
   const [accessHostResults, setAccessHostResults] = useState<Array<{ id: string; name: string }>>([]);
   const [accessEventSearch, setAccessEventSearch] = useState("");
@@ -142,6 +180,25 @@ export default function AdminUsersPage() {
     } catch { /* ignore */ }
   }
 
+  async function addHostToUser(userId: string, organizerId: string) {
+    try {
+      await authorizedPost(getToken, `/admin/users/${userId}/hosts`, { organizerId });
+      const hosts = await authorizedGet<LinkedHost[]>(getToken, `/admin/users/${userId}/hosts`);
+      setLinkedHosts(hosts);
+      setAccessHostSearch("");
+      setAccessHostResults([]);
+      void load();
+    } catch { /* ignore */ }
+  }
+
+  async function removeHostFromUser(userId: string, hostId: string) {
+    try {
+      await authorizedDelete(getToken, `/admin/users/${userId}/hosts/${hostId}`);
+      setLinkedHosts((prev) => prev.filter((h) => h.organizer_id !== hostId));
+      void load();
+    } catch { /* ignore */ }
+  }
+
   async function addEventToUser(userId: string, eventId: string) {
     try {
       await authorizedPost(getToken, `/admin/users/${userId}/events`, { eventId });
@@ -161,29 +218,6 @@ export default function AdminUsersPage() {
     } catch { /* ignore */ }
   }
 
-  async function addHostToUser(userId: string, organizerId: string) {
-    try {
-      await authorizedPost(getToken, `/admin/users/${userId}/hosts`, { organizerId });
-      const hosts = await authorizedGet<LinkedHost[]>(getToken, `/admin/users/${userId}/hosts`);
-      setLinkedHosts(hosts);
-      setAccessHostSearch("");
-      setAccessHostResults([]);
-      void load();
-    } catch {
-      // ignore
-    }
-  }
-
-  async function removeHostFromUser(userId: string, hostId: string) {
-    try {
-      await authorizedDelete(getToken, `/admin/users/${userId}/hosts/${hostId}`);
-      setLinkedHosts((prev) => prev.filter((h) => h.organizer_id !== hostId));
-      void load();
-    } catch {
-      // ignore
-    }
-  }
-
   async function toggleServiceAccount(userId: string, current: boolean) {
     try {
       await authorizedPatch(getToken, `/admin/users/${userId}/service-account`, { is_service_account: !current });
@@ -193,27 +227,66 @@ export default function AdminUsersPage() {
     }
   }
 
-  function toggleRole(role: string) {
-    setEditRoles((prev) =>
-      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
-    );
+  // ── Notes ──
+  function openNoteEdit(user: UserItem) {
+    setNoteUserId(user.id);
+    setNoteUserName(user.display_name ?? user.email ?? user.keycloak_sub.slice(0, 16));
+    setNoteText(user.admin_notes ?? "");
+    setTimeout(() => noteDialogRef.current?.showModal(), 0);
+  }
+
+  async function saveNote() {
+    if (!noteUserId) return;
+    setNoteSaving(true);
+    try {
+      await authorizedPatch(getToken, `/admin/users/${noteUserId}/notes`, { notes: noteText });
+      noteDialogRef.current?.close();
+      setNoteUserId(null);
+      void load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save note");
+    } finally {
+      setNoteSaving(false);
+    }
   }
 
   return (
     <div>
       <h1 className="manage-page-title">{t("manage.admin.users.title")}</h1>
 
+      {/* Filter bar */}
       <div className="manage-filter-bar">
-        <input
-          placeholder={t("manage.admin.users.searchPlaceholder")}
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-        />
-        {totalItems > 0 && <span className="meta">{t("manage.pagination.showing", { start: (page - 1) * 20 + 1, end: (page - 1) * 20 + users.length, total: totalItems })}</span>}
-        {process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL && (
-          <a href={process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL} target="_blank" rel="noopener noreferrer" className="ghost-btn" style={{ fontSize: "0.8rem", marginLeft: "auto" }}>
-            {t("manage.admin.users.inviteUser")}
-          </a>
+        <div className="manage-filter-row">
+          <input
+            placeholder={t("manage.admin.users.searchPlaceholder")}
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            style={{ flex: 1, minWidth: 180 }}
+          />
+          <select
+            value={roleFilter}
+            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
+          >
+            <option value="">{t("manage.admin.users.allRoles")}</option>
+            <option value="admin">Admin</option>
+            <option value="editor">Editor</option>
+          </select>
+          <label className="filter-toggle">
+            <input
+              type="checkbox"
+              checked={hasNotesFilter}
+              onChange={(e) => { setHasNotesFilter(e.target.checked); setPage(1); }}
+            />
+            {t("manage.admin.users.hasNotes")}
+          </label>
+          {process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL && (
+            <a href={process.env.NEXT_PUBLIC_KEYCLOAK_ADMIN_URL} target="_blank" rel="noopener noreferrer" className="ghost-btn" style={{ fontSize: "0.8rem", marginLeft: "auto" }}>
+              {t("manage.admin.users.inviteUser")}
+            </a>
+          )}
+        </div>
+        {totalItems > 0 && (
+          <span className="meta">{t("manage.pagination.showing", { start: (page - 1) * 20 + 1, end: (page - 1) * 20 + users.length, total: totalItems })}</span>
         )}
       </div>
 
@@ -233,81 +306,110 @@ export default function AdminUsersPage() {
       ) : !error ? (
         <>
           <div style={{ overflowX: "auto" }}>
-          <table className="manage-table">
-            <thead>
-              <tr>
-                <th>{t("manage.admin.users.name")}</th>
-                <th>{t("manage.admin.users.email")}</th>
-                <th>{t("manage.common.roles")}</th>
-                <th className="text-center">{t("manage.admin.users.hosts")}</th>
-                <th className="text-center">{t("manage.admin.users.events")}</th>
-                <th>{t("manage.admin.users.joined")}</th>
-                <th className="text-right">{t("manage.admin.users.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    {user.display_name ?? user.email ?? user.keycloak_sub.slice(0, 16)}
-                    {user.is_service_account && (
-                      <span className="tag" style={{ fontSize: "0.65rem", marginLeft: 6, verticalAlign: "middle", background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }}>
-                        {t("manage.admin.users.serviceAccount")}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {user.email ?? "—"}
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {(user.keycloak_roles ?? []).filter((r) => r === "admin" || r === "editor").map((r) => (
-                        <span key={r} className="tag" style={{ fontSize: "0.7rem" }}>
-                          {r}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="text-center">
-                    {user.host_count}
-                  </td>
-                  <td className="text-center">
-                    {user.event_count}
-                  </td>
-                  <td>
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="text-right">
-                    <button
-                      type="button"
-                      className="ghost-btn"
-                      style={{ fontSize: "0.75rem", marginRight: 4 }}
-                      onClick={() => openRoleEdit(user)}
-                    >
-                      {t("manage.common.roles")}
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost-btn"
-                      style={{ fontSize: "0.75rem" }}
-                      onClick={() => void openAccessManage(user.id)}
-                    >
-                      {t("manage.common.access")}
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost-btn"
-                      style={{ fontSize: "0.75rem", marginLeft: 4 }}
-                      onClick={() => void toggleServiceAccount(user.id, !!user.is_service_account)}
-                      title={user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
-                    >
-                      {user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
-                    </button>
-                  </td>
+            <table className="manage-table">
+              <thead>
+                <tr>
+                  <th
+                    className={`sortable${sort === "name" ? " sorted" : ""}`}
+                    onClick={() => handleSort("name")}
+                  >
+                    {t("manage.admin.users.name")}
+                    <span className="sort-arrow">{sortArrow("name")}</span>
+                  </th>
+                  <th
+                    className={`sortable${sort === "email" ? " sorted" : ""}`}
+                    onClick={() => handleSort("email")}
+                  >
+                    {t("manage.admin.users.email")}
+                    <span className="sort-arrow">{sortArrow("email")}</span>
+                  </th>
+                  <th>{t("manage.common.roles")}</th>
+                  <th
+                    className={`sortable text-center${sort === "hosts" ? " sorted" : ""}`}
+                    onClick={() => handleSort("hosts")}
+                  >
+                    {t("manage.admin.users.hosts")}
+                    <span className="sort-arrow">{sortArrow("hosts")}</span>
+                  </th>
+                  <th
+                    className={`sortable text-center${sort === "events" ? " sorted" : ""}`}
+                    onClick={() => handleSort("events")}
+                  >
+                    {t("manage.admin.users.events")}
+                    <span className="sort-arrow">{sortArrow("events")}</span>
+                  </th>
+                  <th>{t("manage.admin.users.notes")}</th>
+                  <th
+                    className={`sortable${sort === "created" ? " sorted" : ""}`}
+                    onClick={() => handleSort("created")}
+                  >
+                    {t("manage.admin.users.joined")}
+                    <span className="sort-arrow">{sortArrow("created")}</span>
+                  </th>
+                  <th className="text-right">{t("manage.admin.users.actions")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id}>
+                    <td>
+                      {user.display_name ?? user.email ?? user.keycloak_sub.slice(0, 16)}
+                      {user.is_service_account && (
+                        <span className="tag" style={{ fontSize: "0.65rem", marginLeft: 6, verticalAlign: "middle", background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }}>
+                          {t("manage.admin.users.serviceAccount")}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ color: user.email ? undefined : "var(--muted)" }}>
+                      {user.email ?? "\u2014"}
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                        {(user.keycloak_roles ?? []).filter((r) => r === "admin" || r === "editor").map((r) => (
+                          <span key={r} className="tag" style={{ fontSize: "0.7rem" }}>
+                            {r}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="text-center">{user.host_count}</td>
+                    <td className="text-center">{user.event_count}</td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {user.admin_notes ? (
+                          <span className="note-preview" title={user.admin_notes}>
+                            {user.admin_notes.length > 40 ? user.admin_notes.slice(0, 40) + "\u2026" : user.admin_notes}
+                          </span>
+                        ) : null}
+                        <button type="button" className="note-btn" onClick={() => openNoteEdit(user)}>
+                          {user.admin_notes ? "\u270E" : "+"}
+                        </button>
+                      </div>
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </td>
+                    <td>
+                      <div className="action-btns">
+                        <button type="button" onClick={() => openRoleEdit(user)}>
+                          {t("manage.common.roles")}
+                        </button>
+                        <button type="button" onClick={() => void openAccessManage(user.id)}>
+                          {t("manage.common.access")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void toggleServiceAccount(user.id, !!user.is_service_account)}
+                          title={user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
+                        >
+                          {user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           {(page > 1 || users.length === 20) && (
             <div className="manage-pagination">
@@ -338,6 +440,27 @@ export default function AdminUsersPage() {
             {t("manage.common.cancel")}
           </button>
           <button type="button" className="primary-btn" onClick={() => void saveRoles()}>
+            {t("manage.common.save")}
+          </button>
+        </div>
+      </dialog>
+
+      {/* Notes dialog */}
+      <dialog ref={noteDialogRef} className="manage-dialog">
+        <h3>{t("manage.admin.users.editNote")}</h3>
+        <p className="meta" style={{ marginBottom: 8 }}>{noteUserName}</p>
+        <textarea
+          rows={4}
+          value={noteText}
+          onChange={(e) => setNoteText(e.target.value)}
+          placeholder={t("manage.admin.users.notePlaceholder")}
+          style={{ width: "100%", fontSize: "0.9rem", padding: "8px 10px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)", resize: "vertical" }}
+        />
+        <div className="manage-dialog-actions">
+          <button type="button" className="ghost-btn" onClick={() => noteDialogRef.current?.close()}>
+            {t("manage.common.cancel")}
+          </button>
+          <button type="button" className="primary-btn" disabled={noteSaving} onClick={() => void saveNote()}>
             {t("manage.common.save")}
           </button>
         </div>

@@ -29,6 +29,7 @@ import {
   unlinkUserFromHost,
   linkUserToEvent,
   unlinkUserFromEvent,
+  updateUserNote,
 } from "../db/userManageRepo";
 import { getUiLabels, updateUiLabels } from "../db/uiLabelRepo";
 import { resolveUserId } from "../middleware/ownership";
@@ -292,6 +293,10 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       search: z.string().optional(),
       page: z.coerce.number().int().positive().default(1),
       pageSize: z.coerce.number().int().positive().max(100).default(20),
+      sort: z.enum(["created", "name", "email", "hosts", "events"]).optional(),
+      sortDir: z.enum(["asc", "desc"]).optional(),
+      role: z.enum(["admin", "editor"]).optional(),
+      hasNotes: z.coerce.boolean().optional(),
     }).safeParse(request.query);
     if (!parsed.success) { reply.code(400); return { error: parsed.error.flatten() }; }
 
@@ -390,6 +395,17 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       targetId: params.data.id,
       metadata: { is_service_account: body.data.is_service_account },
     });
+    return { ok: true };
+  });
+
+  app.patch("/admin/users/:id/notes", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    const body = z.object({ notes: z.string().max(5000) }).safeParse(request.body);
+    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+
+    await updateUserNote(app.db, params.data.id, body.data.notes);
     return { ok: true };
   });
 

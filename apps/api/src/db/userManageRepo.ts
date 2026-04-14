@@ -2,7 +2,15 @@ import type { Pool } from "pg";
 
 export async function listUsersWithRoles(
   pool: Pool,
-  input: { search?: string; page: number; pageSize: number },
+  input: {
+    search?: string;
+    page: number;
+    pageSize: number;
+    sort?: string;
+    sortDir?: string;
+    role?: string;
+    hasNotes?: boolean;
+  },
 ) {
   const page = Math.max(input.page, 1);
   const pageSize = Math.min(Math.max(input.pageSize, 1), 100);
@@ -17,7 +25,28 @@ export async function listUsersWithRoles(
     whereParts.push(`(u.display_name ilike $${idx} or u.email ilike $${idx} or u.keycloak_sub ilike $${idx})`);
   }
 
+  if (input.role === "admin") {
+    whereParts.push(`'admin' = ANY(u.roles)`);
+  } else if (input.role === "editor") {
+    whereParts.push(`'editor' = ANY(u.roles)`);
+  }
+
+  if (input.hasNotes) {
+    whereParts.push(`u.admin_notes != ''`);
+  }
+
   const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
+
+  const sortColumns: Record<string, string> = {
+    created: "u.created_at",
+    name: "u.display_name",
+    email: "u.email",
+    hosts: "host_count",
+    events: "event_count",
+  };
+  const sortCol = sortColumns[input.sort ?? ""] ?? "u.created_at";
+  const sortDirection = input.sortDir === "asc" ? "asc" : "desc";
+  const orderSql = `order by ${sortCol} ${sortDirection} nulls last`;
 
   const [itemsResult, totalResult] = await Promise.all([
     pool.query<{
@@ -28,12 +57,13 @@ export async function listUsersWithRoles(
       roles: string[];
       created_at: string;
       is_service_account: boolean;
+      admin_notes: string;
       host_count: string;
       event_count: string;
     }>(
       `
         select
-          u.id, u.keycloak_sub, u.display_name, u.email, u.roles, u.created_at, u.is_service_account,
+          u.id, u.keycloak_sub, u.display_name, u.email, u.roles, u.created_at, u.is_service_account, u.admin_notes,
           (select count(*)::text from host_users hu where hu.user_id = u.id) as host_count,
           (
             select count(distinct e.id)::text
@@ -45,7 +75,7 @@ export async function listUsersWithRoles(
           ) as event_count
         from users u
         ${whereSql}
-        order by u.created_at desc
+        ${orderSql}
         limit $${values.length + 1}
         offset $${values.length + 2}
       `,
@@ -70,6 +100,17 @@ export async function listUsersWithRoles(
       totalItems: Number(totalResult.rows[0]?.count ?? "0"),
     },
   };
+}
+
+export async function updateUserNote(
+  pool: Pool,
+  userId: string,
+  notes: string,
+) {
+  await pool.query(
+    `update users set admin_notes = $2 where id = $1`,
+    [userId, notes],
+  );
 }
 
 export async function getUserLinkedHosts(pool: Pool, userId: string) {
