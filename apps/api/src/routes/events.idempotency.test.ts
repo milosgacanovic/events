@@ -575,7 +575,10 @@ describe("events idempotency conflict handling", () => {
     app.decorate("requireAdmin", async () => {});
     await app.register(async (instance) => {
       instance.addHook("onRequest", async (request) => {
-        (request as unknown as { log: { info: typeof logInfo } }).log = { info: logInfo } as never;
+        (request as unknown as { log: { info: typeof logInfo; warn: typeof logInfo } }).log = {
+          info: logInfo,
+          warn: logInfo,
+        } as never;
       });
       await instance.register(eventRoutes);
     });

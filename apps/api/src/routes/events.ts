@@ -285,6 +285,123 @@ function buildEventDateClause(input: { fromUtc: string; toUtc: string }): string
   return `(starts_at_ts >= ${Date.parse(input.fromUtc)} AND starts_at_ts < ${Date.parse(input.toUtc)})`;
 }
 
+// Mirrors the Meili filter set as a parameterised SQL WHERE clause over
+// event_occurrences + events. Returns the exact `count(distinct series_id)`
+// — Meili's distinct total is an approximation and over-reports (see
+// `estimatedTotalHits` vs truth). We only use this when `q === ""`; text
+// queries continue to read Meili's `totalHits` since full-text ranking is
+// not expressible in SQL here.
+async function countDistinctSeriesIds(
+  db: import("pg").Pool,
+  input: {
+    fromUtc: string;
+    toUtc: string;
+    practiceCategoryIds: string[];
+    practiceSubcategoryId?: string;
+    eventFormatIds: string[];
+    tags: string[];
+    languages: string[];
+    attendanceModes: string[];
+    organizerId?: string;
+    countryCodes: string[];
+    cities: string[];
+    hasGeo?: boolean;
+    geoLat?: number;
+    geoLng?: number;
+    geoRadius?: number;
+    includeUnlisted: boolean;
+    selectedEventDateRanges: Array<{ fromUtc: string; toUtc: string }>;
+  },
+): Promise<number> {
+  const clauses: string[] = [
+    "eo.starts_at_utc >= $1::timestamptz",
+    "eo.starts_at_utc <= $2::timestamptz",
+    "e.status = 'published'",
+  ];
+  const params: unknown[] = [input.fromUtc, input.toUtc];
+  const next = () => `$${params.length + 1}`;
+
+  if (!input.includeUnlisted) {
+    clauses.push("e.visibility = 'public'");
+  }
+  if (input.practiceCategoryIds.length) {
+    clauses.push(`e.practice_category_id = ANY(${next()}::uuid[])`);
+    params.push(input.practiceCategoryIds);
+  }
+  if (input.practiceSubcategoryId) {
+    clauses.push(`e.practice_subcategory_id = ${next()}::uuid`);
+    params.push(input.practiceSubcategoryId);
+  }
+  if (input.eventFormatIds.length) {
+    clauses.push(`e.event_format_id = ANY(${next()}::uuid[])`);
+    params.push(input.eventFormatIds);
+  }
+  if (input.tags.length) {
+    clauses.push(`e.tags && ${next()}::text[]`);
+    params.push(input.tags);
+  }
+  if (input.languages.length) {
+    clauses.push(`e.languages && ${next()}::text[]`);
+    params.push(input.languages);
+  }
+  if (input.attendanceModes.length) {
+    clauses.push(`e.attendance_mode = ANY(${next()}::text[])`);
+    params.push(input.attendanceModes);
+  }
+  if (input.organizerId) {
+    clauses.push(
+      `exists (select 1 from event_organizers eoz where eoz.event_id = e.id and eoz.organizer_id = ${next()}::uuid)`,
+    );
+    params.push(input.organizerId);
+  }
+  if (input.countryCodes.length) {
+    clauses.push(`lower(eo.country_code) = ANY(${next()}::text[])`);
+    params.push(input.countryCodes);
+  }
+  if (input.cities.length) {
+    clauses.push(`eo.city = ANY(${next()}::text[])`);
+    params.push(input.cities);
+  }
+  if (typeof input.hasGeo === "boolean") {
+    clauses.push(input.hasGeo ? "eo.geom is not null" : "eo.geom is null");
+  }
+  if (
+    input.geoLat !== undefined &&
+    input.geoLng !== undefined &&
+    input.geoRadius !== undefined
+  ) {
+    clauses.push(
+      `eo.geom is not null and ST_DWithin(eo.geom, ST_SetSRID(ST_MakePoint(${next()}::float, ${next()}::float), 4326)::geography, ${next()}::float)`,
+    );
+    params.push(input.geoLng, input.geoLat, input.geoRadius);
+  }
+  if (input.selectedEventDateRanges.length) {
+    const dateClauses = input.selectedEventDateRanges.map(() => {
+      const fromIdx = next();
+      params.push("");
+      const toIdx = next();
+      params.push("");
+      return `(eo.starts_at_utc >= ${fromIdx}::timestamptz AND eo.starts_at_utc < ${toIdx}::timestamptz)`;
+    });
+    // Fill the placeholders we just pushed.
+    let cursor = params.length - input.selectedEventDateRanges.length * 2;
+    for (const range of input.selectedEventDateRanges) {
+      params[cursor++] = range.fromUtc;
+      params[cursor++] = range.toUtc;
+    }
+    clauses.push(`(${dateClauses.join(" OR ")})`);
+  }
+
+  const sql = `
+    select count(distinct eo.series_id)::int as total
+    from event_occurrences eo
+    join events e on e.id = eo.event_id
+    where ${clauses.join(" AND ")}
+  `;
+  const result = await db.query<{ total: number }>(sql, params);
+  return result.rows[0]?.total ?? 0;
+}
+
 function hasScheduleShapeChanges(
   previous: {
     schedule_kind: string;
@@ -455,6 +572,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             ? "starts_at_ts:desc"
             : "starts_at_ts:asc";
       const index = app.meiliService.client.index(OCCURRENCES_INDEX);
+      // hitsPerPage/page (vs limit/offset) gives us `totalHits` — a closer
+      // approximation than `estimatedTotalHits` when distinctAttribute is on.
+      // For text-free queries we override this with an exact SQL count below.
       const result = await index.search<OccurrenceDoc>(parsed.data.q ?? "", {
         filter: meiliFilters,
         facets: [
@@ -468,14 +588,55 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           "organizer_ids",
         ],
         sort: [sortExpression],
-        limit: parsed.data.pageSize,
-        offset: (parsed.data.page - 1) * parsed.data.pageSize,
+        hitsPerPage: parsed.data.pageSize,
+        page: parsed.data.page,
       });
       const meiliHits = result.hits as OccurrenceDoc[];
       const organizerMap = await loadEventOrganizers(
         app.db,
         Array.from(new Set(meiliHits.map((hit) => hit.event_id).filter(Boolean))),
       );
+
+      // Meili's `totalHits` with distinctAttribute still over-reports (known
+      // limitation). When the user hasn't typed a text query we can replace
+      // it with an exact SQL `count(distinct series_id)` that mirrors the
+      // same filter predicates. Text queries continue to use Meili's number
+      // since relevance ranking isn't expressible in SQL here.
+      const meiliResultWithTotals = result as typeof result & {
+        totalHits?: number;
+        estimatedTotalHits?: number;
+      };
+      let resolvedTotalHits =
+        meiliResultWithTotals.totalHits ??
+        meiliResultWithTotals.estimatedTotalHits ??
+        result.hits.length;
+      const hasTextQuery = Boolean(parsed.data.q && parsed.data.q.trim().length > 0);
+      if (!hasTextQuery) {
+        try {
+          resolvedTotalHits = await countDistinctSeriesIds(app.db, {
+            fromUtc: from ?? now.toISO()!,
+            toUtc: to ?? now.plus({ days: 365 }).toISO()!,
+            practiceCategoryIds,
+            practiceSubcategoryId: parsed.data.practiceSubcategoryId,
+            eventFormatIds,
+            tags,
+            languages,
+            attendanceModes,
+            organizerId: parsed.data.organizerId,
+            countryCodes,
+            cities: cityFilters,
+            hasGeo,
+            geoLat: parsed.data.geoLat,
+            geoLng: parsed.data.geoLng,
+            geoRadius: parsed.data.geoRadius,
+            includeUnlisted: showUnlisted,
+            selectedEventDateRanges,
+          });
+        } catch (error) {
+          request.log.warn({ err: error, msg: "events.search.sql_total_failed" });
+          // Fall through with Meili's number.
+        }
+      }
 
       let eventDateFacet: Record<string, number> = {};
       if (parsed.data.skipEventDateFacet !== "true") {
@@ -541,7 +702,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             roles: [],
           })),
         })),
-        totalHits: result.estimatedTotalHits ?? result.hits.length,
+        totalHits: resolvedTotalHits,
         facets: {
           practiceCategoryId: result.facetDistribution?.practice_category_id ?? {},
           practiceSubcategoryId: result.facetDistribution?.practice_subcategory_id ?? {},
@@ -556,10 +717,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         pagination: {
           page: parsed.data.page,
           pageSize: parsed.data.pageSize,
-          totalPages: Math.max(
-            Math.ceil((result.estimatedTotalHits ?? result.hits.length) / parsed.data.pageSize),
-            1,
-          ),
+          totalPages: Math.max(Math.ceil(resolvedTotalHits / parsed.data.pageSize), 1),
         },
       };
       setSearchCache("events_search", cacheKeyPayload, payload);
