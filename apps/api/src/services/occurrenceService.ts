@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { RRule } from "rrule";
+import { RRule, RRuleSet } from "rrule";
 
 import type { EventOccurrenceRow, EventSeriesRow, LocationRow } from "../types/domain";
 
@@ -7,6 +7,77 @@ export type OccurrenceHorizon = {
   fromUtc: DateTime;
   toUtc: DateTime;
 };
+
+/**
+ * Parse an ICS date-time string like "20260704T190000" or "20260704T190000Z".
+ * Floating times (no Z) are interpreted in the fallback zone.
+ */
+function parseIcsDateTime(s: string, fallbackZone: string): Date {
+  const m = s.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/);
+  if (!m) throw new Error(`Invalid ICS date-time: ${s}`);
+  const [, y, mo, d, h, mi, se, z] = m;
+  if (z === "Z") {
+    return new Date(`${y}-${mo}-${d}T${h}:${mi}:${se}Z`);
+  }
+  const dt = DateTime.fromObject(
+    { year: +y, month: +mo, day: +d, hour: +h, minute: +mi, second: +se },
+    { zone: fallbackZone },
+  );
+  return dt.toJSDate();
+}
+
+/**
+ * Parse an rrule string that may be either legacy single-line
+ * ("FREQ=WEEKLY;BYDAY=MO") or multi-line RFC 5545 with EXDATE
+ * ("RRULE:FREQ=WEEKLY;BYDAY=MO\nEXDATE:20260704T190000Z").
+ * DTSTART comes from the separate column via the dtstart/zone args.
+ */
+export function parseRuleString(rruleStr: string, dtstart: Date, zone: string): RRule | RRuleSet {
+  const lines = rruleStr.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  let rruleBody: string | null = null;
+  const exdateLines: string[] = [];
+
+  for (const line of lines) {
+    const upper = line.toUpperCase();
+    if (upper.startsWith("RRULE:")) {
+      rruleBody = line.slice("RRULE:".length);
+    } else if (upper.startsWith("EXDATE")) {
+      exdateLines.push(line);
+    } else if (upper.startsWith("DTSTART")) {
+      // Ignore — DTSTART comes from the dtstart argument.
+    } else if (line.includes("=") && !line.includes(":")) {
+      // Legacy: bare "FREQ=WEEKLY;..." with no RRULE: prefix.
+      rruleBody = line;
+    }
+  }
+
+  if (!rruleBody) {
+    throw new Error("No RRULE found in rule string");
+  }
+
+  const parsed = RRule.parseString(rruleBody);
+  parsed.dtstart = dtstart;
+  parsed.tzid = zone;
+  const rrule = new RRule(parsed);
+
+  if (exdateLines.length === 0) {
+    return rrule;
+  }
+
+  const set = new RRuleSet();
+  set.rrule(rrule);
+  for (const exLine of exdateLines) {
+    const colonIdx = exLine.indexOf(":");
+    if (colonIdx === -1) continue;
+    const body = exLine.substring(colonIdx + 1);
+    for (const token of body.split(",")) {
+      const trimmed = token.trim();
+      if (!trimmed) continue;
+      set.exdate(parseIcsDateTime(trimmed, zone));
+    }
+  }
+  return set;
+}
 
 export const defaultOccurrenceHorizon = (): OccurrenceHorizon => {
   const now = DateTime.utc();
@@ -57,12 +128,9 @@ export function generateOccurrences(
     return [];
   }
 
-  let rule: InstanceType<typeof RRule>;
+  let rule: RRule | RRuleSet;
   try {
-    const parsedOptions = RRule.parseString(event.rrule);
-    parsedOptions.dtstart = dtStartLocal.toJSDate();
-    parsedOptions.tzid = zone;
-    rule = new RRule(parsedOptions);
+    rule = parseRuleString(event.rrule, dtStartLocal.toJSDate(), zone);
   } catch {
     return [];
   }

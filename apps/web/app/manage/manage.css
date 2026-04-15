@@ -1221,3 +1221,283 @@ textarea.field-invalid {
   color: #fff;
   border-color: var(--accent, #2e7d32);
 }
+
+/* --------------------------------------------------------------------- */
+/* Recurring event builder                                                */
+/* --------------------------------------------------------------------- */
+.rrule-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+}
+.rrule-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rrule-row-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.rrule-sublabel {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted, #666);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.rrule-interval {
+  width: 60px;
+}
+.rrule-builder select,
+.rrule-builder input[type="time"],
+.rrule-builder input[type="date"],
+.rrule-builder input[type="number"] {
+  padding: 6px 8px;
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 6px;
+  background: var(--bg, #fff);
+  color: var(--ink, #333);
+  font-size: 0.88rem;
+}
+.rrule-day-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.rrule-day-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #e0e0e0);
+  background: var(--bg, #fff);
+  color: var(--ink, #333);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.rrule-day-btn[data-active="true"] {
+  background: var(--accent, #2e7d32);
+  color: #fff;
+  border-color: var(--accent, #2e7d32);
+  font-weight: 600;
+}
+.rrule-day-btn:hover:not([data-active="true"]) {
+  border-color: var(--accent, #2e7d32);
+}
+.rrule-monthly {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rrule-monthly-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-weight: 400;
+  cursor: pointer;
+}
+.rrule-monthly-row input[type="radio"] {
+  width: auto;
+  cursor: pointer;
+}
+.rrule-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+.rrule-duration {
+  font-size: 0.85rem;
+  color: var(--muted, #888);
+  padding-bottom: 10px;
+}
+.rrule-ends {
+  border: 1px solid var(--line, #eee);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 0;
+}
+.rrule-ends legend {
+  padding: 0 6px;
+}
+.rrule-ends-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  font-weight: 400;
+  cursor: pointer;
+}
+.rrule-ends-row input[type="radio"] {
+  width: auto;
+  cursor: pointer;
+}
+.rrule-disclosure {
+  background: none;
+  border: none;
+  color: var(--ink, #333);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 4px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rrule-disclosure:hover {
+  color: var(--accent, #2e7d32);
+}
+.rrule-exclusions {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--surface, #f8f8f8);
+  border: 1px solid var(--line, #eee);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rrule-exclusion-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.rrule-exclusion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border, #e0e0e0);
+  font-size: 0.82rem;
+}
+.rrule-exclusion-remove {
+  background: none;
+  border: none;
+  color: var(--muted, #888);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+.rrule-exclusion-remove:hover {
+  color: #dc2626;
+}
+.rrule-exclusion-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rrule-exclusion-add button {
+  padding: 6px 12px;
+  border: 1px solid var(--accent, #2e7d32);
+  border-radius: 6px;
+  background: var(--bg, #fff);
+  color: var(--accent, #2e7d32);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.rrule-exclusion-add button:hover:not(:disabled) {
+  background: var(--accent, #2e7d32);
+  color: #fff;
+}
+.rrule-exclusion-add button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rrule-preview {
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--surface-alt, var(--surface, #f0f8f4));
+  border: 1px solid var(--border, #e0e0e0);
+  border-left: 3px solid var(--accent, #2e7d32);
+  font-size: 0.88rem;
+}
+.rrule-preview-text {
+  color: var(--ink, #333);
+}
+.rrule-preview-next {
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: var(--muted, #666);
+}
+.rrule-preview--warning {
+  border-left-color: #d97706;
+  background: #fef3c7;
+  color: #78350f;
+}
+[data-theme="dark"] .rrule-preview--warning {
+  background: rgba(217, 119, 6, 0.18);
+  color: #fbbf24;
+}
+[data-theme="dark"] .rrule-preview--warning .rrule-preview-text {
+  color: #fbbf24;
+}
+
+/* Help popover */
+.rrule-help-wrap {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.rrule-help-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border, #e0e0e0);
+  background: var(--bg, #fff);
+  color: var(--muted, #666);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.rrule-help-btn:hover {
+  border-color: var(--accent, #2e7d32);
+  color: var(--accent, #2e7d32);
+}
+.rrule-help-popover {
+  position: absolute;
+  top: 30px;
+  right: 0;
+  min-width: 260px;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  padding: 10px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rrule-help-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 4px 6px;
+}
+.rrule-help-preset {
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--ink, #333);
+  cursor: pointer;
+}
+.rrule-help-preset:hover {
+  background: var(--surface, #f0f8f4);
+  color: var(--accent, #2e7d32);
+}

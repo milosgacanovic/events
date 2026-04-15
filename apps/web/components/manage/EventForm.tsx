@@ -318,6 +318,11 @@ export function EventForm({
       if (form.rruleDtstartLocal && form.rruleDtstartLocal < nowInTz) {
         errors.rruleDtstartLocal = t("manage.form.dateInPast");
       }
+      // Weekly with no BYDAY is ambiguous — backend would silently fall back to dtstart's weekday.
+      // Require at least one day to be picked for weekly.
+      if (form.rrule && /FREQ=WEEKLY/i.test(form.rrule) && !/BYDAY=/i.test(form.rrule)) {
+        errors.rruleDtstartLocal = t("manage.eventForm.rrule.preview.pickDays") || "Pick at least one day of the week.";
+      }
     }
     return errors;
   }
@@ -752,6 +757,7 @@ export function EventForm({
               rrule={form.rrule}
               dtstartLocal={form.rruleDtstartLocal}
               durationMinutes={form.durationMinutes}
+              eventTimezone={form.eventTimezone}
               onChange={(newRrule, newDtstart, newDuration) => {
                 update("rrule", newRrule);
                 update("rruleDtstartLocal", newDtstart);
