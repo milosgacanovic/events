@@ -175,7 +175,6 @@ export async function listAdminEvents(
       isImported: boolean;
       importSource: string | null;
       detached_from_import: boolean;
-      series_id: string;
       seriesId: string;
       status: string;
       attendance_mode: string;
@@ -209,7 +208,6 @@ export async function listAdminEvents(
           e.is_imported as "isImported",
           e.import_source as "importSource",
           e.detached_from_import,
-          e.series_id,
           e.series_id as "seriesId",
           e.status,
           e.attendance_mode,
@@ -505,7 +503,6 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
     rrule: string | null;
     rrule_dtstart_local: string | null;
     duration_minutes: number | null;
-    series_id: string;
     seriesId: string;
     status: "draft" | "published" | "cancelled" | "archived";
     visibility: "public" | "unlisted";
@@ -547,7 +544,6 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
         e.rrule,
         e.rrule_dtstart_local,
         e.duration_minutes,
-        e.series_id,
         e.series_id as "seriesId",
         e.status,
         e.visibility,

@@ -89,7 +89,6 @@ describe("admin content external ref filters", () => {
           isImported: true,
           importSource: "smoke_test",
           detached_from_import: false,
-          series_id: "00000000-0000-0000-0000-000000000010",
           seriesId: "00000000-0000-0000-0000-000000000010",
           status: "draft",
           attendance_mode: "in_person",
