@@ -869,7 +869,8 @@ export function EventForm({
         <div style={{ marginTop: 8 }}>
           <label>{t("manage.form.orPasteImageUrl")}</label>
           <input
-            type="url"
+            type="text"
+            inputMode="url"
             value={coverFile ? "" : form.coverImageUrl}
             onChange={(e) => { setCoverFile(null); update("coverImageUrl", e.target.value); }}
             placeholder="https://..."

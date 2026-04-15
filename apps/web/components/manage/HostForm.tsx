@@ -158,6 +158,13 @@ function csvToArray(csv: string): string[] {
   return csv.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+function splitImageField(value: string): { imageUrl: string | null; avatarPath: string | null } {
+  const trimmed = value.trim();
+  if (!trimmed) return { imageUrl: null, avatarPath: null };
+  if (/^https?:\/\//i.test(trimmed)) return { imageUrl: trimmed, avatarPath: null };
+  return { imageUrl: null, avatarPath: trimmed };
+}
+
 export function HostForm({
   mode,
   initialState,
@@ -334,13 +341,15 @@ export function HostForm({
     const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
     const descText = form.descriptionHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
+    const image = splitImageField(form.imageUrl);
     const payload: Record<string, unknown> = {
       name: form.name,
       slug: form.slug || undefined,
       descriptionJson: { html: form.descriptionHtml, text: descText },
       descriptionHtml: form.descriptionHtml,
       websiteUrl: form.websiteUrl || null,
-      imageUrl: form.imageUrl || null,
+      imageUrl: image.imageUrl,
+      avatarPath: image.avatarPath,
       tags,
       languages: form.languages,
       city: form.locations[0]?.city || form.city || null,
@@ -443,13 +452,15 @@ export function HostForm({
       const tags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
       const descText = form.descriptionHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
+      const image = splitImageField(form.imageUrl);
       const payload: Record<string, unknown> = {
         name: form.name,
         slug: form.slug || undefined,
         descriptionJson: { html: form.descriptionHtml, text: descText },
         descriptionHtml: form.descriptionHtml,
         websiteUrl: form.websiteUrl || null,
-        imageUrl: form.imageUrl || null,
+        imageUrl: image.imageUrl,
+        avatarPath: image.avatarPath,
         tags,
         languages: form.languages,
         city: form.locations[0]?.city || form.city || null,
@@ -557,7 +568,8 @@ export function HostForm({
             <div>
               <label>{t("manage.form.orPasteImageUrl")}</label>
               <input
-                type="url"
+                type="text"
+                inputMode="url"
                 placeholder="https://..."
                 value={form.imageUrl}
                 onChange={(e) => update("imageUrl", e.target.value)}
