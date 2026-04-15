@@ -2,6 +2,7 @@ import { MeiliSearch } from "meilisearch";
 
 import type { Pool } from "pg";
 
+import { config } from "../config";
 import { extractEditorJsText } from "../utils/description";
 
 export const OCCURRENCES_INDEX = "event_occurrences";
@@ -10,6 +11,7 @@ export type OccurrenceDoc = {
   occurrence_id: string;
   event_id: string;
   event_slug: string;
+  series_id: string;
   title: string;
   cover_image_path: string | null;
   is_imported: boolean;
@@ -69,9 +71,18 @@ export class MeilisearchService {
       "_geo",
       "visibility",
       "event_id",
+      "series_id",
     ]);
     await index.updateSortableAttributes(["starts_at_utc", "starts_at_ts", "published_at", "published_at_ts"]);
     await index.updatePagination({ maxTotalHits: 50000 });
+    // Series grouping: when the flag is on, Meili returns at most one hit
+    // per series. When off, clear the distinct attribute so every occurrence
+    // surfaces independently. Flag changes take effect on next API boot.
+    if (config.EVENTS_SERIES_GROUPING_ENABLED) {
+      await index.updateDistinctAttribute("series_id");
+    } else {
+      await index.updateDistinctAttribute(null);
+    }
   }
 
   async healthcheck(): Promise<boolean> {
@@ -89,6 +100,7 @@ export class MeilisearchService {
         eo.id as occurrence_id,
         e.id as event_id,
         e.slug as event_slug,
+        eo.series_id,
         e.title,
         e.cover_image_path,
         e.is_imported,
@@ -125,6 +137,7 @@ export class MeilisearchService {
       occurrence_id: string;
       event_id: string;
       event_slug: string;
+      series_id: string;
       title: string;
       cover_image_path: string | null;
       is_imported: boolean;
@@ -159,6 +172,7 @@ export class MeilisearchService {
         occurrence_id: row.occurrence_id,
         event_id: row.event_id,
         event_slug: row.event_slug,
+        series_id: row.series_id,
         title: row.title,
         cover_image_path: row.cover_image_path,
         is_imported: row.is_imported,

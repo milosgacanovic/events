@@ -25,6 +25,7 @@ services:
       SMTP_PORT: 2525
       SMTP_FROM: noreply@danceresource.org
       SMTP_ADMIN_TO: hello@danceresource.org, milos@danceresource.org, milosgacanovic@gmail.com
+      EVENTS_SERIES_GROUPING_ENABLED: ${EVENTS_SERIES_GROUPING_ENABLED:-false}
     networks:
       - default
       - mail-relay
@@ -50,6 +51,7 @@ services:
         NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH:-/auth/keycloak/callback}
         NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH:-/admin}
         NEXT_PUBLIC_MAP_TILE_URL: ${NEXT_PUBLIC_MAP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+        NEXT_PUBLIC_EVENTS_SERIES_GROUPING_ENABLED: ${EVENTS_SERIES_GROUPING_ENABLED:-false}
     container_name: dr_events_web_green
     environment:
       NODE_ENV: development
@@ -62,6 +64,7 @@ services:
       NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH:-/auth/keycloak/callback}
       NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH: ${NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH:-/admin}
       NEXT_PUBLIC_MAP_TILE_URL: ${NEXT_PUBLIC_MAP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+      NEXT_PUBLIC_EVENTS_SERIES_GROUPING_ENABLED: ${EVENTS_SERIES_GROUPING_ENABLED:-false}
     depends_on:
       - api_green
     ports:

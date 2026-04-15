@@ -9,6 +9,7 @@ import {
   listOrganizerTagSuggestions,
   listTagSuggestions,
 } from "../db/metaRepo";
+import { config } from "../config";
 import { getUiLabels } from "../db/uiLabelRepo";
 import { geocodeSearch } from "../services/geocodeService";
 
@@ -110,6 +111,12 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
       },
       organizerRoles: rolesResult.rows,
       eventFormats: eventFormatsResult.rows,
+      // Server-driven feature flags. Web reads these from the bootstrap
+      // taxonomies load so it can mirror API-gated behavior (e.g. series
+      // grouping) without a separate env var on the web container.
+      features: {
+        seriesGrouping: config.EVENTS_SERIES_GROUPING_ENABLED,
+      },
     };
   });
 

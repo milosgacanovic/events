@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
+import { isSeriesGroupingEnabled } from "../lib/features";
 import { pushDataLayer } from "../lib/gtm";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../lib/i18n/icuFallback";
@@ -2133,7 +2134,14 @@ export function EventSearchClient({
             // page can scroll to and highlight this specific date. Otherwise
             // users clicking a July result in April see "Next: tomorrow" and
             // wonder if they clicked the wrong thing.
-            const occurrenceDate = hit.startsAtUtc?.slice(0, 10) ?? null;
+            //
+            // When series grouping is ON, each hit represents the whole
+            // series (Meili returned one distinct-by-series_id row), so the
+            // card links to the bare event page and the user picks a date
+            // from the full upcoming list.
+            const occurrenceDate = isSeriesGroupingEnabled()
+              ? null
+              : hit.startsAtUtc?.slice(0, 10) ?? null;
 
             return (
               <Link

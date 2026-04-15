@@ -17,6 +17,7 @@ import {
 } from "react-leaflet";
 
 import { formatPointDateTime, type TimeDisplayMode } from "../lib/datetime";
+import { isSeriesGroupingEnabled } from "../lib/features";
 import { useI18n } from "./i18n/I18nProvider";
 
 type ClusterFeature = {
@@ -291,10 +292,14 @@ export function LeafletClusterMap({
                   return;
                 }
                 if (feature.properties.event_slug) {
-                  // Pass ?date= so the detail page highlights the specific
-                  // occurrence the pin represents (especially useful when
-                  // several pins land on the same series).
-                  const dateHint = feature.properties.starts_at_utc?.slice(0, 10);
+                  // When series grouping is ON, the pin represents a whole
+                  // series (not one occurrence), so link to the bare event
+                  // page and let the user pick a date from the list. When
+                  // OFF, pass ?date= so the detail page highlights the
+                  // specific occurrence the pin represents.
+                  const dateHint = isSeriesGroupingEnabled()
+                    ? null
+                    : feature.properties.starts_at_utc?.slice(0, 10);
                   const href = dateHint
                     ? `/events/${feature.properties.event_slug}?date=${dateHint}`
                     : `/events/${feature.properties.event_slug}`;

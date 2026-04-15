@@ -1,5 +1,7 @@
 import type { Pool } from "pg";
 
+import { config } from "../config";
+
 export type MapFilterInput = {
   q?: string;
   from?: string;
@@ -154,8 +156,35 @@ export async function fetchMapPoints(pool: Pool, input: MapFilterInput) {
   values.push(input.limit + 1);
   const limitIndex = values.length;
 
+  // Series grouping: when the flag is on, collapse siblings from the same
+  // detected series to a single pin (the earliest occurrence in the filter
+  // window). DISTINCT ON requires the GROUP-BY column to lead the ORDER BY.
+  const groupingEnabled = config.EVENTS_SERIES_GROUPING_ENABLED;
+  const selectClause = groupingEnabled
+    ? `distinct on (eo.series_id)
+         eo.id as occurrence_id,
+         eo.series_id,
+         e.slug as event_slug,
+         e.title as event_title,
+         eo.starts_at_utc,
+         e.event_timezone,
+         st_y(eo.geom::geometry) as lat,
+         st_x(eo.geom::geometry) as lng`
+    : `eo.id as occurrence_id,
+         eo.series_id,
+         e.slug as event_slug,
+         e.title as event_title,
+         eo.starts_at_utc,
+         e.event_timezone,
+         st_y(eo.geom::geometry) as lat,
+         st_x(eo.geom::geometry) as lng`;
+  const orderClause = groupingEnabled
+    ? "eo.series_id, eo.starts_at_utc asc"
+    : "eo.starts_at_utc asc";
+
   const result = await pool.query<{
     occurrence_id: string;
+    series_id: string;
     event_slug: string;
     event_title: string;
     starts_at_utc: string;
@@ -164,14 +193,7 @@ export async function fetchMapPoints(pool: Pool, input: MapFilterInput) {
     lng: number;
   }>(
     `
-      select
-        eo.id as occurrence_id,
-        e.slug as event_slug,
-        e.title as event_title,
-        eo.starts_at_utc,
-        e.event_timezone,
-        st_y(eo.geom::geometry) as lat,
-        st_x(eo.geom::geometry) as lng
+      select ${selectClause}
       from event_occurrences eo
       join events e on e.id = eo.event_id
       where ${whereSql}
@@ -180,7 +202,7 @@ export async function fetchMapPoints(pool: Pool, input: MapFilterInput) {
           eo.geom::geometry,
           ST_MakeEnvelope($${westIndex}, $${southIndex}, $${eastIndex}, $${northIndex}, 4326)
         )
-      order by eo.starts_at_utc asc
+      order by ${orderClause}
       limit $${limitIndex}
     `,
     values,
