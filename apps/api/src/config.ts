@@ -38,7 +38,13 @@ const configSchema = z.object({
   // the schema + API changes (series_id column, seriesId input) can ship
   // unconditionally while the importer rolls out stable seriesId emission.
   // Flip to true after verifying imported siblings share expected series_id.
-  EVENTS_SERIES_GROUPING_ENABLED: z.coerce.boolean().default(false),
+  // NOTE: we parse strictly here — `z.coerce.boolean()` treats the string
+  // "false" as truthy (any non-empty string coerces to true), so we use an
+  // explicit string transform matching the web-side parser in lib/features.ts.
+  EVENTS_SERIES_GROUPING_ENABLED: z
+    .string()
+    .default("false")
+    .transform((v) => v.toLowerCase() === "true" || v === "1"),
 });
 
 export const config = configSchema.parse(process.env);
