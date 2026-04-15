@@ -202,6 +202,10 @@ export async function unsubscribeByToken(pool: Pool, token: string): Promise<Use
  *   - Anywhere-alert (lat is null) matches every occurrence for the host regardless of location.
  *   - Otherwise: ST_DWithin against `event_occurrences.geom` with ua.radius_km * 1000 metres.
  *   - `s.id is null` dedup against `user_alert_sends`.
+ *   - Series dedup: if `events.series_id` is set, only the earliest-created published event
+ *     in that series for the alerted host counts as "new" — sibling events in the same
+ *     series are suppressed so followers aren't re-notified for every instance of an
+ *     existing series they already know about.
  */
 export type PendingNotificationRow = {
   alert_id: string;
@@ -261,6 +265,19 @@ export async function listPendingNotifications(pool: Pool): Promise<PendingNotif
         and e.created_at > ua.created_at
         and s.id is null
         and u.email is not null
+        and (
+          e.series_id is null
+          or not exists (
+            select 1
+            from events e2
+            join event_organizers rel2 on rel2.event_id = e2.id
+            where rel2.organizer_id = ua.organizer_id
+              and e2.series_id = e.series_id
+              and e2.status = 'published'
+              and e2.id <> e.id
+              and e2.created_at < e.created_at
+          )
+        )
         and (
           ua.lat is null
           or ST_DWithin(
@@ -332,6 +349,19 @@ export async function runAlertsDry(pool: Pool, nowIso: string, toIso: string) {
         and eo.status = 'published'
         and eo.starts_at_utc >= $1::timestamptz
         and eo.starts_at_utc <= $2::timestamptz
+        and (
+          e.series_id is null
+          or not exists (
+            select 1
+            from events e2
+            join event_organizers rel2 on rel2.event_id = e2.id
+            where rel2.organizer_id = ua.organizer_id
+              and e2.series_id = e.series_id
+              and e2.status = 'published'
+              and e2.id <> e.id
+              and e2.created_at < e.created_at
+          )
+        )
         and (
           ua.lat is null
           or ST_DWithin(
