@@ -22,7 +22,7 @@ import { createLocation, getEventDefaultLocation, setEventDefaultLocation, updat
 import { findOrCreateUserBySub, isServiceAccount } from "../db/userRepo";
 import { resolveUserId, requireEventAccess } from "../middleware/ownership";
 import { canUserEditEvent } from "../db/manageRepo";
-import { archiveEvent, cancelEvent, publishEvent, regenerateOccurrences, syncSeriesAfterHardDelete, unpublishEvent } from "../services/eventLifecycleService";
+import { archiveEvent, cancelEvent, publishEvent, regenerateOccurrences, syncSeriesAfterHardDelete, syncSeriesForEvent, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, SERIES_INDEX, type OccurrenceDoc, type SeriesDoc } from "../services/meiliService";
 import { config as apiConfig } from "../config";
 import { deriveSeriesCadence } from "../services/seriesCadenceService";
@@ -1332,27 +1332,75 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const skipSearch = z.object({ skipSearch: z.coerce.boolean().default(false) })
       .safeParse(request.query).data?.skipSearch ?? false;
 
+    // Capture the pre-update series_id so series sync can also refresh the
+    // series this event was moved *away from* (otherwise its aggregate row
+    // keeps this event as a phantom sibling — observed in production drift
+    // on 2026-04-15 where bulk series collapses left ~300 stale rows).
+    const previousSeriesId =
+      (previousEvent as { series_id?: string | null } | null | undefined)?.series_id ?? null;
+    const currentSeriesId =
+      (event as { series_id?: string | null } | null | undefined)?.series_id ?? null;
+    const seriesIdChanged =
+      Boolean(previousEvent) && previousSeriesId !== currentSeriesId;
+
     if (!skipSearch && previousEvent && event.status === "published") {
       if (previousEvent.status !== "published") {
         // Transition to published — regenerate occurrences
-        await regenerateOccurrences(app.db, app.meiliService, params.data.id);
+        await regenerateOccurrences(
+          app.db,
+          app.meiliService,
+          params.data.id,
+          false,
+          previousSeriesId,
+        );
       } else {
         const scheduleChanged = hasScheduleShapeChanges(previousEvent, event);
         const locationChanged = newLocationCreated || (normalizedInput.locationId !== undefined &&
           normalizedInput.locationId !== (previousLocation?.id ?? null));
 
         if (scheduleChanged || locationChanged) {
-          await regenerateOccurrences(app.db, app.meiliService, params.data.id);
+          await regenerateOccurrences(
+            app.db,
+            app.meiliService,
+            params.data.id,
+            false,
+            previousSeriesId,
+          );
         } else {
           // Metadata change (languages, tags, title, etc.) — resync without regenerating occurrences
           await app.meiliService.upsertOccurrencesForEvent(app.db, params.data.id).catch(() => {});
+          await syncSeriesForEvent(
+            app.db,
+            app.meiliService,
+            params.data.id,
+            "update.metadata",
+            previousSeriesId,
+          );
           clearSearchCache();
         }
       }
     } else if (!skipSearch && previousEvent && previousEvent.status === "published"
                && (event.status === "archived" || event.status === "draft" || event.status === "cancelled")) {
       await app.meiliService.deleteOccurrencesByEventId(params.data.id).catch(() => {});
+      await syncSeriesForEvent(
+        app.db,
+        app.meiliService,
+        params.data.id,
+        "update.deactivate",
+        previousSeriesId,
+      );
       clearSearchCache();
+    } else if (!skipSearch && seriesIdChanged && previousSeriesId) {
+      // series_id edited on a non-published event — no occurrence index
+      // impact, but the previous series row still needs to drop this event
+      // from its aggregates.
+      await syncSeriesForEvent(
+        app.db,
+        app.meiliService,
+        params.data.id,
+        "update.seriesMove",
+        previousSeriesId,
+      );
     }
 
     recordActivity(app.db, request, {

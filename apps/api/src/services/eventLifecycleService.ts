@@ -19,26 +19,37 @@ import { clearSearchCache } from "./searchCache";
  * this event belongs to. Non-blocking — logs and swallows errors so lifecycle
  * operations don't fail on search-side hiccups (mirrors the pattern used for
  * the occurrence index).
+ *
+ * If `previousSeriesId` is provided and differs from the event's current
+ * series_id, the previous series row is also refreshed so it drops this event
+ * from its sibling aggregates (or gets deleted if this was its last sibling).
+ * Without this, moving an event between series leaves a stale row behind.
  */
-async function syncSeriesForEvent(
+export async function syncSeriesForEvent(
   pool: Pool,
   meiliService: MeilisearchService,
   eventId: string,
   op: string,
+  previousSeriesId?: string | null,
 ): Promise<void> {
   const event = await getEventById(pool, eventId);
-  const seriesId = event?.series_id;
-  if (!seriesId) return;
+  const seriesId = event?.series_id ?? null;
 
-  try {
-    const survived = await refreshEventSeries(pool, seriesId);
-    if (survived) {
-      await meiliService.upsertSeriesDoc(pool, seriesId);
-    } else {
-      await meiliService.deleteSeriesDoc(seriesId);
+  const toRefresh = new Set<string>();
+  if (seriesId) toRefresh.add(seriesId);
+  if (previousSeriesId && previousSeriesId !== seriesId) toRefresh.add(previousSeriesId);
+
+  for (const sid of toRefresh) {
+    try {
+      const survived = await refreshEventSeries(pool, sid);
+      if (survived) {
+        await meiliService.upsertSeriesDoc(pool, sid);
+      } else {
+        await meiliService.deleteSeriesDoc(sid);
+      }
+    } catch (err) {
+      console.error(`[${op}] Failed to sync event_series for series ${sid}:`, err);
     }
-  } catch (err) {
-    console.error(`[${op}] Failed to sync event_series for series ${seriesId}:`, err);
   }
 }
 
@@ -69,6 +80,7 @@ export async function regenerateOccurrences(
   meiliService: MeilisearchService,
   eventId: string,
   skipSearch = false,
+  previousSeriesId?: string | null,
 ): Promise<void> {
   const eventWithLocation = await getEventByIdWithLocation(pool, eventId);
 
@@ -95,7 +107,13 @@ export async function regenerateOccurrences(
     await meiliService.upsertOccurrencesForEvent(pool, eventId).catch((err) => {
       console.error(`[regenerateOccurrences] Failed to sync Meilisearch for event ${eventId}:`, err);
     });
-    await syncSeriesForEvent(pool, meiliService, eventId, "regenerateOccurrences");
+    await syncSeriesForEvent(
+      pool,
+      meiliService,
+      eventId,
+      "regenerateOccurrences",
+      previousSeriesId,
+    );
     clearSearchCache();
   }
 }

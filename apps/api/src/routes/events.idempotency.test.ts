@@ -334,6 +334,10 @@ describe("events idempotency conflict handling", () => {
       expect.anything(),
       expect.anything(),
       "00000000-0000-0000-0000-000000000020",
+      false,
+      // previousSeriesId — null here because the fixture previousEvent has
+      // no series_id set. Included to pin the new arg in place.
+      null,
     );
     await app.close();
   });
