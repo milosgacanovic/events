@@ -888,7 +888,7 @@
   "manage.common.managedBy": "მართავს: {names}",
   "manage.eventCard.imported": "იმპორტირებული{source, select, other { {source}-დან} none {}}",
   "manage.eventCard.importedLabel": "იმპორტირებული",
-  "manage.eventCard.createdByLabel": "{name}-ის მიერ",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "შექმნილია {name}-ის მიერ — დააჭირეთ მომხმარებლის სანახავად",
   "manage.eventCard.detached": "გამოყოფილი — იმართება ხელით",
   "manage.eventCard.detachedLabel": "გამოყოფილი",

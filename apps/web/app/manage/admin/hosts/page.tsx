@@ -6,9 +6,9 @@ import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvide
 import { useI18n } from "../../../../components/i18n/I18nProvider";
 import { ManageHostCard } from "../../../../components/manage/ManageHostCard";
 import { ManageFilterSidebar } from "../../../../components/manage/ManageFilterSidebar";
-import { StatusFilter } from "../../../../components/manage/ManageFilterSections";
+import { StatusFilter, SourceFilter } from "../../../../components/manage/ManageFilterSections";
 import { ManageResultsToolbar } from "../../../../components/manage/ManageResultsToolbar";
-import { authorizedGet, authorizedPatch } from "../../../../lib/manageApi";
+import { authorizedGet, authorizedPatch, authorizedPost } from "../../../../lib/manageApi";
 import { apiBase } from "../../../../lib/api";
 import { getRoleLabel, formatCityLabel } from "../../../../lib/filterHelpers";
 import { labelForLanguageCode } from "../../../../lib/i18n/languageLabels";
@@ -38,6 +38,9 @@ type HostItem = {
   role_keys: string[] | null;
   event_count: string | null;
   languages: string[] | null;
+  external_source: string | null;
+  detached_from_import: boolean;
+  created_by_name: string | null;
 };
 
 type HostsResponse = {
@@ -54,6 +57,7 @@ export default function AdminAllHostsPage() {
   const [search, setSearch] = useState("");
   /* manage-specific */
   const [statusFilter, setStatusFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
   /* public-matching filters */
   const [roleKeys, setRoleKeys] = useState<string[]>([]);
   const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>([]);
@@ -126,6 +130,7 @@ export default function AdminAllHostsPage() {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), showArchived: "true" });
       if (search) params.set("q", search);
       if (statusFilter) params.set("status", statusFilter);
+      if (sourceFilter) params.set("sourceFilter", sourceFilter);
       if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
       if (roleKeys.length) params.set("profileRoleId", roleKeys.join(","));
       if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
@@ -140,7 +145,7 @@ export default function AdminAllHostsPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, search, statusFilter, practiceCategoryIds, roleKeys, countryCodes, languages, cities, sortBy]);
+  }, [getToken, page, search, statusFilter, sourceFilter, practiceCategoryIds, roleKeys, countryCodes, languages, cities, sortBy]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -151,8 +156,15 @@ export default function AdminAllHostsPage() {
     } catch { /* ignore */ }
   }
 
+  async function handleReattach(hostId: string) {
+    try {
+      await authorizedPost(getToken, `/admin/organizers/${hostId}/reattach`, {});
+      void load();
+    } catch { /* ignore */ }
+  }
+
   const activeFilterCount = [
-    statusFilter,
+    statusFilter, sourceFilter,
     ...roleKeys, ...practiceCategoryIds, ...countryCodes, ...languages, ...cities,
   ].filter(Boolean).length;
 
@@ -199,6 +211,7 @@ export default function AdminAllHostsPage() {
 
         {/* ── Manage-specific filters ── */}
         <StatusFilter options={statusOptions} value={statusFilter ? [statusFilter] : []} onChange={(v) => { setStatusFilter(v[0] || ""); resetPage(); }} />
+        <SourceFilter value={sourceFilter} onChange={(v) => { setSourceFilter(v); resetPage(); }} />
 
         {/* ── Host Type ── */}
         <details open={hostTypeOpen} onToggle={(e) => setHostTypeOpen((e.currentTarget as HTMLDetailsElement).open)}>
@@ -395,9 +408,13 @@ export default function AdminAllHostsPage() {
                   eventCount={host.event_count}
                   managedByNames={host.managed_by_names}
                   languages={host.languages}
+                  isImported={host.external_source !== null && host.external_source !== ""}
+                  detachedFromImport={host.detached_from_import}
+                  createdByName={host.created_by_name}
                   onPublish={host.status === "draft" ? () => void setHostStatus(host.id, "published") : undefined}
                   onUnpublish={host.status === "published" ? () => void setHostStatus(host.id, "draft") : undefined}
                   onArchive={host.status === "published" ? () => void setHostStatus(host.id, "archived") : undefined}
+                  onReattach={host.detached_from_import ? () => void handleReattach(host.id) : undefined}
                 />
               ))}
             </div>

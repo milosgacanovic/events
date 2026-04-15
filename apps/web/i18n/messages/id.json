@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Dikelola oleh: {names}",
   "manage.eventCard.imported": "Diimpor{source, select, other { dari {source}} none {}}",
   "manage.eventCard.importedLabel": "Diimpor",
-  "manage.eventCard.createdByLabel": "oleh {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Dibuat oleh {name} — klik untuk melihat pengguna",
   "manage.eventCard.detached": "Terlepas — dikelola secara manual",
   "manage.eventCard.detachedLabel": "Terlepas",

@@ -20,6 +20,9 @@ type OrganizerRow = {
   image_url: string | null;
   avatar_path: string | null;
   status: "published" | "draft" | "archived";
+  detached_from_import: boolean;
+  detached_at: string | null;
+  detached_by_user_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -794,4 +797,44 @@ export async function getOrganizerByExternalRef(
     [externalSource, externalId],
   );
   return result.rows[0] ?? null;
+}
+
+export async function getOrganizerById(pool: Pool, id: string): Promise<OrganizerRow | null> {
+  const result = await pool.query<OrganizerRow>(
+    `select * from organizers where id = $1 limit 1`,
+    [id],
+  );
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Flip an organizer's detachment columns so subsequent importer runs skip it.
+ * Mirrors `events.detached_from_import` flow (migration 020).
+ */
+export async function markOrganizerDetached(
+  pool: Pool,
+  id: string,
+  detachedByUserId: string | null,
+): Promise<void> {
+  await pool.query(
+    `update organizers
+       set detached_from_import = true,
+           detached_at = now(),
+           detached_by_user_id = $2
+     where id = $1`,
+    [id, detachedByUserId],
+  );
+}
+
+export async function reattachOrganizerToImport(pool: Pool, id: string): Promise<boolean> {
+  const result = await pool.query(
+    `update organizers
+       set detached_from_import = false,
+           detached_at = null,
+           detached_by_user_id = null
+     where id = $1 and detached_from_import = true
+     returning id`,
+    [id],
+  );
+  return (result.rowCount ?? 0) > 0;
 }

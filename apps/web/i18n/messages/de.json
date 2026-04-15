@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Verwaltet von: {names}",
   "manage.eventCard.imported": "Importiert{source, select, other { von {source}} none {}}",
   "manage.eventCard.importedLabel": "Importiert",
-  "manage.eventCard.createdByLabel": "von {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Erstellt von {name} — klicken zum Anzeigen",
   "manage.eventCard.detached": "Getrennt — manuell verwaltet",
   "manage.eventCard.detachedLabel": "Getrennt",

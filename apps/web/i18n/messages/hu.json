@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Kezeli: {names}",
   "manage.eventCard.imported": "Importált{source, select, other { innen: {source}} none {}}",
   "manage.eventCard.importedLabel": "Importált",
-  "manage.eventCard.createdByLabel": "{name} által",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Létrehozta: {name} — kattintson a megtekintéshez",
   "manage.eventCard.detached": "Leválasztva — manuálisan kezelve",
   "manage.eventCard.detachedLabel": "Leválasztott",

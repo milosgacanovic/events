@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Yöneten: {names}",
   "manage.eventCard.imported": "İçe aktarıldı{source, select, other { {source} kaynağından} none {}}",
   "manage.eventCard.importedLabel": "İçe aktarıldı",
-  "manage.eventCard.createdByLabel": "{name} tarafından",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "{name} tarafından oluşturuldu — kullanıcıyı görmek için tıklayın",
   "manage.eventCard.detached": "Ayrılmış — manuel yönetiliyor",
   "manage.eventCard.detachedLabel": "Ayrıldı",

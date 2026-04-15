@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Управляется: {names}",
   "manage.eventCard.imported": "Импортировано{source, select, other { из {source}} none {}}",
   "manage.eventCard.importedLabel": "Импортировано",
-  "manage.eventCard.createdByLabel": "автор {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Создано пользователем {name} — нажмите для просмотра",
   "manage.eventCard.detached": "Отвязано — управляется вручную",
   "manage.eventCard.detachedLabel": "Отсоединено",

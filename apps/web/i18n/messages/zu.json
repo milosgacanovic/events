@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Iphethwe ngu: {names}",
   "manage.eventCard.imported": "Ifakiwe{source, select, other { evela ku-{source}} none {}}",
   "manage.eventCard.importedLabel": "Kungeniswe",
-  "manage.eventCard.createdByLabel": "ngu-{name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Idalwe ngu-{name} — chofoza ukubona umsebenzisi",
   "manage.eventCard.detached": "Ikhishiwe — iphethwe ngesandla",
   "manage.eventCard.detachedLabel": "Kuhlukanisiwe",

@@ -888,7 +888,7 @@
   "manage.common.managedBy": "จัดการโดย: {names}",
   "manage.eventCard.imported": "นำเข้า{source, select, other { จาก {source}} none {}}",
   "manage.eventCard.importedLabel": "นำเข้า",
-  "manage.eventCard.createdByLabel": "โดย {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "สร้างโดย {name} — คลิกเพื่อดูผู้ใช้",
   "manage.eventCard.detached": "แยกออก — จัดการด้วยตนเอง",
   "manage.eventCard.detachedLabel": "แยกออก",

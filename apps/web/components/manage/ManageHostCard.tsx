@@ -24,11 +24,20 @@ type ManageHostCardProps = {
   eventCount?: string | null;
   managedByNames?: string | null;
   languages?: string[] | null;
+  /** Admin-only: treat as imported when truthy; hides "created by" chip. */
+  isImported?: boolean;
+  /** Admin-only: when imported + detached, renders a Detached chip and (if
+   *  onReattach is provided) an admin can click to resume importer sync. */
+  detachedFromImport?: boolean;
+  /** Admin-only: display name of the host creator. When present and the host
+   *  isn't imported, a chip is shown that links to the users admin page. */
+  createdByName?: string | null;
   onPublish?: () => void;
   onUnpublish?: () => void;
   onArchive?: () => void;
   onUnarchive?: () => void;
   onDelete?: () => void;
+  onReattach?: () => void;
 };
 
 function resolveImageUrl(path: string | null | undefined): string | null {
@@ -52,11 +61,15 @@ export function ManageHostCard({
   eventCount,
   managedByNames,
   languages,
+  isImported,
+  detachedFromImport,
+  createdByName,
   onPublish,
   onUnpublish,
   onArchive,
   onUnarchive,
   onDelete,
+  onReattach,
 }: ManageHostCardProps) {
   const { t, locale } = useI18n();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
@@ -193,6 +206,36 @@ export function ManageHostCard({
         {eventCount && eventCount !== "0" && (
           <span className="tag manage-tag-imported">{t("manage.hostCard.events", { count: eventCount })}</span>
         )}
+        {isImported && !detachedFromImport && (
+          <span className="tag manage-tag-imported">
+            {t("manage.eventCard.importedLabel")}
+          </span>
+        )}
+        {!isImported && createdByName && (
+          <Link
+            href={`/manage/admin/users?q=${encodeURIComponent(createdByName)}`}
+            className="tag manage-tag-imported"
+            title={t("manage.eventCard.createdByTooltip", { name: createdByName })}
+          >
+            {t("manage.eventCard.createdByLabel", { name: createdByName })}
+          </Link>
+        )}
+        {isImported && detachedFromImport && onReattach ? (
+          <button
+            type="button"
+            className="tag manage-tag-detached manage-status-chip-interactive"
+            onClick={() => setConfirmAction({ action: onReattach, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmReattach") })}
+          >
+            <span className="chip-label">
+              <span className="chip-label-idle">{t("manage.eventCard.detachedLabel")}</span>
+              <span className="chip-label-hover">{t("manage.eventCard.reattachLabel")}</span>
+            </span>
+          </button>
+        ) : isImported && detachedFromImport ? (
+          <span className="tag manage-tag-detached">
+            {t("manage.eventCard.detachedLabel")}
+          </span>
+        ) : null}
         {languages && languages.length > 0 && languages.map((lang) => (
           <span key={lang} className="tag">
             {getLocalizedLanguageLabel(lang, locale, languageNames)}

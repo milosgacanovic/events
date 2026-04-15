@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Spravuje: {names}",
   "manage.eventCard.imported": "Importované{source, select, other { z {source}} none {}}",
   "manage.eventCard.importedLabel": "Importované",
-  "manage.eventCard.createdByLabel": "od {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Vytvoril {name} — kliknutím zobrazíte používateľa",
   "manage.eventCard.detached": "Odpojené — spravované ručne",
   "manage.eventCard.detachedLabel": "Odpojené",

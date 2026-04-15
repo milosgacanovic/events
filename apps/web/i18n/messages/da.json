@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Administreret af: {names}",
   "manage.eventCard.imported": "Importeret{source, select, other { fra {source}} none {}}",
   "manage.eventCard.importedLabel": "Importeret",
-  "manage.eventCard.createdByLabel": "af {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Oprettet af {name} — klik for at se brugeren",
   "manage.eventCard.detached": "Frakoblet — administreres manuelt",
   "manage.eventCard.detachedLabel": "Frakoblet",

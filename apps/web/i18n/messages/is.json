@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Stjórnað af: {names}",
   "manage.eventCard.imported": "Innflutt{source, select, other { frá {source}} none {}}",
   "manage.eventCard.importedLabel": "Flutt inn",
-  "manage.eventCard.createdByLabel": "eftir {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Búið til af {name} — smelltu til að sjá notandann",
   "manage.eventCard.detached": "Aftengdur — stýrt handvirkt",
   "manage.eventCard.detachedLabel": "Aðskilið",

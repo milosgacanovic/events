@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Hanteras av: {names}",
   "manage.eventCard.imported": "Importerad{source, select, other { från {source}} none {}}",
   "manage.eventCard.importedLabel": "Importerad",
-  "manage.eventCard.createdByLabel": "av {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Skapad av {name} — klicka för att se användaren",
   "manage.eventCard.detached": "Frikopplad — hanteras manuellt",
   "manage.eventCard.detachedLabel": "Frånkopplad",

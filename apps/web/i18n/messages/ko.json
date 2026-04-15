@@ -888,7 +888,7 @@
   "manage.common.managedBy": "관리자: {names}",
   "manage.eventCard.imported": "가져옴{source, select, other { ({source}에서)} none {}}",
   "manage.eventCard.importedLabel": "가져옴",
-  "manage.eventCard.createdByLabel": "{name} 생성",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "{name}이(가) 생성 — 사용자를 보려면 클릭",
   "manage.eventCard.detached": "분리됨 — 수동 관리",
   "manage.eventCard.detachedLabel": "분리됨",

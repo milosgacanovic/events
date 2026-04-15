@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Quản lý bởi: {names}",
   "manage.eventCard.imported": "Đã nhập{source, select, other { từ {source}} none {}}",
   "manage.eventCard.importedLabel": "Đã nhập",
-  "manage.eventCard.createdByLabel": "bởi {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Được tạo bởi {name} — nhấp để xem người dùng",
   "manage.eventCard.detached": "Tách rời — quản lý thủ công",
   "manage.eventCard.detachedLabel": "Đã tách",

@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Διαχειρίζεται από: {names}",
   "manage.eventCard.imported": "Εισαγόμενο{source, select, other { από {source}} none {}}",
   "manage.eventCard.importedLabel": "Εισαγόμενο",
-  "manage.eventCard.createdByLabel": "από {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Δημιουργήθηκε από {name} — κάντε κλικ για προβολή",
   "manage.eventCard.detached": "Αποσυνδεδεμένο — διαχειρίζεται χειροκίνητα",
   "manage.eventCard.detachedLabel": "Αποσυνδεδεμένο",

@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Upravlja: {names}",
   "manage.eventCard.imported": "Uvezeno{source, select, other { iz {source}} none {}}",
   "manage.eventCard.importedLabel": "Uvezeno",
-  "manage.eventCard.createdByLabel": "od {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Kreirao {name} — kliknite za prikaz korisnika",
   "manage.eventCard.detached": "Odvojeno — upravlja se ručno",
   "manage.eventCard.detachedLabel": "Odvojeno",

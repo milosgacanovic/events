@@ -57,6 +57,7 @@ const organizerQuerySchema = z.object({
   countryCode: z.string().optional(),
   languages: z.string().optional(),
   cities: z.string().optional(),
+  sourceFilter: z.enum(["imported", "manual", "detached"]).optional(),
   sort: z.string().optional(),
   managedBy: z.enum(["me"]).optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -428,6 +429,26 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
       parsed.data.externalSource,
       parsed.data.externalId,
     );
+    if (existing && existing.detached_from_import) {
+      // Host was claimed/edited by a human editor; importer must not overwrite.
+      recordActivity(app.db, request, {
+        action: "host.import_skip_detached",
+        targetType: "host",
+        targetId: existing.id,
+        targetLabel: existing.name,
+        metadata: {
+          via: "external_import",
+          externalSource: parsed.data.externalSource,
+          externalId: parsed.data.externalId,
+        },
+      });
+      return {
+        id: existing.id,
+        slug: existing.slug,
+        created: false,
+        skipped: "detached" as const,
+      };
+    }
     if (existing) {
       const updated = await updateOrganizer(app.db, existing.id, {
         name: parsed.data.name,

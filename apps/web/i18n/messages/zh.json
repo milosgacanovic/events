@@ -888,7 +888,7 @@
   "manage.common.managedBy": "管理者：{names}",
   "manage.eventCard.imported": "已导入{source, select, other {（来自 {source}）} none {}}",
   "manage.eventCard.importedLabel": "已导入",
-  "manage.eventCard.createdByLabel": "由 {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "由 {name} 创建 — 点击查看用户",
   "manage.eventCard.detached": "已分离 — 手动管理",
   "manage.eventCard.detachedLabel": "已分离",

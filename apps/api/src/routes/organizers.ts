@@ -5,13 +5,17 @@ import { z } from "zod";
 import {
   createOrganizer,
   deleteOrganizer,
+  getOrganizerById,
   getOrganizerBySlug,
+  markOrganizerDetached,
   searchOrganizers,
   updateOrganizer,
 } from "../db/organizerRepo";
 import { resolveUserId, requireOrganizerAccess } from "../middleware/ownership";
 import { canUserEditOrganizer } from "../db/manageRepo";
+import { isServiceAccount } from "../db/userRepo";
 import { clearSearchCache, debouncedClearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
+import { recordActivity } from "../services/activityLogger";
 
 const querySchema = z.object({
   q: z.string().optional(),
@@ -273,6 +277,13 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     );
 
     debouncedClearSearchCache();
+    recordActivity(app.db, request, {
+      action: "host.create",
+      targetType: "host",
+      targetId: organizer.id,
+      targetLabel: organizer.name,
+      snapshot: organizer as unknown as Record<string, unknown>,
+    });
     reply.code(201);
     return organizer;
   });
@@ -319,10 +330,55 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
+    // Pre-fetch for detach-on-edit decision (mirrors events.ts flow).
+    const previousOrganizer = await getOrganizerById(app.db, params.data.id);
+
     const organizer = await updateOrganizer(app.db, params.data.id, parsed.data);
     if (!organizer) {
       reply.code(404);
       return { error: "not_found" };
+    }
+
+    // Detachment logic: if imported + not yet detached + content fields actually changed → detach
+    // so the importer's /admin/organizers/upsert-external skips this row on subsequent syncs.
+    // Skip detachment for service accounts (the importer itself).
+    const serviceAccount = await isServiceAccount(app.db, auth.sub);
+    if (
+      !serviceAccount
+      && previousOrganizer
+      && previousOrganizer.external_source !== null
+      && !previousOrganizer.detached_from_import
+    ) {
+      const prev = previousOrganizer as Record<string, unknown>;
+      const input = parsed.data as Record<string, unknown>;
+      const norm = (v: unknown) =>
+        v === null || v === undefined || v === "" ? null : typeof v === "object" ? JSON.stringify(v) : String(v);
+      const differs = (prevKey: string, inputKey: string) => {
+        if (!(inputKey in input) || input[inputKey] === undefined) return false;
+        return norm(input[inputKey]) !== norm(prev[prevKey]);
+      };
+      const contentChanged =
+        differs("name", "name")
+        || differs("description_json", "descriptionJson")
+        || differs("description_html", "descriptionHtml")
+        || differs("website_url", "websiteUrl")
+        || differs("external_url", "externalUrl")
+        || differs("tags", "tags")
+        || differs("languages", "languages")
+        || differs("city", "city")
+        || differs("country_code", "countryCode")
+        || differs("image_url", "imageUrl")
+        || differs("avatar_path", "avatarPath")
+        || input.profileRoleIds !== undefined
+        || input.practiceCategoryIds !== undefined
+        || input.locations !== undefined
+        || input.primaryLocation !== undefined
+        || input.primaryLocationId !== undefined;
+
+      if (contentChanged) {
+        const detachUserId = await resolveUserId(app.db, auth);
+        await markOrganizerDetached(app.db, params.data.id, detachUserId);
+      }
     }
 
     // Reindex affected events in Meilisearch when organizer status changes
@@ -341,6 +397,14 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     }
 
     debouncedClearSearchCache();
+
+    recordActivity(app.db, request, {
+      action: "host.edit",
+      targetType: "host",
+      targetId: organizer.id,
+      targetLabel: organizer.name,
+      metadata: parsed.data as unknown as Record<string, unknown>,
+    });
 
     return organizer;
   });
@@ -361,8 +425,8 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     }
 
     // Only allow deletion of draft or archived hosts
-    const org = await app.db.query<{ status: string }>(
-      `SELECT status FROM organizers WHERE id = $1`,
+    const org = await app.db.query<{ status: string; name: string }>(
+      `SELECT status, name FROM organizers WHERE id = $1`,
       [params.data.id],
     );
     if (!org.rowCount) {
@@ -401,6 +465,14 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       );
     }
     clearSearchCache();
+
+    recordActivity(app.db, request, {
+      action: "host.delete",
+      targetType: "host",
+      targetId: params.data.id,
+      targetLabel: org.rows[0].name,
+      metadata: { affectedEventIds },
+    });
 
     return reply.code(204).send();
   });

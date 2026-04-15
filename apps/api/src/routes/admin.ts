@@ -555,6 +555,26 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     return { ok: true };
   });
 
+  app.post("/admin/organizers/:id/reattach", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+
+    const result = await app.db.query(
+      `update organizers set detached_from_import = false, detached_at = null, detached_by_user_id = null
+       where id = $1 and detached_from_import = true
+       returning id`,
+      [params.data.id],
+    );
+    if (!result.rows[0]) { reply.code(404); return { error: "not_found_or_not_detached" }; }
+    recordActivity(app.db, request, {
+      action: "host.reattach",
+      targetType: "host",
+      targetId: params.data.id,
+    });
+    return { ok: true };
+  });
+
   // --- Manage map endpoints ---
   app.get("/admin/events/map", async (request) => {
     await app.requireEditor(request);

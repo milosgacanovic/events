@@ -888,7 +888,7 @@
   "manage.common.managedBy": "प्रबंधक: {names}",
   "manage.eventCard.imported": "आयातित{source, select, other { {source} से} none {}}",
   "manage.eventCard.importedLabel": "आयातित",
-  "manage.eventCard.createdByLabel": "{name} द्वारा",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "{name} द्वारा बनाया गया — उपयोगकर्ता देखने के लिए क्लिक करें",
   "manage.eventCard.detached": "अलग — मैन्युअल रूप से प्रबंधित",
   "manage.eventCard.detachedLabel": "अलग किया गया",

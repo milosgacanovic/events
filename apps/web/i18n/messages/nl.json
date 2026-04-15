@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Beheerd door: {names}",
   "manage.eventCard.imported": "Geïmporteerd{source, select, other { van {source}} none {}}",
   "manage.eventCard.importedLabel": "Geïmporteerd",
-  "manage.eventCard.createdByLabel": "door {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Gemaakt door {name} — klik om gebruiker te zien",
   "manage.eventCard.detached": "Losgekoppeld — handmatig beheerd",
   "manage.eventCard.detachedLabel": "Losgekoppeld",

@@ -888,7 +888,7 @@
   "manage.common.managedBy": "يُدار بواسطة: {names}",
   "manage.eventCard.imported": "مستورد{source, select, other { من {source}} none {}}",
   "manage.eventCard.importedLabel": "مستورد",
-  "manage.eventCard.createdByLabel": "بواسطة {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "تم إنشاؤه بواسطة {name} — انقر لعرض المستخدم",
   "manage.eventCard.detached": "منفصل — يُدار يدوياً",
   "manage.eventCard.detachedLabel": "منفصل",

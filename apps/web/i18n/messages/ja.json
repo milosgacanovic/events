@@ -888,7 +888,7 @@
   "manage.common.managedBy": "管理者：{names}",
   "manage.eventCard.imported": "インポート済み{source, select, other { （{source}から）} none {}}",
   "manage.eventCard.importedLabel": "インポート済み",
-  "manage.eventCard.createdByLabel": "{name} 作成",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "{name} が作成 — クリックしてユーザーを表示",
   "manage.eventCard.detached": "分離 — 手動で管理",
   "manage.eventCard.detachedLabel": "切断済み",

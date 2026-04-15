@@ -888,7 +888,7 @@
   "manage.common.managedBy": "Hallinnoija: {names}",
   "manage.eventCard.imported": "Tuotu{source, select, other { lähteestä {source}} none {}}",
   "manage.eventCard.importedLabel": "Tuotu",
-  "manage.eventCard.createdByLabel": "tekijä {name}",
+  "manage.eventCard.createdByLabel": "{name}",
   "manage.eventCard.createdByTooltip": "Luonut {name} — klikkaa nähdäksesi käyttäjän",
   "manage.eventCard.detached": "Irrotettu — hallitaan manuaalisesti",
   "manage.eventCard.detachedLabel": "Irrotettu",
