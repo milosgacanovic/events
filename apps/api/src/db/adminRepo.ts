@@ -175,6 +175,8 @@ export async function listAdminEvents(
       isImported: boolean;
       importSource: string | null;
       detached_from_import: boolean;
+      series_id: string;
+      seriesId: string;
       status: string;
       attendance_mode: string;
       schedule_kind: string;
@@ -207,6 +209,8 @@ export async function listAdminEvents(
           e.is_imported as "isImported",
           e.import_source as "importSource",
           e.detached_from_import,
+          e.series_id,
+          e.series_id as "seriesId",
           e.status,
           e.attendance_mode,
           e.schedule_kind,
@@ -282,6 +286,7 @@ export async function listAdminOrganizers(
     countryCode?: string;
     languages?: string;
     cities?: string;
+    sourceFilter?: "imported" | "manual" | "detached";
     sort?: string;
     page: number;
     pageSize: number;
@@ -357,6 +362,14 @@ export async function listAdminOrganizers(
     whereParts.push(`EXISTS(SELECT 1 FROM organizer_locations ol WHERE ol.organizer_id = o.id AND ol.city = ANY($${values.length}::text[]))`);
   }
 
+  if (input.sourceFilter === "imported") {
+    whereParts.push(`o.external_source IS NOT NULL AND o.detached_from_import = false`);
+  } else if (input.sourceFilter === "manual") {
+    whereParts.push(`o.external_source IS NULL`);
+  } else if (input.sourceFilter === "detached") {
+    whereParts.push(`o.detached_from_import = true`);
+  }
+
   const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
 
   const [itemsResult, totalResult] = await Promise.all([
@@ -377,6 +390,9 @@ export async function listAdminOrganizers(
       event_count: string | null;
       first_role_id: string | null;
       languages: string[] | null;
+      external_source: string | null;
+      detached_from_import: boolean;
+      created_by_name: string | null;
     }>(
       `
         select
@@ -390,6 +406,9 @@ export async function listAdminOrganizers(
           o.image_url,
           o.avatar_path,
           o.languages,
+          o.external_source,
+          o.detached_from_import,
+          u.display_name as created_by_name,
           mgr.managed_by_names,
           practice_sub.practice_labels,
           role_sub.role_labels,
@@ -397,6 +416,7 @@ export async function listAdminOrganizers(
           event_count_sub.event_count,
           first_role_sub.first_role_id
         from organizers o
+        left join users u on u.id = o.created_by_user_id
         left join lateral (
           select string_agg(u.display_name, ', ') as managed_by_names
           from host_users hu
@@ -485,6 +505,8 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
     rrule: string | null;
     rrule_dtstart_local: string | null;
     duration_minutes: number | null;
+    series_id: string;
+    seriesId: string;
     status: "draft" | "published" | "cancelled" | "archived";
     visibility: "public" | "unlisted";
     detached_from_import: boolean;
@@ -525,6 +547,8 @@ export async function getAdminEventById(pool: Pool, eventId: string) {
         e.rrule,
         e.rrule_dtstart_local,
         e.duration_minutes,
+        e.series_id,
+        e.series_id as "seriesId",
         e.status,
         e.visibility,
         e.detached_from_import,
