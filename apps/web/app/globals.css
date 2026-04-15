@@ -522,6 +522,199 @@ main {
   background: var(--hover-bg);
 }
 
+.autocomplete-option-source {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.autocomplete-empty {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.autocomplete-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.autocomplete-clear:hover {
+  background: var(--hover-bg);
+  color: var(--ink);
+}
+
+/* Generic modal — used by FollowHostModal and any future dialog. Plain HTML, no
+   focus trap (acceptable for a 2-field form), Escape-to-close handled in JS. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.modal-card {
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.modal-title {
+  font-size: 1.2rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.modal-close:hover {
+  background: var(--hover-bg);
+  color: var(--ink);
+}
+
+.modal-description {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.modal-field {
+  margin-bottom: 16px;
+}
+
+.modal-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 6px;
+}
+
+.modal-help {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.modal-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.modal-error {
+  color: #b00020;
+  background: rgba(176, 0, 32, 0.08);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.modal-action-spacer {
+  flex: 1;
+}
+
+.modal-action-danger {
+  color: #b00020;
+}
+
+.follow-button {
+  white-space: nowrap;
+}
+
+.follow-button--following {
+  background: var(--surface);
+}
+
+.alerts-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alerts-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.alerts-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.alerts-item-host {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.alerts-item-host:hover {
+  text-decoration: underline;
+}
+
+.alerts-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
 summary {
   cursor: pointer;
   font-size: 0.92rem;

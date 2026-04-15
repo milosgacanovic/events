@@ -3,11 +3,14 @@ import { z } from "zod";
 
 import {
   listCitySuggestions,
+  listCitySuggestionsWithCoords,
+  listCountryCodesInUse,
   listOrganizerCitySuggestions,
   listOrganizerTagSuggestions,
   listTagSuggestions,
 } from "../db/metaRepo";
 import { getUiLabels } from "../db/uiLabelRepo";
+import { geocodeSearch } from "../services/geocodeService";
 
 const metaRoutes: FastifyPluginAsync = async (app) => {
   const cityQuerySchema = z.object({
@@ -213,6 +216,109 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
       lat: parseFloat(r.lat),
       lng: parseFloat(r.lng),
     }));
+    const payload = { items };
+    cache.set(cacheKey, { expiresAt: now + 300_000, payload });
+    return payload;
+  });
+
+  // Public (no auth) — used by the Follow/Notify modal and anywhere else we need a
+  // location picker that yields { city, countryCode, lat, lng } in one step. We
+  // always try the local catalog first (instant + relevant because we already have
+  // events there) and only fall back to Nominatim when the query is long enough to
+  // be specific and local results are sparse.
+  const suggestCitiesSchema = z.object({
+    q: z.string().trim().min(1).max(80),
+    limit: z.coerce.number().int().positive().max(10).default(8),
+  });
+
+  app.get("/suggest/cities", async (request, reply) => {
+    const parsed = suggestCitiesSchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: parsed.error.flatten() };
+    }
+    const { q, limit } = parsed.data;
+
+    const cacheKey = `suggest-cities:${q.toLowerCase()}:${limit}`;
+    const now = Date.now();
+    const cached = cache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.payload;
+    }
+
+    type CitySuggestItem = {
+      label: string;
+      city: string;
+      countryCode: string | null;
+      lat: number;
+      lng: number;
+      source: "local" | "geocode";
+    };
+
+    const local = await listCitySuggestionsWithCoords(app.db, { q, limit });
+    const merged: CitySuggestItem[] = local.map((row) => ({
+      label:
+        row.city.replace(/\b\w/g, (c) => c.toUpperCase()) +
+        (row.countryCode ? `, ${row.countryCode.toUpperCase()}` : ""),
+      city: row.city,
+      countryCode: row.countryCode,
+      lat: row.lat,
+      lng: row.lng,
+      source: "local",
+    }));
+
+    // Only geocode when local coverage is thin *and* the query is specific enough to
+    // make the external call worth the latency. Avoids hammering Nominatim on single-letter
+    // queries while the user is still typing.
+    if (merged.length < limit && q.length >= 3) {
+      try {
+        type GeocodeResult = {
+          formatted_address: string;
+          lat: number;
+          lng: number;
+          country_code: string | null;
+          city: string | null;
+        };
+        const geocoded = (await geocodeSearch(app.db, q, limit)) as GeocodeResult[];
+        const seen = new Set(
+          merged.map((item) => `${item.city}|${item.countryCode ?? ""}`),
+        );
+        for (const result of geocoded) {
+          if (!result.city || !result.country_code) continue;
+          const cityLower = result.city.toLowerCase();
+          const countryLower = result.country_code.toLowerCase();
+          const key = `${cityLower}|${countryLower}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push({
+            label: `${result.city}, ${result.country_code.toUpperCase()}`,
+            city: cityLower,
+            countryCode: countryLower,
+            lat: result.lat,
+            lng: result.lng,
+            source: "geocode",
+          });
+          if (merged.length >= limit) break;
+        }
+      } catch (err) {
+        // Geocoding is best-effort — surface the local results regardless.
+        request.log.warn({ err }, "geocode fallback failed in /suggest/cities");
+      }
+    }
+
+    const payload = { items: merged.slice(0, limit) };
+    cache.set(cacheKey, { expiresAt: now + ttlMs, payload });
+    return payload;
+  });
+
+  app.get("/suggest/countries", async () => {
+    const cacheKey = `suggest-countries`;
+    const now = Date.now();
+    const cached = cache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.payload;
+    }
+    const items = await listCountryCodesInUse(app.db);
     const payload = { items };
     cache.set(cacheKey, { expiresAt: now + 300_000, payload });
     return payload;

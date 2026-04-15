@@ -12,7 +12,8 @@
     "test": "vitest run",
     "migrate": "tsx src/scripts/migrate.ts",
     "seed": "tsx src/scripts/seed.ts",
-    "occurrences:refresh": "tsx src/scripts/refreshOccurrences.ts"
+    "occurrences:refresh": "tsx src/scripts/refreshOccurrences.ts",
+    "alerts:notify": "tsx src/scripts/runAlertNotifications.ts"
   },
   "dependencies": {
     "@dr-events/shared": "0.1.0",

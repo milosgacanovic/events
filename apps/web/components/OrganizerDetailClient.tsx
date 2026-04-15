@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import DOMPurify from "dompurify";
 import { useEffect, useState } from "react";
 
-import { apiBase, fetchJson } from "../lib/api";
+import { fetchJson } from "../lib/api";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
+import { FollowHostButton } from "./FollowHostButton";
 
 export type OrganizerServerTranslations = {
   locale: string;
@@ -200,11 +201,6 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
   const [data, setData] = useState<OrganizerDetail | null>(initialData ?? null);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [radiusKm, setRadiusKm] = useState(50);
-  const [alertCity, setAlertCity] = useState("");
-  const [alertCountryCode, setAlertCountryCode] = useState("");
-  const [alertStatus, setAlertStatus] = useState<string | null>(null);
-  const [savingAlert, setSavingAlert] = useState(false);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
 
   useEffect(() => {
@@ -399,50 +395,7 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
     .map((id) => ({ id, key: practiceKeyById.get(id), label: practiceLabelById.get(id) }))
     .filter((e): e is { id: string; key: string; label: string } => Boolean(e.label && e.key));
   const roleLabels = Array.from(new Set(data.organizer.roleKeys ?? []));
-  const canFollowHost = auth.authenticated && data.locations.some((location) =>
-    location.lat !== null && location.lat !== undefined && location.lng !== null && location.lng !== undefined
-  );
   const displayedLocations = data.locations;
-
-  async function createAlert() {
-    const organizerId = data?.organizer.id;
-    if (!organizerId) {
-      return;
-    }
-    if (!auth.authenticated) {
-      await auth.login();
-      return;
-    }
-    setSavingAlert(true);
-    setAlertStatus(null);
-    try {
-      const token = await auth.getToken();
-      if (!token) {
-        throw new Error("missing_token");
-      }
-      const response = await fetch(`${apiBase}/profile/alerts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          organizerId,
-          radiusKm,
-          city: alertCity.trim() || undefined,
-          countryCode: alertCountryCode.trim() || undefined,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`alert_create_failed_${response.status}`);
-      }
-      setAlertStatus(t("organizerDetail.alert.created"));
-    } catch (err) {
-      setAlertStatus(err instanceof Error ? err.message : t("organizerDetail.alert.failed"));
-    } finally {
-      setSavingAlert(false);
-    }
-  }
 
   return (
     <section className="panel cards" style={{ maxWidth: 760, margin: "0 auto" }}>
@@ -497,6 +450,7 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
                   {t("organizerDetail.editHost")}
                 </Link>
               )}
+              <FollowHostButton organizerId={data.organizer.id} organizerName={data.organizer.name} />
             </div>
           </div>
         </div>
@@ -569,39 +523,6 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
           </>
         )}
       </dl>
-      {canFollowHost && (
-        <div className="card org-alert-form">
-          <h3>{t("organizerDetail.alert.title")}</h3>
-          <div className="meta">{t("organizerDetail.alert.description")}</div>
-          <div className="org-alert-fields">
-            <label className="org-alert-label">
-              <span>{t("organizerDetail.alert.city")}</span>
-              <input value={alertCity} onChange={(event) => setAlertCity(event.target.value)} />
-            </label>
-            <label className="org-alert-label">
-              <span>{t("organizerDetail.alert.countryCode")}</span>
-              <input value={alertCountryCode} onChange={(event) => setAlertCountryCode(event.target.value)} />
-            </label>
-            <label className="org-alert-label">
-              <span>{t("organizerDetail.alert.radiusKm")}</span>
-              <input
-                type="number"
-                min={1}
-                max={500}
-                value={radiusKm}
-                onChange={(event) => setRadiusKm(Number(event.target.value) || 50)}
-              />
-            </label>
-          </div>
-          {!alertCity.trim() && !alertCountryCode.trim() && (
-            <div className="meta">{t("organizerDetail.alert.globalNote")}</div>
-          )}
-          <button className="primary-btn" type="button" onClick={() => void createAlert()} disabled={savingAlert}>
-            {savingAlert ? t("organizerDetail.alert.saving") : t("organizerDetail.alert.follow")}
-          </button>
-          {alertStatus && <div className="meta">{alertStatus}</div>}
-        </div>
-      )}
 
 
       <h3>{t("organizerDetail.upcomingEvents")}</h3>

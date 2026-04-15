@@ -30,6 +30,10 @@ const configSchema = z.object({
   RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
+  // Feature flag for the Follow/Notify worker. Default false so the worker no-ops
+  // in environments that haven't been verified yet — flip to true after confirming
+  // dry-run output looks correct.
+  ENABLE_ALERT_NOTIFICATIONS: z.coerce.boolean().default(false),
 });
 
 export const config = configSchema.parse(process.env);

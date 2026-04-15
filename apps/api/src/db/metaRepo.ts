@@ -114,6 +114,77 @@ export async function listOrganizerCitySuggestions(
   return result.rows.map((row) => ({ city: row.city, count: Number(row.count) }));
 }
 
+/**
+ * Suggest cities with country + approximate coordinates for the Follow/Notify form.
+ * Pulls from published `event_occurrences` (the places where we actually have events) so
+ * picking a suggestion always yields a point that's relevant to the catalog. Geocode
+ * fallback (Nominatim) happens in the route layer when the local list is sparse.
+ */
+export async function listCitySuggestionsWithCoords(
+  pool: Pool,
+  input: { q?: string; limit: number },
+) {
+  const query = (input.q ?? "").trim().toLowerCase();
+  const result = await pool.query<{
+    city: string;
+    country_code: string | null;
+    lat: string;
+    lng: string;
+    count: string;
+  }>(
+    `
+      select
+        lower(eo.city) as city,
+        lower(eo.country_code) as country_code,
+        avg(ST_Y(eo.geom::geometry))::text as lat,
+        avg(ST_X(eo.geom::geometry))::text as lng,
+        count(*)::text as count
+      from event_occurrences eo
+      join events e on e.id = eo.event_id
+      where e.status = 'published'
+        and eo.city is not null
+        and eo.city <> ''
+        and eo.geom is not null
+        and ($1 = '' or lower(eo.city) like $1 || '%')
+      group by lower(eo.city), lower(eo.country_code)
+      order by count(*) desc, lower(eo.city) asc
+      limit $2
+    `,
+    [query, input.limit],
+  );
+
+  return result.rows.map((row) => ({
+    city: row.city,
+    countryCode: row.country_code,
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    count: Number(row.count),
+  }));
+}
+
+/**
+ * Distinct country codes found in our published-occurrence catalog. Used by the
+ * country combobox in the Follow/Notify modal so users see "useful" countries first.
+ * Labels are computed client-side via Intl.DisplayNames.
+ */
+export async function listCountryCodesInUse(pool: Pool) {
+  const result = await pool.query<{ country_code: string; count: string }>(
+    `
+      select lower(eo.country_code) as country_code, count(*)::text as count
+      from event_occurrences eo
+      join events e on e.id = eo.event_id
+      where e.status = 'published'
+        and eo.country_code is not null
+        and eo.country_code <> ''
+      group by lower(eo.country_code)
+      order by count(*) desc, lower(eo.country_code) asc
+    `,
+  );
+  return result.rows
+    .filter((row) => /^[a-z]{2}$/.test(row.country_code))
+    .map((row) => ({ code: row.country_code, count: Number(row.count) }));
+}
+
 export async function listOrganizerTagSuggestions(
   pool: Pool,
   input: { q?: string; limit: number },
