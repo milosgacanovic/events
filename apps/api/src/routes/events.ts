@@ -22,8 +22,9 @@ import { createLocation, getEventDefaultLocation, setEventDefaultLocation, updat
 import { findOrCreateUserBySub, isServiceAccount } from "../db/userRepo";
 import { resolveUserId, requireEventAccess } from "../middleware/ownership";
 import { canUserEditEvent } from "../db/manageRepo";
-import { archiveEvent, cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
-import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
+import { archiveEvent, cancelEvent, publishEvent, regenerateOccurrences, syncSeriesAfterHardDelete, unpublishEvent } from "../services/eventLifecycleService";
+import { OCCURRENCES_INDEX, SERIES_INDEX, type OccurrenceDoc, type SeriesDoc } from "../services/meiliService";
+import { config as apiConfig } from "../config";
 import { deriveSeriesCadence } from "../services/seriesCadenceService";
 import { recordActivity } from "../services/activityLogger";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
@@ -285,6 +286,131 @@ function buildEventDateClause(input: { fromUtc: string; toUtc: string }): string
   return `(starts_at_ts >= ${Date.parse(input.fromUtc)} AND starts_at_ts < ${Date.parse(input.toUtc)})`;
 }
 
+/**
+ * Expand a UTC date range into a list of YYYY-MM-DD strings (inclusive).
+ * Used by the series-index search path to OR-filter `upcoming_dates`.
+ * Capped at 400 elements to stay within Meili filter sizing for year-long
+ * horizons; wider ranges fall through to an earliest_upcoming_ts inequality.
+ */
+function expandUtcDateBuckets(fromUtc: string, toUtc: string): string[] {
+  const start = DateTime.fromISO(fromUtc, { zone: "utc" });
+  const end = DateTime.fromISO(toUtc, { zone: "utc" });
+  if (!start.isValid || !end.isValid || end < start) return [];
+  const buckets: string[] = [];
+  let cursor = start.startOf("day");
+  const stop = end.startOf("day");
+  while (cursor <= stop && buckets.length < 400) {
+    buckets.push(cursor.toFormat("yyyy-MM-dd"));
+    cursor = cursor.plus({ days: 1 });
+  }
+  return buckets;
+}
+
+/**
+ * Meili filter set for the series index. Same filter semantics as
+ * {@link buildMeiliFilters} but with series-level attribute names:
+ *   - `starts_at_ts` → `earliest_upcoming_ts` (for inequalities / sort)
+ *   - Date-range presets emit an OR over `upcoming_dates` bucket strings.
+ * Geo / tag / language / organizer filters reuse the same attribute shapes.
+ */
+function buildSeriesMeiliFilters(input: {
+  fromUtc: string;
+  toUtc: string;
+  practiceCategoryIds?: string[];
+  practiceSubcategoryId?: string;
+  eventFormatIds?: string[];
+  tags: string[];
+  languages: string[];
+  attendanceModes?: string[];
+  organizerId?: string;
+  countryCodes?: string[];
+  cities?: string[];
+  hasGeo?: boolean;
+  geoLat?: number;
+  geoLng?: number;
+  geoRadius?: number;
+  selectedEventDateRanges: Array<{ fromUtc: string; toUtc: string }>;
+}): string[] {
+  const filters: string[] = [];
+
+  // Primary date window: always constrain earliest_upcoming_ts to the search
+  // horizon so past-only series (no upcoming dates) are excluded when the
+  // caller wants future-only results.
+  filters.push(`earliest_upcoming_ts >= ${Date.parse(input.fromUtc)}`);
+  filters.push(`earliest_upcoming_ts <= ${Date.parse(input.toUtc)}`);
+
+  // Date-range preset refinement (e.g. "this weekend"): OR over the UTC
+  // date-bucket array. Each preset expands to its own bucket list; the
+  // whole expression is ORed together, matching the old semantic.
+  if (input.selectedEventDateRanges.length > 0) {
+    const perPresetClauses: string[] = [];
+    for (const range of input.selectedEventDateRanges) {
+      const buckets = expandUtcDateBuckets(range.fromUtc, range.toUtc);
+      if (buckets.length === 0) continue;
+      const bucketClauses = buckets
+        .map((d) => `upcoming_dates = ${JSON.stringify(d)}`)
+        .join(" OR ");
+      perPresetClauses.push(`(${bucketClauses})`);
+    }
+    if (perPresetClauses.length > 0) {
+      filters.push(`(${perPresetClauses.join(" OR ")})`);
+    }
+  }
+
+  if (input.practiceCategoryIds?.length === 1) {
+    filters.push(`practice_category_id = ${JSON.stringify(input.practiceCategoryIds[0])}`);
+  } else if (input.practiceCategoryIds && input.practiceCategoryIds.length > 1) {
+    filters.push(`(${input.practiceCategoryIds.map((v) => `practice_category_id = ${JSON.stringify(v)}`).join(" OR ")})`);
+  }
+  if (input.practiceSubcategoryId) {
+    filters.push(`practice_subcategory_id = ${JSON.stringify(input.practiceSubcategoryId)}`);
+  }
+  if (input.eventFormatIds?.length === 1) {
+    filters.push(`event_format_id = ${JSON.stringify(input.eventFormatIds[0])}`);
+  } else if (input.eventFormatIds && input.eventFormatIds.length > 1) {
+    filters.push(`(${input.eventFormatIds.map((v) => `event_format_id = ${JSON.stringify(v)}`).join(" OR ")})`);
+  }
+  if (input.tags.length === 1) {
+    filters.push(`tags = ${JSON.stringify(input.tags[0])}`);
+  } else if (input.tags.length > 1) {
+    filters.push(`(${input.tags.map((t) => `tags = ${JSON.stringify(t)}`).join(" OR ")})`);
+  }
+  if (input.languages.length === 1) {
+    filters.push(`languages = ${JSON.stringify(input.languages[0])}`);
+  } else if (input.languages.length > 1) {
+    filters.push(`(${input.languages.map((l) => `languages = ${JSON.stringify(l)}`).join(" OR ")})`);
+  }
+  if (input.attendanceModes?.length === 1) {
+    filters.push(`attendance_mode = ${JSON.stringify(input.attendanceModes[0])}`);
+  } else if (input.attendanceModes && input.attendanceModes.length > 1) {
+    filters.push(`(${input.attendanceModes.map((m) => `attendance_mode = ${JSON.stringify(m)}`).join(" OR ")})`);
+  }
+  if (input.organizerId) {
+    filters.push(`organizer_ids = ${JSON.stringify(input.organizerId)}`);
+  }
+  if (input.countryCodes?.length) {
+    const normalized = input.countryCodes.map((v) => v.trim().toLowerCase()).filter(Boolean);
+    if (normalized.length === 1) {
+      filters.push(`country_code = ${JSON.stringify(normalized[0])}`);
+    } else if (normalized.length > 1) {
+      filters.push(`(${normalized.map((v) => `country_code = ${JSON.stringify(v)}`).join(" OR ")})`);
+    }
+  }
+  if (input.cities?.length === 1) {
+    filters.push(`city = ${JSON.stringify(input.cities[0])}`);
+  } else if (input.cities && input.cities.length > 1) {
+    filters.push(`(${input.cities.map((v) => `city = ${JSON.stringify(v)}`).join(" OR ")})`);
+  }
+  if (typeof input.hasGeo === "boolean") {
+    filters.push(`has_geo = ${input.hasGeo}`);
+  }
+  if (input.geoLat !== undefined && input.geoLng !== undefined && input.geoRadius !== undefined) {
+    filters.push(`_geoRadius(${input.geoLat}, ${input.geoLng}, ${input.geoRadius})`);
+  }
+
+  return filters;
+}
+
 // Mirrors the Meili filter set as a parameterised SQL WHERE clause over
 // event_occurrences + events. Returns the exact `count(distinct series_id)`
 // — Meili's distinct total is an approximation and over-reports (see
@@ -538,6 +664,184 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return cached;
     }
     request.log.info({ msg: "search_cache_miss", scope: "events_search" });
+
+    // --- Series-index path (Phase 6) ----------------------------------------
+    // When the flag is on, /events/search reads the `series` index directly.
+    // Each Meili doc represents one series, so native totalHits + facets are
+    // exact by construction — no SQL distinct math, no stopgap override.
+    if (apiConfig.EVENTS_SERIES_SEARCH_ENABLED) {
+      try {
+        const fromUtc = from ?? now.toISO()!;
+        const toUtc = to ?? now.plus({ days: 365 }).toISO()!;
+        const seriesFilters = buildSeriesMeiliFilters({
+          fromUtc,
+          toUtc,
+          practiceCategoryIds,
+          practiceSubcategoryId: parsed.data.practiceSubcategoryId,
+          eventFormatIds,
+          tags,
+          languages,
+          attendanceModes,
+          organizerId: parsed.data.organizerId,
+          countryCodes,
+          cities: cityFilters,
+          hasGeo,
+          geoLat: parsed.data.geoLat,
+          geoLng: parsed.data.geoLng,
+          geoRadius: parsed.data.geoRadius,
+          selectedEventDateRanges,
+        });
+        if (!showUnlisted) {
+          seriesFilters.push(`visibility = "public"`);
+        }
+        const sortExpression =
+          normalizedSort === "startsAtDesc"
+            ? "earliest_upcoming_ts:desc"
+            : "earliest_upcoming_ts:asc"; // publishedAtDesc falls back to starts-asc for now.
+        const seriesIndex = app.meiliService.client.index(SERIES_INDEX);
+        const result = await seriesIndex.search<SeriesDoc>(parsed.data.q ?? "", {
+          filter: seriesFilters,
+          facets: [
+            "practice_category_id",
+            "practice_subcategory_id",
+            "event_format_id",
+            "languages",
+            "attendance_mode",
+            "country_code",
+            "tags",
+            "organizer_ids",
+          ],
+          sort: [sortExpression],
+          hitsPerPage: parsed.data.pageSize,
+          page: parsed.data.page,
+        });
+        const seriesHits = result.hits as SeriesDoc[];
+        const resultTotals = result as typeof result & { totalHits?: number };
+        const totalHits = resultTotals.totalHits ?? result.hits.length;
+
+        const organizerMap = await loadEventOrganizers(
+          app.db,
+          Array.from(new Set(seriesHits.map((hit) => hit.canonical_event_id).filter(Boolean))),
+        );
+
+        // Event-date-preset facet counts: run one search per preset with the
+        // base filters (minus the preset itself) + that preset's bucket list.
+        let eventDateFacet: Record<string, number> = {};
+        if (parsed.data.skipEventDateFacet !== "true") {
+          try {
+            const baseNoDatePresets = buildSeriesMeiliFilters({
+              fromUtc,
+              toUtc,
+              practiceCategoryIds,
+              practiceSubcategoryId: parsed.data.practiceSubcategoryId,
+              eventFormatIds,
+              tags,
+              languages,
+              attendanceModes,
+              organizerId: parsed.data.organizerId,
+              countryCodes,
+              cities: cityFilters,
+              hasGeo,
+              geoLat: parsed.data.geoLat,
+              geoLng: parsed.data.geoLng,
+              geoRadius: parsed.data.geoRadius,
+              selectedEventDateRanges: [],
+            });
+            if (!showUnlisted) {
+              baseNoDatePresets.push(`visibility = "public"`);
+            }
+            const dateFacetQueries = EVENT_DATE_PRESETS.map(async (preset) => {
+              const presetRange = eventDateRangeMap[preset];
+              const buckets = expandUtcDateBuckets(presetRange.fromUtc, presetRange.toUtc);
+              if (buckets.length === 0) return { preset, count: 0 };
+              const bucketFilter = `(${buckets
+                .map((d) => `upcoming_dates = ${JSON.stringify(d)}`)
+                .join(" OR ")})`;
+              const countResult = await seriesIndex.search<SeriesDoc>(parsed.data.q ?? "", {
+                filter: [...baseNoDatePresets, bucketFilter],
+                hitsPerPage: 1,
+                page: 1,
+              });
+              const countTotals = countResult as typeof countResult & { totalHits?: number };
+              return { preset, count: countTotals.totalHits ?? countResult.hits.length };
+            });
+            const counts = await Promise.all(dateFacetQueries);
+            eventDateFacet = Object.fromEntries(counts.map((c) => [c.preset, c.count]));
+          } catch (error) {
+            request.log.warn({ err: error, msg: "events.search.series.event_date_facet_failed" });
+            eventDateFacet = {};
+          }
+        }
+
+        const payload = {
+          hits: seriesHits.map((doc) => ({
+            // occurrenceId retained for client-compat; each "hit" is now a
+            // series, so we use series_id here. The client already also
+            // consumes event.seriesId.
+            occurrenceId: doc.series_id,
+            startsAtUtc: doc.earliest_upcoming_ts
+              ? new Date(doc.earliest_upcoming_ts).toISOString()
+              : new Date().toISOString(),
+            endsAtUtc: doc.earliest_upcoming_ts
+              ? new Date(doc.earliest_upcoming_ts).toISOString()
+              : new Date().toISOString(),
+            event: {
+              id: doc.canonical_event_id,
+              slug: doc.slug,
+              title: doc.title,
+              coverImageUrl: doc.cover_image_path ?? null,
+              attendanceMode: doc.attendance_mode,
+              eventTimezone: doc.event_timezone,
+              languages: doc.languages,
+              tags: doc.tags,
+              practiceCategoryId: doc.practice_category_id,
+              practiceSubcategoryId: doc.practice_subcategory_id,
+              eventFormatId: doc.event_format_id,
+              visibility: doc.visibility,
+              isImported: false,
+              importSource: null as string | null,
+              externalUrl: null as string | null,
+              lastSyncedAt: null as string | null,
+              scheduleKind: doc.schedule_kind as "single" | "recurring",
+              siblingCount: doc.sibling_count ?? 1,
+              seriesId: doc.series_id,
+            },
+            location: doc._geo || doc.city || doc.country_code
+              ? {
+                  formatted_address: null,
+                  city: doc.city,
+                  country_code: doc.country_code,
+                  lat: doc._geo?.lat ?? null,
+                  lng: doc._geo?.lng ?? null,
+                }
+              : null,
+            organizers: organizerMap.get(doc.canonical_event_id) ?? [],
+          })),
+          totalHits,
+          facets: {
+            practiceCategoryId: result.facetDistribution?.practice_category_id ?? {},
+            practiceSubcategoryId: result.facetDistribution?.practice_subcategory_id ?? {},
+            eventFormatId: result.facetDistribution?.event_format_id ?? {},
+            languages: result.facetDistribution?.languages ?? {},
+            attendanceMode: result.facetDistribution?.attendance_mode ?? {},
+            countryCode: result.facetDistribution?.country_code ?? {},
+            tags: result.facetDistribution?.tags ?? {},
+            organizerId: result.facetDistribution?.organizer_ids ?? {},
+            eventDate: eventDateFacet,
+          },
+          pagination: {
+            page: parsed.data.page,
+            pageSize: parsed.data.pageSize,
+            totalPages: Math.max(Math.ceil(totalHits / parsed.data.pageSize), 1),
+          },
+        };
+        setSearchCache("events_search", cacheKeyPayload, payload);
+        return payload;
+      } catch (error) {
+        request.log.warn({ err: error, msg: "events.search.series_index_failed_fallback" });
+        // Fall through to the legacy occurrence-index path below.
+      }
+    }
 
     try {
       const baseMeiliFilters = buildMeiliFilters({
@@ -1210,6 +1514,11 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       return { error: "delete_only_draft_or_archived" };
     }
 
+    // Capture series_id before the DELETE — the parent row will be gone
+    // before the series refresh runs and we still need to rebuild or drop
+    // the event_series row for remaining siblings.
+    const seriesId = event.series_id;
+
     // Snapshot before deletion for audit trail
     recordActivity(app.db, request, {
       action: "event.delete",
@@ -1229,6 +1538,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     try {
       await app.meiliService.deleteOccurrencesByEventId(params.data.id);
     } catch { /* ignore */ }
+    if (seriesId) {
+      await syncSeriesAfterHardDelete(app.db, app.meiliService, seriesId);
+    }
     clearSearchCache();
 
     return reply.code(204).send();

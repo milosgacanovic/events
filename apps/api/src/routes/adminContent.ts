@@ -8,6 +8,7 @@ import {
   listAdminOrganizers,
 } from "../db/adminRepo";
 import { recordActivity } from "../services/activityLogger";
+import { syncSeriesAfterHardDelete } from "../services/eventLifecycleService";
 import { getEventById, setEventOrganizersByRoleKey } from "../db/eventRepo";
 import { createLocation } from "../db/locationRepo";
 import { listManagedEvents, listManagedOrganizers, getEventFacets, getHostFacets } from "../db/manageRepo";
@@ -575,6 +576,10 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
 
     // Snapshot before deletion
     const eventSnap = await getEventById(app.db, params.data.id);
+    // Capture series_id before the DELETE so we can refresh event_series
+    // after the parent row is gone. The remaining siblings (if any) may
+    // still back a valid series — we need the row rebuilt or dropped.
+    const seriesId = eventSnap?.series_id ?? null;
     recordActivity(app.db, request, {
       action: "event.delete",
       targetType: "event",
@@ -594,6 +599,9 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     try {
       await app.meiliService.deleteOccurrencesByEventId(params.data.id);
     } catch { /* ignore */ }
+    if (seriesId) {
+      await syncSeriesAfterHardDelete(app.db, app.meiliService, seriesId);
+    }
     clearSearchCache();
 
     reply.code(204);

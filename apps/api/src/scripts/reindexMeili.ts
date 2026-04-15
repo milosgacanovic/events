@@ -2,7 +2,7 @@ import { MeiliSearch } from "meilisearch";
 import { Pool } from "pg";
 
 import { config } from "../config";
-import { MeilisearchService, OCCURRENCES_INDEX } from "../services/meiliService";
+import { MeilisearchService, OCCURRENCES_INDEX, SERIES_INDEX } from "../services/meiliService";
 
 const BATCH_SIZE = 500;
 
@@ -12,31 +12,50 @@ async function main() {
   try {
     const meiliService = new MeilisearchService(config.MEILI_URL, config.MEILI_MASTER_KEY);
     const client = new MeiliSearch({ host: config.MEILI_URL, apiKey: config.MEILI_MASTER_KEY });
-    const index = client.index(OCCURRENCES_INDEX);
 
-    // Step 1: Delete all documents at once and wait for completion
+    // --- Occurrence index (map, alerts, calendar) --------------------------
+    const occIndex = client.index(OCCURRENCES_INDEX);
     // eslint-disable-next-line no-console
-    console.log("Deleting all existing documents...");
-    const deleteTask = await index.deleteAllDocuments();
-    await client.waitForTask(deleteTask.taskUid, { timeOutMs: 120000 });
+    console.log("Deleting all existing occurrence documents...");
+    const occDeleteTask = await occIndex.deleteAllDocuments();
+    await client.waitForTask(occDeleteTask.taskUid, { timeOutMs: 120000 });
     // eslint-disable-next-line no-console
     console.log("Deleted.");
 
-    // Step 2: Fetch all occurrence docs from DB in one query
     // eslint-disable-next-line no-console
     console.log("Fetching all occurrence docs from DB...");
-    const docs = await meiliService.fetchOccurrenceDocs(pool);
+    const occDocs = await meiliService.fetchOccurrenceDocs(pool);
     // eslint-disable-next-line no-console
-    console.log(`Fetched ${docs.length} occurrence docs.`);
+    console.log(`Fetched ${occDocs.length} occurrence docs.`);
 
-    // Step 3: Add in batches of BATCH_SIZE
-    let added = 0;
-    for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-      const batch = docs.slice(i, i + BATCH_SIZE);
-      await index.addDocuments(batch);
-      added += batch.length;
+    let occAdded = 0;
+    for (let i = 0; i < occDocs.length; i += BATCH_SIZE) {
+      const batch = occDocs.slice(i, i + BATCH_SIZE);
+      await occIndex.addDocuments(batch);
+      occAdded += batch.length;
       // eslint-disable-next-line no-console
-      console.log(`  ${added}/${docs.length}`);
+      console.log(`  occurrences ${occAdded}/${occDocs.length}`);
+    }
+
+    // --- Series index (search list) ----------------------------------------
+    const seriesIndex = client.index(SERIES_INDEX);
+    // eslint-disable-next-line no-console
+    console.log("Deleting all existing series documents...");
+    const seriesDeleteTask = await seriesIndex.deleteAllDocuments();
+    await client.waitForTask(seriesDeleteTask.taskUid, { timeOutMs: 120000 });
+    // eslint-disable-next-line no-console
+    console.log("Deleted.");
+
+    let seriesOffset = 0;
+    let seriesAdded = 0;
+    while (true) {
+      const batch = await meiliService.fetchSeriesDocs(pool, BATCH_SIZE, seriesOffset);
+      if (batch.length === 0) break;
+      await seriesIndex.addDocuments(batch);
+      seriesAdded += batch.length;
+      seriesOffset += BATCH_SIZE;
+      // eslint-disable-next-line no-console
+      console.log(`  series ${seriesAdded}`);
     }
 
     // eslint-disable-next-line no-console

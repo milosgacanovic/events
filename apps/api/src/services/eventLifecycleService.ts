@@ -9,9 +9,60 @@ import {
   replaceOccurrencesInWindow,
   setEventStatus,
 } from "../db/eventRepo";
+import { refreshEventSeries } from "../db/seriesRepo";
 import { generateOccurrences, horizonForEvent } from "./occurrenceService";
 import type { MeilisearchService } from "./meiliService";
 import { clearSearchCache } from "./searchCache";
+
+/**
+ * Refresh the `event_series` row + sync the Meili series doc for the series
+ * this event belongs to. Non-blocking — logs and swallows errors so lifecycle
+ * operations don't fail on search-side hiccups (mirrors the pattern used for
+ * the occurrence index).
+ */
+async function syncSeriesForEvent(
+  pool: Pool,
+  meiliService: MeilisearchService,
+  eventId: string,
+  op: string,
+): Promise<void> {
+  const event = await getEventById(pool, eventId);
+  const seriesId = event?.series_id;
+  if (!seriesId) return;
+
+  try {
+    const survived = await refreshEventSeries(pool, seriesId);
+    if (survived) {
+      await meiliService.upsertSeriesDoc(pool, seriesId);
+    } else {
+      await meiliService.deleteSeriesDoc(seriesId);
+    }
+  } catch (err) {
+    console.error(`[${op}] Failed to sync event_series for series ${seriesId}:`, err);
+  }
+}
+
+/**
+ * Variant used by the raw-DELETE escape routes in adminContent / events.ts,
+ * where the parent event row is already gone so `getEventById` can't give us
+ * the series_id. Caller captures `series_id` before DELETE and passes it in.
+ */
+export async function syncSeriesAfterHardDelete(
+  pool: Pool,
+  meiliService: MeilisearchService,
+  seriesId: string,
+): Promise<void> {
+  try {
+    const survived = await refreshEventSeries(pool, seriesId);
+    if (survived) {
+      await meiliService.upsertSeriesDoc(pool, seriesId);
+    } else {
+      await meiliService.deleteSeriesDoc(seriesId);
+    }
+  } catch (err) {
+    console.error(`[hardDelete] Failed to sync event_series for series ${seriesId}:`, err);
+  }
+}
 
 export async function regenerateOccurrences(
   pool: Pool,
@@ -44,6 +95,7 @@ export async function regenerateOccurrences(
     await meiliService.upsertOccurrencesForEvent(pool, eventId).catch((err) => {
       console.error(`[regenerateOccurrences] Failed to sync Meilisearch for event ${eventId}:`, err);
     });
+    await syncSeriesForEvent(pool, meiliService, eventId, "regenerateOccurrences");
     clearSearchCache();
   }
 }
@@ -77,6 +129,7 @@ export async function unpublishEvent(
   await meiliService.deleteOccurrencesByEventId(eventId).catch((err) => {
     console.error(`[unpublishEvent] Failed to delete Meilisearch docs for event ${eventId}:`, err);
   });
+  await syncSeriesForEvent(pool, meiliService, eventId, "unpublishEvent");
   clearSearchCache();
 }
 
@@ -99,6 +152,7 @@ export async function archiveEvent(
   await meiliService.deleteOccurrencesByEventId(eventId).catch((err) => {
     console.error(`[archiveEvent] Failed to delete Meilisearch docs for event ${eventId}:`, err);
   });
+  await syncSeriesForEvent(pool, meiliService, eventId, "archiveEvent");
   clearSearchCache();
 }
 
@@ -116,6 +170,7 @@ export async function refreshRecurringOccurrences(
     cleanupBefore.toISO(),
   ]);
 
+  const touchedSeriesIds = new Set<string>();
   for (const event of recurring) {
     const eventWithLocation = await getEventByIdWithLocation(pool, event.id);
     if (!eventWithLocation) {
@@ -142,6 +197,29 @@ export async function refreshRecurringOccurrences(
     await meiliService.upsertOccurrencesForEvent(pool, event.id).catch((err) => {
       console.error(`[refreshRecurringOccurrences] Failed to sync Meilisearch for event ${event.id}:`, err);
     });
+
+    if (eventWithLocation.event.series_id) {
+      touchedSeriesIds.add(eventWithLocation.event.series_id);
+    }
+  }
+
+  // Refresh series rows + Meili docs for every series touched this run.
+  // Canonical rotation happens naturally inside refreshEventSeries when the
+  // prior canonical's earliest-upcoming has passed.
+  for (const seriesId of touchedSeriesIds) {
+    try {
+      const survived = await refreshEventSeries(pool, seriesId);
+      if (survived) {
+        await meiliService.upsertSeriesDoc(pool, seriesId);
+      } else {
+        await meiliService.deleteSeriesDoc(seriesId);
+      }
+    } catch (err) {
+      console.error(
+        `[refreshRecurringOccurrences] Failed to sync event_series for series ${seriesId}:`,
+        err,
+      );
+    }
   }
 
   clearSearchCache();
