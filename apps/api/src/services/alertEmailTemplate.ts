@@ -11,7 +11,8 @@ export type AlertDigestOccurrence = {
   eventId: string;
   eventSlug: string;
   eventTitle: string;
-  startsAtUtc: string;
+  // pg driver returns `timestamptz` as Date, but allow ISO strings too for tests.
+  startsAtUtc: string | Date;
   eventTimezone: string | null;
   city: string | null;
   countryCode: string | null;
@@ -38,8 +39,13 @@ function escapeHtml(value: string): string {
 
 function formatOccurrenceDate(occ: AlertDigestOccurrence): string {
   const zone = occ.eventTimezone ?? "utc";
-  const dt = DateTime.fromISO(occ.startsAtUtc, { zone: "utc" }).setZone(zone);
-  if (!dt.isValid) return occ.startsAtUtc;
+  const dt =
+    occ.startsAtUtc instanceof Date
+      ? DateTime.fromJSDate(occ.startsAtUtc, { zone: "utc" }).setZone(zone)
+      : DateTime.fromISO(occ.startsAtUtc, { zone: "utc" }).setZone(zone);
+  if (!dt.isValid) {
+    return occ.startsAtUtc instanceof Date ? occ.startsAtUtc.toISOString() : occ.startsAtUtc;
+  }
   return dt.toLocaleString({
     weekday: "short",
     month: "short",

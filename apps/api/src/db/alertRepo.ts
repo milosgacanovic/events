@@ -218,7 +218,8 @@ export type PendingNotificationRow = {
   event_id: string;
   event_slug: string;
   event_title: string;
-  starts_at_utc: string;
+  // pg driver returns timestamptz as Date.
+  starts_at_utc: Date;
   event_timezone: string | null;
   occ_city: string | null;
   occ_country_code: string | null;
