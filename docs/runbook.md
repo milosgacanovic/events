@@ -113,8 +113,23 @@
   - Optional: `KEYCLOAK_CLIENT_SECRET` (not used by SPA login flow; only relevant for confidential-server flows)
 
 ## Cron
-- Daily recurring horizon refresh:
-  - `docker exec dr_events_api npm run occurrences:refresh`
+
+### Daily recurring-occurrence refresh
+
+Rematerializes the `event_occurrences` window for every recurring published event. Without this cron, long-running series (weekly classes, monthly workshops) silently run out of future occurrences as time marches past the per-FREQ horizon (DAILY 90d / WEEKLY 180d / MONTHLY 365d / YEARLY 730d).
+
+**Wrapper:** `/opt/events/scripts/refresh-occurrences-cron.sh` — reads active color via `scripts/bg-active-color.sh` and invokes the compiled refresh script inside that container. Safe across blue/green switches (re-reads the active color on each run).
+
+**Install on host** (one-time):
+
+```
+sudo crontab -l > /tmp/cron.current 2>/dev/null || true
+echo '17 3 * * * /opt/events/scripts/refresh-occurrences-cron.sh >> /var/log/dr-events-occurrence-refresh.log 2>&1' >> /tmp/cron.current
+sudo crontab /tmp/cron.current
+sudo touch /var/log/dr-events-occurrence-refresh.log
+```
+
+Runs daily at 03:17 UTC. Manual invocation: `bash /opt/events/scripts/refresh-occurrences-cron.sh`.
 
 ## Importer smoke check
 - See `docs/import-smoke.md` for the client-credentials single-event import smoke procedure.

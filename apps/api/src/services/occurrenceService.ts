@@ -79,18 +79,59 @@ export function parseRuleString(rruleStr: string, dtstart: Date, zone: string): 
   return set;
 }
 
+/**
+ * How many days forward we materialize occurrences, by recurrence frequency.
+ * Tuned so each series holds ~3-12 months of upcoming rows:
+ *   - Daily classes don't bloat the table (90 rows/series, refreshed daily).
+ *   - Weekly events cover 2 seasons of planning.
+ *   - Monthly workshops cover a year of planning.
+ *   - Yearly events show at least "this year" + "next year" when browsing near anniversary.
+ */
+const FORWARD_HORIZON_DAYS: Record<"DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY", number> = {
+  DAILY: 90,
+  WEEKLY: 180,
+  MONTHLY: 365,
+  YEARLY: 730,
+};
+const FALLBACK_FORWARD_DAYS = 180;
+const PAST_HORIZON_DAYS = 30;
+
+/**
+ * Frequency-aware occurrence horizon. Single events and non-recurring rows fall back
+ * to the 180d default. Recurring events scale their forward window to FREQ so daily
+ * classes don't explode the occurrences table and yearly events still show next year.
+ */
+export function horizonForEvent(
+  event: Pick<EventSeriesRow, "rrule" | "schedule_kind">,
+): OccurrenceHorizon {
+  const now = DateTime.utc();
+  const fromUtc = now.minus({ days: PAST_HORIZON_DAYS });
+  if (event.schedule_kind !== "recurring" || !event.rrule) {
+    return { fromUtc, toUtc: now.plus({ days: FALLBACK_FORWARD_DAYS }) };
+  }
+  // Pull FREQ= token; works for both legacy single-line and RFC 5545 multi-line rrule strings.
+  const freqMatch = event.rrule.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/i);
+  const freq = freqMatch?.[1]?.toUpperCase() as keyof typeof FORWARD_HORIZON_DAYS | undefined;
+  const days = (freq && FORWARD_HORIZON_DAYS[freq]) ?? FALLBACK_FORWARD_DAYS;
+  return { fromUtc, toUtc: now.plus({ days }) };
+}
+
+/**
+ * Event-agnostic default horizon. Kept for tests and UI preview paths that don't
+ * have an event row handy. Prefer `horizonForEvent(event)` in production code.
+ */
 export const defaultOccurrenceHorizon = (): OccurrenceHorizon => {
   const now = DateTime.utc();
   return {
-    fromUtc: now.minus({ days: 30 }),
-    toUtc: now.plus({ days: 365 }),
+    fromUtc: now.minus({ days: PAST_HORIZON_DAYS }),
+    toUtc: now.plus({ days: FALLBACK_FORWARD_DAYS }),
   };
 };
 
 export function generateOccurrences(
   event: EventSeriesRow,
   location: LocationRow | null,
-  horizon: OccurrenceHorizon = defaultOccurrenceHorizon(),
+  horizon: OccurrenceHorizon = horizonForEvent(event),
 ): EventOccurrenceRow[] {
   if (event.schedule_kind === "single") {
     if (!event.single_start_at || !event.single_end_at) {

@@ -9,7 +9,7 @@ import {
   replaceOccurrencesInWindow,
   setEventStatus,
 } from "../db/eventRepo";
-import { generateOccurrences, defaultOccurrenceHorizon } from "./occurrenceService";
+import { generateOccurrences, horizonForEvent } from "./occurrenceService";
 import type { MeilisearchService } from "./meiliService";
 import { clearSearchCache } from "./searchCache";
 
@@ -25,7 +25,7 @@ export async function regenerateOccurrences(
     return;
   }
 
-  const horizon = defaultOccurrenceHorizon();
+  const horizon = horizonForEvent(eventWithLocation.event);
   const generated = generateOccurrences(
     eventWithLocation.event,
     eventWithLocation.location,
@@ -106,7 +106,6 @@ export async function refreshRecurringOccurrences(
   pool: Pool,
   meiliService: MeilisearchService,
 ): Promise<void> {
-  const horizon = defaultOccurrenceHorizon();
   const recurring = await getRecurringPublishedEvents(pool);
 
   // Clean up old occurrences from DB before syncing to Meilisearch, so the
@@ -123,6 +122,9 @@ export async function refreshRecurringOccurrences(
       continue;
     }
 
+    // Horizon is frequency-aware per event: daily series get 90d, weekly 180d,
+    // monthly 365d, yearly 730d. Single-event fallback is 180d.
+    const horizon = horizonForEvent(eventWithLocation.event);
     const generated = generateOccurrences(
       eventWithLocation.event,
       eventWithLocation.location,

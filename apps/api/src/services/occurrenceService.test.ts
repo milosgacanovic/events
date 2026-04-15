@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
 
-import { generateOccurrences } from "./occurrenceService";
+import { generateOccurrences, horizonForEvent } from "./occurrenceService";
 
 const baseEvent = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -176,5 +176,81 @@ describe("generateOccurrences", () => {
     });
 
     expect(occurrences).toHaveLength(3);
+  });
+});
+
+describe("horizonForEvent", () => {
+  const base = {
+    rrule: null as string | null,
+    schedule_kind: "single" as "single" | "recurring",
+  };
+
+  it("single events get the 180d fallback", () => {
+    const h = horizonForEvent({ ...base, schedule_kind: "single", rrule: null });
+    const diff = h.toUtc.diff(h.fromUtc, "days").days;
+    // 30d past + 180d forward = 210d window
+    expect(Math.round(diff)).toBe(210);
+  });
+
+  it("recurring DAILY gets 90d forward horizon", () => {
+    const h = horizonForEvent({ schedule_kind: "recurring", rrule: "FREQ=DAILY;COUNT=400" });
+    const forward = h.toUtc.diff(DateTime.utc(), "days").days;
+    expect(Math.round(forward)).toBe(90);
+  });
+
+  it("recurring WEEKLY gets 180d forward horizon", () => {
+    const h = horizonForEvent({ schedule_kind: "recurring", rrule: "FREQ=WEEKLY;BYDAY=MO" });
+    const forward = h.toUtc.diff(DateTime.utc(), "days").days;
+    expect(Math.round(forward)).toBe(180);
+  });
+
+  it("recurring MONTHLY gets 365d forward horizon", () => {
+    const h = horizonForEvent({ schedule_kind: "recurring", rrule: "FREQ=MONTHLY;BYMONTHDAY=15" });
+    const forward = h.toUtc.diff(DateTime.utc(), "days").days;
+    expect(Math.round(forward)).toBe(365);
+  });
+
+  it("recurring YEARLY gets 730d forward horizon (so 'this year + next year' are visible)", () => {
+    const h = horizonForEvent({ schedule_kind: "recurring", rrule: "FREQ=YEARLY" });
+    const forward = h.toUtc.diff(DateTime.utc(), "days").days;
+    expect(Math.round(forward)).toBe(730);
+  });
+
+  it("RFC 5545 multi-line rrule still matches FREQ token", () => {
+    const h = horizonForEvent({
+      schedule_kind: "recurring",
+      rrule: "RRULE:FREQ=WEEKLY;BYDAY=TU\nEXDATE:20260704T190000Z",
+    });
+    const forward = h.toUtc.diff(DateTime.utc(), "days").days;
+    expect(Math.round(forward)).toBe(180);
+  });
+
+  it("recurring with no FREQ token falls back to 180d", () => {
+    const h = horizonForEvent({ schedule_kind: "recurring", rrule: "garbage" });
+    const forward = h.toUtc.diff(DateTime.utc(), "days").days;
+    expect(Math.round(forward)).toBe(180);
+  });
+
+  it("past window is always 30d", () => {
+    const h = horizonForEvent({ schedule_kind: "recurring", rrule: "FREQ=DAILY" });
+    const past = DateTime.utc().diff(h.fromUtc, "days").days;
+    expect(Math.round(past)).toBe(30);
+  });
+});
+
+describe("generateOccurrences with frequency-aware default horizon", () => {
+  it("DAILY event materializes only ~90 days forward (not 365)", () => {
+    // No explicit horizon passed — exercises the FREQ-aware default.
+    // dtstart 45 days in the past so the 30d-past window is fully covered.
+    const event = {
+      ...baseEvent,
+      rrule: "FREQ=DAILY",
+      rrule_dtstart_local: DateTime.utc().minus({ days: 45 }).toISO(),
+    };
+    const occurrences = generateOccurrences(event, null);
+    // 30d past + 90d forward = ~120 rows (±DST slack).
+    // Old 365d horizon would have produced ~395 rows.
+    expect(occurrences.length).toBeGreaterThan(110);
+    expect(occurrences.length).toBeLessThan(130);
   });
 });
