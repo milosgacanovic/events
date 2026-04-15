@@ -26,6 +26,7 @@ services:
       SMTP_FROM: noreply@danceresource.org
       SMTP_ADMIN_TO: hello@danceresource.org, milos@danceresource.org, milosgacanovic@gmail.com
       EVENTS_SERIES_GROUPING_ENABLED: ${EVENTS_SERIES_GROUPING_ENABLED:-false}
+      EVENTS_SERIES_SEARCH_ENABLED: ${EVENTS_SERIES_SEARCH_ENABLED:-false}
     networks:
       - default
       - mail-relay
