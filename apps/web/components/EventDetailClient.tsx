@@ -349,22 +349,14 @@ export function EventDetailClient({
   const [copied, setCopied] = useState(false);
   const [upcomingExpanded, setUpcomingExpanded] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
-  const highlightedOccurrenceRef = useRef<HTMLDivElement>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
-  // Resolve which occurrence is "the one" for this page view. Used both to
-  // scroll into view and to decide which row anchors the collapsed list.
+  // Resolve which occurrence is "the one" for this page view. Decides which
+  // row anchors the collapsed list + gets the highlighted styling.
   const highlightedOccurrenceId = useMemo(
     () => resolveHighlightedId(data?.occurrences?.upcoming ?? [], targetDate, slug),
     [data?.occurrences?.upcoming, targetDate, slug],
   );
-
-  // Scroll the resolved highlighted row into view once on mount. The ref is
-  // attached to the matching row below; if nothing matches, effect is a no-op.
-  useEffect(() => {
-    if (!highlightedOccurrenceId || !highlightedOccurrenceRef.current) return;
-    highlightedOccurrenceRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [highlightedOccurrenceId]);
 
   useEffect(() => {
     let active = true;
@@ -1197,7 +1189,6 @@ export function EventDetailClient({
                           + (applyFade ? " event-detail-occurrence--fade" : "")
                         }
                         key={item.id}
-                        ref={isHighlighted ? highlightedOccurrenceRef : undefined}
                         aria-current={isHighlighted ? "date" : undefined}
                         onClick={canExpand ? () => setUpcomingExpanded(true) : undefined}
                         role={canExpand ? "button" : undefined}
@@ -1235,7 +1226,6 @@ export function EventDetailClient({
                     <div
                       className={`event-detail-occurrence${isHighlighted ? " event-detail-occurrence--highlighted" : ""}`}
                       key={item.id}
-                      ref={isHighlighted ? highlightedOccurrenceRef : undefined}
                       aria-current={isHighlighted ? "date" : undefined}
                     >
                       <span className="meta">{formatted.primary}</span>
