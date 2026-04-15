@@ -122,7 +122,16 @@ export function generateOccurrences(
   }
 
   const zone = event.event_timezone;
-  const dtStartLocal = DateTime.fromISO(event.rrule_dtstart_local, { zone });
+  // pg returns timestamptz as a JS Date object; tests pass ISO strings. Support both.
+  const rawDtstart: unknown = event.rrule_dtstart_local;
+  let dtStartLocal: DateTime;
+  if (rawDtstart instanceof Date) {
+    dtStartLocal = DateTime.fromJSDate(rawDtstart, { zone });
+  } else if (typeof rawDtstart === "string") {
+    dtStartLocal = DateTime.fromISO(rawDtstart, { zone });
+  } else {
+    return [];
+  }
 
   if (!dtStartLocal.isValid) {
     return [];

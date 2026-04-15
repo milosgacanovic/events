@@ -148,6 +148,22 @@ describe("generateOccurrences", () => {
     expect(occurrences[0].startsAtUtc).toContain("2026-06-15T18:00:00");
   });
 
+  it("handles rrule_dtstart_local as a JS Date (pg driver output)", () => {
+    const event = {
+      ...baseEvent,
+      rrule: "FREQ=WEEKLY;COUNT=3",
+      // Mirrors what the pg driver returns for a timestamptz column
+      rrule_dtstart_local: new Date("2026-01-01T10:00:00Z") as unknown as string,
+    };
+    const occurrences = generateOccurrences(event, null, {
+      fromUtc: DateTime.fromISO("2025-12-25T00:00:00Z"),
+      toUtc: DateTime.fromISO("2026-02-15T00:00:00Z"),
+    });
+
+    expect(occurrences).toHaveLength(3);
+    expect(occurrences[0].startsAtUtc).toContain("2026-01-01T10:00:00");
+  });
+
   it("handles legacy single-line rrule strings (backwards compat)", () => {
     const event = {
       ...baseEvent,

@@ -1251,16 +1251,22 @@ textarea.field-invalid {
 .rrule-interval {
   width: 60px;
 }
-.rrule-builder select,
 .rrule-builder input[type="time"],
 .rrule-builder input[type="date"],
 .rrule-builder input[type="number"] {
   padding: 6px 8px;
   border: 1px solid var(--border, #e0e0e0);
   border-radius: 6px;
-  background: var(--bg, #fff);
+  background-color: var(--bg, #fff);
   color: var(--ink, #333);
   font-size: 0.88rem;
+}
+.rrule-builder select {
+  font-size: 0.88rem;
+}
+.rrule-row select {
+  width: auto;
+  min-width: 90px;
 }
 .rrule-day-chips {
   display: flex;
@@ -1500,4 +1506,31 @@ textarea.field-invalid {
 .rrule-help-preset:hover {
   background: var(--surface, #f0f8f4);
   color: var(--accent, #2e7d32);
+}
+
+/* Activity log target type labels — same font size as surrounding text,
+   colored per type for fast scanning. */
+.log-target-type {
+  font-weight: 500;
+}
+.log-target-type--event {
+  color: #2e7d32;
+}
+.log-target-type--user {
+  color: #1565c0;
+}
+.log-target-type--host {
+  color: #6a1b9a;
+}
+.log-target-type--unknown {
+  color: var(--muted, #666);
+}
+[data-theme="dark"] .log-target-type--event {
+  color: #81c784;
+}
+[data-theme="dark"] .log-target-type--user {
+  color: #64b5f6;
+}
+[data-theme="dark"] .log-target-type--host {
+  color: #ce93d8;
 }
