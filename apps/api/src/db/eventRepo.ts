@@ -498,6 +498,9 @@ export async function getEventBySlug(
     [event.id],
   );
 
+  // Upcoming occurrences are fetched series-wide (by series_id, not event_id):
+  // for native events series_id === event.id so this is identical to the old
+  // behavior; for imported series the page renders all sibling dates together.
   const upcomingOccurrences = await pool.query<{
     id: string;
     starts_at_utc: string;
@@ -507,6 +510,8 @@ export async function getEventBySlug(
     country_code: string | null;
     lat: number | null;
     lng: number | null;
+    event_id: string;
+    event_slug: string;
   }>(
     `
       select
@@ -517,13 +522,51 @@ export async function getEventBySlug(
         eo.city,
         eo.country_code,
         st_y(eo.geom::geometry) as lat,
-        st_x(eo.geom::geometry) as lng
+        st_x(eo.geom::geometry) as lng,
+        eo.event_id,
+        e.slug as event_slug
       from event_occurrences eo
-      where eo.event_id = $1 and eo.starts_at_utc >= now()
+      join events e on e.id = eo.event_id
+      where eo.series_id = $1
+        and eo.starts_at_utc >= now()
+        and e.status = 'published'
+        and e.visibility = 'public'
       order by eo.starts_at_utc asc
-      limit 10
+      limit 100
     `,
-    [event.id],
+    [event.series_id],
+  );
+
+  // Published siblings sharing this series (including self). Used for sibling
+  // count and as a pool for cadence inference on imported series.
+  const siblingEvents = await pool.query<{
+    id: string;
+    slug: string;
+    rrule: string | null;
+    rrule_dtstart_local: string | null;
+    duration_minutes: number | null;
+    event_timezone: string;
+    schedule_kind: "single" | "recurring";
+    single_start_at: string | null;
+    single_end_at: string | null;
+  }>(
+    `
+      select
+        id,
+        slug,
+        rrule,
+        rrule_dtstart_local,
+        duration_minutes,
+        event_timezone,
+        schedule_kind,
+        single_start_at,
+        single_end_at
+      from events
+      where series_id = $1
+        and status = 'published'
+        and visibility = 'public'
+    `,
+    [event.series_id],
   );
 
   const pastOccurrences = await pool.query<{
@@ -554,6 +597,10 @@ export async function getEventBySlug(
     [event.id],
   );
 
+  // Pick the canonical slug: whichever sibling owns the globally-earliest
+  // upcoming occurrence. Falls back to the requested event if nothing is upcoming.
+  const canonicalSlug = upcomingOccurrences.rows[0]?.event_slug ?? event.slug;
+
   return {
     event,
     organizers: organizers.rows,
@@ -562,6 +609,12 @@ export async function getEventBySlug(
       upcoming: upcomingOccurrences.rows,
       past: pastOccurrences.rows,
     },
+    series: {
+      seriesId: event.series_id,
+      siblingCount: siblingEvents.rows.length,
+      canonicalSlug,
+    },
+    siblingEvents: siblingEvents.rows,
   };
 }
 

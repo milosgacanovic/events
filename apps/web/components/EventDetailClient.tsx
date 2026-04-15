@@ -19,6 +19,62 @@ const SHORTENER_BLOCKLIST = new Set([
   "rebrand.ly", "ow.ly", "buff.ly", "short.io", "cutt.ly",
 ]);
 
+const WEEKDAY_I18N_KEYS: Record<number, string> = {
+  1: "monday",
+  2: "tuesday",
+  3: "wednesday",
+  4: "thursday",
+  5: "friday",
+  6: "saturday",
+  7: "sunday",
+};
+
+/**
+ * Turn a "21:00" local-time string into a locale-formatted time like "9:00 PM".
+ * Uses a dummy date so Intl.DateTimeFormat can handle 12/24-hour conventions.
+ */
+function formatLocalHHMM(hhmm: string, locale: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
+  const d = new Date(2000, 0, 1, h, m);
+  try {
+    return new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(d);
+  } catch {
+    return hhmm;
+  }
+}
+
+/**
+ * Resolve which upcoming occurrence to highlight. Precedence:
+ *   1. `?date=` param matches an upcoming row's UTC date
+ *   2. YYYY-MM-DD suffix in the slug matches an upcoming row (handles shared
+ *      sibling URLs like `renewal-waves-philly-2026-04-08` where the event's
+ *      own date is past but siblings live on)
+ *   3. Earliest upcoming (default — first row in chronological list)
+ * If the hinted date matches nothing upcoming (e.g. it's in the past), we
+ * silently fall back to step 3 — no dead end.
+ */
+function resolveHighlightedId<T extends { id: string; starts_at_utc: string }>(
+  upcoming: T[],
+  targetDate: string | null | undefined,
+  slug: string,
+): string | null {
+  if (upcoming.length === 0) return null;
+  const matchByDate = (date: string | null) =>
+    date ? upcoming.find((o) => o.starts_at_utc.slice(0, 10) === date) : null;
+
+  if (targetDate) {
+    const match = matchByDate(targetDate);
+    if (match) return match.id;
+  }
+  const slugDateMatch = slug.match(/(\d{4}-\d{2}-\d{2})$/);
+  if (slugDateMatch) {
+    const match = matchByDate(slugDateMatch[1]);
+    if (match) return match.id;
+  }
+  return upcoming[0].id;
+}
+
 function getBookingDomain(url: string): string | null {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, "");
@@ -99,6 +155,8 @@ export type EventDetail = {
       ends_at_utc: string;
       lat: number | null;
       lng: number | null;
+      event_id?: string;
+      event_slug?: string;
     }>;
     past: Array<{
       id: string;
@@ -107,6 +165,18 @@ export type EventDetail = {
       lat: number | null;
       lng: number | null;
     }>;
+  };
+  series?: {
+    seriesId: string;
+    siblingCount: number;
+    canonicalSlug: string;
+    cadence: {
+      kind: "weekly";
+      weekday: number; // Luxon 1..7 (Mon..Sun)
+      startLocalHHMM: string;
+      endLocalHHMM: string;
+      timezone: string;
+    } | null;
   };
   canEdit?: boolean;
 };
@@ -277,16 +347,24 @@ export function EventDetailClient({
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [shareExpanded, setShareExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [upcomingExpanded, setUpcomingExpanded] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
   const highlightedOccurrenceRef = useRef<HTMLDivElement>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
-  // Scroll the ?date=-matching occurrence into view once on mount. The ref is
-  // attached to the matching row below; if nothing matches, the effect is a no-op.
+  // Resolve which occurrence is "the one" for this page view. Used both to
+  // scroll into view and to decide which row anchors the collapsed list.
+  const highlightedOccurrenceId = useMemo(
+    () => resolveHighlightedId(data?.occurrences?.upcoming ?? [], targetDate, slug),
+    [data?.occurrences?.upcoming, targetDate, slug],
+  );
+
+  // Scroll the resolved highlighted row into view once on mount. The ref is
+  // attached to the matching row below; if nothing matches, effect is a no-op.
   useEffect(() => {
-    if (!targetDate || !highlightedOccurrenceRef.current) return;
+    if (!highlightedOccurrenceId || !highlightedOccurrenceRef.current) return;
     highlightedOccurrenceRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
-  }, [targetDate]);
+  }, [highlightedOccurrenceId]);
 
   useEffect(() => {
     let active = true;
@@ -767,7 +845,41 @@ export function EventDetailClient({
 
       {/* Header */}
       <div className="event-detail-header">
-        <h1 className="event-detail-title">{data.event.title}</h1>
+        <h1 className="event-detail-title">
+          {data.event.title}
+          {((data.series?.siblingCount ?? 1) > 1 || data.event.schedule_kind === "recurring") && (
+            <span className="event-detail-recurring-chip" title={t("eventDetail.recurringChip")}>
+              {t("eventDetail.recurringChip")}
+            </span>
+          )}
+        </h1>
+        {(() => {
+          const cadence = data.series?.cadence;
+          if (cadence) {
+            const weekdayKey = WEEKDAY_I18N_KEYS[cadence.weekday];
+            if (weekdayKey) {
+              return (
+                <div className="event-detail-cadence meta">
+                  {t("eventDetail.cadenceLine", {
+                    weekdayPlural: t(`eventDetail.weekdayPlural.${weekdayKey}`),
+                    startTime: formatLocalHHMM(cadence.startLocalHHMM, locale),
+                    endTime: formatLocalHHMM(cadence.endLocalHHMM, locale),
+                  })}
+                </div>
+              );
+            }
+          }
+          const upcomingCount = data.occurrences?.upcoming?.length ?? 0;
+          const isSeries = (data.series?.siblingCount ?? 1) > 1 || data.event.schedule_kind === "recurring";
+          if (isSeries && upcomingCount > 1) {
+            return (
+              <div className="event-detail-cadence meta">
+                {t("eventDetail.nUpcomingDates", { count: upcomingCount })}
+              </div>
+            );
+          }
+          return null;
+        })()}
         {canEdit && (
           <Link className="secondary-btn" href={`/manage/events/${data.event.id}`}>
             {t("eventDetail.editEvent")}
@@ -1045,37 +1157,68 @@ export function EventDetailClient({
         </div>
       )}
 
-      {/* Schedule (recurring events only) */}
-      {data.event.schedule_kind !== "single" && (
+      {/* Schedule: shown for native recurring events OR imported series (siblingCount > 1) */}
+      {(data.event.schedule_kind !== "single" || (data.series?.siblingCount ?? 1) > 1) && (
         <>
           <div className="event-detail-section">
             <h2 className="event-detail-section-title">{t("eventDetail.upcoming")}</h2>
             {data.occurrences.upcoming.length === 0 ? (
               <div className="meta">{t("eventDetail.noUpcoming")}</div>
-            ) : (
-              <div className="event-detail-occurrences">
-                {data.occurrences.upcoming.map((item) => {
-                  const formatted = formatDateTimeRange(
-                    item.starts_at_utc, item.ends_at_utc, data.event.event_timezone, timeDisplayMode,
-                  );
-                  // Match ?date= against the occurrence's local-date prefix.
-                  // We compare on UTC date — good enough for highlighting; the
-                  // ~4h timezone edge case yields no match and falls through
-                  // to the default (no highlight) which is acceptable.
-                  const isHighlighted = !!targetDate && item.starts_at_utc.slice(0, 10) === targetDate;
-                  return (
-                    <div
-                      className={`event-detail-occurrence${isHighlighted ? " event-detail-occurrence--highlighted" : ""}`}
-                      key={item.id}
-                      ref={isHighlighted ? highlightedOccurrenceRef : undefined}
-                      aria-current={isHighlighted ? "date" : undefined}
+            ) : (() => {
+              const upcoming = data.occurrences.upcoming;
+              // Collapsed view: start at the highlighted occurrence and show up
+              // to 3 rows after it (highlighted + next two). Full list when expanded.
+              const highlightedIdx = highlightedOccurrenceId
+                ? upcoming.findIndex((o) => o.id === highlightedOccurrenceId)
+                : 0;
+              const startIdx = Math.max(0, highlightedIdx);
+              const visible = upcomingExpanded
+                ? upcoming
+                : upcoming.slice(startIdx, startIdx + 3);
+              const hiddenCount = upcoming.length - visible.length;
+              const canExpand = !upcomingExpanded && hiddenCount > 0;
+
+              return (
+                <div
+                  className={`event-detail-occurrences event-detail-occurrences--series${canExpand ? " event-detail-occurrences--collapsed" : ""}`}
+                >
+                  {visible.map((item, idx) => {
+                    const formatted = formatDateTimeRange(
+                      item.starts_at_utc, item.ends_at_utc, data.event.event_timezone, timeDisplayMode,
+                    );
+                    const isHighlighted = item.id === highlightedOccurrenceId;
+                    const isLastVisible = idx === visible.length - 1;
+                    const applyFade = canExpand && isLastVisible;
+                    return (
+                      <div
+                        className={
+                          "event-detail-occurrence"
+                          + (isHighlighted ? " event-detail-occurrence--highlighted" : "")
+                          + (applyFade ? " event-detail-occurrence--fade" : "")
+                        }
+                        key={item.id}
+                        ref={isHighlighted ? highlightedOccurrenceRef : undefined}
+                        aria-current={isHighlighted ? "date" : undefined}
+                        onClick={canExpand ? () => setUpcomingExpanded(true) : undefined}
+                        role={canExpand ? "button" : undefined}
+                        tabIndex={canExpand ? 0 : undefined}
+                      >
+                        <span className="meta">{formatted.primary}</span>
+                      </div>
+                    );
+                  })}
+                  {canExpand && (
+                    <button
+                      type="button"
+                      className="secondary-btn event-detail-occurrences-expand"
+                      onClick={() => setUpcomingExpanded(true)}
                     >
-                      <span className="meta">{formatted.primary}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      {t("eventDetail.showAllDates", { count: upcoming.length })}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <div className="event-detail-section">
             <h2 className="event-detail-section-title">{t("eventDetail.past")}</h2>

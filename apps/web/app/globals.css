@@ -1978,6 +1978,59 @@ label.meta {
   animation: event-detail-occurrence-pulse 2.4s ease-out 1;
 }
 
+.event-detail-occurrence--fade {
+  /* Half-visible third row in the collapsed series list. Fade + pointer cue
+     invites the user to click "Show all" — but the row itself is also clickable. */
+  -webkit-mask-image: linear-gradient(to bottom, black 35%, transparent 100%);
+          mask-image: linear-gradient(to bottom, black 35%, transparent 100%);
+  cursor: pointer;
+}
+
+.event-detail-occurrences--series .event-detail-occurrence[role="button"] {
+  cursor: pointer;
+}
+
+.event-detail-occurrences-expand {
+  justify-self: start;
+  margin-top: 4px;
+}
+
+.event-detail-recurring-chip {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+.event-detail-cadence {
+  margin-top: 4px;
+  font-size: 0.95rem;
+}
+
+.event-card-recurring-chip {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 @keyframes event-detail-occurrence-pulse {
   0% { background: color-mix(in srgb, var(--accent) 42%, var(--surface-alt)); }
   100% { background: color-mix(in srgb, var(--accent) 18%, var(--surface-alt)); }

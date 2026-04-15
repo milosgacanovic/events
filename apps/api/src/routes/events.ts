@@ -24,6 +24,7 @@ import { resolveUserId, requireEventAccess } from "../middleware/ownership";
 import { canUserEditEvent } from "../db/manageRepo";
 import { archiveEvent, cancelEvent, publishEvent, regenerateOccurrences, unpublishEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, type OccurrenceDoc } from "../services/meiliService";
+import { deriveSeriesCadence } from "../services/seriesCadenceService";
 import { recordActivity } from "../services/activityLogger";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
@@ -520,6 +521,9 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             importSource: doc.import_source ?? null,
             externalUrl: doc.external_url ?? null,
             lastSyncedAt: doc.updated_at ?? null,
+            scheduleKind: doc.schedule_kind ?? "single",
+            siblingCount: doc.sibling_count ?? 1,
+            seriesId: doc.series_id,
           },
           location: doc._geo || doc.city || doc.country_code
             ? {
@@ -638,9 +642,15 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
+    const cadence = deriveSeriesCadence(event.event, event.occurrences.upcoming);
+
+    // Strip siblingEvents from the outgoing payload — it's an internal helper
+    // for cadence derivation, not something clients need.
+    const { siblingEvents: _siblingEvents, series, ...eventRest } = event;
     return {
-      ...event,
+      ...eventRest,
       canEdit,
+      series: { ...series, cadence },
       organizers: event.organizers.map((row) => ({
         ...row,
         id: row.organizer_id,

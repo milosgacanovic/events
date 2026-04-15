@@ -119,7 +119,16 @@ export async function generateMetadata({
     title: `${detail.event.title} | DanceResource`,
     description: titleDescription,
     robots: isPast ? { index: false, follow: true } : { index: true, follow: true },
-    alternates: { canonical: sourceUrl ?? `/events/${params.slug}` },
+    alternates: {
+      canonical:
+        sourceUrl
+        // For multi-sibling series, point at the sibling owning the earliest
+        // upcoming occurrence so duplicate sibling URLs collapse into one
+        // canonical page for search engines.
+        ?? ((detail.series?.siblingCount ?? 1) > 1
+          ? `/events/${detail.series?.canonicalSlug ?? params.slug}`
+          : `/events/${params.slug}`),
+    },
     openGraph: {
       title: detail.event.title,
       description: ogDescription,

@@ -42,6 +42,9 @@ export type SearchResponse = {
       practiceSubcategoryId: string | null;
       eventFormatId: string | null;
       visibility?: string;
+      scheduleKind?: "single" | "recurring";
+      siblingCount?: number;
+      seriesId?: string;
     };
     location: {
       city: string | null;
@@ -2143,11 +2146,18 @@ export function EventSearchClient({
               ? null
               : hit.startsAtUtc?.slice(0, 10) ?? null;
 
+            // "Recurring" chip: native recurring events, or grouped-series
+            // cards backed by multiple sibling events. sibling_count is set by
+            // the API from a SQL subquery — fall back to 1 if stale Meili docs
+            // are missing the field.
+            const isRecurring =
+              hit.event.scheduleKind === "recurring" || (hit.event.siblingCount ?? 1) > 1;
+
             return (
               <Link
                 className="card event-card-h"
                 key={hit.occurrenceId}
-                href={occurrenceDate ? `/events/${hit.event.slug}?date=${occurrenceDate}` : `/events/${hit.event.slug}`}
+                href={occurrenceDate && !isRecurring ? `/events/${hit.event.slug}?date=${occurrenceDate}` : `/events/${hit.event.slug}`}
                 onClick={() => {
                   const idx = accumulatedHits.findIndex((h) => h.event.slug === hit.event.slug);
                   pushDataLayer({ event: "event_card_click", event_title: hit.event.title, position: idx + 1 });
@@ -2180,6 +2190,11 @@ export function EventSearchClient({
                   <div className="event-card-body">
                     <h3>
                       {hit.event.title}
+                      {isRecurring && (
+                        <span className="event-card-recurring-chip">
+                          {t("eventDetail.recurringChip")}
+                        </span>
+                      )}
                     </h3>
                     <div
                       className="meta"

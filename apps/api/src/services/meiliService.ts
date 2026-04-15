@@ -39,6 +39,12 @@ export type OccurrenceDoc = {
   published_at: string | null;
   published_at_ts: number | null;
   visibility: string;
+  schedule_kind: "single" | "recurring";
+  /** Number of published events sharing this series_id (including self).
+   * Lets cards show a "Recurring" chip when sibling_count > 1 without an
+   * extra search-time query. Computed as a scalar subquery so partial
+   * per-event upserts stay correct. */
+  sibling_count: number;
 };
 
 export class MeilisearchService {
@@ -118,6 +124,13 @@ export class MeilisearchService {
         e.tags,
         e.languages,
         e.visibility,
+        e.schedule_kind,
+        (
+          select count(*)::int
+          from events e2
+          where e2.series_id = eo.series_id
+            and e2.status in ('published', 'cancelled')
+        ) as sibling_count,
         eo.country_code,
         eo.city,
         ST_AsText(eo.geom) as geom,
@@ -161,6 +174,8 @@ export class MeilisearchService {
       published_at: string | null;
       organizer_ids: string[];
       organizer_names: string[];
+      schedule_kind: "single" | "recurring";
+      sibling_count: number;
     }>(query, [eventId ?? null]);
 
     return result.rows.map((row) => {
@@ -200,6 +215,8 @@ export class MeilisearchService {
         _geo: lat !== null && lng !== null ? { lat, lng } : null,
         published_at: row.published_at,
         published_at_ts: row.published_at ? Date.parse(row.published_at) : null,
+        schedule_kind: row.schedule_kind,
+        sibling_count: row.sibling_count,
       };
     });
   }
