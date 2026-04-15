@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "დარწმუნებული ხართ, რომ გსურთ ამ ორგანიზატორის წაშლა?",
   "manage.hostCard.deleteHasActiveEvents": "ამ ორგანიზატორის წაშლა შეუძლებელია, რადგან ის დაკავშირებულია გამოქვეყნებულ ღონისძიებებთან.",
   "manage.hostCard.unpublishHasActiveEvents": "ეს მასპინძელი ვერ გაუქმდება ან დაარქივდება, რადგან ის გამოქვეყნებულ ღონისძიებებთანაა დაკავშირებული. ჯერ გაუქმეთ ან წაშალეთ ეს ღონისძიებები.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "ეს მასპინძელი დაკავშირებულია გამოქვეყნებულ ღონისძიებებთან. სტატუსის შეცვლა დამალავს მას ამ ღონისძიებების გვერდებიდან. დარწმუნებული ხართ?",
   "manage.hostForm.archive": "არქივი",
   "manage.hostForm.unarchive": "არქივიდან აღდგენა",

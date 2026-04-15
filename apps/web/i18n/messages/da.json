@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Er du sikker på, at du vil slette denne vært? Denne handling kan ikke fortrydes.",
   "manage.hostCard.deleteHasActiveEvents": "Denne vært kan ikke slettes, fordi den er knyttet til publicerede begivenheder.",
   "manage.hostCard.unpublishHasActiveEvents": "Denne vært kan ikke afpubliceres eller arkiveres, fordi den er knyttet til publicerede begivenheder. Afpublicer eller fjern disse begivenheder først.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Denne vært er knyttet til offentliggjorte begivenheder. Ændring af status vil skjule den fra disse begivenhedssider. Er du sikker?",
   "manage.hostForm.archive": "Arkiver",
   "manage.hostForm.unarchive": "Gendan fra arkiv",

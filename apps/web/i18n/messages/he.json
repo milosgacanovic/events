@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "האם אתה בטוח שברצונך למחוק מארגן זה? פעולה זו אינה ניתנת לביטול.",
   "manage.hostCard.deleteHasActiveEvents": "לא ניתן למחוק מארגן זה כי הוא מקושר לאירועים מפורסמים.",
   "manage.hostCard.unpublishHasActiveEvents": "לא ניתן לבטל פרסום או לאחסן מארח זה כי הוא מקושר לאירועים מפורסמים. בטל פרסום או הסר אירועים אלה קודם.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "מארח זה מקושר לאירועים מפורסמים. שינוי הסטטוס יסתיר אותו מדפי האירועים הללו. האם אתה בטוח?",
   "manage.hostForm.archive": "ארכיון",
   "manage.hostForm.unarchive": "בטל ארכיון",

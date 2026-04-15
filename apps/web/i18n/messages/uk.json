@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Ви впевнені, що хочете видалити цього організатора? Цю дію не можна скасувати.",
   "manage.hostCard.deleteHasActiveEvents": "Цього організатора не можна видалити, оскільки він пов'язаний з опублікованими подіями.",
   "manage.hostCard.unpublishHasActiveEvents": "Цього організатора не можна зняти з публікації або архівувати, оскільки він пов'язаний з опублікованими подіями. Спочатку зніміть з публікації або видаліть ці події.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Цей організатор пов'язаний з опублікованими подіями. Зміна статусу приховає його зі сторінок цих подій. Ви впевнені?",
   "manage.hostForm.archive": "Архівувати",
   "manage.hostForm.unarchive": "Розархівувати",

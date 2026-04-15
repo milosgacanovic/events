@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Θέλετε να διαγράψετε αυτόν τον διοργανωτή; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
   "manage.hostCard.deleteHasActiveEvents": "Αυτός ο διοργανωτής δεν μπορεί να διαγραφεί επειδή συνδέεται με δημοσιευμένες εκδηλώσεις.",
   "manage.hostCard.unpublishHasActiveEvents": "Αυτός ο διοργανωτής δεν μπορεί να αποδημοσιευτεί ή να αρχειοθετηθεί επειδή συνδέεται με δημοσιευμένες εκδηλώσεις. Αποδημοσιεύστε ή αφαιρέστε πρώτα αυτές τις εκδηλώσεις.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Αυτός ο διοργανωτής είναι συνδεδεμένος με δημοσιευμένες εκδηλώσεις. Η αλλαγή κατάστασης θα τον κρύψει από αυτές τις σελίδες εκδηλώσεων. Είστε σίγουροι;",
   "manage.hostForm.archive": "Αρχειοθέτηση",
   "manage.hostForm.unarchive": "Αναίρεση αρχειοθέτησης",

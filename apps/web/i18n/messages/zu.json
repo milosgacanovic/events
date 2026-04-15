@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Uqinisekile ukuthi ufuna ukususa lo msingathi? Lesi senzo asinakuhlehliswa.",
   "manage.hostCard.deleteHasActiveEvents": "Lo msingathi awunakususwa ngoba uxhunywe nemicimbi eshicilelwe.",
   "manage.hostCard.unpublishHasActiveEvents": "Lo msingathi ngeke akwazi ukukhishwa ekushicilelweni noma efakwe emgcinweni ngoba uxhumene nemicimbi eshicileliwe. Khipha ekushicileleni noma ususe leyo micimbi kuqala.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Lo msingathi uxhunywe nemicimbi eshicilelwe. Ukushintsha isimo kuzomfihla kulawo makhasi emicimbi. Uqinisekile?",
   "manage.hostForm.archive": "Gcina",
   "manage.hostForm.unarchive": "Khipha ekugcinweni",

@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Apakah Anda yakin ingin menghapus host ini? Tindakan ini tidak dapat dibatalkan.",
   "manage.hostCard.deleteHasActiveEvents": "Host ini tidak dapat dihapus karena terkait dengan acara yang dipublikasikan.",
   "manage.hostCard.unpublishHasActiveEvents": "Host ini tidak dapat dibatalkan publikasinya atau diarsipkan karena terhubung dengan acara yang dipublikasikan. Batalkan publikasi atau hapus acara tersebut terlebih dahulu.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Host ini terhubung ke acara yang dipublikasikan. Mengubah statusnya akan menyembunyikannya dari halaman acara tersebut. Apakah Anda yakin?",
   "manage.hostForm.archive": "Arsipkan",
   "manage.hostForm.unarchive": "Batalkan Arsip",

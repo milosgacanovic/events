@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Är du säker på att du vill radera denna värd? Denna åtgärd kan inte ångras.",
   "manage.hostCard.deleteHasActiveEvents": "Denna värd kan inte raderas eftersom den är kopplad till publicerade evenemang.",
   "manage.hostCard.unpublishHasActiveEvents": "Denna värd kan inte avpubliceras eller arkiveras eftersom den är kopplad till publicerade evenemang. Avpublicera eller ta bort dessa evenemang först.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Denna värd är kopplad till publicerade evenemang. Ändring av status döljer den från dessa evenemangssidor. Är du säker?",
   "manage.hostForm.archive": "Arkivera",
   "manage.hostForm.unarchive": "Avarkivera",

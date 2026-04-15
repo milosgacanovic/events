@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "क्या आप इस होस्ट को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
   "manage.hostCard.deleteHasActiveEvents": "इस होस्ट को हटाया नहीं जा सकता क्योंकि यह प्रकाशित इवेंट से जुड़ा है।",
   "manage.hostCard.unpublishHasActiveEvents": "इस होस्ट को अप्रकाशित या संग्रहीत नहीं किया जा सकता क्योंकि यह प्रकाशित इवेंट्स से जुड़ा है। पहले उन इवेंट्स को अप्रकाशित करें या हटाएं।",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "यह होस्ट प्रकाशित इवेंट्स से जुड़ा है। स्थिति बदलने से यह उन इवेंट पृष्ठों से छिप जाएगा। क्या आप सुनिश्चित हैं?",
   "manage.hostForm.archive": "संग्रहित करें",
   "manage.hostForm.unarchive": "अन-आर्काइव",

@@ -20,6 +20,9 @@ type ManageEventCardProps = {
   isImported?: boolean;
   importSource?: string | null;
   detachedFromImport?: boolean;
+  /** Admin-only: display name of the event creator. When present and the event
+   *  isn't imported, a chip is shown that links to the users admin page. */
+  createdByName?: string | null;
   practiceCategoryLabel?: string | null;
   eventFormatLabel?: string | null;
   eventFormatKey?: string | null;
@@ -57,6 +60,7 @@ export function ManageEventCard({
   isImported,
   importSource,
   detachedFromImport,
+  createdByName,
   practiceCategoryLabel,
   eventFormatLabel,
   eventFormatKey,
@@ -260,6 +264,15 @@ export function ManageEventCard({
           <span className="tag manage-tag-imported">
             {t("manage.eventCard.importedLabel")}
           </span>
+        )}
+        {!isImported && createdByName && (
+          <Link
+            href={`/manage/admin/users?q=${encodeURIComponent(createdByName)}`}
+            className="tag manage-tag-imported"
+            title={t("manage.eventCard.createdByTooltip", { name: createdByName })}
+          >
+            {t("manage.eventCard.createdByLabel", { name: createdByName })}
+          </Link>
         )}
         {isImported && detachedFromImport && onReattach ? (
           <button

@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Möchtest du diesen Veranstalter wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
   "manage.hostCard.deleteHasActiveEvents": "Dieser Veranstalter kann nicht gelöscht werden, da er mit veröffentlichten Events verknüpft ist.",
   "manage.hostCard.unpublishHasActiveEvents": "Dieser Veranstalter kann nicht unveröffentlicht oder archiviert werden, da er mit veröffentlichten Veranstaltungen verknüpft ist. Veröffentlichung der Veranstaltungen zuerst aufheben oder entfernen.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Dieser Veranstalter ist mit veröffentlichten Veranstaltungen verknüpft. Eine Statusänderung wird ihn auf diesen Veranstaltungsseiten ausblenden. Sind Sie sicher?",
   "manage.hostForm.archive": "Archivieren",
   "manage.hostForm.unarchive": "Dearchivieren",

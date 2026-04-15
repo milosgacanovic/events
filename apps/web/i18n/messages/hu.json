@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Biztosan törölni szeretnéd ezt a szervezőt? Ez a művelet nem vonható vissza.",
   "manage.hostCard.deleteHasActiveEvents": "Ez a szervező nem törölhető, mert publikált eseményekhez van csatolva.",
   "manage.hostCard.unpublishHasActiveEvents": "Ez a szervező nem vonható vissza vagy archiválható, mert közzétett eseményekhez van kapcsolva. Először vonja vissza vagy távolítsa el azokat az eseményeket.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Ez a szervező publikált eseményekhez van kapcsolva. A státusz módosítása elrejti az adott eseményoldalakról. Biztos benne?",
   "manage.hostForm.archive": "Archiválás",
   "manage.hostForm.unarchive": "Archiválás visszavonása",

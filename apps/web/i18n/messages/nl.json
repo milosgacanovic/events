@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Weet je zeker dat je deze organisator wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.",
   "manage.hostCard.deleteHasActiveEvents": "Deze organisator kan niet worden verwijderd omdat deze is gekoppeld aan gepubliceerde evenementen.",
   "manage.hostCard.unpublishHasActiveEvents": "Deze organisator kan niet worden gedepubliceerd of gearchiveerd omdat deze is gekoppeld aan gepubliceerde evenementen. Depubliceer of verwijder die evenementen eerst.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Deze organisator is gekoppeld aan gepubliceerde evenementen. Het wijzigen van de status verbergt deze van die evenementenpagina's. Weet u het zeker?",
   "manage.hostForm.archive": "Archiveren",
   "manage.hostForm.unarchive": "Dearchiveren",

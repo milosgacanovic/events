@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
@@ -51,13 +52,14 @@ type HostsResponse = {
 export default function AdminAllHostsPage() {
   const { getToken } = useKeycloakAuth();
   const { locale, t } = useI18n();
+  const searchParams = useSearchParams();
   const [hosts, setHosts] = useState<HostItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   /* manage-specific */
   const [statusFilter, setStatusFilter] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState(() => searchParams.get("sourceFilter") ?? "");
   /* public-matching filters */
   const [roleKeys, setRoleKeys] = useState<string[]>([]);
   const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>([]);

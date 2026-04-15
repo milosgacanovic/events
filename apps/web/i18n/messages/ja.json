@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "このホストを削除しますか？この操作は元に戻せません。",
   "manage.hostCard.deleteHasActiveEvents": "このホストは公開中のイベントにリンクされているため削除できません。",
   "manage.hostCard.unpublishHasActiveEvents": "この主催者は公開されたイベントにリンクされているため、非公開またはアーカイブできません。先にそれらのイベントを非公開にするか削除してください。",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "このホストは公開中のイベントにリンクされています。ステータスを変更すると、それらのイベントページから非表示になります。よろしいですか？",
   "manage.hostForm.archive": "アーカイブ",
   "manage.hostForm.unarchive": "アーカイブ解除",

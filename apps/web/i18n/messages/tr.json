@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Bu organizatörü silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
   "manage.hostCard.deleteHasActiveEvents": "Bu organizatör yayınlanmış etkinliklere bağlı olduğu için silinemez.",
   "manage.hostCard.unpublishHasActiveEvents": "Bu organizatör, yayınlanmış etkinliklerle bağlantılı olduğu için yayından kaldırılamaz veya arşivlenemez. Önce bu etkinlikleri yayından kaldırın veya silin.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Bu organizatör yayınlanmış etkinliklerle bağlantılı. Durumu değiştirmek onu bu etkinlik sayfalarından gizleyecektir. Emin misiniz?",
   "manage.hostForm.archive": "Arşivle",
   "manage.hostForm.unarchive": "Arşivden Çıkar",

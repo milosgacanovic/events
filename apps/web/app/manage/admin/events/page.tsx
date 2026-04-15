@@ -619,6 +619,7 @@ export default function AdminAllEventsPage() {
                   isImported={event.is_imported}
                   importSource={event.import_source}
                   detachedFromImport={event.detached_from_import}
+                  createdByName={event.created_by_name}
                   practiceCategoryLabel={event.practice_category_label}
                   eventFormatLabel={event.event_format_label}
                   eventFormatKey={event.event_format_key}

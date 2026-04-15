@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Sigur doriți să ștergeți acest organizator? Această acțiune nu poate fi anulată.",
   "manage.hostCard.deleteHasActiveEvents": "Acest organizator nu poate fi șters deoarece este legat de evenimente publicate.",
   "manage.hostCard.unpublishHasActiveEvents": "Acest organizator nu poate fi depublicat sau arhivat deoarece este legat de evenimente publicate. Depublicați sau eliminați mai întâi acele evenimente.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Acest organizator este legat de evenimente publicate. Schimbarea statutului îl va ascunde de pe paginile acelor evenimente. Sunteți sigur?",
   "manage.hostForm.archive": "Arhivează",
   "manage.hostForm.unarchive": "Dezarhivare",

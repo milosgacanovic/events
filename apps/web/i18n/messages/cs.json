@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Opravdu chcete smazat tohoto pořadatele? Tuto akci nelze vrátit zpět.",
   "manage.hostCard.deleteHasActiveEvents": "Tohoto pořadatele nelze smazat, protože je propojen s publikovanými akcemi. Nejprve ho z nich odeberte.",
   "manage.hostCard.unpublishHasActiveEvents": "Tohoto hostitele nelze zrušit publikaci ani archivovat, protože je propojen s publikovanými akcemi. Nejprve zrušte publikaci nebo odstraňte tyto akce.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Tento hostitel je propojen s publikovanými akcemi. Změna stavu ho skryje na stránkách těchto akcí. Opravdu chcete pokračovat?",
   "manage.hostForm.archive": "Archivovat",
   "manage.hostForm.unarchive": "Zrušit archivaci",

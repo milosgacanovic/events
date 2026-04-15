@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Are you sure you want to delete this host? This action cannot be undone.",
   "manage.hostCard.deleteHasActiveEvents": "This host cannot be deleted because it is linked to published events. Remove it from those events first.",
   "manage.hostCard.unpublishHasActiveEvents": "This host cannot be unpublished or archived because it is linked to published events. Unpublish or remove those events first.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "This host is linked to published events. Changing its status will hide it from those event pages. Are you sure?",
   "manage.hostForm.archive": "Archive",
   "manage.hostForm.unarchive": "Unarchive",

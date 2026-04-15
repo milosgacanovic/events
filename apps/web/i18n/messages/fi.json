@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Haluatko varmasti poistaa tämän järjestäjän? Tätä toimintoa ei voi kumota.",
   "manage.hostCard.deleteHasActiveEvents": "Tätä järjestäjää ei voi poistaa, koska se on liitetty julkaistuihin tapahtumiin.",
   "manage.hostCard.unpublishHasActiveEvents": "Tätä isäntää ei voi poistaa julkaisusta tai arkistoida, koska se on linkitetty julkaistuihin tapahtumiin. Poista ensin julkaisu tai poista nuo tapahtumat.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Tämä isäntä on linkitetty julkaistuihin tapahtumiin. Tilan muuttaminen piilottaa sen näiltä tapahtumisivuilta. Oletko varma?",
   "manage.hostForm.archive": "Arkistoi",
   "manage.hostForm.unarchive": "Palauta arkistosta",

@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "هل أنت متأكد من حذف هذا المضيف؟ لا يمكن التراجع عن هذا الإجراء.",
   "manage.hostCard.deleteHasActiveEvents": "لا يمكن حذف هذا المضيف لأنه مرتبط بأحداث منشورة. قم بإزالته من تلك الأحداث أولاً.",
   "manage.hostCard.unpublishHasActiveEvents": "لا يمكن إلغاء نشر أو أرشفة هذا المضيف لأنه مرتبط بأحداث منشورة. قم بإلغاء نشر أو إزالة تلك الأحداث أولاً.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "هذا المضيف مرتبط بأحداث منشورة. تغيير حالته سيخفيه من صفحات تلك الأحداث. هل أنت متأكد؟",
   "manage.hostForm.archive": "أرشفة",
   "manage.hostForm.unarchive": "إلغاء الأرشفة",

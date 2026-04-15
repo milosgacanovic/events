@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "确定要删除此主办方吗？此操作无法撤消。",
   "manage.hostCard.deleteHasActiveEvents": "此主办方无法删除，因为它与已发布的活动相关联。",
   "manage.hostCard.unpublishHasActiveEvents": "此主办方无法取消发布或归档，因为它与已发布的活动关联。请先取消发布或删除那些活动。",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "此主办方已关联到已发布的活动。更改状态将使其从这些活动页面中隐藏。您确定吗？",
   "manage.hostForm.archive": "归档",
   "manage.hostForm.unarchive": "取消归档",

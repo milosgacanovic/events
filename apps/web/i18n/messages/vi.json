@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Bạn có chắc muốn xóa người tổ chức này? Hành động này không thể hoàn tác.",
   "manage.hostCard.deleteHasActiveEvents": "Không thể xóa người tổ chức này vì đang liên kết với sự kiện đã xuất bản.",
   "manage.hostCard.unpublishHasActiveEvents": "Không thể hủy xuất bản hoặc lưu trữ nhà tổ chức này vì được liên kết với các sự kiện đã xuất bản. Hủy xuất bản hoặc xóa các sự kiện đó trước.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Nhà tổ chức này được liên kết với các sự kiện đã xuất bản. Thay đổi trạng thái sẽ ẩn nó khỏi các trang sự kiện đó. Bạn có chắc không?",
   "manage.hostForm.archive": "Lưu trữ",
   "manage.hostForm.unarchive": "Bỏ lưu trữ",

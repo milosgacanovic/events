@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Da li ste sigurni da želite da obrišete ovog organizatora?",
   "manage.hostCard.deleteHasActiveEvents": "Ovaj organizator ne može biti obrisan jer je povezan sa objavljenim događajima.",
   "manage.hostCard.unpublishHasActiveEvents": "Ovaj organizator ne može biti otpublikovan ili arhiviran jer je povezan sa publikovanim događajima. Prvo otpublikujte ili uklonite te događaje.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Ovaj organizator je povezan sa objavljenim događajima. Promena statusa će ga sakriti sa tih stranica događaja. Da li ste sigurni?",
   "manage.hostForm.archive": "Arhiviraj",
   "manage.hostForm.unarchive": "Dearhiviraj",

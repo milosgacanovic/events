@@ -224,7 +224,7 @@ export function ManageHostCard({
           <button
             type="button"
             className="tag manage-tag-detached manage-status-chip-interactive"
-            onClick={() => setConfirmAction({ action: onReattach, title: t("manage.confirm.title"), message: t("manage.eventCard.confirmReattach") })}
+            onClick={() => setConfirmAction({ action: onReattach, title: t("manage.confirm.title"), message: t("manage.hostCard.confirmReattach") })}
           >
             <span className="chip-label">
               <span className="chip-label-idle">{t("manage.eventCard.detachedLabel")}</span>

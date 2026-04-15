@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "คุณแน่ใจหรือไม่ว่าต้องการลบผู้จัดนี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้",
   "manage.hostCard.deleteHasActiveEvents": "ไม่สามารถลบผู้จัดนี้ได้เนื่องจากเชื่อมโยงกับกิจกรรมที่เผยแพร่แล้ว",
   "manage.hostCard.unpublishHasActiveEvents": "โฮสต์นี้ไม่สามารถยกเลิกการเผยแพร่หรือเก็บถาวรได้เนื่องจากเชื่อมโยงกับกิจกรรมที่เผยแพร่แล้ว ยกเลิกการเผยแพร่หรือลบกิจกรรมเหล่านั้นก่อน",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "โฮสต์นี้เชื่อมโยงกับกิจกรรมที่เผยแพร่แล้ว การเปลี่ยนสถานะจะซ่อนจากหน้ากิจกรรมเหล่านั้น คุณแน่ใจหรือไม่?",
   "manage.hostForm.archive": "เก็บถาวร",
   "manage.hostForm.unarchive": "ยกเลิกเก็บถาวร",

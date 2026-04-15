@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Er du sikker på at du vil slette denne arrangøren? Denne handlingen kan ikke angres.",
   "manage.hostCard.deleteHasActiveEvents": "Denne arrangøren kan ikke slettes fordi den er knyttet til publiserte arrangementer.",
   "manage.hostCard.unpublishHasActiveEvents": "Denne verten kan ikke avpubliseres eller arkiveres fordi den er knyttet til publiserte arrangementer. Avpubliser eller fjern disse arrangementene først.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Denne verten er knyttet til publiserte arrangementer. Endring av status vil skjule den fra disse arrangementssidene. Er du sikker?",
   "manage.hostForm.archive": "Arkiver",
   "manage.hostForm.unarchive": "Gjenopprett fra arkiv",

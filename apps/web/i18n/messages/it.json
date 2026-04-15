@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Sei sicuro di voler eliminare questo organizzatore? Questa azione non può essere annullata.",
   "manage.hostCard.deleteHasActiveEvents": "Questo organizzatore non può essere eliminato perché è collegato a eventi pubblicati.",
   "manage.hostCard.unpublishHasActiveEvents": "Questo organizzatore non può essere depubblicato o archiviato perché è collegato a eventi pubblicati. Depubblica o rimuovi prima quegli eventi.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Questo organizzatore è collegato a eventi pubblicati. Cambiare il suo stato lo nasconderà da quelle pagine degli eventi. Sei sicuro?",
   "manage.hostForm.archive": "Archivia",
   "manage.hostForm.unarchive": "Ripristina dall'archivio",

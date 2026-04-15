@@ -965,6 +965,7 @@
   "manage.hostCard.confirmDelete": "Ertu viss um að þú viljir eyða þessum gestgjafa?",
   "manage.hostCard.deleteHasActiveEvents": "Ekki er hægt að eyða þessum gestgjafa vegna þess að hann er tengdur birtum viðburðum.",
   "manage.hostCard.unpublishHasActiveEvents": "Þennan gestgjafa er ekki hægt að afbirta eða setja í geymslu vegna þess að hann er tengdur birtum viðburðum. Afbirtaðu eða fjarlægðu þá viðburði fyrst.",
+  "manage.hostCard.confirmReattach": "Are you sure you want to reattach this host to the import source? Future imports will overwrite your manual changes.",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Þessi gestgjafi er tengdur birtum viðburðum. Breyting á stöðu mun fela hann af þessum viðburðasíðum. Ertu viss?",
   "manage.hostForm.archive": "Setja í safn",
   "manage.hostForm.unarchive": "Taka úr safni",
