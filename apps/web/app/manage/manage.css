@@ -1268,6 +1268,27 @@ textarea.field-invalid {
   width: auto;
   min-width: 90px;
 }
+/* Prevent the generic form-section rule from stretching these narrow controls
+   to full width — keep the row's intended inline layout. */
+.rrule-builder .rrule-row input[type="number"],
+.rrule-builder .rrule-row .rrule-interval {
+  width: 52px;
+  max-width: 52px;
+  flex: 0 0 52px;
+}
+.rrule-builder .rrule-row select {
+  flex: 0 0 auto;
+}
+/* Hide the native number spinner arrows so width=52px isn't eaten by them. */
+.rrule-builder input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.rrule-builder input[type="number"]::-webkit-outer-spin-button,
+.rrule-builder input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 .rrule-day-chips {
   display: flex;
   gap: 4px;
@@ -1304,10 +1325,30 @@ textarea.field-invalid {
   flex-wrap: wrap;
   font-weight: 400;
   cursor: pointer;
+  transition: opacity 0.15s;
 }
 .rrule-monthly-row input[type="radio"] {
   width: auto;
   cursor: pointer;
+}
+/* Same width overrides as .rrule-row so "Day [1] of every month" and
+   "The [First] [Saturday] of every month" each render on a single line. */
+.rrule-builder .rrule-monthly-row input[type="number"],
+.rrule-builder .rrule-monthly-row .rrule-interval {
+  width: 52px;
+  max-width: 52px;
+  flex: 0 0 52px;
+}
+.rrule-builder .rrule-monthly-row select {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 100px;
+}
+.rrule-monthly-row[data-inactive="true"] {
+  opacity: 0.45;
+}
+.rrule-monthly-row[data-inactive="true"] > *:not(input[type="radio"]) {
+  pointer-events: none;
 }
 .rrule-times {
   display: grid;
@@ -1336,10 +1377,29 @@ textarea.field-invalid {
   margin: 4px 0;
   font-weight: 400;
   cursor: pointer;
+  flex-wrap: wrap;
+  transition: opacity 0.15s;
 }
 .rrule-ends-row input[type="radio"] {
   width: auto;
   cursor: pointer;
+}
+/* Keep the date / count inputs inline with their radio label — global form
+   rules would otherwise stretch them to 100% width and push them onto a new line. */
+.rrule-builder .rrule-ends-row input[type="date"] {
+  width: auto;
+  flex: 0 0 auto;
+}
+.rrule-builder .rrule-ends-row input[type="number"] {
+  width: 52px;
+  max-width: 52px;
+  flex: 0 0 52px;
+}
+.rrule-ends-row[data-inactive="true"] {
+  opacity: 0.45;
+}
+.rrule-ends-row[data-inactive="true"] > *:not(input[type="radio"]) {
+  pointer-events: none;
 }
 .rrule-disclosure {
   background: none;
@@ -1415,6 +1475,36 @@ textarea.field-invalid {
 .rrule-exclusion-add button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+/* Keep native inline sizing in the inline add-form; the global form rule
+   would otherwise stretch date inputs to full width. */
+.rrule-builder .rrule-exclusion-add input[type="date"] {
+  width: auto;
+  flex: 0 0 auto;
+}
+/* Mode-toggle buttons ([Add date] / [Add range]): show the active mode as
+   pressed-in rather than using the generic disabled treatment. */
+.rrule-exclusion-add .rrule-excl-mode-btn[aria-pressed="true"] {
+  background: var(--accent, #2e7d32);
+  color: #fff;
+  opacity: 1;
+  cursor: default;
+}
+/* Primary [Add] (filled) vs ghost [Cancel] in the inline form row. */
+.rrule-exclusion-add .btn-add {
+  background: var(--accent, #2e7d32);
+  color: #fff;
+}
+.rrule-exclusion-add .btn-add:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+.rrule-exclusion-add .btn-cancel {
+  border-color: var(--border, #e0e0e0);
+  color: var(--muted, #666);
+}
+.rrule-exclusion-add .btn-cancel:hover {
+  background: var(--surface, #f2f2f2);
+  color: var(--ink, #333);
 }
 .rrule-preview {
   padding: 10px 14px;

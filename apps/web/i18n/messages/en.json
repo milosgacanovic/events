@@ -684,6 +684,8 @@
   "manage.eventForm.rrule.exclusions.addDate": "Add date",
   "manage.eventForm.rrule.exclusions.addRange": "Add range",
   "manage.eventForm.rrule.exclusions.saveRange": "Save",
+  "manage.eventForm.rrule.exclusions.add": "Add",
+  "manage.eventForm.rrule.exclusions.cancel": "Cancel",
   "manage.eventForm.rrule.exclusions.remove": "Remove",
   "manage.eventForm.rrule.help.title": "Examples — click to use",
   "manage.eventForm.rrule.help.presets.weeklyTuesday": "Weekly — every Tuesday 7pm",

@@ -406,7 +406,14 @@ export function RruleBuilder({
   const [newExDate, setNewExDate] = useState<string>("");
   const [newExRangeFrom, setNewExRangeFrom] = useState<string>("");
   const [newExRangeTo, setNewExRangeTo] = useState<string>("");
-  const [showRangeForm, setShowRangeForm] = useState<boolean>(false);
+  const [addMode, setAddMode] = useState<null | "date" | "range">(null);
+  const exDateInputRef = useRef<HTMLInputElement | null>(null);
+  const exRangeFromInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (addMode === "date") exDateInputRef.current?.focus();
+    else if (addMode === "range") exRangeFromInputRef.current?.focus();
+  }, [addMode]);
 
   // Help popover
   const [showHelp, setShowHelp] = useState<boolean>(false);
@@ -589,6 +596,7 @@ export function RruleBuilder({
     if (!newExDate) return;
     setExclusions((prev) => [...prev, { kind: "date", date: newExDate }]);
     setNewExDate("");
+    setAddMode(null);
   }
 
   function addExclusionRange() {
@@ -596,7 +604,14 @@ export function RruleBuilder({
     setExclusions((prev) => [...prev, { kind: "range", from: newExRangeFrom, to: newExRangeTo }]);
     setNewExRangeFrom("");
     setNewExRangeTo("");
-    setShowRangeForm(false);
+    setAddMode(null);
+  }
+
+  function cancelExclusionAdd() {
+    setNewExDate("");
+    setNewExRangeFrom("");
+    setNewExRangeTo("");
+    setAddMode(null);
   }
 
   function removeExclusion(idx: number) {
@@ -678,7 +693,7 @@ export function RruleBuilder({
       {/* Monthly: radio */}
       {freq === "MONTHLY" && (
         <div className="rrule-monthly">
-          <label className="rrule-monthly-row">
+          <label className="rrule-monthly-row" data-inactive={monthlyMode !== "byMonthDay" ? "true" : "false"}>
             <input
               type="radio"
               name="rrule-monthly-mode"
@@ -696,10 +711,11 @@ export function RruleBuilder({
                 setMonthlyMode("byMonthDay");
               }}
               className="rrule-interval"
+              disabled={monthlyMode !== "byMonthDay"}
             />
             <span>{tt("manage.eventForm.rrule.monthly.dayOfMonthSuffix", "of every month")}</span>
           </label>
-          <label className="rrule-monthly-row">
+          <label className="rrule-monthly-row" data-inactive={monthlyMode !== "bySetPos" ? "true" : "false"}>
             <input
               type="radio"
               name="rrule-monthly-mode"
@@ -713,6 +729,7 @@ export function RruleBuilder({
                 setSetPos(parseInt(e.target.value, 10));
                 setMonthlyMode("bySetPos");
               }}
+              disabled={monthlyMode !== "bySetPos"}
             >
               {SETPOS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -726,6 +743,7 @@ export function RruleBuilder({
                 setSetPosDay(e.target.value as DayCode);
                 setMonthlyMode("bySetPos");
               }}
+              disabled={monthlyMode !== "bySetPos"}
             >
               {DAY_CODES.map((code) => (
                 <option key={code} value={code}>
@@ -779,7 +797,7 @@ export function RruleBuilder({
       {/* Series ends: radio triad */}
       <fieldset className="rrule-ends">
         <legend className="rrule-sublabel">{tt("manage.eventForm.rrule.seriesEnds", "Series ends")}</legend>
-        <label className="rrule-ends-row">
+        <label className="rrule-ends-row" data-inactive={endsMode !== "never" ? "true" : "false"}>
           <input
             type="radio"
             name="rrule-ends"
@@ -788,7 +806,7 @@ export function RruleBuilder({
           />
           <span>{tt("manage.eventForm.rrule.never", "Never")}</span>
         </label>
-        <label className="rrule-ends-row">
+        <label className="rrule-ends-row" data-inactive={endsMode !== "onDate" ? "true" : "false"}>
           <input type="radio" name="rrule-ends" checked={endsMode === "onDate"} onChange={() => setEndsMode("onDate")} />
           <span>{tt("manage.eventForm.rrule.onDate", "On")}</span>
           <input
@@ -801,7 +819,7 @@ export function RruleBuilder({
             disabled={endsMode !== "onDate"}
           />
         </label>
-        <label className="rrule-ends-row">
+        <label className="rrule-ends-row" data-inactive={endsMode !== "afterN" ? "true" : "false"}>
           <input type="radio" name="rrule-ends" checked={endsMode === "afterN"} onChange={() => setEndsMode("afterN")} />
           <span>{tt("manage.eventForm.rrule.afterN", "After")}</span>
           <input
@@ -849,21 +867,92 @@ export function RruleBuilder({
               </div>
             )}
             <div className="rrule-exclusion-add">
-              <input type="date" value={newExDate} onChange={(e) => setNewExDate(e.target.value)} />
-              <button type="button" onClick={addExclusionDate} disabled={!newExDate}>
+              <button
+                type="button"
+                className="rrule-excl-mode-btn"
+                onClick={() => setAddMode("date")}
+                aria-pressed={addMode === "date"}
+                disabled={addMode === "date"}
+              >
                 {tt("manage.eventForm.rrule.exclusions.addDate", "Add date")}
               </button>
-              <button type="button" onClick={() => setShowRangeForm((v) => !v)}>
+              <button
+                type="button"
+                className="rrule-excl-mode-btn"
+                onClick={() => setAddMode("range")}
+                aria-pressed={addMode === "range"}
+                disabled={addMode === "range"}
+              >
                 {tt("manage.eventForm.rrule.exclusions.addRange", "Add range")}
               </button>
             </div>
-            {showRangeForm && (
-              <div className="rrule-exclusion-add">
-                <input type="date" value={newExRangeFrom} onChange={(e) => setNewExRangeFrom(e.target.value)} />
+            {addMode === "date" && (
+              <div className="rrule-exclusion-add rrule-exclusion-add--inline">
+                <input
+                  ref={exDateInputRef}
+                  type="date"
+                  value={newExDate}
+                  onChange={(e) => setNewExDate(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addExclusionDate();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelExclusionAdd();
+                    }
+                  }}
+                />
+                <button type="button" className="btn-add" onClick={addExclusionDate} disabled={!newExDate}>
+                  {tt("manage.eventForm.rrule.exclusions.add", "Add")}
+                </button>
+                <button type="button" className="btn-cancel" onClick={cancelExclusionAdd}>
+                  {tt("manage.eventForm.rrule.exclusions.cancel", "Cancel")}
+                </button>
+              </div>
+            )}
+            {addMode === "range" && (
+              <div className="rrule-exclusion-add rrule-exclusion-add--inline">
+                <input
+                  ref={exRangeFromInputRef}
+                  type="date"
+                  value={newExRangeFrom}
+                  onChange={(e) => setNewExRangeFrom(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addExclusionRange();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelExclusionAdd();
+                    }
+                  }}
+                />
                 <span>→</span>
-                <input type="date" value={newExRangeTo} onChange={(e) => setNewExRangeTo(e.target.value)} />
-                <button type="button" onClick={addExclusionRange} disabled={!newExRangeFrom || !newExRangeTo}>
-                  {tt("manage.eventForm.rrule.exclusions.saveRange", "Save")}
+                <input
+                  type="date"
+                  value={newExRangeTo}
+                  onChange={(e) => setNewExRangeTo(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addExclusionRange();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelExclusionAdd();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn-add"
+                  onClick={addExclusionRange}
+                  disabled={!newExRangeFrom || !newExRangeTo}
+                >
+                  {tt("manage.eventForm.rrule.exclusions.add", "Add")}
+                </button>
+                <button type="button" className="btn-cancel" onClick={cancelExclusionAdd}>
+                  {tt("manage.eventForm.rrule.exclusions.cancel", "Cancel")}
                 </button>
               </div>
             )}
