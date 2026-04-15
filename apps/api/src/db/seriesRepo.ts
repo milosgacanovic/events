@@ -46,8 +46,10 @@ export type EventSeriesDocRow = {
  * tags/languages/organizers across siblings; aggregates upcoming date buckets
  * (UTC) from `event_occurrences`.
  *
- * Returns `true` if the series has at least one published/cancelled sibling
- * (row written), `false` if the row was deleted because no siblings remain.
+ * Returns `true` if the series has at least one published sibling (row
+ * written), `false` if the row was deleted because no siblings remain.
+ * Cancelled events are excluded so the series index reflects what public
+ * browsing should show — a series with only cancelled events is dropped.
  *
  * Accepts an optional `PoolClient` so the caller can run the refresh inside
  * the same transaction as a preceding status/delete mutation — keeping the
@@ -62,7 +64,7 @@ export async function refreshEventSeries(
       select *
       from events
       where series_id = $1
-        and status in ('published', 'cancelled')
+        and status = 'published'
     ),
     upcoming_per_sibling as (
       select
@@ -226,7 +228,7 @@ export async function refreshEventSeries(
     return true;
   }
 
-  // No canonical sibling — series has no published/cancelled events anymore.
+  // No canonical sibling — series has no published events anymore.
   await pool.query(`delete from event_series where series_id = $1`, [seriesId]);
   return false;
 }

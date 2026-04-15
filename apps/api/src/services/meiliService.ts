@@ -195,7 +195,7 @@ export class MeilisearchService {
           select count(*)::int
           from events e2
           where e2.series_id = eo.series_id
-            and e2.status in ('published', 'cancelled')
+            and e2.status = 'published'
         ) as sibling_count,
         eo.country_code,
         eo.city,
@@ -208,7 +208,7 @@ export class MeilisearchService {
       left join event_organizers eo2 on eo2.event_id = e.id
       left join organizers o on o.id = eo2.organizer_id and o.status = 'published'
       where ($1::uuid is null or e.id = $1::uuid)
-        and e.status in ('published', 'cancelled')
+        and e.status = 'published'
       group by eo.id, e.id
     `;
 

@@ -157,7 +157,16 @@ export async function cancelEvent(
   eventId: string,
 ): Promise<void> {
   await setEventStatus(pool, eventId, "cancelled");
-  await regenerateOccurrences(pool, meiliService, eventId);
+  // Keep DB occurrences — the detail page renders upcoming dates with a
+  // "cancelled" banner straight from Postgres, so users who follow a direct
+  // URL still see when it was supposed to happen. But purge from Meili so
+  // cancelled events disappear from public browsing (list, map, series).
+  await regenerateOccurrences(pool, meiliService, eventId, /* skipSearch */ true);
+  await meiliService.deleteOccurrencesByEventId(eventId).catch((err) => {
+    console.error(`[cancelEvent] Failed to delete Meilisearch docs for event ${eventId}:`, err);
+  });
+  await syncSeriesForEvent(pool, meiliService, eventId, "cancelEvent");
+  clearSearchCache();
 }
 
 export async function archiveEvent(
