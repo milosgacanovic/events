@@ -291,7 +291,14 @@ export function LeafletClusterMap({
                   return;
                 }
                 if (feature.properties.event_slug) {
-                  router.push(`/events/${feature.properties.event_slug}`);
+                  // Pass ?date= so the detail page highlights the specific
+                  // occurrence the pin represents (especially useful when
+                  // several pins land on the same series).
+                  const dateHint = feature.properties.starts_at_utc?.slice(0, 10);
+                  const href = dateHint
+                    ? `/events/${feature.properties.event_slug}?date=${dateHint}`
+                    : `/events/${feature.properties.event_slug}`;
+                  router.push(href);
                 }
               },
             }}

@@ -1970,6 +1970,19 @@ label.meta {
   border-radius: var(--radius-sm);
 }
 
+/* Arrival from a date-filtered search/map (?date=YYYY-MM-DD). Briefly
+   draws attention to the specific occurrence the user came from. */
+.event-detail-occurrence--highlighted {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-alt));
+  box-shadow: inset 3px 0 0 var(--accent);
+  animation: event-detail-occurrence-pulse 2.4s ease-out 1;
+}
+
+@keyframes event-detail-occurrence-pulse {
+  0% { background: color-mix(in srgb, var(--accent) 42%, var(--surface-alt)); }
+  100% { background: color-mix(in srgb, var(--accent) 18%, var(--surface-alt)); }
+}
+
 .event-detail-footer {
   display: grid;
   gap: 10px;

@@ -246,11 +246,19 @@ export function EventDetailClient({
   initialData,
   initialTaxonomy,
   serverTranslations,
+  targetDate,
 }: {
   slug: string;
   initialData?: EventDetail | null;
   initialTaxonomy?: TaxonomyResponse | null;
   serverTranslations?: EventServerTranslations;
+  /**
+   * Optional YYYY-MM-DD hint (from ?date= query param) — when it matches a
+   * specific upcoming occurrence, that row is scrolled into view and
+   * highlighted on mount. Canonical URL is unaffected; this is a view hint
+   * for users arriving from date-filtered search/map.
+   */
+  targetDate?: string | null;
 }) {
   const { locale, t } = useI18n();
   const router = useRouter();
@@ -270,7 +278,15 @@ export function EventDetailClient({
   const [shareExpanded, setShareExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
+  const highlightedOccurrenceRef = useRef<HTMLDivElement>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
+
+  // Scroll the ?date=-matching occurrence into view once on mount. The ref is
+  // attached to the matching row below; if nothing matches, the effect is a no-op.
+  useEffect(() => {
+    if (!targetDate || !highlightedOccurrenceRef.current) return;
+    highlightedOccurrenceRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [targetDate]);
 
   useEffect(() => {
     let active = true;
@@ -1042,8 +1058,18 @@ export function EventDetailClient({
                   const formatted = formatDateTimeRange(
                     item.starts_at_utc, item.ends_at_utc, data.event.event_timezone, timeDisplayMode,
                   );
+                  // Match ?date= against the occurrence's local-date prefix.
+                  // We compare on UTC date — good enough for highlighting; the
+                  // ~4h timezone edge case yields no match and falls through
+                  // to the default (no highlight) which is acceptable.
+                  const isHighlighted = !!targetDate && item.starts_at_utc.slice(0, 10) === targetDate;
                   return (
-                    <div className="event-detail-occurrence" key={item.id}>
+                    <div
+                      className={`event-detail-occurrence${isHighlighted ? " event-detail-occurrence--highlighted" : ""}`}
+                      key={item.id}
+                      ref={isHighlighted ? highlightedOccurrenceRef : undefined}
+                      aria-current={isHighlighted ? "date" : undefined}
+                    >
                       <span className="meta">{formatted.primary}</span>
                     </div>
                   );
@@ -1061,8 +1087,14 @@ export function EventDetailClient({
                   const formatted = formatDateTimeRange(
                     item.starts_at_utc, item.ends_at_utc, data.event.event_timezone, timeDisplayMode,
                   );
+                  const isHighlighted = !!targetDate && item.starts_at_utc.slice(0, 10) === targetDate;
                   return (
-                    <div className="event-detail-occurrence" key={item.id}>
+                    <div
+                      className={`event-detail-occurrence${isHighlighted ? " event-detail-occurrence--highlighted" : ""}`}
+                      key={item.id}
+                      ref={isHighlighted ? highlightedOccurrenceRef : undefined}
+                      aria-current={isHighlighted ? "date" : undefined}
+                    >
                       <span className="meta">{formatted.primary}</span>
                     </div>
                   );

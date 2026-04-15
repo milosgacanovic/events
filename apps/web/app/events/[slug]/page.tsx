@@ -139,14 +139,21 @@ export async function generateMetadata({
 
 export default function EventDetailPage({
   params,
+  searchParams,
 }: {
   params: { slug: string };
+  searchParams?: { date?: string | string[] };
 }) {
   const slug = params.slug;
-  return <EventDetailPageServer slug={slug} />;
+  // Accept ?date=YYYY-MM-DD as a view hint that deep-links to a specific
+  // occurrence in the upcoming list. Canonical URL stays /events/[slug];
+  // we only use this to highlight and scroll to that date on mount.
+  const rawDate = Array.isArray(searchParams?.date) ? searchParams?.date[0] : searchParams?.date;
+  const targetDate = typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null;
+  return <EventDetailPageServer slug={slug} targetDate={targetDate} />;
 }
 
-async function EventDetailPageServer({ slug }: { slug: string }) {
+async function EventDetailPageServer({ slug, targetDate }: { slug: string; targetDate: string | null }) {
   const [detail, taxonomy] = await Promise.all([
     fetchServerJson<EventDetailResponse>(`/events/${slug}`),
     fetchServerJson<TaxonomyResponse>("/meta/taxonomies"),
@@ -216,7 +223,7 @@ async function EventDetailPageServer({ slug }: { slug: string }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <EventDetailClient slug={slug} initialData={detail} initialTaxonomy={taxonomy} serverTranslations={serverTranslations} />
+      <EventDetailClient slug={slug} initialData={detail} initialTaxonomy={taxonomy} serverTranslations={serverTranslations} targetDate={targetDate} />
     </>
   );
 }

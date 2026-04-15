@@ -2129,11 +2129,17 @@ export function EventSearchClient({
             const visiblePills = extraPills;
             const overflowCount = 0;
 
+            // Pass the occurrence's date as a ?date= hint so the detail
+            // page can scroll to and highlight this specific date. Otherwise
+            // users clicking a July result in April see "Next: tomorrow" and
+            // wonder if they clicked the wrong thing.
+            const occurrenceDate = hit.startsAtUtc?.slice(0, 10) ?? null;
+
             return (
               <Link
                 className="card event-card-h"
                 key={hit.occurrenceId}
-                href={`/events/${hit.event.slug}`}
+                href={occurrenceDate ? `/events/${hit.event.slug}?date=${occurrenceDate}` : `/events/${hit.event.slug}`}
                 onClick={() => {
                   const idx = accumulatedHits.findIndex((h) => h.event.slug === hit.event.slug);
                   pushDataLayer({ event: "event_card_click", event_title: hit.event.title, position: idx + 1 });
