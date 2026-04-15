@@ -132,6 +132,25 @@ See `constitution.md` in this directory for complete behavior and field-level re
     - `externalId`
 - `descriptionJson.importMeta` is optional and audit-only, not idempotency enforcement.
 
+## Series Grouping (`seriesId`)
+- `POST /api/events` and `PATCH /api/events/:id` accept optional `seriesId` (`uuid|null`).
+- Purpose: collapse sibling events that belong to the same recurring source
+  series (e.g. an imported weekly class parsed into N rows) into a single
+  card/pin in search and map results.
+- Stability: the value **must be stable across re-publishes** and identical for
+  all siblings in a detected series. Recommended: UUID v5 with a fixed
+  namespace and input `${source}:${sourceSeriesKey}`.
+- Default: if omitted on create, server sets `series_id = event.id` so every
+  event is always a member of some series (of one).
+- PATCH behavior: omit the field to preserve the stored value; providing
+  `seriesId` overwrites it.
+- The field is echoed back in event responses (`series_id` / `seriesId` on
+  admin detail endpoints).
+- Grouping behavior (Meilisearch `distinctAttribute`, map pin dedup) is gated
+  by the server env flag `EVENTS_SERIES_GROUPING_ENABLED` (default `false`).
+  The schema and storage ship unconditionally so importers can start sending
+  `seriesId` before the UX is turned on.
+
 ## Event Cover Image (Phase 1)
 - Storage field remains `events.cover_image_path` (nullable text).
 - `POST /api/events` and `PATCH /api/events/:id` accept:

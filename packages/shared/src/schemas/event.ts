@@ -54,6 +54,12 @@ const createEventBaseSchema = z.object({
     externalId: z.string().max(255).nullable().optional(),
     isImported: z.boolean().optional(),
     importSource: z.string().max(255).nullable().optional(),
+    // Series grouping: optional stable UUID (v5 recommended) shared by all
+    // sibling events that belong to the same detected recurring series in the
+    // source (e.g. imported weekly class expanded into N events). When
+    // omitted, the server defaults series_id to the new event's id so every
+    // event is always part of some "series", even if it's just itself.
+    seriesId: uuidSchema.nullable().optional(),
   });
 
 function hasDefinedExternalPair(value: { externalSource?: string | null; externalId?: string | null }) {

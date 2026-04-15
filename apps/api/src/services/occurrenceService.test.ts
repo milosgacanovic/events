@@ -34,6 +34,7 @@ const baseEvent = {
   created_by_user_id: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  series_id: "11111111-1111-1111-1111-111111111111",
 };
 
 describe("generateOccurrences", () => {

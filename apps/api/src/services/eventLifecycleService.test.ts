@@ -49,7 +49,10 @@ describe("event lifecycle regeneration", () => {
     const toIso = call[3] as string;
     const from = DateTime.fromISO(fromIso, { zone: "utc" });
     const to = DateTime.fromISO(toIso, { zone: "utc" });
-    expect(to.diff(from, "days").days).toBeGreaterThan(390);
+    // Weekly events: 30d past + 180d future = ~210d window (frequency-aware horizon).
+    const days = to.diff(from, "days").days;
+    expect(days).toBeGreaterThan(200);
+    expect(days).toBeLessThan(215);
     expect(meiliService.upsertOccurrencesForEvent).toHaveBeenCalledWith(
       expect.anything(),
       "00000000-0000-0000-0000-000000000501",

@@ -34,6 +34,11 @@ const configSchema = z.object({
   // in environments that haven't been verified yet — flip to true after confirming
   // dry-run output looks correct.
   ENABLE_ALERT_NOTIFICATIONS: z.coerce.boolean().default(false),
+  // Feature flag for series grouping in search/map results. Default false so
+  // the schema + API changes (series_id column, seriesId input) can ship
+  // unconditionally while the importer rolls out stable seriesId emission.
+  // Flip to true after verifying imported siblings share expected series_id.
+  EVENTS_SERIES_GROUPING_ENABLED: z.coerce.boolean().default(false),
 });
 
 export const config = configSchema.parse(process.env);

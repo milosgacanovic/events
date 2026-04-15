@@ -29,6 +29,7 @@ export type EventSeriesRow = {
   created_by_user_id: string | null;
   created_at: string;
   updated_at: string;
+  series_id: string;
 };
 
 export type LocationRow = {

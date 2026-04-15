@@ -174,11 +174,13 @@ export async function createEvent(pool: Pool, createdByUserId: string | null, in
         duration_minutes,
         status,
         visibility,
-        created_by_user_id
+        created_by_user_id,
+        series_id
       )
       values (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 'draft', $24, $25
+        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 'draft', $24, $25,
+        coalesce($26::uuid, gen_random_uuid())
       )
       returning *
     `,
@@ -208,10 +210,23 @@ export async function createEvent(pool: Pool, createdByUserId: string | null, in
       input.durationMinutes ?? null,
       input.visibility,
       createdByUserId,
+      input.seriesId ?? null,
     ],
   );
 
-  return result.rows[0];
+  const created = result.rows[0];
+
+  // If no explicit seriesId was provided, default the series to the event
+  // itself so the column carries a predictable "every event is in a series
+  // of one" semantics and downstream distinct-by-series_id queries behave.
+  // Rows inserted with a caller-supplied seriesId are left alone so sibling
+  // imports retain the shared value the importer chose.
+  if (!input.seriesId) {
+    await pool.query(`update events set series_id = id where id = $1`, [created.id]);
+    created.series_id = created.id;
+  }
+
+  return created;
 }
 
 export async function updateEvent(pool: Pool, eventId: string, input: UpdateEventInput) {
@@ -240,6 +255,7 @@ export async function updateEvent(pool: Pool, eventId: string, input: UpdateEven
     duration_minutes: input.durationMinutes,
     visibility: input.visibility,
     status: input.status,
+    series_id: input.seriesId,
   };
 
   const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
