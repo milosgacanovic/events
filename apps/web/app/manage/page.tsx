@@ -127,7 +127,7 @@ export default function ManageDashboard() {
             <div className="stat-label">{t("manage.dashboard.pendingApplications")}</div>
           </Link>
           <Link
-            href="/manage/admin/logs?action=moderation"
+            href="/manage/admin/moderation"
             className="manage-stat-card"
             style={{
               textDecoration: "none",

@@ -369,14 +369,14 @@ export async function getUserDetail(pool: Pool, userId: string) {
       target_type: string;
       target_id: string;
       target_name: string;
-      field_name: string;
-      suggestion: string;
+      category: string;
+      body: string;
       status: string;
       created_at: string;
     }>(
       `select es.id, es.target_type, es.target_id,
               coalesce(e.title, o.name, es.target_id::text) as target_name,
-              es.field_name, es.suggestion, es.status, es.created_at
+              es.category, es.body, es.status, es.created_at
        from edit_suggestions es
        left join events e on es.target_type = 'event' and e.id = es.target_id
        left join organizers o on es.target_type = 'organizer' and o.id = es.target_id

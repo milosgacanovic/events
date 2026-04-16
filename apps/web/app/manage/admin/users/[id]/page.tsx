@@ -14,7 +14,7 @@ type FollowItem = { id: string; organizer_id: string; organizer_name: string; ra
 type CommentItem = { id: string; event_id: string; event_title: string; body: string; status: string; created_at: string };
 type ReportItem = { id: string; target_type: string; target_id: string; target_name: string; reason: string; detail: string | null; status: string; created_at: string };
 type RecommendationItem = { id: string; recipient_email: string; event_id: string; event_title: string; note: string | null; created_at: string };
-type SuggestionItem = { id: string; target_type: string; target_id: string; target_name: string; field_name: string; suggestion: string; status: string; created_at: string };
+type SuggestionItem = { id: string; target_type: string; target_id: string; target_name: string; category: string; body: string; status: string; created_at: string };
 type LinkedHost = { organizer_id: string; organizer_name: string };
 type LinkedEvent = { id: string; title: string; status: string };
 
@@ -352,8 +352,8 @@ export default function UserDetailPage() {
                 {user.suggestions.map((s) => (
                   <tr key={s.id}>
                     <td>{s.target_name} <span className="meta">({s.target_type})</span></td>
-                    <td>{s.field_name}</td>
-                    <td style={{ maxWidth: 250, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.suggestion}</td>
+                    <td>{s.category}</td>
+                    <td style={{ maxWidth: 250, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.body}</td>
                     <td><span className={`tag tag--${s.status}`} style={{ fontSize: "0.7rem" }}>{s.status}</span></td>
                     <td style={{ whiteSpace: "nowrap" }}>{new Date(s.created_at).toLocaleDateString()}</td>
                   </tr>
