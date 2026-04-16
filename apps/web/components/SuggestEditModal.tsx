@@ -5,6 +5,7 @@ import { useState } from "react";
 import { fetchJson } from "../lib/api";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
+import { ModalPortal } from "./ModalPortal";
 import { useToast } from "./ToastProvider";
 
 const CATEGORIES = ["name", "datetime", "location", "description", "host", "practice", "other"] as const;
@@ -50,8 +51,7 @@ export function SuggestEditModal({ targetType, targetId, targetName, onClose }: 
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+    <ModalPortal onClose={onClose}>
         <button className="modal-close" type="button" onClick={onClose} aria-label="Close">&times;</button>
 
         <h2 className="modal-title">{t("suggestEdit.title")}</h2>
@@ -86,7 +86,6 @@ export function SuggestEditModal({ targetType, targetId, targetName, onClose }: 
             {t("notifyMe.dialog.cancel")}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalPortal>
   );
 }

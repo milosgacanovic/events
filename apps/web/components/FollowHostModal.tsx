@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { apiBase } from "../lib/api";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
@@ -167,7 +168,7 @@ export function FollowHostModal({
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="modal-backdrop"
       onMouseDown={(event) => {
@@ -252,6 +253,7 @@ export function FollowHostModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

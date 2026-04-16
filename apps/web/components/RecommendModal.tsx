@@ -5,6 +5,7 @@ import { useState } from "react";
 import { fetchJson } from "../lib/api";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
+import { ModalPortal } from "./ModalPortal";
 import { useToast } from "./ToastProvider";
 
 type Props = {
@@ -51,8 +52,7 @@ export function RecommendModal({ eventId, eventTitle, onClose }: Props) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+    <ModalPortal onClose={onClose}>
         <button className="modal-close" type="button" onClick={onClose} aria-label="Close">&times;</button>
 
         <h2 className="modal-title">{t("recommend.title")}</h2>
@@ -89,7 +89,6 @@ export function RecommendModal({ eventId, eventTitle, onClose }: Props) {
             {t("notifyMe.dialog.cancel")}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalPortal>
   );
 }

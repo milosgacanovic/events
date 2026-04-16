@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 import { useI18n } from "./i18n/I18nProvider";
 
@@ -46,7 +47,7 @@ export function LoginPromptDialog({
   const title = t(`loginPrompt.${featureKey}.title`, { name: entityName ?? "" });
   const description = t(`loginPrompt.${featureKey}.description`, { name: entityName ?? "" });
 
-  return (
+  return createPortal(
     <div
       className="modal-backdrop"
       onMouseDown={(e) => {
@@ -75,6 +76,7 @@ export function LoginPromptDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
