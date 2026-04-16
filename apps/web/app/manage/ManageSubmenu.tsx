@@ -20,6 +20,10 @@ export function ManageSubmenu({
 
   return (
     <nav className="manage-submenu">
+      <Link href="/profile" className={linkClass("/profile")}>
+        {t("manage.sidebar.myProfile")}
+      </Link>
+      <span className="manage-submenu-sep" aria-hidden="true" />
       <Link href="/manage" className={linkClass("/manage", true)}>
         {t("manage.sidebar.dashboard")}
       </Link>
@@ -47,8 +51,17 @@ export function ManageSubmenu({
           <Link href="/manage/admin/applications" className={linkClass("/manage/admin/applications")}>
             {t("manage.sidebar.applications")}
           </Link>
+          <Link href="/manage/admin/moderation" className={linkClass("/manage/admin/moderation")}>
+            {t("manage.sidebar.moderation")}
+          </Link>
           <Link href="/manage/admin/tags" className={linkClass("/manage/admin/tags")}>
             {t("manage.sidebar.tagSuggestions")}
+          </Link>
+          <Link href="/manage/admin/notifications" className={linkClass("/manage/admin/notifications")}>
+            {t("manage.sidebar.notifications")}
+          </Link>
+          <Link href="/manage/admin/referrals" className={linkClass("/manage/admin/referrals")}>
+            {t("manage.sidebar.referrals")}
           </Link>
           <Link href="/manage/admin/logs" className={linkClass("/manage/admin/logs")}>
             {t("manage.sidebar.activityLogs")}

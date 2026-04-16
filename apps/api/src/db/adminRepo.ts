@@ -21,6 +21,7 @@ export async function listAdminEvents(
     time?: "upcoming" | "past";
     dateFrom?: string;
     dateTo?: string;
+    hasReports?: boolean;
     sort?: string;
     page: number;
     pageSize: number;
@@ -151,11 +152,18 @@ export async function listAdminEvents(
     whereParts.push(`exists(select 1 from event_occurrences oc where oc.event_id = e.id and oc.starts_at_utc < ($${values.length}::date + interval '1 day'))`);
   }
 
+  if (input.hasReports) {
+    whereParts.push(`exists(select 1 from reports rp where rp.target_type = 'event' and rp.target_id = e.id::text and rp.status = 'pending')`);
+  }
+
   const sortMap: Record<string, string> = {
     upcoming: "next_occ.starts_at_utc asc nulls last",
     edited: "e.updated_at desc",
     created: "e.created_at desc",
     title: "e.title asc",
+    saves: "eng.save_count desc nulls last",
+    rsvps: "eng.rsvp_count desc nulls last",
+    comments: "eng.comment_count desc nulls last",
   };
   const orderBy = sortMap[input.sort ?? ""] ?? "e.updated_at desc";
 
@@ -193,6 +201,10 @@ export async function listAdminEvents(
       tags: string[] | null;
       host_names: string | null;
       created_by_name: string | null;
+      save_count: number;
+      rsvp_count: number;
+      comment_count: number;
+      report_count: number;
     }>(
       `
         select
@@ -226,7 +238,11 @@ export async function listAdminEvents(
           next_occ.ends_at_utc as next_ends_at,
           e.event_timezone,
           hosts_sub.host_names,
-          u.display_name as created_by_name
+          u.display_name as created_by_name,
+          coalesce(eng.save_count, 0)::int as save_count,
+          coalesce(eng.rsvp_count, 0)::int as rsvp_count,
+          coalesce(eng.comment_count, 0)::int as comment_count,
+          coalesce(eng.report_count, 0)::int as report_count
         from events e
         left join practices pc on pc.id = e.practice_category_id
         left join event_formats ef on ef.id = e.event_format_id
@@ -250,6 +266,13 @@ export async function listAdminEvents(
           limit 1
         ) next_occ on true
         left join users u on u.id = e.created_by_user_id
+        left join lateral (
+          select
+            (select count(*) from saved_events se where se.event_id = e.id) as save_count,
+            (select count(*) from event_rsvps r where r.event_id = e.id) as rsvp_count,
+            (select count(*) from comments c where c.event_id = e.id and c.status != 'hidden') as comment_count,
+            (select count(*) from reports rp where rp.target_type = 'event' and rp.target_id = e.id::text and rp.status = 'pending') as report_count
+        ) eng on true
         ${whereSql}
         order by ${orderBy}
         limit $${values.length + 1}
@@ -285,6 +308,7 @@ export async function listAdminOrganizers(
     languages?: string;
     cities?: string;
     sourceFilter?: "imported" | "manual" | "detached";
+    hasReports?: boolean;
     sort?: string;
     page: number;
     pageSize: number;
@@ -298,6 +322,7 @@ export async function listAdminOrganizers(
     edited: "o.updated_at desc",
     created: "o.created_at desc",
     name: "lower(o.name) asc",
+    followers: "eng.follower_count desc nulls last",
   };
   const orderBy = sortMap[input.sort ?? ""] ?? "o.updated_at desc";
 
@@ -368,6 +393,10 @@ export async function listAdminOrganizers(
     whereParts.push(`o.detached_from_import = true`);
   }
 
+  if (input.hasReports) {
+    whereParts.push(`exists(select 1 from reports rp where rp.target_type = 'organizer' and rp.target_id = o.id::text and rp.status = 'pending')`);
+  }
+
   const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
 
   const [itemsResult, totalResult] = await Promise.all([
@@ -391,6 +420,8 @@ export async function listAdminOrganizers(
       external_source: string | null;
       detached_from_import: boolean;
       created_by_name: string | null;
+      follower_count: number;
+      report_count: number;
     }>(
       `
         select
@@ -412,7 +443,9 @@ export async function listAdminOrganizers(
           role_sub.role_labels,
           role_sub.role_keys,
           event_count_sub.event_count,
-          first_role_sub.first_role_id
+          first_role_sub.first_role_id,
+          coalesce(eng.follower_count, 0)::int as follower_count,
+          coalesce(eng.report_count, 0)::int as report_count
         from organizers o
         left join users u on u.id = o.created_by_user_id
         left join lateral (
@@ -447,6 +480,11 @@ export async function listAdminOrganizers(
           order by opr.display_order
           limit 1
         ) first_role_sub on true
+        left join lateral (
+          select
+            (select count(*) from user_alerts ua where ua.organizer_id = o.id and ua.unsubscribed_at is null) as follower_count,
+            (select count(*) from reports rp where rp.target_type = 'organizer' and rp.target_id = o.id::text and rp.status = 'pending') as report_count
+        ) eng on true
         ${whereSql}
         order by ${orderBy}
         limit $${values.length + 1}

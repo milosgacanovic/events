@@ -51,6 +51,10 @@ type EventItem = {
   event_timezone: string | null;
   host_names: string | null;
   created_by_name: string | null;
+  save_count: number;
+  rsvp_count: number;
+  comment_count: number;
+  report_count: number;
 };
 
 type EventsResponse = {
@@ -89,6 +93,7 @@ export default function AdminAllEventsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [importFilter, setImportFilter] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("");
+  const [hasReports, setHasReports] = useState(false);
   /* public-matching filters */
   const [timeFilter, setTimeFilter] = useState("");
   const [includePast, setIncludePast] = useState(false);
@@ -194,6 +199,7 @@ export default function AdminAllEventsPage() {
           if (range) { params.set("dateFrom", range.dateFrom); params.set("dateTo", range.dateTo); }
         }
       }
+      if (hasReports) params.set("hasReports", "true");
       if (sortBy) params.set("sort", sortBy);
       const data = await authorizedGet<EventsResponse>(getToken, `/admin/events?${params}`);
       setEvents(data.items);
@@ -203,7 +209,7 @@ export default function AdminAllEventsPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, search, statusFilter, importFilter, ownerFilter, practiceCategoryIds, eventFormatIds, countryCodes, attendanceModes, languages, cities, tags, timeFilter, sortBy, t]);
+  }, [getToken, page, search, statusFilter, importFilter, ownerFilter, hasReports, practiceCategoryIds, eventFormatIds, countryCodes, attendanceModes, languages, cities, tags, timeFilter, sortBy, t]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -225,7 +231,7 @@ export default function AdminAllEventsPage() {
     statusFilter, importFilter, ownerFilter, timeFilter,
     ...practiceCategoryIds, ...eventFormatIds, ...countryCodes,
     ...attendanceModes, ...languages, ...cities, ...tags,
-  ].filter(Boolean).length + (includePast ? 1 : 0);
+  ].filter(Boolean).length + (includePast ? 1 : 0) + (hasReports ? 1 : 0);
 
   const statusOptions = useMemo(() => [
     { value: "draft", label: t("common.status.draft") },
@@ -239,6 +245,9 @@ export default function AdminAllEventsPage() {
     { value: "upcoming", label: t("manage.events.sortNextOccurrence") },
     { value: "created", label: t("manage.events.sortCreated") },
     { value: "title", label: t("manage.events.sortTitle") },
+    { value: "saves", label: t("manage.admin.events.sortSaves") },
+    { value: "rsvps", label: t("manage.admin.events.sortRsvps") },
+    { value: "comments", label: t("manage.admin.events.sortComments") },
   ], [t]);
 
   function resetPage() { setPage(1); }
@@ -294,6 +303,18 @@ export default function AdminAllEventsPage() {
         <StatusFilter options={statusOptions} value={statusFilter ? [statusFilter] : []} onChange={(v) => { setStatusFilter(v[0] || ""); resetPage(); }} />
         <SourceFilter value={importFilter} onChange={(v) => { setImportFilter(v); resetPage(); }} />
         <OwnershipFilter value={ownerFilter} onChange={(v) => { setOwnerFilter(v); resetPage(); }} />
+
+        {/* ── Reports toggle ── */}
+        <button
+          type="button"
+          className={"filter-row" + (hasReports ? " filter-row-selected" : "")}
+          onClick={() => { setHasReports((v) => !v); resetPage(); }}
+          style={{ marginTop: 8 }}
+        >
+          <span className="filter-row-icon">{hasReports ? "\u2212" : "+"}</span>
+          <span className="filter-row-label">{t("manage.admin.events.hasReports")}</span>
+          <span className="filter-row-count" />
+        </button>
 
         {/* ── Event Date ── */}
         <details open={dateOpen} onToggle={(e) => setDateOpen((e.currentTarget as HTMLDetailsElement).open)}>
@@ -630,6 +651,10 @@ export default function AdminAllEventsPage() {
                   nextEndsAt={event.next_ends_at}
                   eventTimezone={event.event_timezone}
                   hostNames={event.host_names}
+                  saveCount={event.save_count}
+                  rsvpCount={event.rsvp_count}
+                  commentCount={event.comment_count}
+                  reportCount={event.report_count}
                   onPublish={event.status === "draft" ? () => void runAction(event.id, "publish") : undefined}
                   onUnpublish={event.status === "published" ? () => void runAction(event.id, "unpublish") : undefined}
                   onCancel={event.status === "published" ? () => void runAction(event.id, "cancel") : undefined}

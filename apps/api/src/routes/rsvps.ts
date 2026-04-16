@@ -4,6 +4,7 @@ import { z } from "zod";
 import { rsvpRequestSchema } from "@dr-events/shared";
 import { createRsvp, deleteRsvp, getRsvpStatus, getRsvpCount, listUserRsvps } from "../db/rsvpRepo";
 import { resolveUserId } from "../middleware/ownership";
+import { recordActivity } from "../services/activityLogger";
 import { logValidation } from "../utils/validationError";
 
 const rsvpRoutes: FastifyPluginAsync = async (app) => {
@@ -21,6 +22,12 @@ const rsvpRoutes: FastifyPluginAsync = async (app) => {
 
     const userId = await resolveUserId(app.db, auth);
     const row = await createRsvp(app.db, userId, parsed.data.eventId, parsed.data.occurrenceId);
+
+    recordActivity(app.db, request, {
+      action: "event.rsvp",
+      targetType: "event",
+      targetId: parsed.data.eventId,
+    });
 
     return {
       id: row.id,
@@ -48,6 +55,14 @@ const rsvpRoutes: FastifyPluginAsync = async (app) => {
 
     const userId = await resolveUserId(app.db, auth);
     const deleted = await deleteRsvp(app.db, userId, parsed.data, occurrenceId);
+
+    if (deleted) {
+      recordActivity(app.db, request, {
+        action: "event.rsvp_cancel",
+        targetType: "event",
+        targetId: parsed.data,
+      });
+    }
 
     return { deleted };
   });

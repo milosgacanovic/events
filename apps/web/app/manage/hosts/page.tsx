@@ -54,6 +54,7 @@ type HostItem = {
   role_keys: string[] | null;
   event_count: string | null;
   languages: string[] | null;
+  follower_count: number;
 };
 
 type HostsResponse = {
@@ -500,6 +501,7 @@ export default function MyHostsPage() {
                   roleKeys={host.role_keys}
                   eventCount={host.event_count}
                   languages={host.languages}
+                  followerCount={host.follower_count}
                   onPublish={host.status === "draft" ? () => void setHostStatus(host.id, "published") : undefined}
                   onUnpublish={host.status === "published" ? () => void setHostStatus(host.id, "draft") : undefined}
                   onArchive={host.status === "draft" ? () => void setHostStatus(host.id, "archived") : undefined}

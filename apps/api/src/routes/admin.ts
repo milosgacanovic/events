@@ -3,8 +3,11 @@ import { DateTime } from "luxon";
 import { z } from "zod";
 
 import { listActivityLogs, listActivityActors, getActivityLogById, listErrorLogs, getErrorLogById } from "../db/activityLogRepo";
+import { listModerationItems, getModerationStats, getModerationDetail, updateStatus as updateModerationStatus } from "../db/moderationRepo";
+import { listRecommendations, getRecommendationStats } from "../db/recommendationRepo";
 import { recordActivity } from "../services/activityLogger";
 import { runAlertsDry } from "../db/alertRepo";
+import { getSetting, updateSetting } from "../db/settingsRepo";
 import { OCCURRENCES_INDEX } from "../services/meiliService";
 import {
   createEventFormat,
@@ -24,12 +27,14 @@ import {
 import {
   getUserLinkedEvents,
   getUserLinkedHosts,
+  getUserDetail,
   listUsersWithRoles,
   linkUserToHost,
   unlinkUserFromHost,
   linkUserToEvent,
   unlinkUserFromEvent,
   updateUserNote,
+  suspendUser,
 } from "../db/userManageRepo";
 import { getUiLabels, updateUiLabels } from "../db/uiLabelRepo";
 import { resolveUserId } from "../middleware/ownership";
@@ -410,6 +415,43 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     return { ok: true };
   });
 
+  // User detail — full engagement data
+  app.get("/admin/users/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
+
+    const detail = await getUserDetail(app.db, params.data.id);
+    if (!detail) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+    return detail;
+  });
+
+  // Suspend / unsuspend user
+  app.patch("/admin/users/:id/suspend", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
+    const body = z.object({ suspended: z.boolean() }).safeParse(request.body);
+    if (!body.success) { reply.code(400); return logValidation(request, body.error); }
+
+    const result = await suspendUser(app.db, params.data.id, body.data.suspended);
+    if (!result) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    recordActivity(app.db, request, {
+      action: body.data.suspended ? "user.suspended" : "user.unsuspended",
+      targetType: "user",
+      targetId: params.data.id,
+    });
+
+    return { ok: true, suspendedAt: result.suspended_at };
+  });
+
   app.get("/admin/users/:id/hosts", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
@@ -652,6 +694,234 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const log = await getErrorLogById(app.db, params.data.id);
     if (!log) { reply.code(404); return { error: "not_found" }; }
     return log;
+  });
+
+  // ── Admin Notifications ──────────────────────────────────────────────
+  app.get("/admin/notifications/overview", async (request) => {
+    await app.requireAdmin(request);
+    const [totalRes, activeRes, pausedRes] = await Promise.all([
+      app.db.query<{ count: string }>("select count(*)::text as count from user_alerts"),
+      app.db.query<{ count: string }>("select count(*)::text as count from user_alerts where unsubscribed_at is null"),
+      app.db.query<{ count: string }>("select count(*)::text as count from user_alerts where unsubscribed_at is not null"),
+    ]);
+    return {
+      totalAlerts: Number(totalRes.rows[0]?.count ?? "0"),
+      activeAlerts: Number(activeRes.rows[0]?.count ?? "0"),
+      pausedAlerts: Number(pausedRes.rows[0]?.count ?? "0"),
+    };
+  });
+
+  app.get("/admin/notifications/alerts", async (request) => {
+    await app.requireAdmin(request);
+    const query = request.query as { page?: string; pageSize?: string; status?: string; q?: string };
+    const page = Math.max(Number(query.page) || 1, 1);
+    const pageSize = Math.min(Math.max(Number(query.pageSize) || 20, 1), 100);
+    const offset = (page - 1) * pageSize;
+
+    const whereParts: string[] = [];
+    const values: unknown[] = [];
+
+    if (query.status === "active") {
+      whereParts.push("ua.unsubscribed_at is null");
+    } else if (query.status === "paused") {
+      whereParts.push("ua.unsubscribed_at is not null");
+    }
+
+    if (query.q) {
+      values.push(`%${query.q}%`);
+      const idx = values.length;
+      whereParts.push(`(u.display_name ilike $${idx} or u.email ilike $${idx} or o.name ilike $${idx})`);
+    }
+
+    const whereClause = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
+
+    const [itemsResult, totalResult] = await Promise.all([
+      app.db.query<{
+        id: string;
+        user_id: string;
+        user_name: string | null;
+        user_email: string | null;
+        organizer_id: string;
+        organizer_name: string;
+        radius_km: number;
+        location_label: string | null;
+        unsubscribed_at: string | null;
+        created_at: string;
+      }>(
+        `select ua.id, ua.user_id,
+                u.display_name as user_name, u.email as user_email,
+                ua.organizer_id, o.name as organizer_name,
+                ua.radius_km, ua.location_label,
+                ua.unsubscribed_at, ua.created_at
+         from user_alerts ua
+         join users u on u.id = ua.user_id
+         join organizers o on o.id = ua.organizer_id
+         ${whereClause}
+         order by ua.created_at desc
+         limit $${values.length + 1} offset $${values.length + 2}`,
+        [...values, pageSize, offset],
+      ),
+      app.db.query<{ count: string }>(
+        `select count(*)::text as count
+         from user_alerts ua
+         join users u on u.id = ua.user_id
+         join organizers o on o.id = ua.organizer_id
+         ${whereClause}`,
+        values,
+      ),
+    ]);
+
+    const total = Number(totalResult.rows[0]?.count ?? "0");
+    return {
+      items: itemsResult.rows.map((r) => ({
+        id: r.id,
+        userId: r.user_id,
+        userName: r.user_name,
+        userEmail: r.user_email,
+        organizerId: r.organizer_id,
+        organizerName: r.organizer_name,
+        radiusKm: r.radius_km,
+        locationLabel: r.location_label,
+        unsubscribedAt: r.unsubscribed_at,
+        createdAt: r.created_at,
+      })),
+      pagination: { page, pageSize, totalPages: Math.max(Math.ceil(total / pageSize), 1), totalItems: total },
+    };
+  });
+
+  app.patch("/admin/notifications/alerts/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
+
+    const bodySchema = z.object({
+      action: z.enum(["pause", "resume", "delete"]),
+    });
+    const body = bodySchema.safeParse(request.body);
+    if (!body.success) { reply.code(400); return logValidation(request, body.error); }
+
+    const { id } = params.data;
+    const { action } = body.data;
+
+    if (action === "delete") {
+      const result = await app.db.query("delete from user_alerts where id = $1::uuid returning id", [id]);
+      if ((result.rowCount ?? 0) === 0) { reply.code(404); return { error: "not_found" }; }
+      recordActivity(app.db, request, { action: "alert.delete", targetType: "alert", targetId: id });
+      return { deleted: true };
+    }
+
+    const paused = action === "pause";
+    const result = await app.db.query<{ id: string }>(
+      `update user_alerts set unsubscribed_at = $2 where id = $1::uuid returning id`,
+      [id, paused ? new Date().toISOString() : null],
+    );
+    if ((result.rowCount ?? 0) === 0) { reply.code(404); return { error: "not_found" }; }
+    recordActivity(app.db, request, { action: paused ? "alert.pause" : "alert.resume", targetType: "alert", targetId: id });
+    return { ok: true, paused };
+  });
+
+  // ── Enhanced Moderation ──────────────────────────────────────────────
+  app.get("/admin/moderation", async (request) => {
+    await app.requireAdmin(request);
+    const query = request.query as { type?: string; status?: string; search?: string; page?: string; pageSize?: string };
+    const result = await listModerationItems(app.db, {
+      type: query.type || undefined,
+      status: query.status || undefined,
+      search: query.search || undefined,
+      page: Number(query.page) || 1,
+      pageSize: Number(query.pageSize) || 20,
+    });
+    return result;
+  });
+
+  app.get("/admin/moderation/stats", async (request) => {
+    await app.requireAdmin(request);
+    return getModerationStats(app.db);
+  });
+
+  app.get("/admin/moderation/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
+    const detail = await getModerationDetail(app.db, params.data.id);
+    if (!detail) { reply.code(404); return { error: "not_found" }; }
+    return detail;
+  });
+
+  app.patch("/admin/moderation/:id", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
+
+    const bodySchema = z.object({
+      status: z.enum(["approved", "rejected", "dismissed"]),
+      note: z.string().optional(),
+    });
+    const body = bodySchema.safeParse(request.body);
+    if (!body.success) { reply.code(400); return logValidation(request, body.error); }
+
+    const auth = request.auth;
+    if (!auth?.sub) throw app.httpErrors.unauthorized();
+    const userId = await resolveUserId(app.db, auth);
+
+    const updated = await updateModerationStatus(app.db, params.data.id, body.data.status, userId, body.data.note);
+    if (!updated) { reply.code(404); return { error: "not_found" }; }
+
+    // Side-effect: update the underlying item status
+    if (updated.item_type === "comment") {
+      const commentStatus = body.data.status === "approved" ? "approved" : body.data.status === "rejected" ? "hidden" : "pending";
+      await app.db.query("update comments set status = $2 where id = $1::uuid", [updated.item_id, commentStatus]);
+    }
+
+    recordActivity(app.db, request, {
+      action: `moderation.${body.data.status}`,
+      targetType: updated.item_type,
+      targetId: updated.item_id,
+    });
+
+    return updated;
+  });
+
+  // ── Moderation Settings ──────────────────────────────────────────────
+  app.get("/admin/settings/moderation", async (request) => {
+    await app.requireAdmin(request);
+    const settings = await getSetting(app.db, "moderation");
+    return settings ?? { enabled: true, bannedWords: [], rateLimit: 10 };
+  });
+
+  app.patch("/admin/settings/moderation", async (request) => {
+    await app.requireAdmin(request);
+    const bodySchema = z.object({
+      enabled: z.boolean().optional(),
+      bannedWords: z.array(z.string()).optional(),
+      rateLimit: z.number().int().min(1).optional(),
+    });
+    const body = bodySchema.safeParse(request.body);
+    if (!body.success) return { error: "invalid_body" };
+
+    const current = (await getSetting<Record<string, unknown>>(app.db, "moderation")) ?? {};
+    const merged = { ...current, ...body.data };
+    const updated = await updateSetting(app.db, "moderation", merged);
+
+    recordActivity(app.db, request, { action: "settings.update", targetType: "settings", targetId: "moderation" });
+    return updated;
+  });
+
+  // ── Admin Recommendations ────────────────────────────────────────────
+  app.get("/admin/recommendations", async (request) => {
+    await app.requireAdmin(request);
+    const query = request.query as { page?: string; pageSize?: string; sender?: string; recipient?: string };
+    return listRecommendations(app.db, {
+      page: Number(query.page) || 1,
+      pageSize: Number(query.pageSize) || 20,
+      senderSearch: query.sender || undefined,
+      recipientSearch: query.recipient || undefined,
+    });
+  });
+
+  app.get("/admin/recommendations/stats", async (request) => {
+    await app.requireAdmin(request);
+    return getRecommendationStats(app.db);
   });
 
 };

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { createRecommendation, countDailyRecommendations } from "../db/recommendationRepo";
 import { resolveUserId } from "../middleware/ownership";
+import { recordActivity } from "../services/activityLogger";
 import { sendEmail } from "../services/emailService";
 import { buildRecommendEmailHtml } from "../services/recommendEmailTemplate";
 
@@ -80,6 +81,12 @@ const recommendationRoutes: FastifyPluginAsync = async (app) => {
       html,
       request.log,
     );
+
+    recordActivity(app.db, request, {
+      action: "recommendation.send",
+      targetType: "event",
+      targetId: eventIdParsed.data,
+    });
 
     return { id: rec.id, sentAt: rec.sent_at };
   });

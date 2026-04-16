@@ -4,6 +4,7 @@ import { z } from "zod";
 import { saveEventRequestSchema } from "@dr-events/shared";
 import { saveEvent, unsaveEvent, isSaved, listSavedEvents, savedEventIds } from "../db/savedEventRepo";
 import { resolveUserId } from "../middleware/ownership";
+import { recordActivity } from "../services/activityLogger";
 import { logValidation } from "../utils/validationError";
 
 const savedEventsRoutes: FastifyPluginAsync = async (app) => {
@@ -27,6 +28,12 @@ const savedEventsRoutes: FastifyPluginAsync = async (app) => {
       parsed.data.occurrenceId,
       parsed.data.scope,
     );
+
+    recordActivity(app.db, request, {
+      action: "event.save",
+      targetType: "event",
+      targetId: parsed.data.eventId,
+    });
 
     return {
       id: row.id,
@@ -55,6 +62,14 @@ const savedEventsRoutes: FastifyPluginAsync = async (app) => {
 
     const userId = await resolveUserId(app.db, auth);
     const deleted = await unsaveEvent(app.db, userId, parsed.data, occurrenceId);
+
+    if (deleted) {
+      recordActivity(app.db, request, {
+        action: "event.unsave",
+        targetType: "event",
+        targetId: parsed.data,
+      });
+    }
 
     return { deleted };
   });

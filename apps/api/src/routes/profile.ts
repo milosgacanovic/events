@@ -10,6 +10,7 @@ import {
   updateUserAlert,
 } from "../db/alertRepo";
 import { getUserProfileBySub, updateUserProfileBySub } from "../db/userRepo";
+import { recordActivity } from "../services/activityLogger";
 import { logValidation } from "../utils/validationError";
 
 const nullableString = (max: number) =>
@@ -166,6 +167,13 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
       city: parsed.data.city ?? null,
       countryCode: parsed.data.countryCode ?? null,
     });
+
+    recordActivity(app.db, request, {
+      action: "host.follow",
+      targetType: "organizer",
+      targetId: parsed.data.organizerId,
+    });
+
     reply.code(201);
     return {
       id: created.id,
@@ -241,6 +249,13 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
       reply.code(404);
       return { error: "not_found" };
     }
+
+    recordActivity(app.db, request, {
+      action: "host.unfollow",
+      targetType: "organizer",
+      targetId: removed.organizer_id,
+    });
+
     return {
       ok: true,
       removedAt: DateTime.utc().toISO(),

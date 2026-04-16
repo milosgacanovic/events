@@ -165,16 +165,17 @@ export async function getAlertForOrganizer(
   return result.rows[0] ?? null;
 }
 
-export async function deleteUserAlert(pool: Pool, userId: string, alertId: string): Promise<boolean> {
-  const result = await pool.query(
+export async function deleteUserAlert(pool: Pool, userId: string, alertId: string): Promise<{ organizer_id: string } | null> {
+  const result = await pool.query<{ organizer_id: string }>(
     `
       delete from user_alerts
       where id = $1::uuid
         and user_id = $2::uuid
+      returning organizer_id
     `,
     [alertId, userId],
   );
-  return (result.rowCount ?? 0) > 0;
+  return result.rows[0] ?? null;
 }
 
 export async function unsubscribeByToken(pool: Pool, token: string): Promise<UserAlertRow | null> {

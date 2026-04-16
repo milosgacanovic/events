@@ -41,6 +41,10 @@ type ManageEventCardProps = {
   onDelete?: () => void;
   onReattach?: () => void;
   onMakePublic?: () => void;
+  saveCount?: number;
+  rsvpCount?: number;
+  commentCount?: number;
+  reportCount?: number;
 };
 
 function resolveImageUrl(path: string | null | undefined): string | null {
@@ -79,6 +83,10 @@ export function ManageEventCard({
   onDelete,
   onReattach,
   onMakePublic,
+  saveCount,
+  rsvpCount,
+  commentCount,
+  reportCount,
 }: ManageEventCardProps) {
   const { t, locale } = useI18n();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
@@ -295,6 +303,29 @@ export function ManageEventCard({
         {tags && tags.length > 0 && tags.map((tag) => (
           <span key={tag} className="tag tag-tag">{t(`tag.${tag.replace(/ /g, "-")}`)}</span>
         ))}
+        {(saveCount != null && saveCount > 0) && (
+          <span className="tag" style={{ fontSize: "0.65rem", gap: 3, display: "inline-flex", alignItems: "center" }} title={t("manage.admin.events.saveCount")}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3C6.5 1.5 3.5 1 2 3.5S2.5 8.5 8 13c5.5-4.5 7-6.5 6-9S9.5 1.5 8 3z"/></svg>
+            {saveCount}
+          </span>
+        )}
+        {(rsvpCount != null && rsvpCount > 0) && (
+          <span className="tag" style={{ fontSize: "0.65rem", gap: 3, display: "inline-flex", alignItems: "center" }} title={t("manage.admin.events.rsvpCount")}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 7.5V3.5a1 1 0 0 1 2 0v4"/><path d="M8 4V2.5a1 1 0 0 1 2 0V7"/><path d="M10 5.5V4.5a1 1 0 0 1 2 0V9a4.5 4.5 0 0 1-4.5 4.5A4 4 0 0 1 3.5 9.5V8a1 1 0 0 1 2 0v.5"/></svg>
+            {rsvpCount}
+          </span>
+        )}
+        {(commentCount != null && commentCount > 0) && (
+          <span className="tag" style={{ fontSize: "0.65rem", gap: 3, display: "inline-flex", alignItems: "center" }} title={t("manage.admin.events.commentCount")}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h12v8H6l-4 3V3z"/></svg>
+            {commentCount}
+          </span>
+        )}
+        {(reportCount != null && reportCount > 0) && (
+          <span className="tag" style={{ fontSize: "0.65rem", gap: 3, display: "inline-flex", alignItems: "center", background: "#fef2f2", borderColor: "#dc2626", color: "#dc2626" }} title={t("manage.admin.events.reportCount")}>
+            ! {reportCount}
+          </span>
+        )}
       </div>
         </>
       )}

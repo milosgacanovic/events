@@ -189,6 +189,8 @@ export async function listManagedEvents(
       event_timezone: string | null;
       host_names: string | null;
       created_by_name: string | null;
+      save_count: number;
+      rsvp_count: number;
     }>(
       `
         ${ownershipCte}
@@ -206,7 +208,9 @@ export async function listManagedEvents(
           coalesce(next_occ.ends_at_utc, e.single_end_at) as next_ends_at,
           e.event_timezone,
           hosts_sub.host_names,
-          u.display_name as created_by_name
+          u.display_name as created_by_name,
+          coalesce(eng.save_count, 0)::int as save_count,
+          coalesce(eng.rsvp_count, 0)::int as rsvp_count
         from events e
         join managed_event_ids m on m.id = e.id
         left join practices pc on pc.id = e.practice_category_id
@@ -231,6 +235,11 @@ export async function listManagedEvents(
           limit 1
         ) next_occ on true
         left join users u on u.id = e.created_by_user_id
+        left join lateral (
+          select
+            (select count(*) from saved_events se where se.event_id = e.id) as save_count,
+            (select count(*) from event_rsvps r where r.event_id = e.id) as rsvp_count
+        ) eng on true
         where 1=1 ${extraWhere}
         order by ${orderBy}
         limit $${values.length + 1}
@@ -380,6 +389,7 @@ export async function listManagedOrganizers(
       role_labels: string | null;
       role_keys: string[] | null;
       event_count: string | null;
+      follower_count: number;
     }>(
       `
         ${ownershipCte}
@@ -390,7 +400,8 @@ export async function listManagedOrganizers(
           practice_sub.practice_labels,
           role_sub.role_labels,
           role_sub.role_keys,
-          event_count_sub.event_count
+          event_count_sub.event_count,
+          coalesce(follower_sub.follower_count, 0)::int as follower_count
         from organizers o
         join managed_org_ids m on m.id = o.id
         left join lateral (
@@ -412,6 +423,11 @@ export async function listManagedOrganizers(
           from event_organizers eo
           where eo.organizer_id = o.id
         ) event_count_sub on true
+        left join lateral (
+          select count(*) as follower_count
+          from user_alerts ua
+          where ua.organizer_id = o.id and ua.unsubscribed_at is null
+        ) follower_sub on true
         where 1=1 ${extraWhere}
         order by ${orderBy}
         limit $${values.length + 1}
@@ -943,11 +959,15 @@ export async function getDashboardStats(
 }
 
 export async function getAdminDashboardStats(pool: Pool) {
-  const [events, hosts, editors, pendingApps] = await Promise.all([
+  const [events, hosts, editors, pendingApps, pendingMod, activeAlerts, totalSaves, totalRsvps] = await Promise.all([
     pool.query<{ count: string }>(`select count(*)::text as count from events`),
     pool.query<{ count: string }>(`select count(*)::text as count from organizers`),
     pool.query<{ count: string }>(`select count(*)::text as count from users`),
     pool.query<{ count: string }>(`select count(*)::text as count from editor_applications where status = 'pending'`),
+    pool.query<{ count: string }>(`select count(*)::text as count from moderation_queue where status = 'pending'`),
+    pool.query<{ count: string }>(`select count(*)::text as count from user_alerts where unsubscribed_at is null`),
+    pool.query<{ count: string }>(`select count(*)::text as count from saved_events`),
+    pool.query<{ count: string }>(`select count(*)::text as count from event_rsvps`),
   ]);
 
   return {
@@ -955,6 +975,10 @@ export async function getAdminDashboardStats(pool: Pool) {
     totalHostsCount: Number(hosts.rows[0]?.count ?? "0"),
     totalUsersCount: Number(editors.rows[0]?.count ?? "0"),
     pendingApplicationsCount: Number(pendingApps.rows[0]?.count ?? "0"),
+    pendingModerationCount: Number(pendingMod.rows[0]?.count ?? "0"),
+    activeAlertsCount: Number(activeAlerts.rows[0]?.count ?? "0"),
+    totalSavesCount: Number(totalSaves.rows[0]?.count ?? "0"),
+    totalRsvpsCount: Number(totalRsvps.rows[0]?.count ?? "0"),
   };
 }
 

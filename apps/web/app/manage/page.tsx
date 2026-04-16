@@ -27,6 +27,10 @@ type DashboardData = {
     totalHostsCount: number;
     totalUsersCount: number;
     pendingApplicationsCount: number;
+    pendingModerationCount: number;
+    activeAlertsCount: number;
+    totalSavesCount: number;
+    totalRsvpsCount: number;
   };
 };
 
@@ -122,6 +126,30 @@ export default function ManageDashboard() {
             <div className="stat-value">{data.admin.pendingApplicationsCount}</div>
             <div className="stat-label">{t("manage.dashboard.pendingApplications")}</div>
           </Link>
+          <Link
+            href="/manage/admin/logs?action=moderation"
+            className="manage-stat-card"
+            style={{
+              textDecoration: "none",
+              color: "inherit",
+              border: data.admin.pendingModerationCount > 0 ? "2px solid var(--warning-border, #e6d88a)" : undefined,
+            }}
+          >
+            <div className="stat-value">{data.admin.pendingModerationCount}</div>
+            <div className="stat-label">{t("manage.dashboard.pendingModeration")}</div>
+          </Link>
+          <div className="manage-stat-card">
+            <div className="stat-value">{data.admin.activeAlertsCount}</div>
+            <div className="stat-label">{t("manage.dashboard.activeAlerts")}</div>
+          </div>
+          <div className="manage-stat-card">
+            <div className="stat-value">{data.admin.totalSavesCount}</div>
+            <div className="stat-label">{t("manage.dashboard.totalSaves")}</div>
+          </div>
+          <div className="manage-stat-card">
+            <div className="stat-value">{data.admin.totalRsvpsCount}</div>
+            <div className="stat-label">{t("manage.dashboard.totalRsvps")}</div>
+          </div>
         </div>
       ) : (
         <div className="manage-cards-grid">

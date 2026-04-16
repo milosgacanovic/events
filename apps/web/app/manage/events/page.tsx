@@ -73,6 +73,8 @@ type EventItem = {
   event_timezone: string | null;
   host_names: string | null;
   created_by_name: string | null;
+  save_count: number;
+  rsvp_count: number;
 };
 
 type EventsResponse = {
@@ -818,6 +820,8 @@ export default function MyEventsPage() {
                   nextEndsAt={event.next_ends_at}
                   eventTimezone={event.event_timezone}
                   hostNames={event.host_names}
+                  saveCount={event.save_count}
+                  rsvpCount={event.rsvp_count}
                   onPublish={event.status === "draft" ? () => void runAction(event.id, "publish") : undefined}
                   onUnpublish={event.status === "published" ? () => void runAction(event.id, "unpublish") : undefined}
                   onCancel={event.status === "published" ? () => void runAction(event.id, "cancel") : undefined}

@@ -10,6 +10,7 @@ import {
 } from "../db/commentRepo";
 import { createQueueEntry } from "../db/moderationRepo";
 import { resolveUserId } from "../middleware/ownership";
+import { recordActivity } from "../services/activityLogger";
 
 const COMMENT_RATE_LIMIT = 5; // per hour
 
@@ -70,6 +71,12 @@ const commentRoutes: FastifyPluginAsync = async (app) => {
     // Add to moderation queue
     await createQueueEntry(app.db, "comment", comment.id);
 
+    recordActivity(app.db, request, {
+      action: "comment.create",
+      targetType: "event",
+      targetId: eventIdParsed.data,
+    });
+
     return {
       id: comment.id,
       eventId: comment.event_id,
@@ -113,6 +120,13 @@ const commentRoutes: FastifyPluginAsync = async (app) => {
 
     const userId = await resolveUserId(app.db, auth);
     const deleted = await deleteComment(app.db, userId, idParsed.data);
+    if (deleted) {
+      recordActivity(app.db, request, {
+        action: "comment.delete",
+        targetType: "comment",
+        targetId: idParsed.data,
+      });
+    }
     return { deleted };
   });
 

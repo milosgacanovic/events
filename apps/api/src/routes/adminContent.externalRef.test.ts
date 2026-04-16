@@ -107,6 +107,10 @@ describe("admin content external ref filters", () => {
           event_timezone: null,
           host_names: null,
           created_by_name: null,
+          save_count: 0,
+          rsvp_count: 0,
+          comment_count: 0,
+          report_count: 0,
         },
       ],
       pagination: {

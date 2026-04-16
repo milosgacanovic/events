@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createEditSuggestion } from "../db/editSuggestionRepo";
 import { createQueueEntry } from "../db/moderationRepo";
 import { resolveUserId } from "../middleware/ownership";
+import { recordActivity } from "../services/activityLogger";
 
 const suggestionCategorySchema = z.enum([
   "name", "datetime", "location", "description", "host", "practice", "other",
@@ -39,6 +40,12 @@ const editSuggestionRoutes: FastifyPluginAsync = async (app) => {
     );
 
     await createQueueEntry(app.db, "suggestion", suggestion.id);
+
+    recordActivity(app.db, request, {
+      action: "suggestion.create",
+      targetType: parsed.data.targetType,
+      targetId: parsed.data.targetId,
+    });
 
     return {
       id: suggestion.id,

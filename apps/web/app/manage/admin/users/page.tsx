@@ -5,6 +5,8 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 import { ROLE_ADMIN, ROLE_EDITOR } from "@dr-events/shared";
 
+import Link from "next/link";
+
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
 import { authorizedDelete, authorizedGet, authorizedPatch, authorizedPost } from "../../../../lib/manageApi";
@@ -17,6 +19,12 @@ type UserItem = {
   created_at: string;
   host_count: number;
   event_count: number;
+  save_count: number;
+  rsvp_count: number;
+  follow_count: number;
+  comment_count: number;
+  alert_count: number;
+  suspended_at: string | null;
   keycloak_roles?: string[];
   is_service_account?: boolean;
   admin_notes?: string;
@@ -30,7 +38,7 @@ type UsersResponse = {
 type LinkedHost = { id: string; organizer_id: string; organizer_name: string };
 type LinkedEvent = { id: string; title: string; status: string };
 
-type SortKey = "created" | "name" | "email" | "hosts" | "events";
+type SortKey = "created" | "name" | "email" | "hosts" | "events" | "saves" | "rsvps" | "follows" | "comments";
 
 export default function AdminUsersPage() {
   const { getToken } = useKeycloakAuth();
@@ -246,6 +254,25 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function toggleSuspend(userId: string, currentlySuspended: boolean) {
+    if (currentlySuspended) {
+      try {
+        await authorizedPatch(getToken, `/admin/users/${userId}/suspend`, { suspended: false });
+        void load();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to unsuspend user");
+      }
+    } else {
+      if (!confirm(t("manage.admin.users.confirmSuspend"))) return;
+      try {
+        await authorizedPatch(getToken, `/admin/users/${userId}/suspend`, { suspended: true });
+        void load();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to suspend user");
+      }
+    }
+  }
+
   // ── Notes ──
   function openNoteEdit(user: UserItem) {
     setNoteUserId(user.id);
@@ -294,6 +321,7 @@ export default function AdminUsersPage() {
               { value: "", label: t("manage.admin.users.allRoles") },
               { value: "admin", label: "Admin" },
               { value: "editor", label: "Editor" },
+              { value: "suspended", label: t("manage.admin.users.suspended") },
             ] as const).map((opt) => (
               <button
                 key={opt.value}
@@ -360,6 +388,34 @@ export default function AdminUsersPage() {
                     {t("manage.admin.users.events")}
                     <span className="sort-arrow">{sortArrow("events")}</span>
                   </th>
+                  <th
+                    className={`sortable text-center${sort === "saves" ? " sorted" : ""}`}
+                    onClick={() => handleSort("saves")}
+                  >
+                    {t("manage.admin.users.saves")}
+                    <span className="sort-arrow">{sortArrow("saves")}</span>
+                  </th>
+                  <th
+                    className={`sortable text-center${sort === "rsvps" ? " sorted" : ""}`}
+                    onClick={() => handleSort("rsvps")}
+                  >
+                    {t("manage.admin.users.rsvps")}
+                    <span className="sort-arrow">{sortArrow("rsvps")}</span>
+                  </th>
+                  <th
+                    className={`sortable text-center${sort === "follows" ? " sorted" : ""}`}
+                    onClick={() => handleSort("follows")}
+                  >
+                    {t("manage.admin.users.follows")}
+                    <span className="sort-arrow">{sortArrow("follows")}</span>
+                  </th>
+                  <th
+                    className={`sortable text-center${sort === "comments" ? " sorted" : ""}`}
+                    onClick={() => handleSort("comments")}
+                  >
+                    {t("manage.admin.users.commentsCol")}
+                    <span className="sort-arrow">{sortArrow("comments")}</span>
+                  </th>
                   <th>{t("manage.admin.users.notes")}</th>
                   <th
                     className={`sortable${sort === "created" ? " sorted" : ""}`}
@@ -376,10 +432,17 @@ export default function AdminUsersPage() {
                   <tr key={user.id}>
                     <td>
                       <div>
-                        {user.display_name ?? user.keycloak_sub.slice(0, 16)}
+                        <Link href={`/manage/admin/users/${user.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+                          {user.display_name ?? user.keycloak_sub.slice(0, 16)}
+                        </Link>
                         {user.is_service_account && (
                           <span className="tag" style={{ fontSize: "0.65rem", marginLeft: 6, verticalAlign: "middle", background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }}>
                             {t("manage.admin.users.serviceAccount")}
+                          </span>
+                        )}
+                        {user.suspended_at && (
+                          <span className="tag" style={{ fontSize: "0.65rem", marginLeft: 6, verticalAlign: "middle", background: "#fef2f2", borderColor: "#dc2626", color: "#dc2626" }}>
+                            {t("manage.admin.users.suspended")}
                           </span>
                         )}
                       </div>
@@ -398,6 +461,10 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="text-center">{user.host_count}</td>
                     <td className="text-center">{user.event_count}</td>
+                    <td className="text-center">{user.save_count || "\u2014"}</td>
+                    <td className="text-center">{user.rsvp_count || "\u2014"}</td>
+                    <td className="text-center">{user.follow_count || "\u2014"}</td>
+                    <td className="text-center">{user.comment_count || "\u2014"}</td>
                     <td className="note-cell">
                       <div className="note-cell-inner" onClick={() => openNoteEdit(user)} title={user.admin_notes || t("manage.admin.users.notePlaceholder")}>
                         {user.admin_notes ? (
@@ -424,6 +491,13 @@ export default function AdminUsersPage() {
                           title={user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
                         >
                           {user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void toggleSuspend(user.id, !!user.suspended_at)}
+                          style={user.suspended_at ? {} : { color: "var(--danger, #c53030)" }}
+                        >
+                          {user.suspended_at ? t("manage.admin.users.unsuspend") : t("manage.admin.users.suspend")}
                         </button>
                       </div>
                     </td>

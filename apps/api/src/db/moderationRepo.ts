@@ -64,3 +64,172 @@ export async function updateStatus(
   );
   return result.rows[0] ?? null;
 }
+
+// ── Enhanced admin queries ────────────────────────────────────────────
+
+export type ModerationListInput = {
+  type?: string;
+  status?: string;
+  search?: string;
+  page: number;
+  pageSize: number;
+};
+
+export type ModerationDetailRow = ModerationQueueRow & {
+  moderator_name: string | null;
+  // comment fields (when item_type = 'comment')
+  comment_body: string | null;
+  comment_user_name: string | null;
+  comment_event_title: string | null;
+  // suggestion fields (when item_type = 'edit_suggestion')
+  suggestion_category: string | null;
+  suggestion_value: string | null;
+  suggestion_user_name: string | null;
+  suggestion_event_title: string | null;
+  // report fields (when item_type = 'report')
+  report_reason: string | null;
+  report_detail: string | null;
+  reporter_name: string | null;
+  report_target_type: string | null;
+  report_target_label: string | null;
+};
+
+export async function listModerationItems(
+  pool: Pool,
+  input: ModerationListInput,
+) {
+  const page = Math.max(input.page, 1);
+  const pageSize = Math.min(Math.max(input.pageSize, 1), 100);
+  const offset = (page - 1) * pageSize;
+
+  const whereParts: string[] = [];
+  const values: unknown[] = [];
+
+  if (input.type) {
+    values.push(input.type);
+    whereParts.push(`mq.item_type = $${values.length}`);
+  }
+  if (input.status) {
+    values.push(input.status);
+    whereParts.push(`mq.status = $${values.length}`);
+  }
+  if (input.search) {
+    values.push(`%${input.search}%`);
+    const idx = values.length;
+    whereParts.push(`(
+      c.body ilike $${idx} or cu.display_name ilike $${idx}
+      or es.suggestion_value ilike $${idx} or esu.display_name ilike $${idx}
+      or r.detail ilike $${idx} or ru.display_name ilike $${idx}
+    )`);
+  }
+
+  const whereClause = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
+
+  const [itemsRes, totalRes] = await Promise.all([
+    pool.query<ModerationDetailRow>(
+      `select
+         mq.id, mq.item_type, mq.item_id, mq.status,
+         mq.moderator_id, mq.moderator_note, mq.reviewed_at, mq.created_at,
+         mod.display_name as moderator_name,
+         c.body as comment_body,
+         cu.display_name as comment_user_name,
+         ce.title as comment_event_title,
+         es.category as suggestion_category,
+         es.suggestion_value,
+         esu.display_name as suggestion_user_name,
+         ese.title as suggestion_event_title,
+         r.reason as report_reason,
+         r.detail as report_detail,
+         ru.display_name as reporter_name,
+         r.target_type as report_target_type,
+         coalesce(re.title, ro.name) as report_target_label
+       from moderation_queue mq
+       left join users mod on mod.id = mq.moderator_id
+       left join comments c on mq.item_type = 'comment' and c.id = mq.item_id::uuid
+       left join users cu on cu.id = c.user_id
+       left join events ce on ce.id = c.event_id
+       left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id::uuid
+       left join users esu on esu.id = es.user_id
+       left join events ese on ese.id = es.event_id
+       left join reports r on mq.item_type = 'report' and r.id = mq.item_id::uuid
+       left join users ru on ru.id = r.reporter_user_id
+       left join events re on r.target_type = 'event' and re.id = r.target_id::uuid
+       left join organizers ro on r.target_type = 'organizer' and ro.id = r.target_id::uuid
+       ${whereClause}
+       order by mq.created_at desc
+       limit $${values.length + 1} offset $${values.length + 2}`,
+      [...values, pageSize, offset],
+    ),
+    pool.query<{ count: string }>(
+      `select count(*)::text as count
+       from moderation_queue mq
+       left join comments c on mq.item_type = 'comment' and c.id = mq.item_id::uuid
+       left join users cu on cu.id = c.user_id
+       left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id::uuid
+       left join users esu on esu.id = es.user_id
+       left join reports r on mq.item_type = 'report' and r.id = mq.item_id::uuid
+       left join users ru on ru.id = r.reporter_user_id
+       ${whereClause}`,
+      values,
+    ),
+  ]);
+
+  const total = Number(totalRes.rows[0]?.count ?? "0");
+  return {
+    items: itemsRes.rows,
+    pagination: { page, pageSize, totalPages: Math.max(Math.ceil(total / pageSize), 1), totalItems: total },
+  };
+}
+
+export async function getModerationStats(pool: Pool) {
+  const result = await pool.query<{ item_type: string; status: string; count: string }>(
+    `select item_type, status, count(*)::text as count
+     from moderation_queue
+     group by item_type, status`,
+  );
+  const stats: Record<string, Record<string, number>> = {};
+  for (const row of result.rows) {
+    if (!stats[row.item_type]) stats[row.item_type] = {};
+    stats[row.item_type][row.status] = Number(row.count);
+  }
+  return stats;
+}
+
+export async function getModerationDetail(
+  pool: Pool,
+  id: string,
+): Promise<ModerationDetailRow | null> {
+  const result = await pool.query<ModerationDetailRow>(
+    `select
+       mq.id, mq.item_type, mq.item_id, mq.status,
+       mq.moderator_id, mq.moderator_note, mq.reviewed_at, mq.created_at,
+       mod.display_name as moderator_name,
+       c.body as comment_body,
+       cu.display_name as comment_user_name,
+       ce.title as comment_event_title,
+       es.category as suggestion_category,
+       es.suggestion_value,
+       esu.display_name as suggestion_user_name,
+       ese.title as suggestion_event_title,
+       r.reason as report_reason,
+       r.detail as report_detail,
+       ru.display_name as reporter_name,
+       r.target_type as report_target_type,
+       coalesce(re.title, ro.name) as report_target_label
+     from moderation_queue mq
+     left join users mod on mod.id = mq.moderator_id
+     left join comments c on mq.item_type = 'comment' and c.id = mq.item_id::uuid
+     left join users cu on cu.id = c.user_id
+     left join events ce on ce.id = c.event_id
+     left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id::uuid
+     left join users esu on esu.id = es.user_id
+     left join events ese on ese.id = es.event_id
+     left join reports r on mq.item_type = 'report' and r.id = mq.item_id::uuid
+     left join users ru on ru.id = r.reporter_user_id
+     left join events re on r.target_type = 'event' and re.id = r.target_id::uuid
+     left join organizers ro on r.target_type = 'organizer' and ro.id = r.target_id::uuid
+     where mq.id = $1::uuid`,
+    [id],
+  );
+  return result.rows[0] ?? null;
+}

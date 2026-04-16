@@ -68,14 +68,38 @@ const ACTION_OPTIONS = [
   { value: "host.delete", label: "Host deleted" },
   { value: "user.role_change", label: "User role changed" },
   { value: "user.service_account_change", label: "Service account toggle" },
+  { value: "user.suspended", label: "User suspended" },
+  { value: "user.unsuspended", label: "User unsuspended" },
   { value: "ownership.replace", label: "Ownership replaced" },
+  { value: "event.save", label: "Event saved" },
+  { value: "event.unsave", label: "Event unsaved" },
+  { value: "host.follow", label: "Host followed" },
+  { value: "host.unfollow", label: "Host unfollowed" },
+  { value: "event.rsvp", label: "Event RSVP" },
+  { value: "event.rsvp_cancel", label: "RSVP cancelled" },
+  { value: "alert.pause", label: "Alert paused" },
+  { value: "alert.resume", label: "Alert resumed" },
+  { value: "alert.delete", label: "Alert deleted" },
+  { value: "comment.create", label: "Comment created" },
+  { value: "comment.delete", label: "Comment deleted" },
+  { value: "suggestion.create", label: "Suggestion created" },
+  { value: "report.create", label: "Report filed" },
+  { value: "recommendation.send", label: "Recommendation sent" },
+  { value: "moderation.approved", label: "Moderation approved" },
+  { value: "moderation.rejected", label: "Moderation rejected" },
+  { value: "moderation.dismissed", label: "Moderation dismissed" },
+  { value: "settings.update", label: "Settings updated" },
 ];
 
 const TARGET_TYPE_OPTIONS = [
   { value: "", label: "All types" },
   { value: "event", label: "Event" },
   { value: "host", label: "Host" },
+  { value: "organizer", label: "Organizer" },
   { value: "user", label: "User" },
+  { value: "alert", label: "Alert" },
+  { value: "comment", label: "Comment" },
+  { value: "settings", label: "Settings" },
 ];
 
 const PAGE_SIZE = 20;

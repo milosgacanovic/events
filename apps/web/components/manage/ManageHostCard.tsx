@@ -38,6 +38,8 @@ type ManageHostCardProps = {
   onUnarchive?: () => void;
   onDelete?: () => void;
   onReattach?: () => void;
+  followerCount?: number;
+  reportCount?: number;
 };
 
 function resolveImageUrl(path: string | null | undefined): string | null {
@@ -70,6 +72,8 @@ export function ManageHostCard({
   onUnarchive,
   onDelete,
   onReattach,
+  followerCount,
+  reportCount,
 }: ManageHostCardProps) {
   const { t, locale } = useI18n();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
@@ -205,6 +209,17 @@ export function ManageHostCard({
         )}
         {eventCount && eventCount !== "0" && (
           <span className="tag manage-tag-imported">{t("manage.hostCard.events", { count: eventCount })}</span>
+        )}
+        {(followerCount != null && followerCount > 0) && (
+          <span className="tag" style={{ fontSize: "0.65rem", gap: 3, display: "inline-flex", alignItems: "center" }} title={t("manage.admin.hosts.followerCount")}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-5 6-5s6 1.7 6 5"/></svg>
+            {followerCount}
+          </span>
+        )}
+        {(reportCount != null && reportCount > 0) && (
+          <span className="tag" style={{ fontSize: "0.65rem", gap: 3, display: "inline-flex", alignItems: "center", background: "#fef2f2", borderColor: "#dc2626", color: "#dc2626" }} title={t("manage.admin.hosts.reportCount")}>
+            ! {reportCount}
+          </span>
         )}
         {isImported && !detachedFromImport && (
           <span className="tag manage-tag-imported">

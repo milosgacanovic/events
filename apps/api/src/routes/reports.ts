@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createReport, hasReported } from "../db/reportRepo";
 import { createQueueEntry } from "../db/moderationRepo";
 import { resolveUserId } from "../middleware/ownership";
+import { recordActivity } from "../services/activityLogger";
 
 const reportReasonSchema = z.enum([
   "spam", "duplicate", "wrong_info", "removed", "inappropriate", "other",
@@ -46,6 +47,12 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
     }
 
     await createQueueEntry(app.db, "report", report.id);
+
+    recordActivity(app.db, request, {
+      action: "report.create",
+      targetType: parsed.data.targetType,
+      targetId: parsed.data.targetId,
+    });
 
     return {
       id: report.id,

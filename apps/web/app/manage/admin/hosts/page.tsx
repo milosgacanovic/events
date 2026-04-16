@@ -42,6 +42,8 @@ type HostItem = {
   external_source: string | null;
   detached_from_import: boolean;
   created_by_name: string | null;
+  follower_count: number;
+  report_count: number;
 };
 
 type HostsResponse = {
@@ -60,6 +62,7 @@ export default function AdminAllHostsPage() {
   /* manage-specific */
   const [statusFilter, setStatusFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState(() => searchParams.get("sourceFilter") ?? "");
+  const [hasReports, setHasReports] = useState(false);
   /* public-matching filters */
   const [roleKeys, setRoleKeys] = useState<string[]>([]);
   const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>([]);
@@ -138,6 +141,7 @@ export default function AdminAllHostsPage() {
       if (countryCodes.length) params.set("countryCode", countryCodes.join(","));
       if (languages.length) params.set("languages", languages.join(","));
       if (cities.length) params.set("cities", cities.join(","));
+      if (hasReports) params.set("hasReports", "true");
       if (sortBy) params.set("sort", sortBy);
       const data = await authorizedGet<HostsResponse>(getToken, `/admin/organizers?${params}`);
       setHosts(data.items);
@@ -147,7 +151,7 @@ export default function AdminAllHostsPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, search, statusFilter, sourceFilter, practiceCategoryIds, roleKeys, countryCodes, languages, cities, sortBy]);
+  }, [getToken, page, search, statusFilter, sourceFilter, hasReports, practiceCategoryIds, roleKeys, countryCodes, languages, cities, sortBy]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -168,7 +172,7 @@ export default function AdminAllHostsPage() {
   const activeFilterCount = [
     statusFilter, sourceFilter,
     ...roleKeys, ...practiceCategoryIds, ...countryCodes, ...languages, ...cities,
-  ].filter(Boolean).length;
+  ].filter(Boolean).length + (hasReports ? 1 : 0);
 
   const statusOptions = useMemo(() => [
     { value: "draft", label: t("common.status.draft") },
@@ -180,6 +184,7 @@ export default function AdminAllHostsPage() {
     { value: "", label: t("manage.hosts.sortRecent") },
     { value: "created", label: t("manage.hosts.sortCreated") },
     { value: "name", label: t("manage.hosts.sortName") },
+    { value: "followers", label: t("manage.admin.hosts.sortFollowers") },
   ], [t]);
 
   function resetPage() { setPage(1); }
@@ -214,6 +219,18 @@ export default function AdminAllHostsPage() {
         {/* ── Manage-specific filters ── */}
         <StatusFilter options={statusOptions} value={statusFilter ? [statusFilter] : []} onChange={(v) => { setStatusFilter(v[0] || ""); resetPage(); }} />
         <SourceFilter value={sourceFilter} onChange={(v) => { setSourceFilter(v); resetPage(); }} />
+
+        {/* ── Reports toggle ── */}
+        <button
+          type="button"
+          className={"filter-row" + (hasReports ? " filter-row-selected" : "")}
+          onClick={() => { setHasReports((v) => !v); resetPage(); }}
+          style={{ marginTop: 8 }}
+        >
+          <span className="filter-row-icon">{hasReports ? "\u2212" : "+"}</span>
+          <span className="filter-row-label">{t("manage.admin.hosts.hasReports")}</span>
+          <span className="filter-row-count" />
+        </button>
 
         {/* ── Host Type ── */}
         <details open={hostTypeOpen} onToggle={(e) => setHostTypeOpen((e.currentTarget as HTMLDetailsElement).open)}>
@@ -413,6 +430,8 @@ export default function AdminAllHostsPage() {
                   isImported={host.external_source !== null && host.external_source !== ""}
                   detachedFromImport={host.detached_from_import}
                   createdByName={host.created_by_name}
+                  followerCount={host.follower_count}
+                  reportCount={host.report_count}
                   onPublish={host.status === "draft" ? () => void setHostStatus(host.id, "published") : undefined}
                   onUnpublish={host.status === "published" ? () => void setHostStatus(host.id, "draft") : undefined}
                   onArchive={host.status === "published" ? () => void setHostStatus(host.id, "archived") : undefined}
