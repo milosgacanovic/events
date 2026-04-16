@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 
 import { I18nProvider } from "../components/i18n/I18nProvider";
+import { LangQueryHandler } from "../components/i18n/LangQueryHandler";
 import { KeycloakAuthProvider } from "../components/auth/KeycloakAuthProvider";
 import { AppShell } from "../components/layout/AppShell";
 import { ToastProvider } from "../components/ToastProvider";
@@ -70,6 +71,7 @@ export default function RootLayout({
       </head>
       <body>
         <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KFG8MVPC" height="0" width="0" style={{ display: "none", visibility: "hidden" }} /></noscript>
+        <LangQueryHandler />
         <I18nProvider locale={locale} messages={messages}>
           <KeycloakAuthProvider config={keycloakConfig}>
             <ToastProvider>
