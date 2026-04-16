@@ -342,7 +342,7 @@ export async function getUserDetail(pool: Pool, userId: string) {
        from reports r
        left join events e on r.target_type = 'event' and e.id = r.target_id
        left join organizers o on r.target_type = 'organizer' and o.id = r.target_id
-       where r.reporter_user_id = $1
+       where r.user_id = $1
        order by r.created_at desc
        limit 50`,
       [userId],

@@ -942,7 +942,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
           (select count(*)::int from saved_events where event_id = $1) as save_count,
           (select count(*)::int from event_rsvps where event_id = $1) as rsvp_count,
           (select count(*)::int from comments where event_id = $1) as comment_count,
-          (select count(*)::int from reports where target_type = 'event' and target_id = $1::text) as report_count`,
+          (select count(*)::int from reports where target_type = 'event' and target_id = $1::uuid) as report_count`,
         [eid],
       ),
       app.db.query<{ id: string; user_name: string; user_id: string; created_at: string }>(
@@ -961,9 +961,9 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         `select r.id, u.display_name as reporter_name, r.reason, r.detail,
            coalesce(mq.status, 'pending') as status, r.created_at
          from reports r
-         join users u on u.id = r.reporter_user_id
+         join users u on u.id = r.user_id
          left join moderation_queue mq on mq.item_type = 'report' and mq.item_id = r.id::text
-         where r.target_type = 'event' and r.target_id = $1::text
+         where r.target_type = 'event' and r.target_id = $1::uuid
          order by r.created_at desc limit 50`,
         [eid],
       ),
@@ -989,7 +989,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
            join events e on e.id = c.event_id
            join event_organizers eo on eo.event_id = e.id
            where eo.organizer_id = $1) as comment_count,
-          (select count(*)::int from reports where target_type = 'organizer' and target_id = $1::text) as report_count`,
+          (select count(*)::int from reports where target_type = 'organizer' and target_id = $1::uuid) as report_count`,
         [oid],
       ),
       app.db.query<{ id: string; user_name: string; user_id: string; created_at: string }>(
@@ -1003,9 +1003,9 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         `select r.id, u.display_name as reporter_name, r.reason, r.detail,
            coalesce(mq.status, 'pending') as status, r.created_at
          from reports r
-         join users u on u.id = r.reporter_user_id
+         join users u on u.id = r.user_id
          left join moderation_queue mq on mq.item_type = 'report' and mq.item_id = r.id::text
-         where r.target_type = 'organizer' and r.target_id = $1::text
+         where r.target_type = 'organizer' and r.target_id = $1::uuid
          order by r.created_at desc limit 50`,
         [oid],
       ),
