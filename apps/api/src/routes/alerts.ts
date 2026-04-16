@@ -37,24 +37,39 @@ const alertRoutes: FastifyPluginAsync = async (app) => {
   });
 };
 
+// Defensive HTML escape: today `title`/`body` are hardcoded strings so this is
+// a no-op, but keeping them escaped future-proofs the template against anyone
+// piping user input through here.
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function renderPage({ title, body }: { title: string; body: string }): string {
+  const safeTitle = escapeHtml(title);
+  const safeBody = escapeHtml(body);
+  const safeHome = escapeHtml(config.PUBLIC_BASE_URL);
   return `<!doctype html>
 <html><head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${title} — DanceResource Events</title>
+<title>${safeTitle} — DanceResource Events</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f9fafb; color: #111827; margin: 0; padding: 48px 16px; }
   .card { max-width: 480px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 32px; text-align: center; }
   h1 { margin: 0 0 16px; font-size: 22px; }
   p { margin: 0 0 24px; line-height: 1.5; color: #374151; }
-  a { color: #0f8a4a; text-decoration: none; font-weight: 600; }
+  a { color: #0b6e3a; text-decoration: none; font-weight: 600; }
 </style>
 </head><body>
 <div class="card">
-  <h1>${title}</h1>
-  <p>${body}</p>
-  <p><a href="${config.PUBLIC_BASE_URL}">Back to DanceResource Events</a></p>
+  <h1>${safeTitle}</h1>
+  <p>${safeBody}</p>
+  <p><a href="${safeHome}">Back to DanceResource Events</a></p>
 </div>
 </body></html>`;
 }

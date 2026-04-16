@@ -2,6 +2,16 @@ import type { CreateOrganizerInput, UpdateOrganizerInput } from "@dr-events/shar
 import type { Pool, PoolClient } from "pg";
 
 import { generateUniqueSlug } from "../utils/slug";
+import { sanitizeDescriptionHtml } from "../utils/sanitizeHtml";
+
+// Explicit column list matching OrganizerRow. Kept alongside the row type so
+// downstream typed consumers stay in sync with SELECTed columns.
+const ORGANIZER_SELECT_COLUMNS = `
+  id, slug, name, external_source, external_id, description_json, description_html,
+  website_url, external_url, tags, languages, city, country_code, image_url,
+  avatar_path, status, detached_from_import, detached_at, detached_by_user_id,
+  created_at, updated_at
+`;
 
 type OrganizerRow = {
   id: string;
@@ -58,7 +68,10 @@ export type OrganizerSearchInput = {
 
 function normalizeDescriptionHtml(input: CreateOrganizerInput | UpdateOrganizerInput): string | null | undefined {
   if (input.descriptionHtml !== undefined) {
-    return input.descriptionHtml?.trim() || null;
+    // All write paths pass through here, so sanitization here covers the
+    // public /organizers routes, the admin /adminContent imports, and any
+    // future route that calls createOrganizer/updateOrganizer.
+    return sanitizeDescriptionHtml(input.descriptionHtml);
   }
   return undefined;
 }
@@ -788,7 +801,7 @@ export async function getOrganizerByExternalRef(
 ) {
   const result = await pool.query<OrganizerRow>(
     `
-      select *
+      select ${ORGANIZER_SELECT_COLUMNS}
       from organizers
       where external_source = $1
         and external_id = $2
@@ -801,7 +814,7 @@ export async function getOrganizerByExternalRef(
 
 export async function getOrganizerById(pool: Pool, id: string): Promise<OrganizerRow | null> {
   const result = await pool.query<OrganizerRow>(
-    `select * from organizers where id = $1 limit 1`,
+    `select ${ORGANIZER_SELECT_COLUMNS} from organizers where id = $1 limit 1`,
     [id],
   );
   return result.rows[0] ?? null;

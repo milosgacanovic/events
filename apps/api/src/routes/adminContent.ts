@@ -22,6 +22,7 @@ import {
 import { resolveUserId, requireEventAccess, requireOrganizerAccess } from "../middleware/ownership";
 import { geocodeSearch } from "../services/geocodeService";
 import { clearSearchCache } from "../services/searchCache";
+import { logValidation } from "../utils/validationError";
 
 const eventQuerySchema = z.object({
   q: z.string().optional(),
@@ -200,7 +201,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const parsed = eventQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     if (
@@ -253,7 +254,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const parsed = organizerQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     if (parsed.data.managedBy === "me") {
@@ -345,7 +346,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;
@@ -369,7 +370,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;
@@ -393,7 +394,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const parsed = createLocationSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const created = await createLocation(app.db, parsed.data as never);
@@ -410,7 +411,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     }).safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     return geocodeSearch(app.db, parsed.data.q, parsed.data.limit);
@@ -422,7 +423,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const parsed = upsertOrganizerExternalSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const existing = await getOrganizerByExternalRef(
@@ -524,12 +525,12 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
     const parsed = replaceEventOrganizersSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const event = await getEventById(app.db, params.data.id);
@@ -562,7 +563,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const exists = await app.db.query<{ id: string }>(
@@ -613,7 +614,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const query = z.object({ dry: z.coerce.boolean().default(false) }).safeParse(request.query);

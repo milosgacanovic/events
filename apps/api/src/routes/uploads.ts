@@ -5,6 +5,8 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
 import { config } from "../config";
+import { resolveUserId, requireEventAccess, requireOrganizerAccess } from "../middleware/ownership";
+import { enforceWriteRateLimit } from "../utils/enforceWriteRateLimit";
 
 const bodySchema = z.object({
   kind: z.enum(["eventCover", "organizerAvatar"]),
@@ -50,6 +52,7 @@ function sniffMime(buffer: Buffer): string | null {
 const uploadRoutes: FastifyPluginAsync = async (app) => {
   app.post("/uploads", async (request, reply) => {
     await app.requireEditor(request);
+    if (enforceWriteRateLimit(request, reply, "upload")) return reply;
 
     const filePart = await request.file();
     if (!filePart) {
@@ -73,8 +76,19 @@ const uploadRoutes: FastifyPluginAsync = async (app) => {
       entityId: entityIdRaw,
     });
     if (!body.success) {
+      request.log.warn({ zod: body.error.flatten() }, "uploads: validation failed");
       reply.code(400);
-      return { error: body.error.flatten() };
+      return { error: "validation_failed" };
+    }
+
+    // Ownership gate: an editor may only upload for entities they can edit.
+    // Admins bypass inside requireEventAccess/requireOrganizerAccess.
+    const auth = request.auth!;
+    const userId = await resolveUserId(app.db, auth);
+    if (body.data.kind === "eventCover") {
+      await requireEventAccess(app.db, userId, body.data.entityId, auth.isAdmin);
+    } else {
+      await requireOrganizerAccess(app.db, userId, body.data.entityId, auth.isAdmin);
     }
 
     const maxBytes = config.MAX_UPLOAD_MB * 1024 * 1024;

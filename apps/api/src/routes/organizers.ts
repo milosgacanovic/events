@@ -16,6 +16,7 @@ import { canUserEditOrganizer } from "../db/manageRepo";
 import { isServiceAccount } from "../db/userRepo";
 import { clearSearchCache, debouncedClearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 import { recordActivity } from "../services/activityLogger";
+import { logValidation } from "../utils/validationError";
 
 const querySchema = z.object({
   q: z.string().optional(),
@@ -154,7 +155,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     const parsed = querySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     if (request.headers.authorization) {
@@ -219,7 +220,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     const parsed = z.object({ slug: z.string().min(1) }).safeParse(request.params);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     if (request.headers.authorization) {
@@ -258,7 +259,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     const parsed = createOrganizerSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const auth = request.auth!;
@@ -294,7 +295,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;
@@ -306,7 +307,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     const parsed = updateOrganizerSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     // Warn when unpublishing/archiving hosts linked to published events (allow with force flag)
@@ -415,7 +416,7 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;

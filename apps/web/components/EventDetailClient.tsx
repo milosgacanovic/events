@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { stripDangerousHtml } from "../lib/sanitizeForSsr";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
@@ -555,7 +556,10 @@ export function EventDetailClient({
   );
   const sanitizedDescriptionHtml = useMemo(() => {
     if (!rawDescriptionHtml) return null;
-    if (typeof window === "undefined") return rawDescriptionHtml; // SSR: skip sanitize, client re-renders
+    // SSR: API sanitizes on write, but apply a regex-based strip as
+    // defense-in-depth for legacy rows. Client re-sanitizes with DOMPurify
+    // after hydration.
+    if (typeof window === "undefined") return stripDangerousHtml(rawDescriptionHtml);
     return linkifyHtml(DOMPurify.sanitize(rawDescriptionHtml));
   }, [rawDescriptionHtml]);
   const descriptionSummary = useMemo(() => {

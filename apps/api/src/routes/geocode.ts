@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 
 import { geocodeSearch } from "../services/geocodeService";
+import { logValidation } from "../utils/validationError";
 
 const querySchema = z.object({
   q: z.string().min(2),
@@ -13,7 +14,7 @@ const geocodeRoutes: FastifyPluginAsync = async (app) => {
     const parsed = querySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const results = await geocodeSearch(app.db, parsed.data.q, parsed.data.limit);

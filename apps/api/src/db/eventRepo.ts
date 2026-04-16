@@ -4,6 +4,17 @@ import type { Pool } from "pg";
 import type { EventOccurrenceRow, EventSeriesRow, LocationRow } from "../types/domain";
 import { generateUniqueSlug } from "../utils/slug";
 
+// Explicit column list matching EventSeriesRow. Kept here so downstream callers
+// typed against EventSeriesRow stay in sync with what we actually SELECT.
+const EVENT_SELECT_COLUMNS = `
+  id, slug, title, description_json, external_source, external_id, is_imported,
+  import_source, cover_image_path, external_url, attendance_mode, online_url,
+  practice_category_id, practice_subcategory_id, event_format_id, tags, languages,
+  schedule_kind, event_timezone, single_start_at, single_end_at, rrule,
+  rrule_dtstart_local, duration_minutes, status, visibility, published_at,
+  created_by_user_id, created_at, updated_at, series_id
+`;
+
 export async function eventHasOrganizers(pool: Pool, eventId: string): Promise<boolean> {
   const result = await pool.query(
     "SELECT 1 FROM event_organizers WHERE event_id = $1 LIMIT 1",
@@ -260,7 +271,7 @@ export async function updateEvent(pool: Pool, eventId: string, input: UpdateEven
 
   const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
   if (!entries.length) {
-    const existing = await pool.query<EventSeriesRow>("select * from events where id = $1", [eventId]);
+    const existing = await pool.query<EventSeriesRow>(`select ${EVENT_SELECT_COLUMNS} from events where id = $1`, [eventId]);
     return existing.rows[0] ?? null;
   }
 
@@ -358,7 +369,7 @@ export async function setEventStatus(
 }
 
 export async function getEventById(pool: Pool, eventId: string): Promise<EventSeriesRow | null> {
-  const result = await pool.query<EventSeriesRow>("select * from events where id = $1", [eventId]);
+  const result = await pool.query<EventSeriesRow>(`select ${EVENT_SELECT_COLUMNS} from events where id = $1`, [eventId]);
   return result.rows[0] ?? null;
 }
 

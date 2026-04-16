@@ -9,6 +9,7 @@ import {
   parseEventDatePresets,
   resolveSafeTimeZone,
 } from "../utils/eventDatePresets";
+import { logValidation } from "../utils/validationError";
 
 const mapQuerySchema = z.object({
   q: z.string().optional(),
@@ -73,7 +74,7 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
     const parsed = mapQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const bboxParts = parsed.data.bbox.split(",").map((value) => Number(value.trim()));
@@ -187,7 +188,7 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
     const parsed = organizerMapQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const bboxParts = parsed.data.bbox.split(",").map((value) => Number(value.trim()));

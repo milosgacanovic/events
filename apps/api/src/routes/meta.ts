@@ -12,6 +12,7 @@ import {
 import { config } from "../config";
 import { getUiLabels } from "../db/uiLabelRepo";
 import { geocodeSearch } from "../services/geocodeService";
+import { logValidation } from "../utils/validationError";
 
 const metaRoutes: FastifyPluginAsync = async (app) => {
   const cityQuerySchema = z.object({
@@ -124,7 +125,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
     const parsed = cityQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const cacheKey = `cities:${parsed.data.countryCode ?? ""}:${parsed.data.q ?? ""}:${parsed.data.exclude ?? ""}:${parsed.data.limit}`;
@@ -147,7 +148,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
     const parsed = tagsQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const cacheKey = `tags:${parsed.data.q ?? ""}:${parsed.data.limit}`;
@@ -167,7 +168,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
     const parsed = cityQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const cacheKey = `organizer-cities:${parsed.data.countryCode ?? ""}:${parsed.data.q ?? ""}:${parsed.data.exclude ?? ""}:${parsed.data.limit}`;
@@ -195,7 +196,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
     const parsed = cityCoordSchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
     const cityNames = csvToList(parsed.data.cities).map((c) => c.toLowerCase()).slice(0, 10);
     if (cityNames.length === 0) return { items: [] };
@@ -242,7 +243,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
     const parsed = suggestCitiesSchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
     const { q, limit } = parsed.data;
 
@@ -335,7 +336,7 @@ const metaRoutes: FastifyPluginAsync = async (app) => {
     const parsed = tagsQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const cacheKey = `organizer-tags:${parsed.data.q ?? ""}:${parsed.data.limit}`;

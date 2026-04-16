@@ -108,8 +108,23 @@ async function buildServer() {
   await fs.mkdir(config.UPLOADS_DIR, { recursive: true });
 
   await app.register(sensible);
+
+  // CORS allow-list: only first-party origins may issue credentialed requests.
+  // Requests with no Origin header (same-origin, curl, server-to-server) pass.
+  const corsAllowList = [
+    config.PUBLIC_BASE_URL,
+    "http://localhost:13000",
+    "http://localhost:13100",
+  ].filter((origin): origin is string => Boolean(origin));
+
   await app.register(cors, {
-    origin: true,
+    origin: (origin, cb) => {
+      if (!origin) {
+        cb(null, true);
+        return;
+      }
+      cb(null, corsAllowList.includes(origin));
+    },
     credentials: true,
   });
   await app.register(multipart, {
@@ -123,6 +138,12 @@ async function buildServer() {
     root: config.UPLOADS_DIR,
     prefix: "/uploads/",
     decorateReply: false,
+    // Force inline rendering + strict content-type handling so a crafted
+    // upload can't be served as executable HTML/JS by the browser.
+    setHeaders: (res) => {
+      res.setHeader("Content-Disposition", "inline");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    },
   });
 
   await meiliService.ensureIndex().catch((error) => {
@@ -193,11 +214,28 @@ async function buildServer() {
     }
   });
 
+  // API responses are JSON (or occasional static/HTML from /uploads + /alerts).
+  // A conservative CSP here serves as defense-in-depth if something ever renders
+  // an API response inline; the web (Next.js) layer ships a richer CSP.
+  const apiContentSecurityPolicy = [
+    "default-src 'none'",
+    "img-src 'self' data:",
+    "style-src 'self' 'unsafe-inline'",
+    "script-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+  ].join("; ");
+
   app.addHook("onSend", async (_request, reply) => {
     reply.header("X-Content-Type-Options", "nosniff");
     reply.header("X-Frame-Options", "DENY");
     reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
     reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    reply.header("Content-Security-Policy", apiContentSecurityPolicy);
+    reply.header(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=(self), interest-cohort=()",
+    );
   });
 
   await app.register(async (api) => {

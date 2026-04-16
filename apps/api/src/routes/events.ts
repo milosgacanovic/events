@@ -27,6 +27,8 @@ import { OCCURRENCES_INDEX, SERIES_INDEX, type OccurrenceDoc, type SeriesDoc } f
 import { config as apiConfig } from "../config";
 import { deriveSeriesCadence } from "../services/seriesCadenceService";
 import { recordActivity } from "../services/activityLogger";
+import { logValidation } from "../utils/validationError";
+import { enforceWriteRateLimit } from "../utils/enforceWriteRateLimit";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 import {
@@ -565,7 +567,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const parsed = searchQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const now = DateTime.utc();
@@ -1074,7 +1076,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const parsed = z.object({ slug: z.string().min(1) }).safeParse(request.params);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     if (request.headers.authorization) {
@@ -1141,7 +1143,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const parsed = createEventSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const auth = request.auth!;
@@ -1208,7 +1210,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;
@@ -1220,7 +1222,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const parsed = updateEventSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const forceFlag = z.object({ force: z.boolean().default(false) }).safeParse(request.body).data?.force ?? false;
@@ -1419,11 +1421,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/events/:id/publish", async (request, reply) => {
     await app.requireEditor(request);
+    if (enforceWriteRateLimit(request, reply, "publish")) return reply;
 
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;
@@ -1465,11 +1468,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/events/:id/unpublish", async (request, reply) => {
     await app.requireEditor(request);
+    if (enforceWriteRateLimit(request, reply, "unpublish")) return reply;
 
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;
@@ -1489,11 +1493,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/events/:id/cancel", async (request, reply) => {
     await app.requireEditor(request);
+    if (enforceWriteRateLimit(request, reply, "cancel")) return reply;
 
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;
@@ -1513,11 +1518,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/events/:id/archive", async (request, reply) => {
     await app.requireEditor(request);
+    if (enforceWriteRateLimit(request, reply, "archive")) return reply;
 
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;
@@ -1541,7 +1547,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const auth = request.auth!;

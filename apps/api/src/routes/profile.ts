@@ -10,6 +10,7 @@ import {
   updateUserAlert,
 } from "../db/alertRepo";
 import { getUserProfileBySub, updateUserProfileBySub } from "../db/userRepo";
+import { logValidation } from "../utils/validationError";
 
 const nullableString = (max: number) =>
   z.union([z.string().trim().max(max), z.null()]).optional();
@@ -20,10 +21,16 @@ const countryCodeSchema = z
   .union([z.string().trim().regex(/^[a-zA-Z]{2}$/, { message: "country_code_must_be_iso2" }), z.null()])
   .optional();
 
+// Email is intentionally NOT writable here: Keycloak is the authoritative
+// source (it handles verification, reset flows, uniqueness) and
+// `findOrCreateUserBySub` re-syncs it from the JWT claim on every
+// authenticated request. Allowing an unverified write here would let a user
+// overwrite their cached `users.email` row with any string, which the alerts
+// digest system then trusts for outbound email. Users who want to change
+// their email should do it in the Keycloak account console.
 const updateProfileSchema = z
   .object({
     displayName: z.string().trim().max(120).optional(),
-    email: z.string().trim().email().max(320).optional(),
     homeCountryCode: countryCodeSchema,
     homeCity: nullableString(120),
     homeLat: latSchema,
@@ -34,7 +41,6 @@ const updateProfileSchema = z
   .superRefine((value, ctx) => {
     const hasAny =
       value.displayName !== undefined ||
-      value.email !== undefined ||
       value.homeCountryCode !== undefined ||
       value.homeCity !== undefined ||
       value.homeLat !== undefined ||
@@ -101,7 +107,7 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
     const parsed = updateProfileSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const profile = await updateUserProfileBySub(app.db, auth.sub, parsed.data);
@@ -146,7 +152,7 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
     const parsed = createAlertSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const profile = await getUserProfileBySub(app.db, auth.sub);
@@ -183,12 +189,12 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
     const parsedParams = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!parsedParams.success) {
       reply.code(400);
-      return { error: parsedParams.error.flatten() };
+      return logValidation(request, parsedParams.error);
     }
     const parsed = alertPayloadSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const profile = await getUserProfileBySub(app.db, auth.sub);
@@ -226,7 +232,7 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
     const parsedParams = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!parsedParams.success) {
       reply.code(400);
-      return { error: parsedParams.error.flatten() };
+      return logValidation(request, parsedParams.error);
     }
 
     const profile = await getUserProfileBySub(app.db, auth.sub);
@@ -250,7 +256,7 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
     const parsed = z.object({ organizerId: z.string().uuid() }).safeParse(request.params);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
     const profile = await getUserProfileBySub(app.db, auth.sub);
     const alert = await getAlertForOrganizer(app.db, profile.id, parsed.data.organizerId);

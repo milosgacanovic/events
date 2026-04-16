@@ -23,8 +23,9 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change_me}
       MEILI_NO_ANALYTICS: "true"
       RAYON_NUM_THREADS: "2"
-    ports:
-      - "17700:7700"
+    # Intentionally no public port: API reaches Meili via Compose network
+    # (`http://meilisearch:7700`). If you need to poke it from the host during
+    # dev, use `docker exec -it dr_events_meili curl …` instead.
     volumes:
       - ../../data/meili:/meili_data
 

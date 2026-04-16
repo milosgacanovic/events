@@ -34,6 +34,7 @@ import {
 import { getUiLabels, updateUiLabels } from "../db/uiLabelRepo";
 import { resolveUserId } from "../middleware/ownership";
 import { fetchManagedEventMapPoints, fetchManagedOrganizerMapPoints } from "../db/manageRepo";
+import { logValidation } from "../utils/validationError";
 
 const createPracticeSchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
@@ -76,7 +77,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/admin/practices/reorder", async (request, reply) => {
     await app.requireAdmin(request);
     const parsed = reorderBodySchema.safeParse(request.body);
-    if (!parsed.success) { reply.code(400); return { error: parsed.error.flatten() }; }
+    if (!parsed.success) { reply.code(400); return logValidation(request, parsed.error); }
     await reorderPractices(app.db, parsed.data);
     return { ok: true };
   });
@@ -84,7 +85,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/admin/event-formats/reorder", async (request, reply) => {
     await app.requireAdmin(request);
     const parsed = reorderBodySchema.safeParse(request.body);
-    if (!parsed.success) { reply.code(400); return { error: parsed.error.flatten() }; }
+    if (!parsed.success) { reply.code(400); return logValidation(request, parsed.error); }
     await reorderEventFormats(app.db, parsed.data);
     return { ok: true };
   });
@@ -92,7 +93,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/admin/organizer-roles/reorder", async (request, reply) => {
     await app.requireAdmin(request);
     const parsed = reorderBodySchema.safeParse(request.body);
-    if (!parsed.success) { reply.code(400); return { error: parsed.error.flatten() }; }
+    if (!parsed.success) { reply.code(400); return logValidation(request, parsed.error); }
     await reorderOrganizerRoles(app.db, parsed.data);
     return { ok: true };
   });
@@ -103,7 +104,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const parsed = createPracticeSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const practice = await createPractice(app.db, parsed.data);
@@ -117,13 +118,13 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const parsed = updatePracticeSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const practice = await updatePractice(app.db, params.data.id, parsed.data);
@@ -141,7 +142,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const parsed = createRoleSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const role = await createOrganizerRole(app.db, parsed.data);
@@ -155,13 +156,13 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const parsed = updateRoleSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const role = await updateOrganizerRole(app.db, params.data.id, parsed.data);
@@ -184,7 +185,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const parsed = eventFormatSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const created = await createEventFormat(app.db, parsed.data);
@@ -198,13 +199,13 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const parsed = updateEventFormatSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const updated = await updateEventFormat(app.db, params.data.id, parsed.data);
@@ -222,7 +223,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     const parsed = updateUiLabelsSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     if (
@@ -259,7 +260,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.delete("/admin/practices/:id", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const result = await deletePractice(app.db, params.data.id);
     if (result.conflict) { reply.code(409); return { error: result.conflict }; }
     if (!result.deleted) { reply.code(404); return { error: "not_found" }; }
@@ -269,7 +270,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.delete("/admin/event-formats/:id", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const result = await deleteEventFormat(app.db, params.data.id);
     if (result.conflict) { reply.code(409); return { error: result.conflict }; }
     if (!result.deleted) { reply.code(404); return { error: "not_found" }; }
@@ -279,7 +280,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.delete("/admin/organizer-roles/:id", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const result = await deleteOrganizerRole(app.db, params.data.id);
     if (result.conflict) { reply.code(409); return { error: result.conflict }; }
     if (!result.deleted) { reply.code(404); return { error: "not_found" }; }
@@ -298,7 +299,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       role: z.enum(["admin", "editor"]).optional(),
       hasNotes: z.coerce.boolean().optional(),
     }).safeParse(request.query);
-    if (!parsed.success) { reply.code(400); return { error: parsed.error.flatten() }; }
+    if (!parsed.success) { reply.code(400); return logValidation(request, parsed.error); }
 
     const result = await listUsersWithRoles(app.db, parsed.data);
 
@@ -329,12 +330,12 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/admin/users/:id/roles", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const body = z.object({
       add: z.array(z.string()).optional(),
       remove: z.array(z.string()).optional(),
     }).safeParse(request.body);
-    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+    if (!body.success) { reply.code(400); return logValidation(request, body.error); }
 
     if (!app.keycloakAdmin) {
       reply.code(501);
@@ -381,9 +382,9 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/admin/users/:id/service-account", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const body = z.object({ is_service_account: z.boolean() }).safeParse(request.body);
-    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+    if (!body.success) { reply.code(400); return logValidation(request, body.error); }
 
     await app.db.query(
       `UPDATE users SET is_service_account = $2 WHERE id = $1`,
@@ -401,9 +402,9 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/admin/users/:id/notes", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const body = z.object({ notes: z.string().max(5000) }).safeParse(request.body);
-    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+    if (!body.success) { reply.code(400); return logValidation(request, body.error); }
 
     await updateUserNote(app.db, params.data.id, body.data.notes);
     return { ok: true };
@@ -412,23 +413,23 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.get("/admin/users/:id/hosts", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     return getUserLinkedHosts(app.db, params.data.id);
   });
 
   app.get("/admin/users/:id/events", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     return getUserLinkedEvents(app.db, params.data.id);
   });
 
   app.post("/admin/users/:id/hosts", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const body = z.object({ organizerId: z.string().uuid() }).safeParse(request.body);
-    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+    if (!body.success) { reply.code(400); return logValidation(request, body.error); }
 
     const auth = request.auth!;
     const adminUserId = await resolveUserId(app.db, auth);
@@ -440,7 +441,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.delete("/admin/users/:id/hosts/:hostId", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid(), hostId: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     await unlinkUserFromHost(app.db, params.data.id, params.data.hostId);
     reply.code(204);
   });
@@ -448,9 +449,9 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.post("/admin/users/:id/events", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const body = z.object({ eventId: z.string().uuid() }).safeParse(request.body);
-    if (!body.success) { reply.code(400); return { error: body.error.flatten() }; }
+    if (!body.success) { reply.code(400); return logValidation(request, body.error); }
 
     const auth = request.auth!;
     const adminUserId = await resolveUserId(app.db, auth);
@@ -462,7 +463,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.delete("/admin/users/:id/events/:eventId", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid(), eventId: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     await unlinkUserFromEvent(app.db, params.data.id, params.data.eventId);
     reply.code(204);
   });
@@ -538,7 +539,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.post("/admin/events/:id/reattach", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
 
     const result = await app.db.query(
       `update events set detached_from_import = false, detached_at = null, detached_by_user_id = null
@@ -558,7 +559,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.post("/admin/organizers/:id/reattach", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
 
     const result = await app.db.query(
       `update organizers set detached_from_import = false, detached_at = null, detached_by_user_id = null
@@ -626,7 +627,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.get("/admin/activity-logs/:id", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const log = await getActivityLogById(app.db, params.data.id);
     if (!log) { reply.code(404); return { error: "not_found" }; }
     return log;
@@ -647,7 +648,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.get("/admin/error-logs/:id", async (request, reply) => {
     await app.requireAdmin(request);
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
-    if (!params.success) { reply.code(400); return { error: params.error.flatten() }; }
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
     const log = await getErrorLogById(app.db, params.data.id);
     if (!log) { reply.code(404); return { error: "not_found" }; }
     return log;

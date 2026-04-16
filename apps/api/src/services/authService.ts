@@ -49,21 +49,31 @@ export class AuthService {
   }
 
   async authenticate(authHeader?: string): Promise<AuthContext> {
-    if (!authHeader?.startsWith("Bearer ")) {
+    // Case-insensitive Bearer parse + whitespace-tolerant + non-empty token.
+    // Reject obviously-malformed short tokens before hitting jose.
+    const bearerMatch = /^Bearer\s+(\S+)\s*$/i.exec(authHeader ?? "");
+    if (!bearerMatch) {
       throw new Error("missing_bearer");
+    }
+    const token = bearerMatch[1];
+    if (token.length < 16) {
+      throw new Error("invalid_token");
     }
 
     if (!this.jwks || !this.config.issuer) {
       throw new Error("auth_not_configured");
     }
 
-    const token = authHeader.slice("Bearer ".length);
     const expectedAudience = this.config.audience || this.config.clientId;
 
     let payload: KeycloakPayload;
     try {
+      // Pin algorithm to RS256 (Keycloak's default for this realm) to prevent
+      // algorithm-confusion attacks where a forged token claims `alg: none`
+      // or swaps to a symmetric algorithm keyed off the public key.
       const verified = await jwtVerify(token, this.jwks, {
         issuer: this.config.issuer,
+        algorithms: ["RS256"],
       });
       payload = verified.payload as KeycloakPayload;
     } catch {

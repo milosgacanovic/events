@@ -12,6 +12,7 @@ import {
 import { resolveUserId } from "../middleware/ownership";
 import { sendEmail } from "../services/emailService";
 import { config } from "../config";
+import { logValidation } from "../utils/validationError";
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -31,14 +32,17 @@ const updateStatusSchema = z.object({
 });
 
 const applicationRoutes: FastifyPluginAsync = async (app) => {
-  // Any authenticated user can submit an application
+  // Intentionally open to any authenticated user (not editor/admin): the whole
+  // point of POST /admin/applications is to let a logged-in visitor *request*
+  // editor/admin privileges. Gating this on ROLE_EDITOR would break the signup
+  // flow. Admin-side list/approve/reject handlers below are role-gated.
   app.post("/admin/applications", async (request, reply) => {
     await app.authenticate(request);
 
     const parsed = createSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const auth = request.auth!;
@@ -145,7 +149,7 @@ ${practicesRow$}
 
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     return listApplications(app.db, parsed.data);
@@ -158,13 +162,13 @@ ${practicesRow$}
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const parsed = updateStatusSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const auth = request.auth!;
@@ -271,7 +275,7 @@ ${practicesRow$}
     const parsed = tagSuggestSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const auth = request.auth!;
@@ -300,7 +304,7 @@ ${practicesRow$}
 
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const { listTagSuggestions } = await import("../db/tagSuggestionRepo.js");
@@ -314,13 +318,13 @@ ${practicesRow$}
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
       reply.code(400);
-      return { error: params.error.flatten() };
+      return logValidation(request, params.error);
     }
 
     const parsed = tagSuggestStatusSchema.safeParse(request.body);
     if (!parsed.success) {
       reply.code(400);
-      return { error: parsed.error.flatten() };
+      return logValidation(request, parsed.error);
     }
 
     const { updateTagSuggestionStatus } = await import("../db/tagSuggestionRepo.js");

@@ -20,6 +20,18 @@ export type ApplicationRow = {
   updated_at: string;
 };
 
+// Column list in sync with ApplicationRow. Prefix with `a.` via the helper below
+// when the query aliases the table.
+const APPLICATION_COLUMNS = `
+  id, user_id, name, email, intent, intent_other, description, practice_category_ids,
+  proof_url, claim_host_id, status, admin_notes, rejection_reason, reviewed_by,
+  reviewed_at, created_at, updated_at
+`;
+const APPLICATION_COLUMNS_A = APPLICATION_COLUMNS
+  .split(",")
+  .map((col) => `a.${col.trim()}`)
+  .join(", ");
+
 export async function createApplication(
   pool: Pool,
   input: {
@@ -38,7 +50,7 @@ export async function createApplication(
     `
       insert into editor_applications (user_id, name, email, intent, intent_other, description, practice_category_ids, proof_url, claim_host_id)
       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      returning *
+      returning ${APPLICATION_COLUMNS}
     `,
     [
       input.userId,
@@ -75,7 +87,7 @@ export async function listApplications(
 
   const [itemsResult, totalResult] = await Promise.all([
     pool.query<ApplicationRow>(
-      `select * from editor_applications a ${whereSql} order by a.created_at desc limit $${values.length + 1} offset $${values.length + 2}`,
+      `select ${APPLICATION_COLUMNS_A} from editor_applications a ${whereSql} order by a.created_at desc limit $${values.length + 1} offset $${values.length + 2}`,
       [...values, pageSize, offset],
     ),
     pool.query<{ count: string }>(
@@ -97,7 +109,7 @@ export async function listApplications(
 
 export async function getApplicationById(pool: Pool, id: string): Promise<ApplicationRow | null> {
   const result = await pool.query<ApplicationRow>(
-    `select * from editor_applications where id = $1`,
+    `select ${APPLICATION_COLUMNS} from editor_applications where id = $1`,
     [id],
   );
   return result.rows[0] ?? null;

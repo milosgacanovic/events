@@ -22,7 +22,9 @@ services:
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change_me}
       MEILI_NO_ANALYTICS: "true"
-    ports:
-      - "17700:7700"
+    # No `ports:` — Meili is only reachable via the Compose network
+    # (`http://meilisearch:7700`), never from the public internet. The master
+    # key used to leak via this port mapping when anyone could GET the
+    # /indexes endpoint and brute-force / scrape it.
     volumes:
       - ../../data/meili:/meili_data

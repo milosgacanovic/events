@@ -323,7 +323,9 @@ export async function listErrorLogs(
 
 export async function getErrorLogById(pool: Pool, id: string) {
   const result = await pool.query<ErrorLogRow>(
-    `SELECT * FROM error_log WHERE id = $1`,
+    `SELECT id, error_message, stack_trace, request_method, request_url, request_body,
+            actor_id, actor_name, status_code, ip_address, user_agent, created_at
+       FROM error_log WHERE id = $1`,
     [id],
   );
   const row = result.rows[0];

@@ -46,6 +46,29 @@ export function resolveAdminRateLimit(path: string): number | null {
   return null;
 }
 
+/**
+ * Per-user rate limit for write endpoints that trigger cascading work
+ * (publish/unpublish/cancel/archive regenerate occurrences + push to Meili;
+ * uploads write to disk). Keep moderately lenient so normal editing isn't
+ * throttled — the intent is to prevent notification/churn spam, not ordinary
+ * bulk edits. Key is userSub (falls back to IP for unauthenticated callers,
+ * which shouldn't reach these routes anyway thanks to requireEditor).
+ */
+export const WRITE_RATE_LIMIT_MAX = 12;
+export const WRITE_RATE_LIMIT_WINDOW_MS = 60_000;
+
+export function checkWriteRateLimit(
+  subject: string,
+  operation: string,
+): { allowed: boolean; retryAfterSeconds: number } {
+  return checkRateLimit({
+    key: `write:${operation}:${subject}`,
+    now: Date.now(),
+    windowMs: WRITE_RATE_LIMIT_WINDOW_MS,
+    maxRequests: WRITE_RATE_LIMIT_MAX,
+  });
+}
+
 export function resolvePublicRateLimit(path: string, _baseLimit: number): number | null {
   if (path === "/api/events/search") {
     return 300;

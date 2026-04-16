@@ -6,6 +6,7 @@ import DOMPurify from "dompurify";
 import { useEffect, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { stripDangerousHtml } from "../lib/sanitizeForSsr";
 import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
@@ -268,11 +269,13 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
       : null);
   const sanitizedDescriptionHtml = (() => {
     if (typeof window === "undefined") {
-      // SSR: skip sanitize, client re-renders immediately after hydration
+      // SSR: API sanitizes on write, but strip dangerous tags/handlers as
+      // defense-in-depth for legacy rows. Client re-sanitizes with DOMPurify
+      // immediately after hydration.
       const raw = descriptionHtmlRaw && descriptionHtmlRaw.trim()
-        ? descriptionHtmlRaw
+        ? stripDangerousHtml(descriptionHtmlRaw)
         : descriptionSections.description
-          ? `<p>${descriptionSections.description.replace(/\n/g, "<br>")}</p>`
+          ? `<p>${stripDangerousHtml(descriptionSections.description).replace(/\n/g, "<br>")}</p>`
           : null;
       return raw ? linkifyHtml(raw) : null;
     }

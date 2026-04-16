@@ -5,8 +5,10 @@
   --panel: #EDE7DF;
   --ink: #333;
   --muted: #5f6368;
-  --accent: #0f8a4a;
-  --accent-2: #0a6e3a;
+  /* Darkened from #0f8a4a to hit WCAG 2.1 AA contrast (4.5:1) on white text;
+     the old value was 4.41 and axe-core flagged it across /events + /hosts. */
+  --accent: #0b6e3a;
+  --accent-2: #085628;
   --line: #d6cfc6;
   --surface: #EDE7DF;
   --surface-alt: #E3DCD3;
@@ -30,7 +32,7 @@
   --mapbox-bg-start: #E3DCD3;
   --mapbox-bg-end: #d5e8dc;
   --mapbox-ink: #2a4a38;
-  --focus-ring: rgba(15, 138, 74, 0.35);
+  --focus-ring: rgba(11, 110, 58, 0.4);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-dropdown: 0 8px 20px rgba(0, 0, 0, 0.08);
   /* Radius scale */
@@ -66,10 +68,10 @@
   --dr-border-muted:   #d1d1d1;
   --dr-trigger-color:  #2f2f2f;
   --dr-trigger-hover:  #E3DCD3;
-  --dr-arrow-color:    #0f8a4a;
+  --dr-arrow-color:    #0b6e3a;
   --dr-contribute-note:#444;
-  --bs-primary:        #0f8a4a;
-  --bs-link-hover:     #0a6e3a;
+  --bs-primary:        #0b6e3a;
+  --bs-link-hover:     #085628;
   --dr-accent:         #daa86d;
   --dr-accent-hover:   #c4904f;
 }
@@ -476,7 +478,7 @@ main {
   font: inherit;
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='%230f8a4a' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='%230b6e3a' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0 center;
   background-size: 16px;
