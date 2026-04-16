@@ -19,6 +19,14 @@ export default function ManageLayout({ children }: { children: React.ReactNode }
   }
 
   if (!auth.authenticated) {
+    // Let /manage/apply render its own login prompt instead of auto-redirecting
+    if (pathname === "/manage/apply") {
+      return (
+        <div style={{ display: "flex", justifyContent: "center", minHeight: "calc(100vh - 60px)", padding: "24px 16px" }}>
+          {children}
+        </div>
+      );
+    }
     void auth.login();
     return <div className="manage-loading">{t("manage.apply.redirectingLogin")}</div>;
   }
