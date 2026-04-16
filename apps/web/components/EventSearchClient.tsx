@@ -18,6 +18,8 @@ import { useGeolocation } from "../lib/useGeolocation";
 import { alpha2ToAlpha3 } from "../lib/countryAlpha3";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import type { ResolvedFilters } from "./discover/discoverTypes";
+import { NotifyMeButton } from "./NotifyMeButton";
+import { SaveEventButton } from "./SaveEventButton";
 import { useI18n } from "./i18n/I18nProvider";
 import type { MapCircleOverlay, MapCountryOverlay } from "./LeafletClusterMap";
 
@@ -2078,6 +2080,12 @@ export function EventSearchClient({
             <button className="tag filter-chip-clear" type="button" onClick={clearFilters}>
               {t("eventSearch.clearFilters")}
             </button>
+            <NotifyMeButton
+              filterSnapshot={Object.fromEntries(
+                Array.from(searchParams.entries()).filter(([k]) => k !== "page" && k !== "view" && k !== "sort"),
+              )}
+              filterSummary={selectedFilterChips.map((c) => c.label).join(", ")}
+            />
           </div>
         )}
         {view === "discover" ? (
@@ -2169,6 +2177,7 @@ export function EventSearchClient({
                     className="event-card-thumb-h"
                     style={{ background: hit.event.coverImageUrl ? undefined : `var(--category-${catKey}, var(--surface-skeleton))` }}
                   >
+                    <SaveEventButton eventId={hit.event.id} compact />
                     {hit.event.coverImageUrl ? (
                       <img
                         className="event-card-thumb"

@@ -4,6 +4,8 @@ import { cookies, headers } from "next/headers";
 import { I18nProvider } from "../components/i18n/I18nProvider";
 import { KeycloakAuthProvider } from "../components/auth/KeycloakAuthProvider";
 import { AppShell } from "../components/layout/AppShell";
+import { ToastProvider } from "../components/ToastProvider";
+import { PendingActionExecutor } from "../components/PendingActionExecutor";
 import { localeCookieName } from "../lib/i18n/config";
 import { resolveRequestLocale } from "../lib/i18n/locale";
 import { getMessages } from "../lib/i18n/messages";
@@ -70,7 +72,10 @@ export default function RootLayout({
         <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KFG8MVPC" height="0" width="0" style={{ display: "none", visibility: "hidden" }} /></noscript>
         <I18nProvider locale={locale} messages={messages}>
           <KeycloakAuthProvider config={keycloakConfig}>
-            <AppShell>{children}</AppShell>
+            <ToastProvider>
+              <PendingActionExecutor />
+              <AppShell>{children}</AppShell>
+            </ToastProvider>
           </KeycloakAuthProvider>
         </I18nProvider>
       </body>

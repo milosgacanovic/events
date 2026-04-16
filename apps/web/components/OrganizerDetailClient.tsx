@@ -11,6 +11,8 @@ import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 import { FollowHostButton } from "./FollowHostButton";
+import { SuggestEditButton } from "./SuggestEditButton";
+import { ReportButton } from "./ReportButton";
 
 export type OrganizerServerTranslations = {
   locale: string;
@@ -563,6 +565,14 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
             <span className="meta">{new Date(item.starts_at_utc).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}</span>
           </Link>
         ))}
+      </div>
+      <div className="event-detail-footer-actions">
+        <SuggestEditButton
+          targetType="organizer"
+          targetId={data.organizer.id}
+          targetName={data.organizer.name}
+        />
+        <ReportButton targetType="organizer" targetId={data.organizer.id} />
       </div>
     </section>
   );

@@ -19,6 +19,7 @@ type AuthContextValue = {
   userEmail: string | null;
   authError: string | null;
   login: () => Promise<void>;
+  register: () => Promise<void>;
   logout: () => Promise<void>;
   getToken: () => Promise<string | null>;
 };
@@ -264,6 +265,19 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
         } catch {}
 
         await keycloakRef.current.login({
+          redirectUri: `${window.location.origin}${loginRedirectPath}`,
+        });
+      },
+      register: async () => {
+        if (!keycloakRef.current) {
+          return;
+        }
+
+        try {
+          sessionStorage.setItem("auth_return_path", window.location.pathname + window.location.search);
+        } catch {}
+
+        await keycloakRef.current.register({
           redirectUri: `${window.location.origin}${loginRedirectPath}`,
         });
       },

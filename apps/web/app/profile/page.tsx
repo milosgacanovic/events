@@ -16,6 +16,20 @@ import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../.
 
 const RADIUS_OPTIONS = [50, 100, 300, 500, 1000];
 
+type SavedEventItem = {
+  id: string;
+  eventId: string;
+  occurrenceId: string | null;
+  scope: string;
+  createdAt: string;
+  eventTitle: string;
+  eventSlug: string;
+  eventStatus: string;
+  singleStartAt: string | null;
+  nextOccurrenceStart: string | null;
+  coverImagePath: string | null;
+};
+
 type ProfilePayload = {
   id: string;
   keycloakSub: string;
@@ -27,6 +41,40 @@ type ProfilePayload = {
   homeLng: number | null;
   homeLocationLabel: string | null;
   defaultRadiusKm: number | null;
+  createdAt: string;
+};
+
+type RsvpItem = {
+  id: string;
+  eventId: string;
+  occurrenceId: string | null;
+  createdAt: string;
+  eventTitle: string;
+  eventSlug: string;
+  singleStartAt: string | null;
+  nextOccurrenceStart: string | null;
+  coverImagePath: string | null;
+};
+
+type SavedSearchItem = {
+  id: string;
+  label: string | null;
+  filterSnapshot: Record<string, unknown>;
+  frequency: string;
+  notifyNew: boolean;
+  notifyReminders: boolean;
+  notifyUpdates: boolean;
+  unsubscribedAt: string | null;
+  createdAt: string;
+};
+
+type UserCommentItem = {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventSlug: string;
+  body: string;
+  status: string;
   createdAt: string;
 };
 
@@ -58,6 +106,10 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [homeCity, setHomeCity] = useState<CitySelection | null>(null);
   const [defaultRadiusKm, setDefaultRadiusKm] = useState<number>(100);
+  const [savedEvents, setSavedEvents] = useState<SavedEventItem[]>([]);
+  const [rsvps, setRsvps] = useState<RsvpItem[]>([]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearchItem[]>([]);
+  const [userComments, setUserComments] = useState<UserCommentItem[]>([]);
   const [alerts, setAlerts] = useState<AlertListItem[]>([]);
   const [editingAlert, setEditingAlert] = useState<AlertListItem | null>(null);
   const [timeDisplayMode, setTimeDisplayMode] = useState<"event" | "user">(() => readTimeDisplayMode());
@@ -81,9 +133,13 @@ export default function ProfilePage() {
         if (!token || !active) return;
 
         const headers = { Authorization: `Bearer ${token}` };
-        const [profileResponse, alertsResponse] = await Promise.all([
+        const [profileResponse, alertsResponse, savedResponse, rsvpResponse, searchesResponse, commentsResponse] = await Promise.all([
           fetch(`${apiBase}/profile`, { headers, cache: "no-store" }),
           fetch(`${apiBase}/profile/alerts`, { headers, cache: "no-store" }),
+          fetch(`${apiBase}/profile/saved-events`, { headers, cache: "no-store" }),
+          fetch(`${apiBase}/profile/rsvps`, { headers, cache: "no-store" }),
+          fetch(`${apiBase}/profile/saved-searches`, { headers, cache: "no-store" }),
+          fetch(`${apiBase}/profile/comments`, { headers, cache: "no-store" }),
         ]);
 
         if (!profileResponse.ok) throw new Error(`profile_load_failed_${profileResponse.status}`);
@@ -105,6 +161,22 @@ export default function ProfilePage() {
         if (alertsResponse.ok) {
           const alertsPayload = (await alertsResponse.json()) as { items: AlertListItem[] };
           if (active) setAlerts(alertsPayload.items);
+        }
+        if (savedResponse.ok) {
+          const savedPayload = (await savedResponse.json()) as { items: SavedEventItem[] };
+          if (active) setSavedEvents(savedPayload.items);
+        }
+        if (rsvpResponse.ok) {
+          const rsvpPayload = (await rsvpResponse.json()) as { items: RsvpItem[] };
+          if (active) setRsvps(rsvpPayload.items);
+        }
+        if (searchesResponse.ok) {
+          const searchesPayload = (await searchesResponse.json()) as { items: SavedSearchItem[] };
+          if (active) setSavedSearches(searchesPayload.items);
+        }
+        if (commentsResponse.ok) {
+          const commentsPayload = (await commentsResponse.json()) as { items: UserCommentItem[] };
+          if (active) setUserComments(commentsPayload.items);
         }
       } catch (nextError) {
         if (!active) return;
@@ -185,6 +257,54 @@ export default function ProfilePage() {
     });
     if (response.ok) {
       setAlerts((current) => current.filter((alert) => alert.id !== id));
+    }
+  }
+
+  async function cancelRsvp(eventId: string) {
+    const token = await auth.getToken();
+    if (!token) return;
+    const response = await fetch(`${apiBase}/profile/rsvps/${eventId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.ok) {
+      setRsvps((current) => current.filter((item) => item.eventId !== eventId));
+    }
+  }
+
+  async function deleteComment(eventId: string, commentId: string) {
+    const token = await auth.getToken();
+    if (!token) return;
+    const response = await fetch(`${apiBase}/events/${eventId}/comments/${commentId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.ok) {
+      setUserComments((current) => current.filter((item) => item.id !== commentId));
+    }
+  }
+
+  async function deleteSavedSearch(searchId: string) {
+    const token = await auth.getToken();
+    if (!token) return;
+    const response = await fetch(`${apiBase}/profile/saved-searches/${searchId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.ok) {
+      setSavedSearches((current) => current.filter((item) => item.id !== searchId));
+    }
+  }
+
+  async function unsaveEvent(eventId: string) {
+    const token = await auth.getToken();
+    if (!token) return;
+    const response = await fetch(`${apiBase}/profile/saved-events/${eventId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.ok) {
+      setSavedEvents((current) => current.filter((item) => item.eventId !== eventId));
     }
   }
 
@@ -294,6 +414,55 @@ export default function ProfilePage() {
 
       <hr />
 
+      <h2 className="title-l">{t("profile.savedEvents.title")}</h2>
+      {savedEvents.length === 0 ? (
+        <p className="muted">{t("profile.savedEvents.empty")}</p>
+      ) : (
+        <ul className="saved-events-list">
+          {savedEvents.map((item) => (
+            <li key={item.id} className="saved-events-item">
+              {item.coverImagePath && (
+                <a href={`/events/${item.eventSlug}`} className="saved-events-thumb">
+                  <img src={item.coverImagePath} alt="" loading="lazy" />
+                </a>
+              )}
+              <div className="saved-events-info">
+                <a href={`/events/${item.eventSlug}`} className="saved-events-title">
+                  {item.eventTitle}
+                </a>
+                <div className="meta">
+                  {item.nextOccurrenceStart
+                    ? new Date(item.nextOccurrenceStart).toLocaleDateString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : item.singleStartAt
+                      ? new Date(item.singleStartAt).toLocaleDateString(undefined, {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : null}
+                  {item.scope === "all" && item.occurrenceId == null && (
+                    <> · {t("profile.savedEvents.allSessions")}</>
+                  )}
+                </div>
+              </div>
+              <button
+                className="secondary-btn"
+                type="button"
+                onClick={() => void unsaveEvent(item.eventId)}
+              >
+                {t("profile.savedEvents.unsave")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <hr />
+
       <h2 className="title-l">{t("profile.alerts.title")}</h2>
       {alerts.length === 0 ? (
         <p className="muted">{t("profile.alerts.empty")}</p>
@@ -327,6 +496,112 @@ export default function ProfilePage() {
                   {t("profile.alerts.unfollow")}
                 </button>
               </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <hr />
+
+      <h2 className="title-l">{t("profile.rsvps.title")}</h2>
+      {rsvps.length === 0 ? (
+        <p className="muted">{t("profile.rsvps.empty")}</p>
+      ) : (
+        <ul className="saved-events-list">
+          {rsvps.map((item) => (
+            <li key={item.id} className="saved-events-item">
+              {item.coverImagePath && (
+                <a href={`/events/${item.eventSlug}`} className="saved-events-thumb">
+                  <img src={item.coverImagePath} alt="" loading="lazy" />
+                </a>
+              )}
+              <div className="saved-events-info">
+                <a href={`/events/${item.eventSlug}`} className="saved-events-title">
+                  {item.eventTitle}
+                </a>
+                <div className="meta">
+                  {item.nextOccurrenceStart
+                    ? new Date(item.nextOccurrenceStart).toLocaleDateString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : item.singleStartAt
+                      ? new Date(item.singleStartAt).toLocaleDateString(undefined, {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : null}
+                </div>
+              </div>
+              <button
+                className="secondary-btn"
+                type="button"
+                onClick={() => void cancelRsvp(item.eventId)}
+              >
+                {t("profile.rsvps.cancel")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <hr />
+
+      <h2 className="title-l">{t("profile.savedSearches.title")}</h2>
+      {savedSearches.length === 0 ? (
+        <p className="muted">{t("profile.savedSearches.empty")}</p>
+      ) : (
+        <ul className="alerts-list">
+          {savedSearches.map((search) => (
+            <li key={search.id} className="alerts-item">
+              <div className="alerts-item-main">
+                <div className="alerts-item-host">
+                  {search.label || t("profile.savedSearches.untitled")}
+                </div>
+                <div className="meta">
+                  {search.frequency === "daily" ? t("notifyMe.dialog.daily") : t("notifyMe.dialog.weekly")}
+                  {search.unsubscribedAt && ` · ${t("profile.alerts.unsubscribed")}`}
+                </div>
+              </div>
+              <div className="alerts-item-actions">
+                <button
+                  className="secondary-btn"
+                  type="button"
+                  onClick={() => void deleteSavedSearch(search.id)}
+                >
+                  {t("profile.savedSearches.delete")}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <hr />
+
+      <h2 className="title-l">{t("profile.comments.title")}</h2>
+      {userComments.length === 0 ? (
+        <p className="muted">{t("profile.comments.empty")}</p>
+      ) : (
+        <ul className="comments-list">
+          {userComments.map((comment) => (
+            <li key={comment.id} className="comments-item">
+              <div className="comments-item-header">
+                <a href={`/events/${comment.eventSlug}`}>{comment.eventTitle}</a>
+                <span className={`profile-comment-status profile-comment-status--${comment.status}`}>
+                  {comment.status}
+                </span>
+              </div>
+              <p className="comments-item-body">{comment.body}</p>
+              <button
+                type="button"
+                className="report-btn"
+                onClick={() => void deleteComment(comment.eventId, comment.id)}
+              >
+                {t("profile.comments.delete")}
+              </button>
             </li>
           ))}
         </ul>

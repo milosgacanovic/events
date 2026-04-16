@@ -13,6 +13,12 @@ import { labelForLanguageCode } from "../lib/i18n/languageLabels";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
+import { SaveEventButton } from "./SaveEventButton";
+import { RsvpButton } from "./RsvpButton";
+import { CommentsSection } from "./CommentsSection";
+import { SuggestEditButton } from "./SuggestEditButton";
+import { RecommendButton } from "./RecommendButton";
+import { ReportButton } from "./ReportButton";
 import { pushDataLayer } from "../lib/gtm";
 
 const SHORTENER_BLOCKLIST = new Set([
@@ -827,6 +833,7 @@ export function EventDetailClient({
               {t("eventDetail.shareNative")}
             </button>
           )}
+          <RecommendButton eventId={data.event.id} eventTitle={data.event.title} />
         </div>
       </nav>
 
@@ -907,6 +914,19 @@ export function EventDetailClient({
       ) : (
         <p className="event-detail-no-booking">{t("eventDetail.noExternalLink")}</p>
       )}
+
+      {/* Secondary actions: Save + RSVP */}
+      <div className="event-detail-secondary-actions">
+        <SaveEventButton
+          eventId={data.event.id}
+          isRecurring={data.event.schedule_kind === "recurring" || (data.series?.siblingCount ?? 1) > 1}
+          occurrenceId={highlightedOccurrenceId ?? undefined}
+        />
+        <RsvpButton
+          eventId={data.event.id}
+          occurrenceId={highlightedOccurrenceId ?? undefined}
+        />
+      </div>
 
       {/* Metadata grid */}
       <div className="event-detail-meta-grid">
@@ -1118,6 +1138,12 @@ export function EventDetailClient({
       )}
 
 
+      {/* Community comments */}
+      <CommentsSection
+        eventId={data.event.id}
+        seriesName={data.series ? data.event.title : undefined}
+      />
+
       {/* Hosts */}
       {hosts.length > 0 && (
         <div className="event-detail-section">
@@ -1263,6 +1289,14 @@ export function EventDetailClient({
             </div>
           </div>
         )}
+        <div className="event-detail-footer-actions">
+          <SuggestEditButton
+            targetType="event"
+            targetId={data.event.id}
+            targetName={data.event.title}
+          />
+          <ReportButton targetType="event" targetId={data.event.id} />
+        </div>
       </footer>
     </article>
   );
