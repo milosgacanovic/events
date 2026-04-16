@@ -38,7 +38,7 @@ type UsersResponse = {
 type LinkedHost = { id: string; organizer_id: string; organizer_name: string };
 type LinkedEvent = { id: string; title: string; status: string };
 
-type SortKey = "created" | "name" | "email" | "hosts" | "events" | "saves" | "rsvps" | "follows" | "comments";
+type SortKey = "created" | "name" | "email" | "hosts" | "events" | "saves" | "rsvps" | "follows" | "comments" | "alerts";
 
 export default function AdminUsersPage() {
   const { getToken } = useKeycloakAuth();
@@ -416,6 +416,13 @@ export default function AdminUsersPage() {
                     {t("manage.admin.users.commentsCol")}
                     <span className="sort-arrow">{sortArrow("comments")}</span>
                   </th>
+                  <th
+                    className={`sortable text-center${sort === "alerts" ? " sorted" : ""}`}
+                    onClick={() => handleSort("alerts")}
+                  >
+                    {t("manage.admin.users.alerts")}
+                    <span className="sort-arrow">{sortArrow("alerts")}</span>
+                  </th>
                   <th>{t("manage.admin.users.notes")}</th>
                   <th
                     className={`sortable${sort === "created" ? " sorted" : ""}`}
@@ -465,6 +472,7 @@ export default function AdminUsersPage() {
                     <td className="text-center">{user.rsvp_count || "\u2014"}</td>
                     <td className="text-center">{user.follow_count || "\u2014"}</td>
                     <td className="text-center">{user.comment_count || "\u2014"}</td>
+                    <td className="text-center">{user.alert_count || "\u2014"}</td>
                     <td className="note-cell">
                       <div className="note-cell-inner" onClick={() => openNoteEdit(user)} title={user.admin_notes || t("manage.admin.users.notePlaceholder")}>
                         {user.admin_notes ? (

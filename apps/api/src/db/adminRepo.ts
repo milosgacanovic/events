@@ -22,6 +22,9 @@ export async function listAdminEvents(
     dateFrom?: string;
     dateTo?: string;
     hasReports?: boolean;
+    hasSaves?: boolean;
+    hasRsvps?: boolean;
+    hasComments?: boolean;
     sort?: string;
     page: number;
     pageSize: number;
@@ -155,6 +158,15 @@ export async function listAdminEvents(
   if (input.hasReports) {
     whereParts.push(`exists(select 1 from reports rp where rp.target_type = 'event' and rp.target_id = e.id and rp.status = 'pending')`);
   }
+  if (input.hasSaves) {
+    whereParts.push(`exists(select 1 from saved_events se where se.event_id = e.id)`);
+  }
+  if (input.hasRsvps) {
+    whereParts.push(`exists(select 1 from event_rsvps er where er.event_id = e.id)`);
+  }
+  if (input.hasComments) {
+    whereParts.push(`exists(select 1 from comments cm where cm.event_id = e.id and cm.status = 'published')`);
+  }
 
   const sortMap: Record<string, string> = {
     upcoming: "next_occ.starts_at_utc asc nulls last",
@@ -164,6 +176,7 @@ export async function listAdminEvents(
     saves: "eng.save_count desc nulls last",
     rsvps: "eng.rsvp_count desc nulls last",
     comments: "eng.comment_count desc nulls last",
+    reports: "eng.report_count desc nulls last",
   };
   const orderBy = sortMap[input.sort ?? ""] ?? "e.updated_at desc";
 
@@ -323,6 +336,7 @@ export async function listAdminOrganizers(
     created: "o.created_at desc",
     name: "lower(o.name) asc",
     followers: "eng.follower_count desc nulls last",
+    reports: "eng.report_count desc nulls last",
   };
   const orderBy = sortMap[input.sort ?? ""] ?? "o.updated_at desc";
 

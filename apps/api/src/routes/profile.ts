@@ -115,6 +115,34 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
     return profileResponse(profile);
   });
 
+  app.get("/profile/counts", async (request) => {
+    await app.authenticate(request);
+    const auth = request.auth;
+    if (!auth?.sub) throw app.httpErrors.unauthorized("invalid_subject");
+
+    const result = await app.db.query<{
+      save_count: string;
+      rsvp_count: string;
+      follow_count: string;
+      comment_count: string;
+    }>(
+      `select
+        (select count(*)::int from saved_events where user_id = u.id) as save_count,
+        (select count(*)::int from event_rsvps where user_id = u.id) as rsvp_count,
+        (select count(*)::int from user_alerts where user_id = u.id and unsubscribed_at is null) as follow_count,
+        (select count(*)::int from comments where user_id = u.id) as comment_count
+       from users u where u.keycloak_sub = $1`,
+      [auth.sub],
+    );
+    const row = result.rows[0];
+    return {
+      saves: Number(row?.save_count ?? 0),
+      rsvps: Number(row?.rsvp_count ?? 0),
+      follows: Number(row?.follow_count ?? 0),
+      comments: Number(row?.comment_count ?? 0),
+    };
+  });
+
   app.get("/profile/alerts", async (request) => {
     await app.authenticate(request);
     const auth = request.auth;

@@ -56,7 +56,16 @@ export default function GoingTab() {
 
   if (loading) return <p className="muted">{t("profile.loading")}</p>;
 
-  if (items.length === 0) return <p className="muted">{t("profile.rsvps.empty")}</p>;
+  if (items.length === 0) {
+    return (
+      <div className="manage-empty">
+        <p className="muted">{t("profile.rsvps.empty")}</p>
+        <a href="/events" className="secondary-btn" style={{ display: "inline-block", marginTop: 8 }}>
+          {t("profile.savedEvents.browseEvents")}
+        </a>
+      </div>
+    );
+  }
 
   const now = Date.now();
   const upcoming = items.filter((r) => {
@@ -68,7 +77,7 @@ export default function GoingTab() {
     return d && new Date(d).getTime() < now;
   });
 
-  function renderItem(item: RsvpItem) {
+  function renderItem(item: RsvpItem, isPast = false) {
     return (
       <li key={item.id} className="saved-events-item">
         {item.coverImagePath && (
@@ -88,6 +97,11 @@ export default function GoingTab() {
                 day: "numeric",
               })}
           </div>
+          {isPast && (
+            <a href={`/events/${item.eventSlug}#comments`} className="meta" style={{ fontSize: "0.8rem", marginTop: 4, display: "inline-block" }}>
+              {t("profile.rsvps.shareThoughts")}
+            </a>
+          )}
         </div>
         <button className="secondary-btn" type="button" onClick={() => void cancel(item.eventId)}>
           {t("profile.rsvps.cancel")}
@@ -99,12 +113,12 @@ export default function GoingTab() {
   return (
     <>
       {upcoming.length > 0 && (
-        <ul className="saved-events-list">{upcoming.map(renderItem)}</ul>
+        <ul className="saved-events-list">{upcoming.map((item) => renderItem(item))}</ul>
       )}
       {past.length > 0 && (
         <>
           <h3 className="title-s" style={{ marginTop: 16 }}>{t("profile.rsvps.past")}</h3>
-          <ul className="saved-events-list">{past.map(renderItem)}</ul>
+          <ul className="saved-events-list">{past.map((item) => renderItem(item, true))}</ul>
         </>
       )}
     </>

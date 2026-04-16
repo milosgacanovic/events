@@ -12,6 +12,9 @@ type SaveItem = { id: string; event_id: string; event_title: string; event_slug:
 type RsvpItem = { id: string; event_id: string; event_title: string; event_slug: string; created_at: string };
 type FollowItem = { id: string; organizer_id: string; organizer_name: string; radius_km: number; unsubscribed_at: string | null; created_at: string };
 type CommentItem = { id: string; event_id: string; event_title: string; body: string; status: string; created_at: string };
+type ReportItem = { id: string; target_type: string; target_id: string; target_name: string; reason: string; detail: string | null; status: string; created_at: string };
+type RecommendationItem = { id: string; recipient_email: string; event_id: string; event_title: string; note: string | null; created_at: string };
+type SuggestionItem = { id: string; target_type: string; target_id: string; target_name: string; field_name: string; suggestion: string; status: string; created_at: string };
 type LinkedHost = { organizer_id: string; organizer_name: string };
 type LinkedEvent = { id: string; title: string; status: string };
 
@@ -29,11 +32,14 @@ type UserDetail = {
   rsvps: RsvpItem[];
   follows: FollowItem[];
   comments: CommentItem[];
+  reports: ReportItem[];
+  recommendations: RecommendationItem[];
+  suggestions: SuggestionItem[];
   linkedHosts: LinkedHost[];
   linkedEvents: LinkedEvent[];
 };
 
-type Tab = "saves" | "rsvps" | "follows" | "comments" | "hosts" | "events";
+type Tab = "saves" | "rsvps" | "follows" | "comments" | "reports" | "recommendations" | "suggestions" | "hosts" | "events";
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -81,6 +87,9 @@ export default function UserDetailPage() {
     { key: "rsvps", label: t("manage.admin.users.rsvps"), count: user.rsvps.length },
     { key: "follows", label: t("manage.admin.users.follows"), count: user.follows.length },
     { key: "comments", label: t("manage.admin.users.commentsCol"), count: user.comments.length },
+    { key: "reports", label: t("manage.admin.users.reportsSubmitted"), count: user.reports.length },
+    { key: "recommendations", label: t("manage.admin.users.recommendationsSent"), count: user.recommendations.length },
+    { key: "suggestions", label: t("manage.admin.users.editSuggestions"), count: user.suggestions.length },
     { key: "hosts", label: t("manage.admin.users.hosts"), count: user.linkedHosts.length },
     { key: "events", label: t("manage.admin.users.events"), count: user.linkedEvents.length },
   ];
@@ -128,8 +137,9 @@ export default function UserDetailPage() {
           { label: t("manage.admin.users.rsvps"), value: user.rsvps.length },
           { label: t("manage.admin.users.follows"), value: user.follows.length },
           { label: t("manage.admin.users.commentsCol"), value: user.comments.length },
-          { label: t("manage.admin.users.hosts"), value: user.linkedHosts.length },
-          { label: t("manage.admin.users.events"), value: user.linkedEvents.length },
+          { label: t("manage.admin.users.reportsSubmitted"), value: user.reports.length },
+          { label: t("manage.admin.users.recommendationsSent"), value: user.recommendations.length },
+          { label: t("manage.admin.users.editSuggestions"), value: user.suggestions.length },
         ].map((stat) => (
           <div key={stat.label} style={{ padding: "12px 16px", border: "1px solid var(--border)", borderRadius: 8, textAlign: "center" }}>
             <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{stat.value}</div>
@@ -257,6 +267,95 @@ export default function UserDetailPage() {
                     <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.body}</td>
                     <td><span className={`tag tag--${c.status}`} style={{ fontSize: "0.7rem" }}>{c.status}</span></td>
                     <td style={{ whiteSpace: "nowrap" }}>{new Date(c.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {tab === "reports" && (
+        <div>
+          {user.reports.length === 0 ? (
+            <p className="meta">{t("manage.admin.users.noData")}</p>
+          ) : (
+            <table className="manage-table">
+              <thead>
+                <tr>
+                  <th>{t("manage.admin.users.target")}</th>
+                  <th>{t("manage.admin.users.reason")}</th>
+                  <th>{t("manage.common.status")}</th>
+                  <th>{t("manage.admin.users.date")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {user.reports.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.target_name} <span className="meta">({r.target_type})</span></td>
+                    <td>{r.reason}</td>
+                    <td><span className={`tag tag--${r.status}`} style={{ fontSize: "0.7rem" }}>{r.status}</span></td>
+                    <td style={{ whiteSpace: "nowrap" }}>{new Date(r.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {tab === "recommendations" && (
+        <div>
+          {user.recommendations.length === 0 ? (
+            <p className="meta">{t("manage.admin.users.noData")}</p>
+          ) : (
+            <table className="manage-table">
+              <thead>
+                <tr>
+                  <th>{t("manage.admin.referrals.recipient")}</th>
+                  <th>{t("manage.admin.referrals.event")}</th>
+                  <th>{t("manage.admin.referrals.note")}</th>
+                  <th>{t("manage.admin.users.date")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {user.recommendations.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.recipient_email}</td>
+                    <td>{r.event_title}</td>
+                    <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.note ?? "\u2014"}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{new Date(r.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {tab === "suggestions" && (
+        <div>
+          {user.suggestions.length === 0 ? (
+            <p className="meta">{t("manage.admin.users.noData")}</p>
+          ) : (
+            <table className="manage-table">
+              <thead>
+                <tr>
+                  <th>{t("manage.admin.users.target")}</th>
+                  <th>{t("manage.admin.users.field")}</th>
+                  <th>{t("manage.admin.users.suggestion")}</th>
+                  <th>{t("manage.common.status")}</th>
+                  <th>{t("manage.admin.users.date")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {user.suggestions.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.target_name} <span className="meta">({s.target_type})</span></td>
+                    <td>{s.field_name}</td>
+                    <td style={{ maxWidth: 250, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.suggestion}</td>
+                    <td><span className={`tag tag--${s.status}`} style={{ fontSize: "0.7rem" }}>{s.status}</span></td>
+                    <td style={{ whiteSpace: "nowrap" }}>{new Date(s.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>

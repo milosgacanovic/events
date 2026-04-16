@@ -35,11 +35,11 @@ export async function listUsersWithRoles(
     whereParts.push(`u.admin_notes != ''`);
   }
 
-  const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
-
   if (input.role === "suspended") {
     whereParts.push(`u.suspended_at is not null`);
   }
+
+  const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
 
   const sortColumns: Record<string, string> = {
     created: "u.created_at",
@@ -51,6 +51,7 @@ export async function listUsersWithRoles(
     rsvps: "rsvp_count",
     follows: "follow_count",
     comments: "comment_count",
+    alerts: "alert_count",
   };
   const sortCol = sortColumns[input.sort ?? ""] ?? "u.created_at";
   const sortDirection = input.sortDir === "asc" ? "asc" : "desc";
@@ -223,7 +224,7 @@ export async function unlinkUserFromEvent(
 }
 
 export async function getUserDetail(pool: Pool, userId: string) {
-  const [user, saves, rsvps, follows, comments, hosts, events] = await Promise.all([
+  const [user, saves, rsvps, follows, comments, hosts, events, reports, recommendations, suggestions] = await Promise.all([
     pool.query<{
       id: string;
       keycloak_sub: string;
@@ -325,6 +326,65 @@ export async function getUserDetail(pool: Pool, userId: string) {
        order by e.title`,
       [userId],
     ),
+    pool.query<{
+      id: string;
+      target_type: string;
+      target_id: string;
+      target_name: string;
+      reason: string;
+      detail: string | null;
+      status: string;
+      created_at: string;
+    }>(
+      `select r.id, r.target_type, r.target_id,
+              coalesce(e.title, o.name, r.target_id::text) as target_name,
+              r.reason, r.detail, r.status, r.created_at
+       from reports r
+       left join events e on r.target_type = 'event' and e.id = r.target_id
+       left join organizers o on r.target_type = 'organizer' and o.id = r.target_id
+       where r.reporter_user_id = $1
+       order by r.created_at desc
+       limit 50`,
+      [userId],
+    ),
+    pool.query<{
+      id: string;
+      recipient_email: string;
+      event_id: string;
+      event_title: string;
+      note: string | null;
+      created_at: string;
+    }>(
+      `select rec.id, rec.recipient_email, rec.event_id,
+              e.title as event_title, rec.note, rec.created_at
+       from recommendations rec
+       join events e on e.id = rec.event_id
+       where rec.sender_user_id = $1
+       order by rec.created_at desc
+       limit 50`,
+      [userId],
+    ),
+    pool.query<{
+      id: string;
+      target_type: string;
+      target_id: string;
+      target_name: string;
+      field_name: string;
+      suggestion: string;
+      status: string;
+      created_at: string;
+    }>(
+      `select es.id, es.target_type, es.target_id,
+              coalesce(e.title, o.name, es.target_id::text) as target_name,
+              es.field_name, es.suggestion, es.status, es.created_at
+       from edit_suggestions es
+       left join events e on es.target_type = 'event' and e.id = es.target_id
+       left join organizers o on es.target_type = 'organizer' and o.id = es.target_id
+       where es.user_id = $1
+       order by es.created_at desc
+       limit 50`,
+      [userId],
+    ),
   ]);
 
   const row = user.rows[0];
@@ -338,6 +398,9 @@ export async function getUserDetail(pool: Pool, userId: string) {
     comments: comments.rows,
     linkedHosts: hosts.rows,
     linkedEvents: events.rows,
+    reports: reports.rows,
+    recommendations: recommendations.rows,
+    suggestions: suggestions.rows,
   };
 }
 

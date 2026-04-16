@@ -185,6 +185,7 @@ export default function AdminAllHostsPage() {
     { value: "created", label: t("manage.hosts.sortCreated") },
     { value: "name", label: t("manage.hosts.sortName") },
     { value: "followers", label: t("manage.admin.hosts.sortFollowers") },
+    { value: "reports", label: t("manage.admin.hosts.sortReports") },
   ], [t]);
 
   function resetPage() { setPage(1); }

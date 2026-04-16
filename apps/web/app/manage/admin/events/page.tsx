@@ -94,6 +94,9 @@ export default function AdminAllEventsPage() {
   const [importFilter, setImportFilter] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("");
   const [hasReports, setHasReports] = useState(false);
+  const [hasSaves, setHasSaves] = useState(false);
+  const [hasRsvps, setHasRsvps] = useState(false);
+  const [hasComments, setHasComments] = useState(false);
   /* public-matching filters */
   const [timeFilter, setTimeFilter] = useState("");
   const [includePast, setIncludePast] = useState(false);
@@ -200,6 +203,9 @@ export default function AdminAllEventsPage() {
         }
       }
       if (hasReports) params.set("hasReports", "true");
+      if (hasSaves) params.set("hasSaves", "true");
+      if (hasRsvps) params.set("hasRsvps", "true");
+      if (hasComments) params.set("hasComments", "true");
       if (sortBy) params.set("sort", sortBy);
       const data = await authorizedGet<EventsResponse>(getToken, `/admin/events?${params}`);
       setEvents(data.items);
@@ -209,7 +215,7 @@ export default function AdminAllEventsPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, page, search, statusFilter, importFilter, ownerFilter, hasReports, practiceCategoryIds, eventFormatIds, countryCodes, attendanceModes, languages, cities, tags, timeFilter, sortBy, t]);
+  }, [getToken, page, search, statusFilter, importFilter, ownerFilter, hasReports, hasSaves, hasRsvps, hasComments, practiceCategoryIds, eventFormatIds, countryCodes, attendanceModes, languages, cities, tags, timeFilter, sortBy, t]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -231,7 +237,7 @@ export default function AdminAllEventsPage() {
     statusFilter, importFilter, ownerFilter, timeFilter,
     ...practiceCategoryIds, ...eventFormatIds, ...countryCodes,
     ...attendanceModes, ...languages, ...cities, ...tags,
-  ].filter(Boolean).length + (includePast ? 1 : 0) + (hasReports ? 1 : 0);
+  ].filter(Boolean).length + (includePast ? 1 : 0) + (hasReports ? 1 : 0) + (hasSaves ? 1 : 0) + (hasRsvps ? 1 : 0) + (hasComments ? 1 : 0);
 
   const statusOptions = useMemo(() => [
     { value: "draft", label: t("common.status.draft") },
@@ -248,6 +254,7 @@ export default function AdminAllEventsPage() {
     { value: "saves", label: t("manage.admin.events.sortSaves") },
     { value: "rsvps", label: t("manage.admin.events.sortRsvps") },
     { value: "comments", label: t("manage.admin.events.sortComments") },
+    { value: "reports", label: t("manage.admin.events.sortReports") },
   ], [t]);
 
   function resetPage() { setPage(1); }
@@ -304,17 +311,25 @@ export default function AdminAllEventsPage() {
         <SourceFilter value={importFilter} onChange={(v) => { setImportFilter(v); resetPage(); }} />
         <OwnershipFilter value={ownerFilter} onChange={(v) => { setOwnerFilter(v); resetPage(); }} />
 
-        {/* ── Reports toggle ── */}
-        <button
-          type="button"
-          className={"filter-row" + (hasReports ? " filter-row-selected" : "")}
-          onClick={() => { setHasReports((v) => !v); resetPage(); }}
-          style={{ marginTop: 8 }}
-        >
-          <span className="filter-row-icon">{hasReports ? "\u2212" : "+"}</span>
-          <span className="filter-row-label">{t("manage.admin.events.hasReports")}</span>
-          <span className="filter-row-count" />
-        </button>
+        {/* ── Engagement toggles ── */}
+        {[
+          { key: "hasReports", state: hasReports, setter: setHasReports },
+          { key: "hasSaves", state: hasSaves, setter: setHasSaves },
+          { key: "hasRsvps", state: hasRsvps, setter: setHasRsvps },
+          { key: "hasComments", state: hasComments, setter: setHasComments },
+        ].map(({ key, state, setter }) => (
+          <button
+            key={key}
+            type="button"
+            className={"filter-row" + (state ? " filter-row-selected" : "")}
+            onClick={() => { setter((v: boolean) => !v); resetPage(); }}
+            style={{ marginTop: key === "hasReports" ? 8 : 0 }}
+          >
+            <span className="filter-row-icon">{state ? "\u2212" : "+"}</span>
+            <span className="filter-row-label">{t(`manage.admin.events.${key}`)}</span>
+            <span className="filter-row-count" />
+          </button>
+        ))}
 
         {/* ── Event Date ── */}
         <details open={dateOpen} onToggle={(e) => setDateOpen((e.currentTarget as HTMLDetailsElement).open)}>

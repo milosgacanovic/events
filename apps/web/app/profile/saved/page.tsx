@@ -58,38 +58,69 @@ export default function SavedEventsTab() {
 
   if (loading) return <p className="muted">{t("profile.loading")}</p>;
 
-  if (items.length === 0) return <p className="muted">{t("profile.savedEvents.empty")}</p>;
+  if (items.length === 0) {
+    return (
+      <div className="manage-empty">
+        <p className="muted">{t("profile.savedEvents.empty")}</p>
+        <a href="/events" className="secondary-btn" style={{ display: "inline-block", marginTop: 8 }}>
+          {t("profile.savedEvents.browseEvents")}
+        </a>
+      </div>
+    );
+  }
+
+  const now = Date.now();
+  const upcoming = items.filter((i) => {
+    const d = i.nextOccurrenceStart ?? i.singleStartAt;
+    return !d || new Date(d).getTime() >= now;
+  });
+  const past = items.filter((i) => {
+    const d = i.nextOccurrenceStart ?? i.singleStartAt;
+    return d && new Date(d).getTime() < now;
+  });
+
+  function renderItem(item: SavedEventItem) {
+    return (
+      <li key={item.id} className="saved-events-item">
+        {item.coverImagePath && (
+          <a href={`/events/${item.eventSlug}`} className="saved-events-thumb">
+            <img src={item.coverImagePath} alt="" loading="lazy" />
+          </a>
+        )}
+        <div className="saved-events-info">
+          <a href={`/events/${item.eventSlug}`} className="saved-events-title">
+            {item.eventTitle}
+          </a>
+          <div className="meta">
+            {(item.nextOccurrenceStart ?? item.singleStartAt) &&
+              new Date(item.nextOccurrenceStart ?? item.singleStartAt!).toLocaleDateString(undefined, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            {item.scope === "all" && item.occurrenceId == null && (
+              <> &middot; {t("profile.savedEvents.allSessions")}</>
+            )}
+          </div>
+        </div>
+        <button className="secondary-btn" type="button" onClick={() => void unsave(item.eventId)}>
+          {t("profile.savedEvents.unsave")}
+        </button>
+      </li>
+    );
+  }
 
   return (
-    <ul className="saved-events-list">
-      {items.map((item) => (
-        <li key={item.id} className="saved-events-item">
-          {item.coverImagePath && (
-            <a href={`/events/${item.eventSlug}`} className="saved-events-thumb">
-              <img src={item.coverImagePath} alt="" loading="lazy" />
-            </a>
-          )}
-          <div className="saved-events-info">
-            <a href={`/events/${item.eventSlug}`} className="saved-events-title">
-              {item.eventTitle}
-            </a>
-            <div className="meta">
-              {(item.nextOccurrenceStart ?? item.singleStartAt) &&
-                new Date(item.nextOccurrenceStart ?? item.singleStartAt!).toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}
-              {item.scope === "all" && item.occurrenceId == null && (
-                <> &middot; {t("profile.savedEvents.allSessions")}</>
-              )}
-            </div>
-          </div>
-          <button className="secondary-btn" type="button" onClick={() => void unsave(item.eventId)}>
-            {t("profile.savedEvents.unsave")}
-          </button>
-        </li>
-      ))}
-    </ul>
+    <>
+      {upcoming.length > 0 && (
+        <ul className="saved-events-list">{upcoming.map(renderItem)}</ul>
+      )}
+      {past.length > 0 && (
+        <>
+          <h3 className="title-s" style={{ marginTop: 16 }}>{t("profile.savedEvents.past")}</h3>
+          <ul className="saved-events-list">{past.map(renderItem)}</ul>
+        </>
+      )}
+    </>
   );
 }

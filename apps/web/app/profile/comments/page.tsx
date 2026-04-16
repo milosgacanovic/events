@@ -54,7 +54,16 @@ export default function CommentsTab() {
 
   if (loading) return <p className="muted">{t("profile.loading")}</p>;
 
-  if (items.length === 0) return <p className="muted">{t("profile.comments.empty")}</p>;
+  if (items.length === 0) {
+    return (
+      <div className="manage-empty">
+        <p className="muted">{t("profile.comments.empty")}</p>
+        <a href="/events" className="secondary-btn" style={{ display: "inline-block", marginTop: 8 }}>
+          {t("profile.savedEvents.browseEvents")}
+        </a>
+      </div>
+    );
+  }
 
   return (
     <ul className="comments-list">
@@ -70,9 +79,13 @@ export default function CommentsTab() {
             </span>
           </div>
           <p className="comments-item-body">{comment.body}</p>
-          <button type="button" className="report-btn" onClick={() => void remove(comment.eventId, comment.id)}>
-            {t("profile.comments.delete")}
-          </button>
+          {comment.status === "removed" ? (
+            <p className="meta" style={{ fontSize: "0.8rem", fontStyle: "italic" }}>{t("profile.comments.removedByModerator")}</p>
+          ) : (
+            <button type="button" className="report-btn" onClick={() => void remove(comment.eventId, comment.id)}>
+              {t("profile.comments.delete")}
+            </button>
+          )}
         </li>
       ))}
     </ul>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useKeycloakAuth } from "../../../components/auth/KeycloakAuthProvider";
 import { LocaleSwitcher } from "../../../components/i18n/LocaleSwitcher";
@@ -39,6 +39,8 @@ export default function AccountTab() {
   const [defaultRadiusKm, setDefaultRadiusKm] = useState<number>(100);
   const [timeDisplayMode, setTimeDisplayMode] = useState<"event" | "user">(() => readTimeDisplayMode());
   const [userTimeZone] = useState(() => (typeof window !== "undefined" ? getUserTimeZone() : "UTC"));
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,6 +141,7 @@ export default function AccountTab() {
       </label>
       <div className="meta">
         {t("profile.username")} {profile?.email ?? auth.userName ?? t("common.none")}
+        <span style={{ marginLeft: 8, fontSize: "0.75rem", opacity: 0.7 }}>({t("profile.managedBySSO")})</span>
       </div>
       <label className="toggle-control">
         <input
@@ -199,16 +202,44 @@ export default function AccountTab() {
       </button>
       {homeStatus && <div className="meta">{homeStatus}</div>}
 
-      <div style={{ marginTop: 24 }}>
-        <a
-          href={`${process.env.NEXT_PUBLIC_KEYCLOAK_URL || "https://sso.danceresource.org"}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM || "danceresource"}/account/#/security/signingin`}
-          target="_blank"
-          rel="noopener noreferrer"
+      <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--danger, #dc2626)", borderRadius: 8 }}>
+        <h3 style={{ margin: "0 0 8px", color: "var(--danger, #dc2626)" }}>{t("profile.dangerZone")}</h3>
+        <p className="meta" style={{ marginBottom: 12 }}>{t("profile.deleteAccountWarning")}</p>
+        <button
+          type="button"
           className="report-btn"
+          onClick={() => { setDeleteConfirm(""); deleteDialogRef.current?.showModal(); }}
         >
           {t("profile.deleteAccount")}
-        </a>
+        </button>
       </div>
+
+      <dialog ref={deleteDialogRef} className="manage-dialog">
+        <h3>{t("profile.deleteAccount")}</h3>
+        <p className="meta">{t("profile.deleteAccountConfirm", { username: profile?.displayName ?? auth.userName ?? "" })}</p>
+        <input
+          type="text"
+          value={deleteConfirm}
+          onChange={(e) => setDeleteConfirm(e.target.value)}
+          placeholder={profile?.displayName ?? auth.userName ?? ""}
+          style={{ width: "100%", marginBottom: 12 }}
+        />
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button type="button" className="secondary-btn" onClick={() => deleteDialogRef.current?.close()}>
+            {t("manage.common.cancel")}
+          </button>
+          <a
+            href={`${process.env.NEXT_PUBLIC_KEYCLOAK_URL || "https://sso.danceresource.org"}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM || "danceresource"}/account/#/security/signingin`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`report-btn${deleteConfirm !== (profile?.displayName ?? auth.userName ?? "") ? " disabled" : ""}`}
+            style={deleteConfirm !== (profile?.displayName ?? auth.userName ?? "") ? { pointerEvents: "none", opacity: 0.5 } : {}}
+            onClick={() => deleteDialogRef.current?.close()}
+          >
+            {t("profile.deleteAccount")}
+          </a>
+        </div>
+      </dialog>
     </div>
   );
 }
