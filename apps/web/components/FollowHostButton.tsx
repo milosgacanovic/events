@@ -140,12 +140,12 @@ export function FollowHostButton({ organizerId, organizerName }: Props) {
       >
         {auth.authenticated && existing ? (
           <>
-            <span aria-hidden="true">{"\u2713"} </span>
+            <span aria-hidden="true">{"\u2713"}</span>
             {followingLabel}
           </>
         ) : (
           <>
-            <span aria-hidden="true">{"\uD83D\uDD14"} </span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 2v1"/><path d="M4 7a4 4 0 0 1 8 0v2.5l1.5 2H2.5l1.5-2V7Z"/><path d="M6 13a2 2 0 0 0 4 0"/></svg>
             {t("follow.button.follow")}
           </>
         )}

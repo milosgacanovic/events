@@ -41,6 +41,7 @@ export type SeriesDoc = {
   organizer_ids: string[];
   upcoming_dates: string[];
   earliest_upcoming_ts: number | null;
+  earliest_upcoming_end_ts: number | null;
   upcoming_count: number;
   sibling_count: number;
   visibility: string;
@@ -363,6 +364,7 @@ export class MeilisearchService {
       organizer_ids: row.organizer_ids,
       upcoming_dates: row.upcoming_dates,
       earliest_upcoming_ts: row.earliest_upcoming_ts ? Date.parse(row.earliest_upcoming_ts) : null,
+      earliest_upcoming_end_ts: row.earliest_upcoming_end_ts ? Date.parse(row.earliest_upcoming_end_ts) : null,
       upcoming_count: row.upcoming_count,
       sibling_count: row.sibling_count,
       visibility: row.visibility,

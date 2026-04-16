@@ -149,7 +149,11 @@ export function RsvpButton({ eventId, occurrenceId }: Props) {
         onClick={handleClick}
         disabled={loading}
       >
-        <span aria-hidden="true">{going ? "\u2713" : "\uD83D\uDC4B"}</span>
+        {going ? (
+          <span aria-hidden="true">{"\u2713"}</span>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 7.5V3.5a1 1 0 0 1 2 0v4"/><path d="M8 4V2.5a1 1 0 0 1 2 0V7"/><path d="M10 5.5V4.5a1 1 0 0 1 2 0V9a4.5 4.5 0 0 1-4.5 4.5A4 4 0 0 1 3.5 9.5V8a1 1 0 0 1 2 0v.5"/></svg>
+        )}
         <span>{going ? t("rsvp.going") : t("rsvp.imGoing")}</span>
         {count != null && count > 0 && (
           <span className="rsvp-count">{count}</span>

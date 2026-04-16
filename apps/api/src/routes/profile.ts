@@ -61,8 +61,8 @@ const alertPayloadSchema = z.object({
   lng: z.number().min(-180).max(180).nullable().optional(),
   locationLabel: z.string().trim().max(240).nullable().optional(),
   // Legacy fields kept optional for backward compatibility; new clients send lat/lng/label.
-  city: z.string().trim().min(1).max(120).optional(),
-  countryCode: z.string().trim().min(2).max(8).optional(),
+  city: z.string().trim().min(1).max(120).nullable().optional(),
+  countryCode: z.string().trim().min(2).max(8).nullable().optional(),
 });
 
 const createAlertSchema = alertPayloadSchema.extend({

@@ -150,7 +150,7 @@
   "eventDetail.locationLabel": "Location: {location}",
   "eventDetail.locationTbd": "TBD",
   "eventDetail.timeTbd": "Date/time TBD",
-  "eventDetail.openMap": "Open map",
+  "eventDetail.openMap": "Map",
   "eventDetail.descriptionLabel": "Description",
   "eventDetail.host": "Host",
   "eventDetail.hosts": "Hosts",

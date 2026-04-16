@@ -33,6 +33,7 @@ export type EventSeriesDocRow = {
   organizer_ids: string[];
   upcoming_dates: string[]; // YYYY-MM-DD UTC strings
   earliest_upcoming_ts: string | null; // ISO UTC
+  earliest_upcoming_end_ts: string | null; // ISO UTC
   upcoming_count: number;
   sibling_count: number;
   has_geo: boolean;
@@ -117,7 +118,7 @@ export async function refreshEventSeries(
       join event_organizers eoz on eoz.event_id = s.id
     ),
     upcoming_all as (
-      select eo.starts_at_utc
+      select eo.starts_at_utc, eo.ends_at_utc
       from event_occurrences eo
       where eo.series_id = $1
         and eo.starts_at_utc >= now()
@@ -129,6 +130,7 @@ export async function refreshEventSeries(
           '{}'
         ) as upcoming_dates,
         min(starts_at_utc) as earliest_upcoming_ts,
+        (select ends_at_utc from upcoming_all order by starts_at_utc limit 1) as earliest_upcoming_end_ts,
         count(*)::int as upcoming_count
       from upcoming_all
     ),
@@ -159,6 +161,7 @@ export async function refreshEventSeries(
       organizer_ids,
       upcoming_dates,
       earliest_upcoming_ts,
+      earliest_upcoming_end_ts,
       upcoming_count,
       sibling_count,
       has_geo,
@@ -186,6 +189,7 @@ export async function refreshEventSeries(
       coalesce((select organizer_ids from organizer_union), '{}'),
       ua.upcoming_dates,
       ua.earliest_upcoming_ts,
+      ua.earliest_upcoming_end_ts,
       ua.upcoming_count,
       sa.sibling_count,
       loc.geom is not null,
@@ -215,6 +219,7 @@ export async function refreshEventSeries(
       organizer_ids = excluded.organizer_ids,
       upcoming_dates = excluded.upcoming_dates,
       earliest_upcoming_ts = excluded.earliest_upcoming_ts,
+      earliest_upcoming_end_ts = excluded.earliest_upcoming_end_ts,
       upcoming_count = excluded.upcoming_count,
       sibling_count = excluded.sibling_count,
       has_geo = excluded.has_geo,
@@ -265,6 +270,7 @@ export async function fetchAllEventSeries(
     organizer_ids: string[];
     upcoming_dates: string[];
     earliest_upcoming_ts: string | null;
+    earliest_upcoming_end_ts: string | null;
     upcoming_count: number;
     sibling_count: number;
     has_geo: boolean;
@@ -293,6 +299,7 @@ export async function fetchAllEventSeries(
       organizer_ids,
       upcoming_dates::text[] as upcoming_dates,
       earliest_upcoming_ts,
+      earliest_upcoming_end_ts,
       upcoming_count,
       sibling_count,
       has_geo,
@@ -337,6 +344,7 @@ export async function fetchAllEventSeries(
       organizer_ids: row.organizer_ids,
       upcoming_dates: row.upcoming_dates,
       earliest_upcoming_ts: row.earliest_upcoming_ts,
+      earliest_upcoming_end_ts: row.earliest_upcoming_end_ts,
       upcoming_count: row.upcoming_count,
       sibling_count: row.sibling_count,
       has_geo: row.has_geo,
@@ -376,6 +384,7 @@ export async function getEventSeriesBySeriesId(
     organizer_ids: string[];
     upcoming_dates: string[];
     earliest_upcoming_ts: string | null;
+    earliest_upcoming_end_ts: string | null;
     upcoming_count: number;
     sibling_count: number;
     has_geo: boolean;
@@ -404,6 +413,7 @@ export async function getEventSeriesBySeriesId(
       organizer_ids,
       upcoming_dates::text[] as upcoming_dates,
       earliest_upcoming_ts,
+      earliest_upcoming_end_ts,
       upcoming_count,
       sibling_count,
       has_geo,
@@ -448,6 +458,7 @@ export async function getEventSeriesBySeriesId(
     organizer_ids: row.organizer_ids,
     upcoming_dates: row.upcoming_dates,
     earliest_upcoming_ts: row.earliest_upcoming_ts,
+    earliest_upcoming_end_ts: row.earliest_upcoming_end_ts,
     upcoming_count: row.upcoming_count,
     sibling_count: row.sibling_count,
     has_geo: row.has_geo,

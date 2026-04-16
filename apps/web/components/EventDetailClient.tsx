@@ -1185,7 +1185,7 @@ export function EventDetailClient({
 
       {/* Schedule: shown for native recurring events OR imported series (siblingCount > 1) */}
       {(data.event.schedule_kind !== "single" || (data.series?.siblingCount ?? 1) > 1) && (
-        <>
+        <div className="event-detail-schedule">
           <div className="event-detail-section">
             <h2 className="event-detail-section-title">{t("eventDetail.upcoming")}</h2>
             {data.occurrences.upcoming.length === 0 ? (
@@ -1269,12 +1269,12 @@ export function EventDetailClient({
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {/* Map */}
       {data.event.attendance_mode !== "online" && hasGeo && (
-        <div className="event-detail-section">
+        <div className="event-detail-section event-detail-map-section">
           <h2 className="event-detail-section-title">{t("eventDetail.openMap")}</h2>
           <EventDetailMap lat={mapLat} lng={mapLng} />
         </div>

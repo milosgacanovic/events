@@ -785,9 +785,11 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             startsAtUtc: doc.earliest_upcoming_ts
               ? new Date(doc.earliest_upcoming_ts).toISOString()
               : new Date().toISOString(),
-            endsAtUtc: doc.earliest_upcoming_ts
-              ? new Date(doc.earliest_upcoming_ts).toISOString()
-              : new Date().toISOString(),
+            endsAtUtc: doc.earliest_upcoming_end_ts
+              ? new Date(doc.earliest_upcoming_end_ts).toISOString()
+              : doc.earliest_upcoming_ts
+                ? new Date(doc.earliest_upcoming_ts).toISOString()
+                : new Date().toISOString(),
             event: {
               id: doc.canonical_event_id,
               slug: doc.slug,

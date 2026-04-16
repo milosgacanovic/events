@@ -717,6 +717,9 @@ main {
 }
 
 .follow-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   white-space: nowrap;
 }
 
@@ -2386,6 +2389,12 @@ label.meta {
   font-size: 1.1rem;
   font-weight: 600;
   margin: 0;
+}
+.event-detail-schedule,
+.event-detail-map-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
 }
 
 .event-detail-desc {
