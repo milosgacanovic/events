@@ -2188,20 +2188,16 @@ export function EventSearchClient({
                     )}
                   </div>
                   <div className="event-card-body">
-                    <h3>
-                      {hit.event.title}
-                      {isRecurring && (
-                        <span className="event-card-recurring-chip">
-                          {t("eventDetail.recurringChip")}
-                        </span>
-                      )}
-                    </h3>
+                    <h3>{hit.event.title}</h3>
                     <div
                       className="meta"
                       title={formatted.suffixLabel === "event" ? t("common.eventTimezone") : t("common.yourTimezone")}
                       suppressHydrationWarning
                     >
-                      {formatted.primary} · {t(`attendanceMode.${hit.event.attendanceMode}`)}
+                      {formatted.primary}
+                      {isRecurring && ` · ${t("eventDetail.recurringChip")}`}
+                      {" · "}
+                      {t(`attendanceMode.${hit.event.attendanceMode}`)}
                     </div>
                     {locationParts && (
                       <div className="meta">{locationParts}</div>

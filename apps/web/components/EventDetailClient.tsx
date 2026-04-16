@@ -841,14 +841,7 @@ export function EventDetailClient({
 
       {/* Header */}
       <div className="event-detail-header">
-        <h1 className="event-detail-title">
-          {data.event.title}
-          {((data.series?.siblingCount ?? 1) > 1 || data.event.schedule_kind === "recurring") && (
-            <span className="event-detail-recurring-chip" title={t("eventDetail.recurringChip")}>
-              {t("eventDetail.recurringChip")}
-            </span>
-          )}
-        </h1>
+        <h1 className="event-detail-title">{data.event.title}</h1>
         {(() => {
           const cadence = data.series?.cadence;
           if (cadence) {
@@ -947,6 +940,9 @@ export function EventDetailClient({
             </span>
             <span className="event-detail-meta-value">
               {whenLabel}
+              {(data.series?.siblingCount ?? 1) > 1 && (
+                <> · {t("eventDetail.recurringChip")}</>
+              )}
             </span>
             <label className="toggle-control toggle-control-sm" style={{ marginTop: 6 }}>
               <input
