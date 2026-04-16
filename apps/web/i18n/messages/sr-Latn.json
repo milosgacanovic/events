@@ -1008,5 +1008,7 @@
   "tag.teacher-training": "Obuka nastavnika",
   "tag.trauma-informed": "Svest o traumi",
   "tag.wheelchair-friendly": "Pristupačno za kolica",
-  "tag.women's-circle": "Ženski krug"
+  "tag.women's-circle": "Ženski krug",
+  "manage.apply.loginRequired": "Prijavite se da biste počeli",
+  "manage.apply.loginRequiredMessage": "Da biste podneli zahtev za uređivački pristup i objavili svoje plesne događaje, prvo morate da se prijavite ili napravite nalog. Nakon prijave, bićete vraćeni ovde."
 }

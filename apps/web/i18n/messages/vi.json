@@ -997,5 +997,7 @@
   "tag.teacher-training": "Đào tạo giáo viên",
   "tag.trauma-informed": "Nhận thức sang chấn",
   "tag.wheelchair-friendly": "Thân thiện xe lăn",
-  "tag.women's-circle": "Vòng tròn phụ nữ"
+  "tag.women's-circle": "Vòng tròn phụ nữ",
+  "manage.apply.loginRequired": "Đăng nhập để bắt đầu",
+  "manage.apply.loginRequiredMessage": "Để đăng ký quyền biên tập và đăng sự kiện khiêu vũ của bạn, bạn cần đăng nhập hoặc tạo tài khoản trước. Sau khi đăng nhập, bạn sẽ được đưa trở lại đây."
 }

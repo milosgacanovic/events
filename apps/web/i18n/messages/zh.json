@@ -997,5 +997,7 @@
   "tag.teacher-training": "教师培训",
   "tag.trauma-informed": "创伤知情",
   "tag.wheelchair-friendly": "无障碍",
-  "tag.women's-circle": "女性圈"
+  "tag.women's-circle": "女性圈",
+  "manage.apply.loginRequired": "登录以开始",
+  "manage.apply.loginRequiredMessage": "要申请编辑权限并发布您的舞蹈活动，您需要先登录或创建账户。登录后，您将返回此页面。"
 }

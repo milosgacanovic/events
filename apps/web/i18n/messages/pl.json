@@ -997,5 +997,7 @@
   "tag.teacher-training": "Szkolenie nauczycieli",
   "tag.trauma-informed": "Świadome traumy",
   "tag.wheelchair-friendly": "Przyjazne dla wózków",
-  "tag.women's-circle": "Krąg kobiet"
+  "tag.women's-circle": "Krąg kobiet",
+  "manage.apply.loginRequired": "Zaloguj się, aby rozpocząć",
+  "manage.apply.loginRequiredMessage": "Aby ubiegać się o dostęp edytora i publikować swoje wydarzenia taneczne, musisz najpierw się zalogować lub utworzyć konto. Po zalogowaniu wrócisz tutaj."
 }

@@ -997,5 +997,7 @@
   "tag.teacher-training": "교사 연수",
   "tag.trauma-informed": "트라우마 인식",
   "tag.wheelchair-friendly": "휠체어 접근 가능",
-  "tag.women's-circle": "여성 서클"
+  "tag.women's-circle": "여성 서클",
+  "manage.apply.loginRequired": "시작하려면 로그인하세요",
+  "manage.apply.loginRequiredMessage": "편집자 권한을 신청하고 댄스 이벤트를 게시하려면 먼저 로그인하거나 계정을 만들어야 합니다. 로그인 후 이 페이지로 돌아옵니다."
 }

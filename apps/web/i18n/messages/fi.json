@@ -997,5 +997,7 @@
   "tag.teacher-training": "Opettajakoulutus",
   "tag.trauma-informed": "Traumatietoinen",
   "tag.wheelchair-friendly": "Esteettömyys",
-  "tag.women's-circle": "Naistenpiiri"
+  "tag.women's-circle": "Naistenpiiri",
+  "manage.apply.loginRequired": "Kirjaudu sisään aloittaaksesi",
+  "manage.apply.loginRequiredMessage": "Hakeaksesi muokkausoikeutta ja julkaistaksesi tanssitapahtumasi sinun täytyy ensin kirjautua sisään tai luoda tili. Kirjautumisen jälkeen palaat takaisin tänne."
 }

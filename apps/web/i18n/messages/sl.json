@@ -997,5 +997,7 @@
   "tag.teacher-training": "Usposabljanje učiteljev",
   "tag.trauma-informed": "Travma ozaveščeno",
   "tag.wheelchair-friendly": "Prijazno za vozičke",
-  "tag.women's-circle": "Ženski krog"
+  "tag.women's-circle": "Ženski krog",
+  "manage.apply.loginRequired": "Prijavite se za začetek",
+  "manage.apply.loginRequiredMessage": "Za prijavo za uredniški dostop in objavo vaših plesnih dogodkov se morate najprej prijaviti ali ustvariti račun. Po prijavi se boste vrnili sem."
 }

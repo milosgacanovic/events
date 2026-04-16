@@ -997,5 +997,7 @@
   "tag.teacher-training": "Підготовка вчителів",
   "tag.trauma-informed": "Травма-інформовано",
   "tag.wheelchair-friendly": "Доступно для візків",
-  "tag.women's-circle": "Жіноче коло"
+  "tag.women's-circle": "Жіноче коло",
+  "manage.apply.loginRequired": "Увійдіть, щоб почати",
+  "manage.apply.loginRequiredMessage": "Щоб подати заявку на доступ редактора та публікувати свої танцювальні заходи, вам потрібно спочатку увійти або створити обліковий запис. Після входу ви повернетесь на цю сторінку."
 }

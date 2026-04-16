@@ -997,5 +997,7 @@
   "tag.teacher-training": "Lerarenopleiding",
   "tag.trauma-informed": "Traumabewust",
   "tag.wheelchair-friendly": "Rolstoelvriendelijk",
-  "tag.women's-circle": "Vrouwencirkel"
+  "tag.women's-circle": "Vrouwencirkel",
+  "manage.apply.loginRequired": "Log in om te beginnen",
+  "manage.apply.loginRequiredMessage": "Om redacteurtoegang aan te vragen en je dansevenementen te publiceren, moet je eerst inloggen of een account aanmaken. Na het inloggen word je teruggebracht naar deze pagina."
 }

@@ -997,5 +997,7 @@
   "tag.teacher-training": "指導者養成",
   "tag.trauma-informed": "トラウマ配慮",
   "tag.wheelchair-friendly": "車椅子対応",
-  "tag.women's-circle": "ウィメンズサークル"
+  "tag.women's-circle": "ウィメンズサークル",
+  "manage.apply.loginRequired": "ログインして始めましょう",
+  "manage.apply.loginRequiredMessage": "編集者アクセスを申請してダンスイベントを公開するには、まずログインまたはアカウント作成が必要です。ログイン後、このページに戻ります。"
 }

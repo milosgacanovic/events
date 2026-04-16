@@ -997,5 +997,7 @@
   "tag.teacher-training": "Pelatihan guru",
   "tag.trauma-informed": "Sadar trauma",
   "tag.wheelchair-friendly": "Ramah kursi roda",
-  "tag.women's-circle": "Lingkaran wanita"
+  "tag.women's-circle": "Lingkaran wanita",
+  "manage.apply.loginRequired": "Masuk untuk memulai",
+  "manage.apply.loginRequiredMessage": "Untuk mengajukan akses editor dan mempublikasikan acara tari Anda, Anda harus masuk atau membuat akun terlebih dahulu. Setelah masuk, Anda akan dibawa kembali ke sini."
 }

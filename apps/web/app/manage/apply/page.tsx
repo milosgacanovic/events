@@ -90,13 +90,13 @@ export default function ApplyPage() {
             className="primary-btn"
             onClick={() => void auth.login()}
           >
-            {t("manage.apply.loginButton")}
+            {t("nav.login")}
           </button>
           <button
             className="ghost-btn"
             onClick={() => void auth.register()}
           >
-            {t("manage.apply.registerButton")}
+            {t("nav.register")}
           </button>
         </div>
       </div>

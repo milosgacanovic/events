@@ -997,5 +997,7 @@
   "tag.teacher-training": "Подготовка учителей",
   "tag.trauma-informed": "Травма-информированно",
   "tag.wheelchair-friendly": "Доступно для колясок",
-  "tag.women's-circle": "Женский круг"
+  "tag.women's-circle": "Женский круг",
+  "manage.apply.loginRequired": "Войдите, чтобы начать",
+  "manage.apply.loginRequiredMessage": "Чтобы подать заявку на доступ редактора и публиковать свои танцевальные мероприятия, вам необходимо сначала войти или создать аккаунт. После входа вы вернётесь на эту страницу."
 }

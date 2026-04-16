@@ -872,8 +872,6 @@
   "manage.apply.redirectingLogin": "Redirecting to login...",
   "manage.apply.loginRequired": "Sign in to get started",
   "manage.apply.loginRequiredMessage": "To apply for editor access and publish your dance events, you need to sign in or create an account first. After signing in, you'll be brought right back here.",
-  "manage.apply.loginButton": "Sign In",
-  "manage.apply.registerButton": "Create Account",
   "manage.auth.editorRequired": "Editor access required",
   "manage.auth.editorMessage": "You need the editor role to access the manage area.",
   "manage.auth.adminRequired": "Admin access required",

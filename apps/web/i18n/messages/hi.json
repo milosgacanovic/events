@@ -997,5 +997,7 @@
   "tag.teacher-training": "शिक्षक प्रशिक्षण",
   "tag.trauma-informed": "आघात-जागरूक",
   "tag.wheelchair-friendly": "व्हीलचेयर अनुकूल",
-  "tag.women's-circle": "महिला सर्कल"
+  "tag.women's-circle": "महिला सर्कल",
+  "manage.apply.loginRequired": "शुरू करने के लिए साइन इन करें",
+  "manage.apply.loginRequiredMessage": "संपादक पहुँच के लिए आवेदन करने और अपने डांस इवेंट प्रकाशित करने के लिए, आपको पहले साइन इन करना होगा या एक खाता बनाना होगा। साइन इन करने के बाद, आप वापस यहीं आ जाएंगे।"
 }

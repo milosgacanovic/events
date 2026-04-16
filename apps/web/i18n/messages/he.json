@@ -997,5 +997,7 @@
   "tag.teacher-training": "הכשרת מורים",
   "tag.trauma-informed": "מודע לטראומה",
   "tag.wheelchair-friendly": "נגיש לכיסאות גלגלים",
-  "tag.women's-circle": "מעגל נשים"
+  "tag.women's-circle": "מעגל נשים",
+  "manage.apply.loginRequired": "התחבר כדי להתחיל",
+  "manage.apply.loginRequiredMessage": "כדי להגיש בקשה לגישת עורך ולפרסם את אירועי הריקוד שלך, עליך להתחבר או ליצור חשבון תחילה. לאחר ההתחברות, תחזור ישירות לכאן."
 }

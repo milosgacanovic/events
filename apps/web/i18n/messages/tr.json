@@ -997,5 +997,7 @@
   "tag.teacher-training": "Öğretmen eğitimi",
   "tag.trauma-informed": "Travma bilinçli",
   "tag.wheelchair-friendly": "Tekerlekli sandalye dostu",
-  "tag.women's-circle": "Kadın çemberi"
+  "tag.women's-circle": "Kadın çemberi",
+  "manage.apply.loginRequired": "Başlamak için giriş yapın",
+  "manage.apply.loginRequiredMessage": "Editör erişimi başvurusunda bulunmak ve dans etkinliklerinizi yayımlamak için önce giriş yapmanız veya hesap oluşturmanız gerekiyor. Giriş yaptıktan sonra buraya geri döneceksiniz."
 }

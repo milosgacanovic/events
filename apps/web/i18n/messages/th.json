@@ -997,5 +997,7 @@
   "tag.teacher-training": "การฝึกอบรมครู",
   "tag.trauma-informed": "ตระหนักต่อบาดแผลทางใจ",
   "tag.wheelchair-friendly": "เข้าถึงได้ด้วยรถเข็น",
-  "tag.women's-circle": "วงผู้หญิง"
+  "tag.women's-circle": "วงผู้หญิง",
+  "manage.apply.loginRequired": "ลงชื่อเข้าใช้เพื่อเริ่มต้น",
+  "manage.apply.loginRequiredMessage": "หากต้องการสมัครสิทธิ์บรรณาธิการและเผยแพร่กิจกรรมเต้นรำของคุณ คุณต้องลงชื่อเข้าใช้หรือสร้างบัญชีก่อน หลังจากลงชื่อเข้าใช้แล้ว คุณจะกลับมาที่นี่"
 }

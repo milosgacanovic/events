@@ -997,5 +997,7 @@
   "tag.teacher-training": "تدريب المعلمين",
   "tag.trauma-informed": "مراعٍ للصدمات",
   "tag.wheelchair-friendly": "مناسب للكراسي المتحركة",
-  "tag.women's-circle": "حلقة نساء"
+  "tag.women's-circle": "حلقة نساء",
+  "manage.apply.loginRequired": "سجّل الدخول للبدء",
+  "manage.apply.loginRequiredMessage": "للتقدم بطلب للحصول على صلاحية المحرر ونشر فعاليات الرقص الخاصة بك، يجب عليك تسجيل الدخول أو إنشاء حساب أولاً. بعد تسجيل الدخول، ستعود مباشرة إلى هنا."
 }

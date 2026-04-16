@@ -997,5 +997,7 @@
   "tag.teacher-training": "Ukuqeqeshwa kothisha",
   "tag.trauma-informed": "Okuqaphela inhlupheko",
   "tag.wheelchair-friendly": "Kulungele izihlalo ezinama-vili",
-  "tag.women's-circle": "Isiyingi sabesifazane"
+  "tag.women's-circle": "Isiyingi sabesifazane",
+  "manage.apply.loginRequired": "Ngena ngemvume ukuze uqale",
+  "manage.apply.loginRequiredMessage": "Ukuze ufake isicelo sokuba umhleli futhi ushicilele imicimbi yakho yokudansa, kufanele ungene ngemvume noma wakhe i-akhawunti kuqala. Ngemva kokungena, uzobuyiselwa lapha."
 }

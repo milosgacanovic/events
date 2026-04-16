@@ -997,5 +997,7 @@
   "tag.teacher-training": "მასწავლებლის მომზადება",
   "tag.trauma-informed": "ტრავმის გათვალისწინებით",
   "tag.wheelchair-friendly": "ეტლისთვის ხელმისაწვდომი",
-  "tag.women's-circle": "ქალთა წრე"
+  "tag.women's-circle": "ქალთა წრე",
+  "manage.apply.loginRequired": "შედით დასაწყებად",
+  "manage.apply.loginRequiredMessage": "რედაქტორის წვდომის მოსაპოვებლად და თქვენი საცეკვაო ღონისძიებების გამოსაქვეყნებლად, ჯერ უნდა შეხვიდეთ ან შექმნათ ანგარიში. შესვლის შემდეგ დაბრუნდებით აქ."
 }

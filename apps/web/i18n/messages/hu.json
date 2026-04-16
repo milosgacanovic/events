@@ -997,5 +997,7 @@
   "tag.teacher-training": "Tanárképzés",
   "tag.trauma-informed": "Traumatudatos",
   "tag.wheelchair-friendly": "Kerekesszék-barát",
-  "tag.women's-circle": "Női kör"
+  "tag.women's-circle": "Női kör",
+  "manage.apply.loginRequired": "Jelentkezzen be a kezdéshez",
+  "manage.apply.loginRequiredMessage": "A szerkesztői hozzáférés igényléséhez és tánceseményei közzétételéhez először be kell jelentkeznie vagy fiókot kell létrehoznia. Bejelentkezés után visszakerül ide."
 }

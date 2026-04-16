@@ -997,5 +997,7 @@
   "tag.teacher-training": "Lehrerausbildung",
   "tag.trauma-informed": "Traumasensibel",
   "tag.wheelchair-friendly": "Rollstuhlfreundlich",
-  "tag.women's-circle": "Frauenkreis"
+  "tag.women's-circle": "Frauenkreis",
+  "manage.apply.loginRequired": "Melden Sie sich an",
+  "manage.apply.loginRequiredMessage": "Um einen Redakteurszugang zu beantragen und Ihre Tanzveranstaltungen zu veröffentlichen, müssen Sie sich zuerst anmelden oder ein Konto erstellen. Nach der Anmeldung werden Sie direkt hierher zurückgebracht."
 }

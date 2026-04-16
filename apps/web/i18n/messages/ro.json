@@ -997,5 +997,7 @@
   "tag.teacher-training": "Formare profesori",
   "tag.trauma-informed": "Conștient de traumă",
   "tag.wheelchair-friendly": "Accesibil pentru scaune cu rotile",
-  "tag.women's-circle": "Cercul femeilor"
+  "tag.women's-circle": "Cercul femeilor",
+  "manage.apply.loginRequired": "Conectați-vă pentru a începe",
+  "manage.apply.loginRequiredMessage": "Pentru a solicita acces de editor și a publica evenimentele dvs. de dans, trebuie mai întâi să vă conectați sau să creați un cont. După conectare, veți fi readus aici."
 }

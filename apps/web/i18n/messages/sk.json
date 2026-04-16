@@ -997,5 +997,7 @@
   "tag.teacher-training": "Výcvik učiteľov",
   "tag.trauma-informed": "S ohľadom na traumu",
   "tag.wheelchair-friendly": "Bezbariérové",
-  "tag.women's-circle": "Ženský kruh"
+  "tag.women's-circle": "Ženský kruh",
+  "manage.apply.loginRequired": "Prihláste sa",
+  "manage.apply.loginRequiredMessage": "Ak chcete požiadať o prístup editora a publikovať svoje tanečné podujatia, musíte sa najprv prihlásiť alebo si vytvoriť účet. Po prihlásení sa vrátite späť sem."
 }

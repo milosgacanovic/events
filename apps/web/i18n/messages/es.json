@@ -997,5 +997,7 @@
   "tag.teacher-training": "Formación de profesores",
   "tag.trauma-informed": "Sensible al trauma",
   "tag.wheelchair-friendly": "Accesible en silla de ruedas",
-  "tag.women's-circle": "Círculo de mujeres"
+  "tag.women's-circle": "Círculo de mujeres",
+  "manage.apply.loginRequired": "Inicia sesión para comenzar",
+  "manage.apply.loginRequiredMessage": "Para solicitar acceso de editor y publicar tus eventos de baile, primero debes iniciar sesión o crear una cuenta. Después de iniciar sesión, volverás aquí."
 }

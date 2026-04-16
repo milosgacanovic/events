@@ -997,5 +997,7 @@
   "tag.teacher-training": "Kennaraþjálfun",
   "tag.trauma-informed": "Áfallamiðað",
   "tag.wheelchair-friendly": "Hjólastólsvænt",
-  "tag.women's-circle": "Kvenna hringur"
+  "tag.women's-circle": "Kvenna hringur",
+  "manage.apply.loginRequired": "Skráðu þig inn til að byrja",
+  "manage.apply.loginRequiredMessage": "Til að sækja um ritstjóraaðgang og birta dansviðburðina þína þarftu fyrst að skrá þig inn eða búa til reikning. Eftir innskráningu ferðu beint aftur hingað."
 }

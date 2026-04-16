@@ -997,5 +997,7 @@
   "tag.teacher-training": "Læreruddannelse",
   "tag.trauma-informed": "Traumainformeret",
   "tag.wheelchair-friendly": "Kørestolsvenlig",
-  "tag.women's-circle": "Kvindecirkel"
+  "tag.women's-circle": "Kvindecirkel",
+  "manage.apply.loginRequired": "Log ind for at komme i gang",
+  "manage.apply.loginRequiredMessage": "For at ansøge om redaktøradgang og publicere dine dansebegivenheder skal du først logge ind eller oprette en konto. Efter login bliver du ført direkte tilbage hertil."
 }

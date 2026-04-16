@@ -997,5 +997,7 @@
   "tag.teacher-training": "Formation d'enseignants",
   "tag.trauma-informed": "Sensible au trauma",
   "tag.wheelchair-friendly": "Accessible en fauteuil roulant",
-  "tag.women's-circle": "Cercle de femmes"
+  "tag.women's-circle": "Cercle de femmes",
+  "manage.apply.loginRequired": "Connectez-vous pour commencer",
+  "manage.apply.loginRequiredMessage": "Pour demander un accès éditeur et publier vos événements de danse, vous devez d'abord vous connecter ou créer un compte. Après la connexion, vous serez redirigé ici."
 }
