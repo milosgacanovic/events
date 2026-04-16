@@ -240,6 +240,7 @@
   "follow.button.following": "Following",
   "follow.button.followingNear": "Following · {location}",
   "follow.button.signInTooltip": "Sign in to get notified",
+  "follow.confirm.title": "Unfollow {host}?",
   "follow.modal.titleCreate": "Follow {host}",
   "follow.modal.titleEdit": "Edit alert · {host}",
   "follow.modal.description": "Get an email when this host posts new events.",
