@@ -962,7 +962,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
            coalesce(mq.status, 'pending') as status, r.created_at
          from reports r
          join users u on u.id = r.user_id
-         left join moderation_queue mq on mq.item_type = 'report' and mq.item_id = r.id::text
+         left join moderation_queue mq on mq.item_type = 'report' and mq.item_id = r.id
          where r.target_type = 'event' and r.target_id = $1::uuid
          order by r.created_at desc limit 50`,
         [eid],
@@ -1004,7 +1004,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
            coalesce(mq.status, 'pending') as status, r.created_at
          from reports r
          join users u on u.id = r.user_id
-         left join moderation_queue mq on mq.item_type = 'report' and mq.item_id = r.id::text
+         left join moderation_queue mq on mq.item_type = 'report' and mq.item_id = r.id
          where r.target_type = 'organizer' and r.target_id = $1::uuid
          order by r.created_at desc limit 50`,
         [oid],

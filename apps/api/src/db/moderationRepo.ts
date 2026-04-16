@@ -170,13 +170,13 @@ export async function listModerationItems(
          ) as report_count
        from moderation_queue mq
        left join users mod on mod.id = mq.moderator_id
-       left join comments c on mq.item_type = 'comment' and c.id = mq.item_id::uuid
+       left join comments c on mq.item_type = 'comment' and c.id = mq.item_id
        left join users cu on cu.id = c.user_id
        left join events ce on ce.id = c.event_id
-       left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id::uuid
+       left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id
        left join users esu on esu.id = es.user_id
        left join events ese on es.target_type = 'event' and ese.id = es.target_id
-       left join reports r on mq.item_type = 'report' and r.id = mq.item_id::uuid
+       left join reports r on mq.item_type = 'report' and r.id = mq.item_id
        left join users ru on ru.id = r.user_id
        left join events re on r.target_type = 'event' and re.id = r.target_id::uuid
        left join organizers ro on r.target_type = 'organizer' and ro.id = r.target_id::uuid
@@ -188,11 +188,11 @@ export async function listModerationItems(
     pool.query<{ count: string }>(
       `select count(*)::text as count
        from moderation_queue mq
-       left join comments c on mq.item_type = 'comment' and c.id = mq.item_id::uuid
+       left join comments c on mq.item_type = 'comment' and c.id = mq.item_id
        left join users cu on cu.id = c.user_id
-       left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id::uuid
+       left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id
        left join users esu on esu.id = es.user_id
-       left join reports r on mq.item_type = 'report' and r.id = mq.item_id::uuid
+       left join reports r on mq.item_type = 'report' and r.id = mq.item_id
        left join users ru on ru.id = r.user_id
        ${whereClause}`,
       values,
@@ -243,13 +243,13 @@ export async function getModerationDetail(
        coalesce(re.title, ro.name) as report_target_label
      from moderation_queue mq
      left join users mod on mod.id = mq.moderator_id
-     left join comments c on mq.item_type = 'comment' and c.id = mq.item_id::uuid
+     left join comments c on mq.item_type = 'comment' and c.id = mq.item_id
      left join users cu on cu.id = c.user_id
      left join events ce on ce.id = c.event_id
-     left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id::uuid
+     left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id
      left join users esu on esu.id = es.user_id
      left join events ese on es.target_type = 'event' and ese.id = es.target_id
-     left join reports r on mq.item_type = 'report' and r.id = mq.item_id::uuid
+     left join reports r on mq.item_type = 'report' and r.id = mq.item_id
      left join users ru on ru.id = r.user_id
      left join events re on r.target_type = 'event' and re.id = r.target_id::uuid
      left join organizers ro on r.target_type = 'organizer' and ro.id = r.target_id::uuid
