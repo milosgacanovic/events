@@ -448,7 +448,7 @@ export default function ProfilePage() {
 
       <div style={{ marginTop: 24 }}>
         <a
-          href={`${process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER}/account/#/security/signingin`}
+          href={`${process.env.NEXT_PUBLIC_KEYCLOAK_URL || "https://sso.danceresource.org"}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM || "danceresource"}/account/#/security/signingin`}
           target="_blank"
           rel="noopener noreferrer"
           className="report-btn"
