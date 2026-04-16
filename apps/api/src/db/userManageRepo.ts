@@ -356,11 +356,11 @@ export async function getUserDetail(pool: Pool, userId: string) {
       created_at: string;
     }>(
       `select rec.id, rec.recipient_email, rec.event_id,
-              e.title as event_title, rec.note, rec.created_at
+              e.title as event_title, rec.note, rec.sent_at as created_at
        from recommendations rec
        join events e on e.id = rec.event_id
        where rec.sender_user_id = $1
-       order by rec.created_at desc
+       order by rec.sent_at desc
        limit 50`,
       [userId],
     ),
