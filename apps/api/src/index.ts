@@ -24,7 +24,6 @@ import manageRoutes from "./routes/manage";
 import savedEventsRoutes from "./routes/savedEvents";
 import rsvpRoutes from "./routes/rsvps";
 import savedSearchRoutes from "./routes/savedSearches";
-import moderationRoutes from "./routes/moderation";
 import commentRoutes from "./routes/comments";
 import editSuggestionRoutes from "./routes/editSuggestions";
 import recommendationRoutes from "./routes/recommendations";
@@ -263,7 +262,6 @@ async function buildServer() {
     await api.register(savedEventsRoutes);
     await api.register(rsvpRoutes);
     await api.register(savedSearchRoutes);
-    await api.register(moderationRoutes);
     await api.register(commentRoutes);
     await api.register(editSuggestionRoutes);
     await api.register(recommendationRoutes);
