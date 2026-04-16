@@ -1346,14 +1346,14 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const seriesIdChanged =
       Boolean(previousEvent) && previousSeriesId !== currentSeriesId;
 
-    if (!skipSearch && previousEvent && event.status === "published") {
+    if (previousEvent && event.status === "published") {
       if (previousEvent.status !== "published") {
         // Transition to published — regenerate occurrences
         await regenerateOccurrences(
           app.db,
           app.meiliService,
           params.data.id,
-          false,
+          skipSearch,
           previousSeriesId,
         );
       } else {
@@ -1366,34 +1366,40 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             app.db,
             app.meiliService,
             params.data.id,
-            false,
+            skipSearch,
             previousSeriesId,
           );
         } else {
           // Metadata change (languages, tags, title, etc.) — resync without regenerating occurrences
-          await app.meiliService.upsertOccurrencesForEvent(app.db, params.data.id).catch(() => {});
+          if (!skipSearch) {
+            await app.meiliService.upsertOccurrencesForEvent(app.db, params.data.id).catch(() => {});
+          }
           await syncSeriesForEvent(
             app.db,
             app.meiliService,
             params.data.id,
             "update.metadata",
             previousSeriesId,
+            skipSearch,
           );
-          clearSearchCache();
+          if (!skipSearch) clearSearchCache();
         }
       }
-    } else if (!skipSearch && previousEvent && previousEvent.status === "published"
+    } else if (previousEvent && previousEvent.status === "published"
                && (event.status === "archived" || event.status === "draft" || event.status === "cancelled")) {
-      await app.meiliService.deleteOccurrencesByEventId(params.data.id).catch(() => {});
+      if (!skipSearch) {
+        await app.meiliService.deleteOccurrencesByEventId(params.data.id).catch(() => {});
+      }
       await syncSeriesForEvent(
         app.db,
         app.meiliService,
         params.data.id,
         "update.deactivate",
         previousSeriesId,
+        skipSearch,
       );
-      clearSearchCache();
-    } else if (!skipSearch && seriesIdChanged && previousSeriesId) {
+      if (!skipSearch) clearSearchCache();
+    } else if (seriesIdChanged && previousSeriesId) {
       // series_id edited on a non-published event — no occurrence index
       // impact, but the previous series row still needs to drop this event
       // from its aggregates.
@@ -1403,6 +1409,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         params.data.id,
         "update.seriesMove",
         previousSeriesId,
+        skipSearch,
       );
     }
 

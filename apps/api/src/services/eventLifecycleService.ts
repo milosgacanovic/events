@@ -31,6 +31,7 @@ export async function syncSeriesForEvent(
   eventId: string,
   op: string,
   previousSeriesId?: string | null,
+  skipSearch = false,
 ): Promise<void> {
   const event = await getEventById(pool, eventId);
   const seriesId = event?.series_id ?? null;
@@ -42,10 +43,12 @@ export async function syncSeriesForEvent(
   for (const sid of toRefresh) {
     try {
       const survived = await refreshEventSeries(pool, sid);
-      if (survived) {
-        await meiliService.upsertSeriesDoc(pool, sid);
-      } else {
-        await meiliService.deleteSeriesDoc(sid);
+      if (!skipSearch) {
+        if (survived) {
+          await meiliService.upsertSeriesDoc(pool, sid);
+        } else {
+          await meiliService.deleteSeriesDoc(sid);
+        }
       }
     } catch (err) {
       console.error(`[${op}] Failed to sync event_series for series ${sid}:`, err);
@@ -103,17 +106,21 @@ export async function regenerateOccurrences(
     generated,
   );
 
+  // Always refresh the event_series DB table so metadata stays consistent
+  // (e.g. when the importer uses skipSearch=true). Only skip the Meili sync.
+  await syncSeriesForEvent(
+    pool,
+    meiliService,
+    eventId,
+    "regenerateOccurrences",
+    previousSeriesId,
+    skipSearch,
+  );
+
   if (!skipSearch) {
     await meiliService.upsertOccurrencesForEvent(pool, eventId).catch((err) => {
       console.error(`[regenerateOccurrences] Failed to sync Meilisearch for event ${eventId}:`, err);
     });
-    await syncSeriesForEvent(
-      pool,
-      meiliService,
-      eventId,
-      "regenerateOccurrences",
-      previousSeriesId,
-    );
     clearSearchCache();
   }
 }
