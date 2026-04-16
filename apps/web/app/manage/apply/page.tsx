@@ -79,8 +79,28 @@ export default function ApplyPage() {
   if (!auth.ready) return <div className="manage-loading">{t("manage.common.loading")}</div>;
 
   if (!auth.authenticated) {
-    void auth.login();
-    return <div className="manage-loading">{t("manage.apply.redirectingLogin")}</div>;
+    return (
+      <div className="manage-empty" style={{ maxWidth: 480, textAlign: "center" }}>
+        <h3>{t("manage.apply.loginRequired")}</h3>
+        <p style={{ marginBottom: 24, color: "var(--muted)", lineHeight: 1.6 }}>
+          {t("manage.apply.loginRequiredMessage")}
+        </p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <button
+            className="primary-btn"
+            onClick={() => void auth.login()}
+          >
+            {t("manage.apply.loginButton")}
+          </button>
+          <button
+            className="ghost-btn"
+            onClick={() => void auth.register()}
+          >
+            {t("manage.apply.registerButton")}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   useEffect(() => {
