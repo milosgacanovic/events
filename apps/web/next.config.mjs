@@ -3,8 +3,9 @@
 // Keep the CSP string here so both the headers() hook below and a human
 // reviewer can see exactly what's shipped. 'unsafe-inline' on script-src is
 // required today by Next.js's inline runtime + inline JSON-LD blocks; a
-// follow-up will move to nonces. Keycloak silent-check-sso is hosted on the
-// same origin but the login iframe comes from sso.danceresource.org.
+// follow-up will move to nonces. Keycloak silent-check-sso loads
+// /silent-check-sso.html in a hidden same-origin iframe, so frame-ancestors
+// must be 'self' (not 'none') and X-Frame-Options must be SAMEORIGIN.
 //
 // Third-party allow-list notes (don't drop these without checking):
 // - Google Fonts CSS at fonts.googleapis.com (imported in globals.css) + the
@@ -23,13 +24,13 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self' https://sso.danceresource.org",
-  "frame-ancestors 'none'",
+  "frame-ancestors 'self'",
 ].join("; ");
 
 const securityHeaders = [
   { key: "Content-Security-Policy", value: contentSecurityPolicy },
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), interest-cohort=()" },
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
