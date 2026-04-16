@@ -321,6 +321,122 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
       },
     };
   });
+
+  // ── Notification Preferences ─────────────────────────────────────────
+  app.get("/profile/notification-preferences", async (request) => {
+    await app.authenticate(request);
+    const auth = request.auth;
+    if (!auth?.sub) throw app.httpErrors.unauthorized("invalid_subject");
+
+    const profile = await getUserProfileBySub(app.db, auth.sub);
+    const result = await app.db.query<{
+      email_enabled: boolean;
+      digest_frequency: string;
+      pause_until: string | null;
+      notify_followed_hosts: boolean;
+      notify_saved_reminders: boolean;
+      notify_rsvp_reminders: boolean;
+      notify_event_updates: boolean;
+      notify_search_alerts: boolean;
+    }>(
+      `select email_enabled, digest_frequency, pause_until,
+              notify_followed_hosts, notify_saved_reminders,
+              notify_rsvp_reminders, notify_event_updates, notify_search_alerts
+       from notification_preferences where user_id = $1`,
+      [profile.id],
+    );
+    const row = result.rows[0];
+    return {
+      emailEnabled: row?.email_enabled ?? true,
+      digestFrequency: row?.digest_frequency ?? "weekly",
+      pauseUntil: row?.pause_until ?? null,
+      notifyFollowedHosts: row?.notify_followed_hosts ?? true,
+      notifySavedReminders: row?.notify_saved_reminders ?? true,
+      notifyRsvpReminders: row?.notify_rsvp_reminders ?? true,
+      notifyEventUpdates: row?.notify_event_updates ?? true,
+      notifySearchAlerts: row?.notify_search_alerts ?? true,
+    };
+  });
+
+  app.patch("/profile/notification-preferences", async (request) => {
+    await app.authenticate(request);
+    const auth = request.auth;
+    if (!auth?.sub) throw app.httpErrors.unauthorized("invalid_subject");
+
+    const schema = z.object({
+      emailEnabled: z.boolean().optional(),
+      digestFrequency: z.enum(["daily", "weekly"]).optional(),
+      pauseUntil: z.string().nullable().optional(),
+      notifyFollowedHosts: z.boolean().optional(),
+      notifySavedReminders: z.boolean().optional(),
+      notifyRsvpReminders: z.boolean().optional(),
+      notifyEventUpdates: z.boolean().optional(),
+      notifySearchAlerts: z.boolean().optional(),
+    });
+    const parsed = schema.safeParse(request.body);
+    if (!parsed.success) {
+      throw app.httpErrors.badRequest("invalid_body");
+    }
+
+    const profile = await getUserProfileBySub(app.db, auth.sub);
+    const d = parsed.data;
+
+    const result = await app.db.query<{
+      email_enabled: boolean;
+      digest_frequency: string;
+      pause_until: string | null;
+      notify_followed_hosts: boolean;
+      notify_saved_reminders: boolean;
+      notify_rsvp_reminders: boolean;
+      notify_event_updates: boolean;
+      notify_search_alerts: boolean;
+    }>(
+      `insert into notification_preferences (
+        user_id, email_enabled, digest_frequency, pause_until,
+        notify_followed_hosts, notify_saved_reminders, notify_rsvp_reminders,
+        notify_event_updates, notify_search_alerts, updated_at
+      ) values ($1,
+        coalesce($2, true), coalesce($3, 'weekly'), $4,
+        coalesce($5, true), coalesce($6, true), coalesce($7, true),
+        coalesce($8, true), coalesce($9, true), now()
+      )
+      on conflict (user_id) do update set
+        email_enabled = coalesce($2, notification_preferences.email_enabled),
+        digest_frequency = coalesce($3, notification_preferences.digest_frequency),
+        pause_until = case when $4::text = '' then null else coalesce($4::date, notification_preferences.pause_until) end,
+        notify_followed_hosts = coalesce($5, notification_preferences.notify_followed_hosts),
+        notify_saved_reminders = coalesce($6, notification_preferences.notify_saved_reminders),
+        notify_rsvp_reminders = coalesce($7, notification_preferences.notify_rsvp_reminders),
+        notify_event_updates = coalesce($8, notification_preferences.notify_event_updates),
+        notify_search_alerts = coalesce($9, notification_preferences.notify_search_alerts),
+        updated_at = now()
+      returning email_enabled, digest_frequency, pause_until,
+        notify_followed_hosts, notify_saved_reminders, notify_rsvp_reminders,
+        notify_event_updates, notify_search_alerts`,
+      [
+        profile.id,
+        d.emailEnabled ?? null,
+        d.digestFrequency ?? null,
+        d.pauseUntil ?? null,
+        d.notifyFollowedHosts ?? null,
+        d.notifySavedReminders ?? null,
+        d.notifyRsvpReminders ?? null,
+        d.notifyEventUpdates ?? null,
+        d.notifySearchAlerts ?? null,
+      ],
+    );
+    const row = result.rows[0];
+    return {
+      emailEnabled: row.email_enabled,
+      digestFrequency: row.digest_frequency,
+      pauseUntil: row.pause_until,
+      notifyFollowedHosts: row.notify_followed_hosts,
+      notifySavedReminders: row.notify_saved_reminders,
+      notifyRsvpReminders: row.notify_rsvp_reminders,
+      notifyEventUpdates: row.notify_event_updates,
+      notifySearchAlerts: row.notify_search_alerts,
+    };
+  });
 };
 
 export default profileRoutes;

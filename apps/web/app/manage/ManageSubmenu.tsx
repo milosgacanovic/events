@@ -51,11 +51,11 @@ export function ManageSubmenu({
           <Link href="/manage/admin/applications" className={linkClass("/manage/admin/applications")}>
             {t("manage.sidebar.applications")}
           </Link>
-          <Link href="/manage/admin/moderation" className={linkClass("/manage/admin/moderation")}>
-            {t("manage.sidebar.moderation")}
-          </Link>
           <Link href="/manage/admin/tags" className={linkClass("/manage/admin/tags")}>
             {t("manage.sidebar.tagSuggestions")}
+          </Link>
+          <Link href="/manage/admin/moderation" className={linkClass("/manage/admin/moderation")}>
+            {t("manage.sidebar.moderation")}
           </Link>
           <Link href="/manage/admin/notifications" className={linkClass("/manage/admin/notifications")}>
             {t("manage.sidebar.notifications")}

@@ -823,11 +823,15 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   // ── Enhanced Moderation ──────────────────────────────────────────────
   app.get("/admin/moderation", async (request) => {
     await app.requireAdmin(request);
-    const query = request.query as { type?: string; status?: string; search?: string; page?: string; pageSize?: string };
+    const query = request.query as { type?: string; status?: string; search?: string; targetType?: string; reason?: string; dateFrom?: string; dateTo?: string; page?: string; pageSize?: string };
     const result = await listModerationItems(app.db, {
       type: query.type || undefined,
       status: query.status || undefined,
       search: query.search || undefined,
+      targetType: query.targetType || undefined,
+      reason: query.reason || undefined,
+      dateFrom: query.dateFrom || undefined,
+      dateTo: query.dateTo || undefined,
       page: Number(query.page) || 1,
       pageSize: Number(query.pageSize) || 20,
     });
@@ -886,7 +890,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.get("/admin/settings/moderation", async (request) => {
     await app.requireAdmin(request);
     const settings = await getSetting(app.db, "moderation");
-    return settings ?? { enabled: true, bannedWords: [], rateLimit: 10 };
+    return settings ?? { enabled: true, bannedWords: [], rateLimit: 5, aiThreshold: 0.85, emailNotifications: false };
   });
 
   app.patch("/admin/settings/moderation", async (request) => {
@@ -895,6 +899,8 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       enabled: z.boolean().optional(),
       bannedWords: z.array(z.string()).optional(),
       rateLimit: z.number().int().min(1).optional(),
+      aiThreshold: z.number().min(0).max(1).optional(),
+      emailNotifications: z.boolean().optional(),
     });
     const body = bodySchema.safeParse(request.body);
     if (!body.success) return { error: "invalid_body" };
@@ -922,6 +928,93 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
   app.get("/admin/recommendations/stats", async (request) => {
     await app.requireAdmin(request);
     return getRecommendationStats(app.db);
+  });
+
+  // ── Event/Host Engagement Detail ────────────────────────────────────
+  app.get("/admin/events/:id/engagement", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
+    const eid = params.data.id;
+    const [counts, rsvps, comments, reports] = await Promise.all([
+      app.db.query<{ save_count: number; rsvp_count: number; comment_count: number; report_count: number }>(
+        `select
+          (select count(*)::int from saved_events where event_id = $1) as save_count,
+          (select count(*)::int from event_rsvps where event_id = $1) as rsvp_count,
+          (select count(*)::int from comments where event_id = $1) as comment_count,
+          (select count(*)::int from reports where target_type = 'event' and target_id = $1::text) as report_count`,
+        [eid],
+      ),
+      app.db.query<{ id: string; user_name: string; user_id: string; created_at: string }>(
+        `select r.id, u.display_name as user_name, u.id as user_id, r.created_at
+         from event_rsvps r join users u on u.id = r.user_id
+         where r.event_id = $1 order by r.created_at desc limit 50`,
+        [eid],
+      ),
+      app.db.query<{ id: string; user_name: string; body: string; status: string; created_at: string }>(
+        `select c.id, u.display_name as user_name, c.body, c.status, c.created_at
+         from comments c join users u on u.id = c.user_id
+         where c.event_id = $1 order by c.created_at desc limit 50`,
+        [eid],
+      ),
+      app.db.query<{ id: string; reporter_name: string; reason: string; detail: string | null; status: string; created_at: string }>(
+        `select r.id, u.display_name as reporter_name, r.reason, r.detail,
+           coalesce(mq.status, 'pending') as status, r.created_at
+         from reports r
+         join users u on u.id = r.reporter_user_id
+         left join moderation_queue mq on mq.item_type = 'report' and mq.item_id = r.id::text
+         where r.target_type = 'event' and r.target_id = $1::text
+         order by r.created_at desc limit 50`,
+        [eid],
+      ),
+    ]);
+    return {
+      counts: counts.rows[0] ?? { save_count: 0, rsvp_count: 0, comment_count: 0, report_count: 0 },
+      rsvps: rsvps.rows,
+      comments: comments.rows,
+      reports: reports.rows,
+    };
+  });
+
+  app.get("/admin/organizers/:id/engagement", async (request, reply) => {
+    await app.requireAdmin(request);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) { reply.code(400); return logValidation(request, params.error); }
+    const oid = params.data.id;
+    const [counts, followers, reports] = await Promise.all([
+      app.db.query<{ follower_count: number; comment_count: number; report_count: number }>(
+        `select
+          (select count(*)::int from user_alerts where organizer_id = $1 and unsubscribed_at is null) as follower_count,
+          (select count(*)::int from comments c
+           join events e on e.id = c.event_id
+           join event_organizers eo on eo.event_id = e.id
+           where eo.organizer_id = $1) as comment_count,
+          (select count(*)::int from reports where target_type = 'organizer' and target_id = $1::text) as report_count`,
+        [oid],
+      ),
+      app.db.query<{ id: string; user_name: string; user_id: string; created_at: string }>(
+        `select ua.id, u.display_name as user_name, u.id as user_id, ua.created_at
+         from user_alerts ua join users u on u.id = ua.user_id
+         where ua.organizer_id = $1 and ua.unsubscribed_at is null
+         order by ua.created_at desc limit 50`,
+        [oid],
+      ),
+      app.db.query<{ id: string; reporter_name: string; reason: string; detail: string | null; status: string; created_at: string }>(
+        `select r.id, u.display_name as reporter_name, r.reason, r.detail,
+           coalesce(mq.status, 'pending') as status, r.created_at
+         from reports r
+         join users u on u.id = r.reporter_user_id
+         left join moderation_queue mq on mq.item_type = 'report' and mq.item_id = r.id::text
+         where r.target_type = 'organizer' and r.target_id = $1::text
+         order by r.created_at desc limit 50`,
+        [oid],
+      ),
+    ]);
+    return {
+      counts: counts.rows[0] ?? { follower_count: 0, comment_count: 0, report_count: 0 },
+      followers: followers.rows,
+      reports: reports.rows,
+    };
   });
 
 };

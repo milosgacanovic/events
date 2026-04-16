@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
@@ -15,21 +15,19 @@ type ModerationItem = {
   moderator_note: string | null;
   reviewed_at: string | null;
   created_at: string;
-  // comment
   comment_body: string | null;
   comment_user_name: string | null;
   comment_event_title: string | null;
-  // suggestion
   suggestion_category: string | null;
   suggestion_value: string | null;
   suggestion_user_name: string | null;
   suggestion_event_title: string | null;
-  // report
   report_reason: string | null;
   report_detail: string | null;
   reporter_name: string | null;
   report_target_type: string | null;
   report_target_label: string | null;
+  report_count: number | null;
 };
 
 type ModerationResponse = {
@@ -39,9 +37,27 @@ type ModerationResponse = {
 
 type ModerationStats = Record<string, Record<string, number>>;
 
+type ModerationSettings = {
+  enabled: boolean;
+  bannedWords: string[];
+  rateLimit: number;
+  aiThreshold: number;
+  emailNotifications: boolean;
+};
+
 type Tab = "comment" | "edit_suggestion" | "report";
 
 const TABS: Tab[] = ["comment", "edit_suggestion", "report"];
+
+const REPORT_REASONS = [
+  { value: "", key: "reasonAll" },
+  { value: "spam_or_fake", key: "reasonSpam" },
+  { value: "duplicate", key: "reasonDuplicate" },
+  { value: "wrong_info", key: "reasonWrongInfo" },
+  { value: "no_longer_exists", key: "reasonNoLongerExists" },
+  { value: "inappropriate", key: "reasonInappropriate" },
+  { value: "other", key: "reasonOther" },
+];
 
 export default function AdminModerationPage() {
   const { getToken } = useKeycloakAuth();
@@ -55,6 +71,17 @@ export default function AdminModerationPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [statusFilter, setStatusFilter] = useState("pending");
   const [search, setSearch] = useState("");
+  const [targetType, setTargetType] = useState("");
+  const [reason, setReason] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Settings state
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<ModerationSettings | null>(null);
+  const [settingsSaving, setSaving] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
+  const settingsDialogRef = useRef<HTMLDialogElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,6 +92,10 @@ export default function AdminModerationPage() {
       params.set("pageSize", "20");
       if (statusFilter) params.set("status", statusFilter);
       if (search) params.set("search", search);
+      if (targetType) params.set("targetType", targetType);
+      if (reason) params.set("reason", reason);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
 
       const [statsData, itemsData] = await Promise.all([
         authorizedGet<ModerationStats>(getToken, "/admin/moderation/stats"),
@@ -76,9 +107,28 @@ export default function AdminModerationPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, tab, page, statusFilter, search]);
+  }, [getToken, tab, page, statusFilter, search, targetType, reason, dateFrom, dateTo]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function loadSettings() {
+    const s = await authorizedGet<ModerationSettings>(getToken, "/admin/settings/moderation");
+    setSettings(s);
+    setSettingsMsg(null);
+  }
+
+  async function saveSettings() {
+    if (!settings) return;
+    setSaving(true);
+    setSettingsMsg(null);
+    try {
+      const updated = await authorizedPatch<ModerationSettings>(getToken, "/admin/settings/moderation", settings);
+      setSettings(updated);
+      setSettingsMsg(t("manage.admin.moderation.settingsSaved"));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleAction(id: string, status: "approved" | "rejected" | "dismissed") {
     const note = status === "rejected" ? prompt(t("manage.admin.moderation.notePrompt")) : undefined;
@@ -90,6 +140,17 @@ export default function AdminModerationPage() {
     return stats[type]?.pending ?? 0;
   }
 
+  function openSettings() {
+    void loadSettings();
+    setShowSettings(true);
+    settingsDialogRef.current?.showModal();
+  }
+
+  function closeSettings() {
+    setShowSettings(false);
+    settingsDialogRef.current?.close();
+  }
+
   const tabLabels: Record<Tab, string> = {
     comment: t("manage.admin.moderation.comments"),
     edit_suggestion: t("manage.admin.moderation.suggestions"),
@@ -98,14 +159,21 @@ export default function AdminModerationPage() {
 
   return (
     <div>
-      <h1 className="manage-page-title">{t("manage.admin.moderation.title")}</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <h1 className="manage-page-title" style={{ margin: 0 }}>{t("manage.admin.moderation.title")}</h1>
+        {tab === "comment" && (
+          <button type="button" className="secondary-btn" onClick={openSettings}>
+            {t("manage.admin.moderation.settings")}
+          </button>
+        )}
+      </div>
 
       {/* Sub-tabs */}
       <div className="manage-status-pills" style={{ marginBottom: 16 }}>
         {TABS.map((tb) => {
           const pending = pendingCount(tb);
           return (
-            <button key={tb} type="button" data-active={tab === tb} onClick={() => { setTab(tb); setPage(1); }}>
+            <button key={tb} type="button" data-active={tab === tb} onClick={() => { setTab(tb); setPage(1); setTargetType(""); setReason(""); }}>
               {tabLabels[tb]}{pending > 0 ? ` (${pending})` : ""}
             </button>
           );
@@ -113,7 +181,7 @@ export default function AdminModerationPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input
           type="text"
           className="manage-search-input"
@@ -134,7 +202,47 @@ export default function AdminModerationPage() {
             </button>
           ))}
         </div>
-        <span className="meta" style={{ marginLeft: "auto", alignSelf: "center" }}>
+      </div>
+
+      {/* Second row: target type, reason, date range */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        {(tab === "comment" || tab === "report") && (
+          <div className="manage-status-pills">
+            {[
+              { value: "", label: t("manage.admin.moderation.targetAll") },
+              { value: "event", label: t("manage.admin.moderation.targetEvent") },
+              { value: "organizer", label: t("manage.admin.moderation.targetHost") },
+            ].map((opt) => (
+              <button key={opt.value} type="button" data-active={targetType === opt.value} onClick={() => { setTargetType(opt.value); setPage(1); }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === "report" && (
+          <select
+            className="modal-select"
+            style={{ minWidth: 140, height: 32, fontSize: "0.8rem" }}
+            value={reason}
+            onChange={(e) => { setReason(e.target.value); setPage(1); }}
+          >
+            {REPORT_REASONS.map((r) => (
+              <option key={r.value} value={r.value}>{t(`manage.admin.moderation.${r.key}`)}</option>
+            ))}
+          </select>
+        )}
+
+        <label className="meta" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {t("manage.admin.moderation.dateFrom")}
+          <input type="date" style={{ fontSize: "0.8rem", padding: "2px 4px" }} value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+        </label>
+        <label className="meta" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {t("manage.admin.moderation.dateTo")}
+          <input type="date" style={{ fontSize: "0.8rem", padding: "2px 4px" }} value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+        </label>
+
+        <span className="meta" style={{ marginLeft: "auto" }}>
           {t("manage.pagination.showing", { start: (page - 1) * 20 + 1, end: (page - 1) * 20 + items.length, total: totalItems })}
         </span>
       </div>
@@ -153,50 +261,59 @@ export default function AdminModerationPage() {
                   <th>{t("manage.admin.moderation.user")}</th>
                   <th>{t("manage.admin.moderation.target")}</th>
                   <th>{t("manage.admin.moderation.content")}</th>
+                  {tab === "report" && <th style={{ textAlign: "center" }}>#</th>}
                   <th>{t("manage.common.status")}</th>
                   <th className="text-right">{t("manage.admin.users.actions")}</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td style={{ whiteSpace: "nowrap" }}>{new Date(item.created_at).toLocaleDateString()}</td>
-                    <td>{item.item_type === "comment" ? item.comment_user_name : item.item_type === "edit_suggestion" ? item.suggestion_user_name : item.reporter_name}</td>
-                    <td>
-                      {item.item_type === "comment" ? item.comment_event_title
-                        : item.item_type === "edit_suggestion" ? item.suggestion_event_title
-                        : `${item.report_target_type}: ${item.report_target_label ?? item.item_id}`}
-                    </td>
-                    <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {item.item_type === "comment" ? item.comment_body
-                        : item.item_type === "edit_suggestion" ? `[${item.suggestion_category}] ${item.suggestion_value ?? ""}`
-                        : `${item.report_reason}: ${item.report_detail ?? ""}`}
-                    </td>
-                    <td>
-                      <span className={`tag tag--${item.status}`} style={{ fontSize: "0.7rem" }}>{item.status}</span>
-                    </td>
-                    <td className="text-right">
-                      {item.status === "pending" && (
-                        <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
-                          <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "approved")}>
-                            {t("manage.admin.moderation.approve")}
-                          </button>
-                          <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => void handleAction(item.id, "rejected")}>
-                            {t("manage.admin.moderation.reject")}
-                          </button>
-                          <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "dismissed")}>
-                            {t("manage.admin.moderation.dismiss")}
-                          </button>
-                        </div>
+                {items.map((item) => {
+                  const escalated = item.item_type === "report" && (item.report_count ?? 0) >= 3;
+                  return (
+                    <tr key={item.id} style={escalated ? { backgroundColor: "rgba(217, 119, 6, 0.1)" } : undefined}>
+                      <td style={{ whiteSpace: "nowrap" }}>{new Date(item.created_at).toLocaleDateString()}</td>
+                      <td>{item.item_type === "comment" ? item.comment_user_name : item.item_type === "edit_suggestion" ? item.suggestion_user_name : item.reporter_name}</td>
+                      <td>
+                        {item.item_type === "comment" ? item.comment_event_title
+                          : item.item_type === "edit_suggestion" ? item.suggestion_event_title
+                          : `${item.report_target_type}: ${item.report_target_label ?? item.item_id}`}
+                      </td>
+                      <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {item.item_type === "comment" ? item.comment_body
+                          : item.item_type === "edit_suggestion" ? `[${item.suggestion_category}] ${item.suggestion_value ?? ""}`
+                          : `${item.report_reason}: ${item.report_detail ?? ""}`}
+                      </td>
+                      {tab === "report" && (
+                        <td style={{ textAlign: "center", fontWeight: escalated ? 700 : 400, color: escalated ? "var(--warning, #d97706)" : undefined }}>
+                          {item.report_count ?? "\u2014"}
+                        </td>
                       )}
-                      {item.moderator_name && (
-                        <div className="meta" style={{ fontSize: "0.7rem", marginTop: 2 }}>
-                          {item.moderator_name}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      <td>
+                        <span className={`tag tag--${item.status}`} style={{ fontSize: "0.7rem" }}>{item.status}</span>
+                      </td>
+                      <td className="text-right">
+                        {item.status === "pending" && (
+                          <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                            <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "approved")}>
+                              {t("manage.admin.moderation.approve")}
+                            </button>
+                            <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => void handleAction(item.id, "rejected")}>
+                              {t("manage.admin.moderation.reject")}
+                            </button>
+                            <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "dismissed")}>
+                              {t("manage.admin.moderation.dismiss")}
+                            </button>
+                          </div>
+                        )}
+                        {item.moderator_name && (
+                          <div className="meta" style={{ fontSize: "0.7rem", marginTop: 2 }}>
+                            {item.moderator_name}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -207,6 +324,90 @@ export default function AdminModerationPage() {
           </div>
         </>
       )}
+
+      {/* Settings dialog */}
+      <dialog ref={settingsDialogRef} className="manage-dialog" style={{ maxWidth: 480 }}>
+        <h3 style={{ marginTop: 0 }}>{t("manage.admin.moderation.settingsTitle")}</h3>
+        {settings && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="modal-field">
+              <label className="modal-label">{t("manage.admin.moderation.aiThreshold")}</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={settings.aiThreshold ?? 0.85}
+                  onChange={(e) => setSettings({ ...settings, aiThreshold: parseFloat(e.target.value) })}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ fontWeight: 600, minWidth: 36, textAlign: "right" }}>{(settings.aiThreshold ?? 0.85).toFixed(2)}</span>
+              </div>
+              <div className="meta" style={{ fontSize: "0.75rem" }}>{t("manage.admin.moderation.aiThresholdHelp")}</div>
+            </div>
+
+            <div className="modal-field">
+              <label className="modal-label">{t("manage.admin.moderation.bannedWords")}</label>
+              <textarea
+                rows={3}
+                value={(settings.bannedWords ?? []).join(", ")}
+                onChange={(e) => setSettings({ ...settings, bannedWords: e.target.value.split(",").map((w) => w.trim()).filter(Boolean) })}
+                style={{ width: "100%" }}
+              />
+              <div className="meta" style={{ fontSize: "0.75rem" }}>{t("manage.admin.moderation.bannedWordsHelp")}</div>
+            </div>
+
+            <div className="modal-field">
+              <label className="modal-label">{t("manage.admin.moderation.rateLimit")}</label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={settings.rateLimit ?? 5}
+                onChange={(e) => setSettings({ ...settings, rateLimit: parseInt(e.target.value, 10) || 5 })}
+                style={{ width: 80 }}
+              />
+              <div className="meta" style={{ fontSize: "0.75rem" }}>{t("manage.admin.moderation.rateLimitHelp")}</div>
+            </div>
+
+            <label className="toggle-control">
+              <input
+                className="toggle-control-input"
+                type="checkbox"
+                checked={settings.enabled !== false}
+                onChange={(e) => setSettings({ ...settings, enabled: e.target.checked })}
+              />
+              <span className="toggle-control-track" aria-hidden />
+              <span>{t("manage.admin.moderation.commentsEnabled")}</span>
+            </label>
+            <div className="meta" style={{ fontSize: "0.75rem", marginTop: -12 }}>{t("manage.admin.moderation.commentsEnabledHelp")}</div>
+
+            <label className="toggle-control">
+              <input
+                className="toggle-control-input"
+                type="checkbox"
+                checked={settings.emailNotifications === true}
+                onChange={(e) => setSettings({ ...settings, emailNotifications: e.target.checked })}
+              />
+              <span className="toggle-control-track" aria-hidden />
+              <span>{t("manage.admin.moderation.emailNotifications")}</span>
+            </label>
+            <div className="meta" style={{ fontSize: "0.75rem", marginTop: -12 }}>{t("manage.admin.moderation.emailNotificationsHelp")}</div>
+
+            {settingsMsg && <div className="meta" style={{ color: "var(--success, #16a34a)" }}>{settingsMsg}</div>}
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" className="secondary-btn" onClick={closeSettings}>
+                {t("manage.admin.moderation.settingsClose")}
+              </button>
+              <button type="button" className="primary-btn" onClick={() => void saveSettings()} disabled={settingsSaving}>
+                {settingsSaving ? t("profile.saving") : t("manage.admin.moderation.settingsSave")}
+              </button>
+            </div>
+          </div>
+        )}
+      </dialog>
     </div>
   );
 }

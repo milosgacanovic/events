@@ -10,6 +10,7 @@ import { useI18n } from "../../../../components/i18n/I18nProvider";
 import { AssignToUserModal } from "../../../../components/manage/AssignToUserModal";
 import { ConfirmDialog } from "../../../../components/manage/ConfirmDialog";
 import { HostForm, hostFormStateFromApi, type AdminOrganizerDetailResponse, type HostFormState } from "../../../../components/manage/HostForm";
+import { HostEngagementSection } from "../../../../components/manage/EngagementSection";
 import { authorizedDelete, authorizedGet } from "../../../../lib/manageApi";
 
 export default function EditHostPage() {
@@ -81,6 +82,7 @@ export default function EditHostPage() {
           </button>
         ) : undefined}
       />
+      {isAdmin && <HostEngagementSection hostId={id} />}
       {showAssign && (
         <AssignToUserModal
           getToken={getToken}

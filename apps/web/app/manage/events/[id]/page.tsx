@@ -11,6 +11,7 @@ import { AssignToUserModal } from "../../../../components/manage/AssignToUserMod
 import { ConfirmDialog } from "../../../../components/manage/ConfirmDialog";
 import { EventForm } from "../../../../components/manage/EventForm";
 import { eventFormStateFromApi, type AdminEventDetailResponse, type EventFormState } from "../../../../components/manage/EventFormTypes";
+import { EventEngagementSection } from "../../../../components/manage/EngagementSection";
 import { authorizedDelete, authorizedGet } from "../../../../lib/manageApi";
 
 export default function EditEventPage() {
@@ -79,6 +80,7 @@ export default function EditEventPage() {
           </button>
         ) : undefined}
       />
+      {isAdmin && <EventEngagementSection eventId={id} />}
       {showAssign && (
         <AssignToUserModal
           getToken={getToken}

@@ -71,6 +71,10 @@ export type ModerationListInput = {
   type?: string;
   status?: string;
   search?: string;
+  targetType?: string;
+  reason?: string;
+  dateFrom?: string;
+  dateTo?: string;
   page: number;
   pageSize: number;
 };
@@ -92,6 +96,7 @@ export type ModerationDetailRow = ModerationQueueRow & {
   reporter_name: string | null;
   report_target_type: string | null;
   report_target_label: string | null;
+  report_count: number | null;
 };
 
 export async function listModerationItems(
@@ -122,6 +127,22 @@ export async function listModerationItems(
       or r.detail ilike $${idx} or ru.display_name ilike $${idx}
     )`);
   }
+  if (input.targetType) {
+    values.push(input.targetType);
+    whereParts.push(`r.target_type = $${values.length}`);
+  }
+  if (input.reason) {
+    values.push(input.reason);
+    whereParts.push(`r.reason = $${values.length}`);
+  }
+  if (input.dateFrom) {
+    values.push(input.dateFrom);
+    whereParts.push(`mq.created_at >= $${values.length}::date`);
+  }
+  if (input.dateTo) {
+    values.push(input.dateTo);
+    whereParts.push(`mq.created_at < ($${values.length}::date + interval '1 day')`);
+  }
 
   const whereClause = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
 
@@ -142,7 +163,11 @@ export async function listModerationItems(
          r.detail as report_detail,
          ru.display_name as reporter_name,
          r.target_type as report_target_type,
-         coalesce(re.title, ro.name) as report_target_label
+         coalesce(re.title, ro.name) as report_target_label,
+         (select count(distinct r2.reporter_user_id)::int
+          from reports r2
+          where r2.target_type = r.target_type and r2.target_id = r.target_id
+         ) as report_count
        from moderation_queue mq
        left join users mod on mod.id = mq.moderator_id
        left join comments c on mq.item_type = 'comment' and c.id = mq.item_id::uuid
