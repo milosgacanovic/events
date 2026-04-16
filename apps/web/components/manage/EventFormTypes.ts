@@ -31,7 +31,9 @@ export type EventFormState = {
   locationAddress: string;
   isImported: boolean;
   importSource: string | null;
-  externalId: string | null;
+  externalSource: string;
+  externalId: string;
+  seriesId: string;
   detachedFromImport: boolean;
   status: "draft" | "published" | "cancelled" | "archived";
   detachedAt: string | null;
@@ -54,7 +56,9 @@ export type AdminEventDetailResponse = {
   attendance_mode: "in_person" | "online" | "hybrid";
   online_url: string | null;
   external_url: string | null;
+  external_source: string | null;
   external_id: string | null;
+  seriesId: string;
   practice_category_id: string;
   practice_subcategory_id: string | null;
   event_format_id: string | null;
@@ -128,7 +132,9 @@ export function eventFormStateFromApi(data: AdminEventDetailResponse): EventForm
     locationAddress: data.location?.formatted_address ?? "",
     isImported: data.is_imported ?? false,
     importSource: data.import_source ?? null,
-    externalId: data.external_id ?? null,
+    externalSource: data.external_source ?? "",
+    externalId: data.external_id ?? "",
+    seriesId: data.seriesId ?? "",
     status: data.status ?? "draft",
     detachedFromImport: data.detached_from_import ?? false,
     detachedAt: data.detached_at ?? null,
@@ -177,7 +183,9 @@ export function newEventFormState(): EventFormState {
     isImported: false,
     status: "draft",
     importSource: null,
-    externalId: null,
+    externalSource: "",
+    externalId: "",
+    seriesId: "",
     detachedFromImport: false,
     detachedAt: null,
     organizerRoles: [],

@@ -356,6 +356,11 @@ export function EventForm({
     if (m === "edit") payload.status = f.status;
     if (m === "create" && f.slug) payload.slug = f.slug;
     if (detached && !f.detachedFromImport) payload.detachedFromImport = true;
+    if (f.seriesId) payload.seriesId = f.seriesId;
+    if (f.externalSource || f.externalId) {
+      payload.externalSource = f.externalSource || null;
+      payload.externalId = f.externalId || null;
+    }
     if (f.coverImageUrl && !cover) payload.coverImagePath = f.coverImageUrl;
     if (f.scheduleKind === "single") {
       payload.singleStartAt = datetimeLocalToIso(f.singleStartAt);
@@ -667,6 +672,43 @@ export function EventForm({
             {form.detachedAt && (
               <div className="meta">{t("manage.eventForm.detachedOn", { date: new Date(form.detachedAt).toLocaleDateString() })}</div>
             )}
+          </div>
+        )}
+
+        {/* Admin-only: series & external identifiers */}
+        {mode === "edit" && isAdmin && (
+          <div
+            style={{
+              padding: "12px 16px",
+              borderRadius: 6,
+              backgroundColor: "var(--surface, #f8f8f8)",
+              border: "1px solid var(--border)",
+              marginBottom: 8,
+            }}
+          >
+            <strong style={{ fontSize: "0.85rem" }}>Admin fields</strong>
+            <div style={{ marginTop: 8 }}>
+              <label>Series ID</label>
+              <input
+                value={form.seriesId}
+                onChange={(e) => update("seriesId", e.target.value)}
+                placeholder="UUID — defaults to event ID"
+              />
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <label>External source</label>
+              <input
+                value={form.externalSource}
+                onChange={(e) => update("externalSource", e.target.value)}
+              />
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <label>External ID</label>
+              <input
+                value={form.externalId}
+                onChange={(e) => update("externalId", e.target.value)}
+              />
+            </div>
           </div>
         )}
       </div>
