@@ -29,6 +29,7 @@ import { deriveSeriesCadence } from "../services/seriesCadenceService";
 import { recordActivity } from "../services/activityLogger";
 import { logValidation } from "../utils/validationError";
 import { enforceWriteRateLimit } from "../utils/enforceWriteRateLimit";
+import { WRITE_RATE_LIMIT_BULK_MAX } from "../middleware/rateLimit";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 import {
@@ -1421,7 +1422,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/events/:id/publish", async (request, reply) => {
     await app.requireEditor(request);
-    if (enforceWriteRateLimit(request, reply, "publish")) return reply;
+
+    const skipSearch = z.object({ skipSearch: z.coerce.boolean().default(false) })
+      .safeParse(request.query).data?.skipSearch ?? false;
+
+    if (enforceWriteRateLimit(request, reply, "publish",
+      skipSearch ? WRITE_RATE_LIMIT_BULK_MAX : 30)) return reply;
 
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
@@ -1434,9 +1440,6 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       const userId = await resolveUserId(app.db, auth);
       await requireEventAccess(app.db, userId, params.data.id, false);
     }
-
-    const skipSearch = z.object({ skipSearch: z.coerce.boolean().default(false) })
-      .safeParse(request.query).data?.skipSearch ?? false;
 
     const body = z.object({ force: z.boolean().default(false) }).safeParse(request.body ?? {});
     const force = body.data?.force ?? false;
@@ -1468,7 +1471,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/events/:id/unpublish", async (request, reply) => {
     await app.requireEditor(request);
-    if (enforceWriteRateLimit(request, reply, "unpublish")) return reply;
+    if (enforceWriteRateLimit(request, reply, "unpublish", 30)) return reply;
 
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
@@ -1493,7 +1496,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/events/:id/cancel", async (request, reply) => {
     await app.requireEditor(request);
-    if (enforceWriteRateLimit(request, reply, "cancel")) return reply;
+    if (enforceWriteRateLimit(request, reply, "cancel", 30)) return reply;
 
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
@@ -1518,7 +1521,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/events/:id/archive", async (request, reply) => {
     await app.requireEditor(request);
-    if (enforceWriteRateLimit(request, reply, "archive")) return reply;
+    if (enforceWriteRateLimit(request, reply, "archive", 30)) return reply;
 
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {

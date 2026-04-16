@@ -55,17 +55,19 @@ export function resolveAdminRateLimit(path: string): number | null {
  * which shouldn't reach these routes anyway thanks to requireEditor).
  */
 export const WRITE_RATE_LIMIT_MAX = 12;
+export const WRITE_RATE_LIMIT_BULK_MAX = 300;
 export const WRITE_RATE_LIMIT_WINDOW_MS = 60_000;
 
 export function checkWriteRateLimit(
   subject: string,
   operation: string,
+  maxOverride?: number,
 ): { allowed: boolean; retryAfterSeconds: number } {
   return checkRateLimit({
     key: `write:${operation}:${subject}`,
     now: Date.now(),
     windowMs: WRITE_RATE_LIMIT_WINDOW_MS,
-    maxRequests: WRITE_RATE_LIMIT_MAX,
+    maxRequests: maxOverride ?? WRITE_RATE_LIMIT_MAX,
   });
 }
 

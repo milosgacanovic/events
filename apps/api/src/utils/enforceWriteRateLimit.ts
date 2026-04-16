@@ -15,12 +15,13 @@ export function enforceWriteRateLimit(
   request: FastifyRequest,
   reply: FastifyReply,
   operation: string,
+  maxOverride?: number,
 ): boolean {
   if (!config.RATE_LIMIT_ENABLED) {
     return false;
   }
   const subject = request.auth?.sub ?? request.ip ?? "unknown";
-  const result = checkWriteRateLimit(subject, operation);
+  const result = checkWriteRateLimit(subject, operation, maxOverride);
   if (!result.allowed) {
     reply.header("Retry-After", String(result.retryAfterSeconds));
     reply.code(429).send({ error: "rate_limit_exceeded" });
