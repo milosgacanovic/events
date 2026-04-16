@@ -21,7 +21,6 @@ export function NotifyMeDialog({ filterSnapshot, filterSummary, onClose, onSaved
   const toast = useToast();
 
   const [frequency, setFrequency] = useState<"weekly" | "daily">("weekly");
-  const [notifyNew, setNotifyNew] = useState(true);
   const [notifyReminders, setNotifyReminders] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -39,7 +38,7 @@ export function NotifyMeDialog({ filterSnapshot, filterSummary, onClose, onSaved
         body: JSON.stringify({
           filterSnapshot,
           frequency,
-          notifyNew,
+          notifyNew: true,
           notifyReminders,
           notifyUpdates: true,
         }),
@@ -84,8 +83,8 @@ export function NotifyMeDialog({ filterSnapshot, filterSummary, onClose, onSaved
           <input
             className="toggle-control-input"
             type="checkbox"
-            checked={notifyNew}
-            onChange={(e) => setNotifyNew(e.target.checked)}
+            checked
+            disabled
           />
           <span className="toggle-control-track" aria-hidden />
           <span className="meta">{t("notifyMe.dialog.notifyNew")}</span>

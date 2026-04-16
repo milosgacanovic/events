@@ -1080,6 +1080,12 @@ export function EventDetailClient({
         )}
       </div>
 
+      <SuggestEditButton
+        targetType="event"
+        targetId={data.event.id}
+        targetName={data.event.title}
+      />
+
       {/* Timezone toggle for recurring events (no When cell in grid) */}
       {data.event.schedule_kind !== "single" && (
         <label className="toggle-control toggle-control-sm">
@@ -1292,11 +1298,6 @@ export function EventDetailClient({
           </div>
         )}
         <div className="event-detail-footer-actions">
-          <SuggestEditButton
-            targetType="event"
-            targetId={data.event.id}
-            targetName={data.event.title}
-          />
           <ReportButton targetType="event" targetId={data.event.id} />
         </div>
       </footer>

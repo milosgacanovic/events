@@ -59,6 +59,7 @@ export async function updateSavedSearch(
     notifyNew?: boolean;
     notifyReminders?: boolean;
     notifyUpdates?: boolean;
+    paused?: boolean;
   },
 ): Promise<SavedSearchRow | null> {
   const sets: string[] = [];
@@ -70,6 +71,7 @@ export async function updateSavedSearch(
   if (data.notifyNew !== undefined) { sets.push(`notify_new = $${idx}`); values.push(data.notifyNew); idx++; }
   if (data.notifyReminders !== undefined) { sets.push(`notify_reminders = $${idx}`); values.push(data.notifyReminders); idx++; }
   if (data.notifyUpdates !== undefined) { sets.push(`notify_updates = $${idx}`); values.push(data.notifyUpdates); idx++; }
+  if (data.paused !== undefined) { sets.push(`unsubscribed_at = ${data.paused ? "now()" : "NULL"}`); }
 
   if (sets.length === 0) return null;
 
@@ -92,6 +94,20 @@ export async function deleteSavedSearch(
     [searchId, userId],
   );
   return (result.rowCount ?? 0) > 0;
+}
+
+export async function pauseAllSavedSearches(
+  pool: Pool,
+  userId: string,
+  paused: boolean,
+): Promise<number> {
+  const result = await pool.query(
+    paused
+      ? `UPDATE saved_searches SET unsubscribed_at = now() WHERE user_id = $1 AND unsubscribed_at IS NULL`
+      : `UPDATE saved_searches SET unsubscribed_at = NULL WHERE user_id = $1 AND unsubscribed_at IS NOT NULL`,
+    [userId],
+  );
+  return result.rowCount ?? 0;
 }
 
 export async function listSavedSearches(

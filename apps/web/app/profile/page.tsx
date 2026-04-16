@@ -296,6 +296,40 @@ export default function ProfilePage() {
     }
   }
 
+  async function updateSavedSearch(searchId: string, patch: Record<string, unknown>) {
+    const token = await auth.getToken();
+    if (!token) return;
+    const response = await fetch(`${apiBase}/profile/saved-searches/${searchId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(patch),
+    });
+    if (response.ok) {
+      const updated = (await response.json()) as SavedSearchItem;
+      setSavedSearches((current) =>
+        current.map((item) => (item.id === searchId ? updated : item)),
+      );
+    }
+  }
+
+  async function togglePauseAll(paused: boolean) {
+    const token = await auth.getToken();
+    if (!token) return;
+    const response = await fetch(`${apiBase}/profile/saved-searches/pause-all`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ paused }),
+    });
+    if (response.ok) {
+      setSavedSearches((current) =>
+        current.map((item) => ({
+          ...item,
+          unsubscribedAt: paused ? new Date().toISOString() : null,
+        })),
+      );
+    }
+  }
+
   async function unsaveEvent(eventId: string) {
     const token = await auth.getToken();
     if (!token) return;
@@ -412,6 +446,17 @@ export default function ProfilePage() {
       </button>
       {homeStatus && <div className="meta">{homeStatus}</div>}
 
+      <div style={{ marginTop: 24 }}>
+        <a
+          href={`${process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER}/account/#/security/signingin`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="report-btn"
+        >
+          {t("profile.deleteAccount")}
+        </a>
+      </div>
+
       <hr />
 
       <h2 className="title-l">{t("profile.savedEvents.title")}</h2>
@@ -470,6 +515,11 @@ export default function ProfilePage() {
         <ul className="alerts-list">
           {alerts.map((alert) => (
             <li key={alert.id} className="alerts-item">
+              {alert.organizerImageUrl && (
+                <a href={`/hosts/${alert.organizerSlug}`} className="alerts-item-avatar">
+                  <img src={alert.organizerImageUrl} alt="" loading="lazy" />
+                </a>
+              )}
               <div className="alerts-item-main">
                 <a href={`/hosts/${alert.organizerSlug}`} className="alerts-item-host">
                   {alert.organizerName}
@@ -506,9 +556,19 @@ export default function ProfilePage() {
       <h2 className="title-l">{t("profile.rsvps.title")}</h2>
       {rsvps.length === 0 ? (
         <p className="muted">{t("profile.rsvps.empty")}</p>
-      ) : (
-        <ul className="saved-events-list">
-          {rsvps.map((item) => (
+      ) : (() => {
+        const now = Date.now();
+        const upcoming = rsvps.filter((r) => {
+          const d = r.nextOccurrenceStart ?? r.singleStartAt;
+          return !d || new Date(d).getTime() >= now;
+        });
+        const past = rsvps.filter((r) => {
+          const d = r.nextOccurrenceStart ?? r.singleStartAt;
+          return d && new Date(d).getTime() < now;
+        });
+
+        function renderRsvpItem(item: RsvpItem) {
+          return (
             <li key={item.id} className="saved-events-item">
               {item.coverImagePath && (
                 <a href={`/events/${item.eventSlug}`} className="saved-events-thumb">
@@ -543,29 +603,100 @@ export default function ProfilePage() {
                 {t("profile.rsvps.cancel")}
               </button>
             </li>
-          ))}
-        </ul>
-      )}
+          );
+        }
+
+        return (
+          <>
+            {upcoming.length > 0 && (
+              <ul className="saved-events-list">
+                {upcoming.map(renderRsvpItem)}
+              </ul>
+            )}
+            {past.length > 0 && (
+              <>
+                <h3 className="title-s" style={{ marginTop: 16 }}>{t("profile.rsvps.past")}</h3>
+                <ul className="saved-events-list">
+                  {past.map(renderRsvpItem)}
+                </ul>
+              </>
+            )}
+          </>
+        );
+      })()}
 
       <hr />
 
       <h2 className="title-l">{t("profile.savedSearches.title")}</h2>
+      {savedSearches.length > 0 && (
+        <label className="toggle-control" style={{ marginBottom: 12 }}>
+          <input
+            className="toggle-control-input"
+            type="checkbox"
+            checked={savedSearches.every((s) => s.unsubscribedAt != null)}
+            onChange={(e) => void togglePauseAll(e.target.checked)}
+          />
+          <span className="toggle-control-track" aria-hidden />
+          <span className="meta">{t("profile.savedSearches.pauseAll")}</span>
+        </label>
+      )}
       {savedSearches.length === 0 ? (
         <p className="muted">{t("profile.savedSearches.empty")}</p>
       ) : (
         <ul className="alerts-list">
           {savedSearches.map((search) => (
             <li key={search.id} className="alerts-item">
-              <div className="alerts-item-main">
+              <div className="alerts-item-main" style={{ flex: 1 }}>
                 <div className="alerts-item-host">
                   {search.label || t("profile.savedSearches.untitled")}
                 </div>
-                <div className="meta">
-                  {search.frequency === "daily" ? t("notifyMe.dialog.daily") : t("notifyMe.dialog.weekly")}
-                  {search.unsubscribedAt && ` · ${t("profile.alerts.unsubscribed")}`}
+                <div className="meta" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 4 }}>
+                  <select
+                    className="modal-select"
+                    style={{ width: "auto", fontSize: "0.8rem", padding: "2px 6px" }}
+                    value={search.frequency}
+                    onChange={(e) => void updateSavedSearch(search.id, { frequency: e.target.value })}
+                  >
+                    <option value="weekly">{t("notifyMe.dialog.weekly")}</option>
+                    <option value="daily">{t("notifyMe.dialog.daily")}</option>
+                  </select>
+                  {search.unsubscribedAt && (
+                    <span className="profile-comment-status profile-comment-status--rejected">
+                      {t("profile.savedSearches.paused")}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 6 }}>
+                  <label className="toggle-control toggle-control-sm">
+                    <input
+                      className="toggle-control-input"
+                      type="checkbox"
+                      checked={search.notifyReminders}
+                      onChange={(e) => void updateSavedSearch(search.id, { notifyReminders: e.target.checked })}
+                    />
+                    <span className="toggle-control-track" aria-hidden />
+                    <span className="meta">{t("profile.savedSearches.reminders")}</span>
+                  </label>
+                  <label className="toggle-control toggle-control-sm">
+                    <input
+                      className="toggle-control-input"
+                      type="checkbox"
+                      checked={search.notifyUpdates}
+                      onChange={(e) => void updateSavedSearch(search.id, { notifyUpdates: e.target.checked })}
+                    />
+                    <span className="toggle-control-track" aria-hidden />
+                    <span className="meta">{t("profile.savedSearches.updates")}</span>
+                  </label>
                 </div>
               </div>
-              <div className="alerts-item-actions">
+              <div className="alerts-item-actions" style={{ display: "flex", gap: 6, flexDirection: "column" }}>
+                <button
+                  className="secondary-btn"
+                  type="button"
+                  onClick={() => void updateSavedSearch(search.id, { paused: !search.unsubscribedAt })}
+                >
+                  {search.unsubscribedAt ? t("profile.savedSearches.resume") : t("profile.savedSearches.pause")}
+                </button>
                 <button
                   className="secondary-btn"
                   type="button"
@@ -590,6 +721,7 @@ export default function ProfilePage() {
             <li key={comment.id} className="comments-item">
               <div className="comments-item-header">
                 <a href={`/events/${comment.eventSlug}`}>{comment.eventTitle}</a>
+                <span className="muted">{new Date(comment.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
                 <span className={`profile-comment-status profile-comment-status--${comment.status}`}>
                   {comment.status}
                 </span>

@@ -7,6 +7,7 @@ import {
   updateSavedSearch,
   deleteSavedSearch,
   listSavedSearches,
+  pauseAllSavedSearches,
 } from "../db/savedSearchRepo";
 import { resolveUserId } from "../middleware/ownership";
 import { logValidation } from "../utils/validationError";
@@ -100,6 +101,23 @@ const savedSearchRoutes: FastifyPluginAsync = async (app) => {
     const userId = await resolveUserId(app.db, auth);
     const deleted = await deleteSavedSearch(app.db, userId, idParsed.data);
     return { deleted };
+  });
+
+  // Pause/resume all saved searches
+  app.patch("/profile/saved-searches/pause-all", async (request, reply) => {
+    await app.authenticate(request);
+    const auth = request.auth;
+    if (!auth?.sub) throw app.httpErrors.unauthorized("invalid_subject");
+
+    const parsed = z.object({ paused: z.boolean() }).safeParse(request.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: "invalid_body" };
+    }
+
+    const userId = await resolveUserId(app.db, auth);
+    const count = await pauseAllSavedSearches(app.db, userId, parsed.data.paused);
+    return { updated: count };
   });
 
   // List all saved searches

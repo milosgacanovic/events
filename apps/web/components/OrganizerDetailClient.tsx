@@ -529,6 +529,11 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
         )}
       </dl>
 
+      <SuggestEditButton
+        targetType="organizer"
+        targetId={data.organizer.id}
+        targetName={data.organizer.name}
+      />
 
       <h3>{t("organizerDetail.upcomingEvents")}</h3>
       {data.upcomingOccurrences.length === 0 && <div className="meta">{t("organizerDetail.noUpcoming")}</div>}
@@ -567,11 +572,6 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
         ))}
       </div>
       <div className="event-detail-footer-actions">
-        <SuggestEditButton
-          targetType="organizer"
-          targetId={data.organizer.id}
-          targetName={data.organizer.name}
-        />
         <ReportButton targetType="organizer" targetId={data.organizer.id} />
       </div>
     </section>

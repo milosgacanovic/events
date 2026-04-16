@@ -37,6 +37,7 @@ export const updateSavedSearchSchema = z.object({
   notifyNew: z.boolean().optional(),
   notifyReminders: z.boolean().optional(),
   notifyUpdates: z.boolean().optional(),
+  paused: z.boolean().optional(),
 });
 
 export type CreateSavedSearch = z.infer<typeof createSavedSearchSchema>;

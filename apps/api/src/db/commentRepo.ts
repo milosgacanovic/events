@@ -43,7 +43,7 @@ export async function listApprovedComments(
        FROM comments c
        JOIN users u ON u.id = c.user_id
        WHERE c.event_id = $1 AND c.status = 'approved'
-       ORDER BY c.created_at ASC
+       ORDER BY c.created_at DESC
        LIMIT $2 OFFSET $3`,
       [eventId, limit, offset],
     ),
