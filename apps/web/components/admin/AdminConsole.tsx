@@ -90,10 +90,6 @@ type AdminEventDetailResponse = {
   visibility: "public" | "unlisted";
   status: "draft" | "published" | "cancelled" | "archived";
   cover_image_path: string | null;
-  seriesId: string;
-  external_source: string | null;
-  external_id: string | null;
-  external_url: string | null;
   organizer_roles: Array<{
     organizer_id: string;
     role_id: string;
@@ -167,11 +163,6 @@ type EventEditorState = {
   coverImageUrl: string;
   locationId: string | null;
   locationLabel: string;
-  seriesId: string;
-  status: "draft" | "published" | "cancelled" | "archived";
-  externalSource: string;
-  externalId: string;
-  externalUrl: string;
 };
 
 type OrganizerEditorState = {
@@ -1142,11 +1133,6 @@ export function AdminConsole() {
         coverImageUrl: detail.cover_image_path ?? "",
         locationId: detail.location_id,
         locationLabel: detail.location?.formatted_address ?? "",
-        seriesId: detail.seriesId ?? "",
-        status: detail.status,
-        externalSource: detail.external_source ?? "",
-        externalId: detail.external_id ?? "",
-        externalUrl: detail.external_url ?? "",
       });
       setEditLocationQuery(detail.location?.formatted_address ?? "");
       setEditLocationResults([]);
@@ -1182,11 +1168,6 @@ export function AdminConsole() {
         visibility: eventEditor.visibility,
         coverImageUrl: eventEditor.coverImageUrl || null,
         locationId: eventEditor.locationId,
-        seriesId: eventEditor.seriesId || null,
-        status: eventEditor.status,
-        externalSource: eventEditor.externalSource || null,
-        externalId: eventEditor.externalId || null,
-        externalUrl: eventEditor.externalUrl || null,
       };
 
       if (eventEditor.scheduleKind === "single") {
@@ -2417,61 +2398,6 @@ export function AdminConsole() {
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => setEventCoverFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
-              <label>
-                Status
-                <select
-                  value={eventEditor.status}
-                  onChange={(e) =>
-                    setEventEditor((current) =>
-                      current
-                        ? { ...current, status: e.target.value as "draft" | "published" | "cancelled" | "archived" }
-                        : current,
-                    )
-                  }
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </label>
-              <label>
-                Series ID
-                <input
-                  value={eventEditor.seriesId}
-                  onChange={(e) =>
-                    setEventEditor((current) => (current ? { ...current, seriesId: e.target.value } : current))
-                  }
-                  placeholder="UUID — leave empty for self-series"
-                />
-              </label>
-              <label>
-                External source
-                <input
-                  value={eventEditor.externalSource}
-                  onChange={(e) =>
-                    setEventEditor((current) => (current ? { ...current, externalSource: e.target.value } : current))
-                  }
-                />
-              </label>
-              <label>
-                External ID
-                <input
-                  value={eventEditor.externalId}
-                  onChange={(e) =>
-                    setEventEditor((current) => (current ? { ...current, externalId: e.target.value } : current))
-                  }
-                />
-              </label>
-              <label>
-                External URL
-                <input
-                  value={eventEditor.externalUrl}
-                  onChange={(e) =>
-                    setEventEditor((current) => (current ? { ...current, externalUrl: e.target.value } : current))
-                  }
                 />
               </label>
               <div className="admin-card-actions">
