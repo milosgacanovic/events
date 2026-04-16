@@ -37,6 +37,25 @@ const commentRoutes: FastifyPluginAsync = async (app) => {
       return { error: "invalid_body", details: parsed.error.issues };
     }
 
+    // Reject comments on past single events older than 30 days
+    const eventCheck = await app.db.query(
+      `SELECT schedule_kind, single_end_at FROM events WHERE id = $1`,
+      [eventIdParsed.data],
+    );
+    if (eventCheck.rows.length === 0) {
+      reply.code(404);
+      return { error: "event_not_found" };
+    }
+    const evt = eventCheck.rows[0];
+    if (
+      evt.schedule_kind === "single" &&
+      evt.single_end_at &&
+      new Date(evt.single_end_at).getTime() < Date.now() - 30 * 24 * 60 * 60 * 1000
+    ) {
+      reply.code(403);
+      return { error: "comments_closed", message: "Comments are closed for past events" };
+    }
+
     const userId = await resolveUserId(app.db, auth);
 
     // Rate limit: 5 comments per hour per user

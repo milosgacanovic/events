@@ -313,6 +313,8 @@
   "comments.minutesAgo": "{count, plural, one {# min ago} other {# min ago}}",
   "comments.hoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
   "comments.daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+  "comments.report": "Report",
+  "comments.readOnly": "Comments are closed for past events.",
   "suggestEdit.button": "Suggest an edit",
   "suggestEdit.title": "Suggest an edit",
   "suggestEdit.description": "Help improve the listing for {name}.",

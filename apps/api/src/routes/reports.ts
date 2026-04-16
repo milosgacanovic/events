@@ -10,7 +10,7 @@ const reportReasonSchema = z.enum([
 ]);
 
 const createReportSchema = z.object({
-  targetType: z.enum(["event", "organizer"]),
+  targetType: z.enum(["event", "organizer", "comment"]),
   targetId: z.string().uuid(),
   reason: reportReasonSchema,
   detail: z.string().max(1000).optional(),

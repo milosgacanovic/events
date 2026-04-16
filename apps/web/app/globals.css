@@ -2215,6 +2215,18 @@ label.meta {
   word-break: break-word;
 }
 
+.comments-report-link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  opacity: 0.7;
+}
+.comments-report-link:hover { opacity: 1; }
+
 /* Recommend button */
 .recommend-btn {
   display: inline-flex;

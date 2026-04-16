@@ -1142,6 +1142,8 @@ export function EventDetailClient({
       <CommentsSection
         eventId={data.event.id}
         seriesName={data.series ? data.event.title : undefined}
+        scheduleKind={data.event.schedule_kind}
+        singleEndAt={data.event.single_end_at}
       />
 
       {/* Hosts */}

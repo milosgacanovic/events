@@ -8,6 +8,7 @@ import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 import { useToast } from "./ToastProvider";
 import { LoginPromptDialog } from "./LoginPromptDialog";
+import { ReportModal } from "./ReportModal";
 
 type Comment = {
   id: string;
@@ -19,20 +20,35 @@ type Comment = {
 type Props = {
   eventId: string;
   seriesName?: string;
+  /** ISO date string of the single event's end time; null/undefined for recurring */
+  singleEndAt?: string | null;
+  /** "single" or "recurring" */
+  scheduleKind?: "single" | "recurring";
 };
 
 const MAX_CHARS = 500;
 
-export function CommentsSection({ eventId, seriesName }: Props) {
+/** Returns true if the event is a past single event older than 30 days. */
+function isPastCutoff(scheduleKind?: "single" | "recurring", singleEndAt?: string | null): boolean {
+  if (scheduleKind !== "single" || !singleEndAt) return false;
+  const endMs = new Date(singleEndAt).getTime();
+  const cutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  return endMs < cutoffMs;
+}
+
+export function CommentsSection({ eventId, seriesName, singleEndAt, scheduleKind }: Props) {
   const { t } = useI18n();
   const auth = useKeycloakAuth();
   const toast = useToast();
+
+  const readOnly = isPastCutoff(scheduleKind, singleEndAt);
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [total, setTotal] = useState(0);
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [reportCommentId, setReportCommentId] = useState<string | null>(null);
 
   // Fetch approved comments
   useEffect(() => {
@@ -114,32 +130,36 @@ export function CommentsSection({ eventId, seriesName }: Props) {
       )}
 
       {/* Post area */}
-      <div className="comments-post">
-        <textarea
-          className="comments-textarea"
-          value={body}
-          onChange={(e) => setBody(e.target.value.slice(0, MAX_CHARS))}
-          placeholder={auth.authenticated ? t("comments.placeholder") : t("comments.loginToComment")}
-          rows={3}
-          maxLength={MAX_CHARS}
-        />
-        <div className="comments-post-footer">
-          <span className="muted comments-char-count">
-            {body.length}/{MAX_CHARS}
-          </span>
-          <button
-            className="primary-btn"
-            type="button"
-            onClick={() => void handlePost()}
-            disabled={posting || !body.trim()}
-          >
-            {posting ? t("comments.posting") : t("comments.post")}
-          </button>
+      {readOnly ? (
+        <p className="muted">{t("comments.readOnly")}</p>
+      ) : (
+        <div className="comments-post">
+          <textarea
+            className="comments-textarea"
+            value={body}
+            onChange={(e) => setBody(e.target.value.slice(0, MAX_CHARS))}
+            placeholder={auth.authenticated ? t("comments.placeholder") : t("comments.loginToComment")}
+            rows={3}
+            maxLength={MAX_CHARS}
+          />
+          <div className="comments-post-footer">
+            <span className="muted comments-char-count">
+              {body.length}/{MAX_CHARS}
+            </span>
+            <button
+              className="primary-btn"
+              type="button"
+              onClick={() => void handlePost()}
+              disabled={posting || !body.trim()}
+            >
+              {posting ? t("comments.posting") : t("comments.post")}
+            </button>
+          </div>
+          {!auth.authenticated && body.length > 0 && (
+            <p className="muted">{t("comments.loginHint")}</p>
+          )}
         </div>
-        {!auth.authenticated && body.length > 0 && (
-          <p className="muted">{t("comments.loginHint")}</p>
-        )}
-      </div>
+      )}
 
       {/* Comment list */}
       {comments.length === 0 ? (
@@ -153,6 +173,13 @@ export function CommentsSection({ eventId, seriesName }: Props) {
                 <span className="muted">{relativeTime(c.createdAt)}</span>
               </div>
               <p className="comments-item-body">{c.body}</p>
+              <button
+                type="button"
+                className="comments-report-link"
+                onClick={() => setReportCommentId(c.id)}
+              >
+                {t("comments.report")}
+              </button>
             </li>
           ))}
         </ul>
@@ -164,6 +191,15 @@ export function CommentsSection({ eventId, seriesName }: Props) {
           onLogin={handleLogin}
           onRegister={handleRegister}
           onClose={() => setShowLogin(false)}
+        />
+      )}
+
+      {reportCommentId && (
+        <ReportModal
+          targetType="comment"
+          targetId={reportCommentId}
+          onClose={() => setReportCommentId(null)}
+          onReported={() => setReportCommentId(null)}
         />
       )}
     </div>

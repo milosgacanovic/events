@@ -12,7 +12,7 @@ const REASONS = ["spam", "duplicate", "wrong_info", "removed", "inappropriate", 
 const MAX_DETAIL_CHARS = 500;
 
 type Props = {
-  targetType: "event" | "organizer";
+  targetType: "event" | "organizer" | "comment";
   targetId: string;
   onClose: () => void;
   onReported: () => void;
