@@ -153,7 +153,7 @@ export async function listAdminEvents(
   }
 
   if (input.hasReports) {
-    whereParts.push(`exists(select 1 from reports rp where rp.target_type = 'event' and rp.target_id = e.id::text and rp.status = 'pending')`);
+    whereParts.push(`exists(select 1 from reports rp where rp.target_type = 'event' and rp.target_id = e.id and rp.status = 'pending')`);
   }
 
   const sortMap: Record<string, string> = {
@@ -271,7 +271,7 @@ export async function listAdminEvents(
             (select count(*) from saved_events se where se.event_id = e.id) as save_count,
             (select count(*) from event_rsvps r where r.event_id = e.id) as rsvp_count,
             (select count(*) from comments c where c.event_id = e.id and c.status != 'hidden') as comment_count,
-            (select count(*) from reports rp where rp.target_type = 'event' and rp.target_id = e.id::text and rp.status = 'pending') as report_count
+            (select count(*) from reports rp where rp.target_type = 'event' and rp.target_id = e.id and rp.status = 'pending') as report_count
         ) eng on true
         ${whereSql}
         order by ${orderBy}
@@ -394,7 +394,7 @@ export async function listAdminOrganizers(
   }
 
   if (input.hasReports) {
-    whereParts.push(`exists(select 1 from reports rp where rp.target_type = 'organizer' and rp.target_id = o.id::text and rp.status = 'pending')`);
+    whereParts.push(`exists(select 1 from reports rp where rp.target_type = 'organizer' and rp.target_id = o.id and rp.status = 'pending')`);
   }
 
   const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
@@ -483,7 +483,7 @@ export async function listAdminOrganizers(
         left join lateral (
           select
             (select count(*) from user_alerts ua where ua.organizer_id = o.id and ua.unsubscribed_at is null) as follower_count,
-            (select count(*) from reports rp where rp.target_type = 'organizer' and rp.target_id = o.id::text and rp.status = 'pending') as report_count
+            (select count(*) from reports rp where rp.target_type = 'organizer' and rp.target_id = o.id and rp.status = 'pending') as report_count
         ) eng on true
         ${whereSql}
         order by ${orderBy}
