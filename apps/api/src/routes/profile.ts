@@ -159,6 +159,8 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
         organizerName: row.organizer_name,
         organizerSlug: row.organizer_slug,
         organizerImageUrl: row.organizer_image_url,
+        organizerPractice: row.organizer_practice,
+        organizerRole: row.organizer_role,
         radiusKm: row.radius_km,
         lat: row.lat != null ? Number(row.lat) : null,
         lng: row.lng != null ? Number(row.lng) : null,

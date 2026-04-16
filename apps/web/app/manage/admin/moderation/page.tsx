@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
@@ -17,15 +18,19 @@ type ModerationItem = {
   created_at: string;
   comment_body: string | null;
   comment_user_name: string | null;
+  comment_event_id: string | null;
   comment_event_title: string | null;
   suggestion_category: string | null;
   suggestion_value: string | null;
   suggestion_user_name: string | null;
+  suggestion_target_type: string | null;
+  suggestion_target_id: string | null;
   suggestion_event_title: string | null;
   report_reason: string | null;
   report_detail: string | null;
   reporter_name: string | null;
   report_target_type: string | null;
+  report_target_id: string | null;
   report_target_label: string | null;
   report_count: number | null;
 };
@@ -274,9 +279,21 @@ export default function AdminModerationPage() {
                       <td style={{ whiteSpace: "nowrap" }}>{new Date(item.created_at).toLocaleDateString()}</td>
                       <td>{item.item_type === "comment" ? item.comment_user_name : item.item_type === "edit_suggestion" ? item.suggestion_user_name : item.reporter_name}</td>
                       <td>
-                        {item.item_type === "comment" ? item.comment_event_title
-                          : item.item_type === "edit_suggestion" ? item.suggestion_event_title
-                          : `${item.report_target_type}: ${item.report_target_label ?? item.item_id}`}
+                        {item.item_type === "comment" && item.comment_event_id ? (
+                          <Link href={`/manage/events/${item.comment_event_id}`} target="_blank" style={{ textDecoration: "none" }}>
+                            {item.comment_event_title}
+                          </Link>
+                        ) : item.item_type === "edit_suggestion" && item.suggestion_target_id ? (
+                          <Link href={`/manage/${item.suggestion_target_type === "organizer" ? "hosts" : "events"}/${item.suggestion_target_id}`} target="_blank" style={{ textDecoration: "none" }}>
+                            {item.suggestion_event_title}
+                          </Link>
+                        ) : item.item_type === "report" && item.report_target_id ? (
+                          <Link href={`/manage/${item.report_target_type === "organizer" ? "hosts" : "events"}/${item.report_target_id}`} target="_blank" style={{ textDecoration: "none" }}>
+                            {item.report_target_label ?? item.item_id}
+                          </Link>
+                        ) : (
+                          item.comment_event_title ?? item.suggestion_event_title ?? item.report_target_label ?? item.item_id
+                        )}
                       </td>
                       <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {item.item_type === "comment" ? item.comment_body
@@ -293,16 +310,31 @@ export default function AdminModerationPage() {
                       </td>
                       <td className="text-right">
                         {item.status === "pending" && (
-                          <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
-                            <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "approved")}>
-                              {t("manage.admin.moderation.approve")}
-                            </button>
-                            <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => void handleAction(item.id, "rejected")}>
-                              {t("manage.admin.moderation.reject")}
-                            </button>
-                            <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "dismissed")}>
-                              {t("manage.admin.moderation.dismiss")}
-                            </button>
+                          <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                            {tab === "comment" && (<>
+                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "approved")}>
+                                {t("manage.admin.moderation.approve")}
+                              </button>
+                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => void handleAction(item.id, "rejected")}>
+                                {t("manage.admin.moderation.remove")}
+                              </button>
+                            </>)}
+                            {tab === "edit_suggestion" && (<>
+                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "approved")}>
+                                {t("manage.admin.moderation.approve")}
+                              </button>
+                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => void handleAction(item.id, "rejected")}>
+                                {t("manage.admin.moderation.reject")}
+                              </button>
+                            </>)}
+                            {tab === "report" && (<>
+                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "approved")}>
+                                {t("manage.admin.moderation.resolve")}
+                              </button>
+                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "dismissed")}>
+                                {t("manage.admin.moderation.dismiss")}
+                              </button>
+                            </>)}
                           </div>
                         )}
                         {item.moderator_name && (

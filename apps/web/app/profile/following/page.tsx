@@ -17,6 +17,8 @@ type AlertListItem = {
   organizerName: string;
   organizerSlug: string;
   organizerImageUrl: string | null;
+  organizerPractice: string | null;
+  organizerRole: string | null;
   radiusKm: number;
   lat: number | null;
   lng: number | null;
@@ -106,6 +108,11 @@ export default function FollowingTab() {
               <a href={`/hosts/${alert.organizerSlug}`} className="alerts-item-host">
                 {alert.organizerName}
               </a>
+              {(alert.organizerPractice || alert.organizerRole) && (
+                <div className="meta" style={{ fontSize: "0.85rem" }}>
+                  {[alert.organizerPractice, alert.organizerRole].filter(Boolean).join(" \u2013 ")}
+                </div>
+              )}
               <div className="meta">
                 {alert.locationLabel ?? t("profile.alerts.locationAnywhere")}
                 {alert.lat != null && ` \u00B7 ${t("profile.alerts.radius", { km: alert.radiusKm })}`}

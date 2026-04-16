@@ -84,17 +84,21 @@ export type ModerationDetailRow = ModerationQueueRow & {
   // comment fields (when item_type = 'comment')
   comment_body: string | null;
   comment_user_name: string | null;
+  comment_event_id: string | null;
   comment_event_title: string | null;
   // suggestion fields (when item_type = 'edit_suggestion')
   suggestion_category: string | null;
   suggestion_value: string | null;
   suggestion_user_name: string | null;
+  suggestion_target_type: string | null;
+  suggestion_target_id: string | null;
   suggestion_event_title: string | null;
   // report fields (when item_type = 'report')
   report_reason: string | null;
   report_detail: string | null;
   reporter_name: string | null;
   report_target_type: string | null;
+  report_target_id: string | null;
   report_target_label: string | null;
   report_count: number | null;
 };
@@ -154,15 +158,19 @@ export async function listModerationItems(
          mod.display_name as moderator_name,
          c.body as comment_body,
          cu.display_name as comment_user_name,
+         c.event_id::text as comment_event_id,
          ce.title as comment_event_title,
          es.category as suggestion_category,
          es.body as suggestion_value,
          esu.display_name as suggestion_user_name,
+         es.target_type as suggestion_target_type,
+         es.target_id::text as suggestion_target_id,
          ese.title as suggestion_event_title,
          r.reason as report_reason,
          r.detail as report_detail,
          ru.display_name as reporter_name,
          r.target_type as report_target_type,
+         r.target_id::text as report_target_id,
          coalesce(re.title, ro.name) as report_target_label,
          (select count(distinct r2.user_id)::int
           from reports r2
@@ -231,15 +239,19 @@ export async function getModerationDetail(
        mod.display_name as moderator_name,
        c.body as comment_body,
        cu.display_name as comment_user_name,
+       c.event_id::text as comment_event_id,
        ce.title as comment_event_title,
        es.category as suggestion_category,
        es.body as suggestion_value,
        esu.display_name as suggestion_user_name,
+       es.target_type as suggestion_target_type,
+       es.target_id::text as suggestion_target_id,
        ese.title as suggestion_event_title,
        r.reason as report_reason,
        r.detail as report_detail,
        ru.display_name as reporter_name,
        r.target_type as report_target_type,
+       r.target_id::text as report_target_id,
        coalesce(re.title, ro.name) as report_target_label
      from moderation_queue mq
      left join users mod on mod.id = mq.moderator_id

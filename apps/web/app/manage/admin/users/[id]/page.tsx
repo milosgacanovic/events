@@ -10,7 +10,7 @@ import { authorizedGet, authorizedPatch } from "../../../../../lib/manageApi";
 
 type SaveItem = { id: string; event_id: string; event_title: string; event_slug: string; scope: string; created_at: string };
 type RsvpItem = { id: string; event_id: string; event_title: string; event_slug: string; created_at: string };
-type FollowItem = { id: string; organizer_id: string; organizer_name: string; radius_km: number; unsubscribed_at: string | null; created_at: string };
+type FollowItem = { id: string; organizer_id: string; organizer_name: string; organizer_practice: string | null; organizer_role: string | null; radius_km: number; unsubscribed_at: string | null; created_at: string };
 type CommentItem = { id: string; event_id: string; event_title: string; body: string; status: string; created_at: string };
 type ReportItem = { id: string; target_type: string; target_id: string; target_name: string; reason: string; detail: string | null; status: string; created_at: string };
 type RecommendationItem = { id: string; recipient_email: string; event_id: string; event_title: string; note: string | null; created_at: string };
@@ -234,7 +234,12 @@ export default function UserDetailPage() {
               <tbody>
                 {user.follows.map((f) => (
                   <tr key={f.id}>
-                    <td>{f.organizer_name}</td>
+                    <td>
+                      {f.organizer_name}
+                      {(f.organizer_practice || f.organizer_role) && (
+                        <div className="meta" style={{ fontSize: "0.75rem" }}>{[f.organizer_practice, f.organizer_role].filter(Boolean).join(" \u2013 ")}</div>
+                      )}
+                    </td>
                     <td>{f.radius_km} km</td>
                     <td>{f.unsubscribed_at ? t("manage.admin.users.unsubscribed") : t("manage.admin.users.active")}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{new Date(f.created_at).toLocaleDateString()}</td>

@@ -118,6 +118,8 @@ export async function listUserAlerts(pool: Pool, userId: string) {
       organizer_slug: string;
       organizer_name: string;
       organizer_image_url: string | null;
+      organizer_practice: string | null;
+      organizer_role: string | null;
     }
   >(
     `
@@ -136,7 +138,15 @@ export async function listUserAlerts(pool: Pool, userId: string) {
         ua.created_at,
         o.slug as organizer_slug,
         o.name as organizer_name,
-        coalesce(o.image_url, o.avatar_path) as organizer_image_url
+        coalesce(o.image_url, o.avatar_path) as organizer_image_url,
+        (select p.label from organizer_practices op
+         join practices p on p.id = op.practice_id
+         where op.organizer_id = o.id
+         order by op.display_order limit 1) as organizer_practice,
+        (select r.label from organizer_profile_roles opr
+         join organizer_roles r on r.id = opr.role_id
+         where opr.organizer_id = o.id
+         order by opr.display_order limit 1) as organizer_role
       from user_alerts ua
       join organizers o on o.id = ua.organizer_id
       where ua.user_id = $1::uuid

@@ -278,11 +278,21 @@ export async function getUserDetail(pool: Pool, userId: string) {
       id: string;
       organizer_id: string;
       organizer_name: string;
+      organizer_practice: string | null;
+      organizer_role: string | null;
       radius_km: number;
       unsubscribed_at: string | null;
       created_at: string;
     }>(
       `select ua.id, ua.organizer_id, o.name as organizer_name,
+              (select p.label from organizer_practices op
+               join practices p on p.id = op.practice_id
+               where op.organizer_id = o.id
+               order by op.display_order limit 1) as organizer_practice,
+              (select r.label from organizer_profile_roles opr
+               join organizer_roles r on r.id = opr.role_id
+               where opr.organizer_id = o.id
+               order by opr.display_order limit 1) as organizer_role,
               ua.radius_km, ua.unsubscribed_at, ua.created_at
        from user_alerts ua
        join organizers o on o.id = ua.organizer_id
