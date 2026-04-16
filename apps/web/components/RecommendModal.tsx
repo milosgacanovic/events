@@ -13,7 +13,7 @@ type Props = {
   onClose: () => void;
 };
 
-const MAX_NOTE_CHARS = 500;
+const MAX_NOTE_CHARS = 280;
 
 export function RecommendModal({ eventId, eventTitle, onClose }: Props) {
   const { t } = useI18n();

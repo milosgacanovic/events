@@ -14,6 +14,7 @@ export type CommentWithAuthor = CommentRow & {
 };
 
 const COLUMNS = `id, user_id, event_id, body, status, created_at`;
+const PREFIXED_COLUMNS = `c.id, c.user_id, c.event_id, c.body, c.status, c.created_at`;
 
 export async function createComment(
   pool: Pool,
@@ -38,7 +39,7 @@ export async function listApprovedComments(
 ): Promise<{ items: CommentWithAuthor[]; total: number }> {
   const [itemsResult, countResult] = await Promise.all([
     pool.query<CommentWithAuthor>(
-      `SELECT c.${COLUMNS}, u.display_name
+      `SELECT ${PREFIXED_COLUMNS}, u.display_name
        FROM comments c
        JOIN users u ON u.id = c.user_id
        WHERE c.event_id = $1 AND c.status = 'approved'
@@ -74,7 +75,7 @@ export async function listUserComments(
   userId: string,
 ): Promise<(CommentRow & { event_title: string; event_slug: string })[]> {
   const result = await pool.query<CommentRow & { event_title: string; event_slug: string }>(
-    `SELECT c.${COLUMNS}, e.title AS event_title, e.slug AS event_slug
+    `SELECT ${PREFIXED_COLUMNS}, e.title AS event_title, e.slug AS event_slug
      FROM comments c
      JOIN events e ON e.id = c.event_id
      WHERE c.user_id = $1

@@ -10,7 +10,7 @@ const DAILY_LIMIT = 5;
 
 const recommendSchema = z.object({
   recipientEmail: z.string().email(),
-  note: z.string().max(500).optional(),
+  note: z.string().max(280).optional(),
 });
 
 const recommendationRoutes: FastifyPluginAsync = async (app) => {
@@ -66,15 +66,17 @@ const recommendationRoutes: FastifyPluginAsync = async (app) => {
     );
 
     // Send email
+    const senderEmail = userResult.rows[0]?.email || null;
     const html = buildRecommendEmailHtml({
       senderName,
+      senderEmail,
       eventTitle: eventResult.rows[0].title,
       eventSlug: eventResult.rows[0].slug,
       note: parsed.data.note ?? null,
     });
     await sendEmail(
       parsed.data.recipientEmail,
-      `${senderName} recommended an event for you`,
+      `${senderName} thinks you'd enjoy this dance event`,
       html,
       request.log,
     );

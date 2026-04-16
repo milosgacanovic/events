@@ -13,7 +13,7 @@ const createSuggestionSchema = z.object({
   targetType: z.enum(["event", "organizer"]),
   targetId: z.string().uuid(),
   category: suggestionCategorySchema,
-  body: z.string().min(1).max(1000),
+  body: z.string().min(1).max(500),
 });
 
 const editSuggestionRoutes: FastifyPluginAsync = async (app) => {

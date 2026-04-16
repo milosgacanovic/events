@@ -21,10 +21,11 @@ export class ApiRequestError extends Error {
 
 export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const url = path.startsWith("http") ? path : `${apiBase}${path}`;
+  const needsContentType = init?.body != null;
   const response = await fetch(url, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(needsContentType ? { "Content-Type": "application/json" } : {}),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",

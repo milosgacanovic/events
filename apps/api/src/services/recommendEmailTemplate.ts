@@ -2,6 +2,7 @@ import { config } from "../config";
 
 export type RecommendEmailInput = {
   senderName: string;
+  senderEmail: string | null;
   eventTitle: string;
   eventSlug: string;
   note: string | null;
@@ -34,7 +35,7 @@ export function buildRecommendEmailHtml(input: RecommendEmailInput): string {
 
   <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
   <p style="font-size: 0.82rem; color: #999;">
-    This email was sent by a DanceResource user. We won't email you again unless you sign up.
+    This email was sent because ${input.senderName}${input.senderEmail ? ` (${input.senderEmail})` : ""} recommended this event to you via DanceResource.org. We won't email you again unless you sign up.
   </p>
 </body>
 </html>`;

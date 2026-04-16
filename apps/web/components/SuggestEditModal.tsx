@@ -8,7 +8,7 @@ import { useI18n } from "./i18n/I18nProvider";
 import { useToast } from "./ToastProvider";
 
 const CATEGORIES = ["name", "datetime", "location", "description", "host", "practice", "other"] as const;
-const MAX_CHARS = 1000;
+const MAX_CHARS = 500;
 
 type Props = {
   targetType: "event" | "organizer";
