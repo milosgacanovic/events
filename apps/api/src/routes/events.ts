@@ -786,6 +786,33 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           },
         ];
 
+        // Disjunctive-style variant for the date-bucket facet: when an
+        // eventDate preset is active, the main query's bucket distribution
+        // only counts rows matching that preset (so "Today 73" becomes
+        // "Today 149" after clicking it, and other chips collapse). The
+        // preset chips should instead show "what you'd see if you toggled
+        // this preset off" counts — same semantics as the other facet
+        // groups. Fire one extra variant with the eventDate filter stripped
+        // and read the bucket facet from it when present.
+        let dateBucketVariantIndex: number | null = null;
+        if (includeDateBucketFacet && selectedEventDateRanges.length > 0) {
+          const dateBucketVariantFilters = buildSeriesMeiliFilters({
+            ...baseFilterInput,
+            selectedEventDateRanges: [],
+          });
+          if (!showUnlisted) {
+            dateBucketVariantFilters.push(`visibility = "public"`);
+          }
+          dateBucketVariantIndex = queries.length;
+          queries.push({
+            q: parsed.data.q ?? "",
+            filter: dateBucketVariantFilters,
+            facets: ["event_date_buckets"],
+            hitsPerPage: 0,
+            page: 1,
+          });
+        }
+
         const disjunctiveResultIndexes = new Map<DisjunctiveGroup, number>();
         for (const group of disjunctiveGroups) {
           const variantFilters = buildSeriesMeiliFilters({
@@ -821,7 +848,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
 
         const eventDateFacet: Record<string, number> = {};
         if (includeDateBucketFacet) {
-          const bucketDistribution = mainResult.facetDistribution?.event_date_buckets ?? {};
+          const bucketDistribution =
+            (dateBucketVariantIndex !== null
+              ? multiResult[dateBucketVariantIndex]?.facetDistribution?.event_date_buckets
+              : mainResult.facetDistribution?.event_date_buckets) ?? {};
           for (const preset of EVENT_DATE_PRESETS) {
             eventDateFacet[preset] = bucketDistribution[preset] ?? 0;
           }
