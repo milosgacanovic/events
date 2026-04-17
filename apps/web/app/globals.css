@@ -182,6 +182,12 @@ main {
   overflow-x: clip;
 }
 
+main:has(.manage-main--wide) {
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .topbar {
   display: flex;
   align-items: center;
@@ -3705,4 +3711,57 @@ img[loading="lazy"] {
   color: var(--dr-text-muted);
   opacity: 0.6;
   padding: 0 2px;
+}
+
+/* Shared submenu bar — used on /profile and /manage */
+.manage-submenu {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--border, #e0e0e0);
+  background: var(--surface, #f8f8f8);
+  padding: 0 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.manage-submenu::-webkit-scrollbar {
+  display: none;
+}
+
+.manage-submenu-link {
+  display: block;
+  padding: 10px 14px;
+  color: var(--ink, #333);
+  text-decoration: none;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.manage-submenu-link:hover {
+  color: var(--accent, #1a73e8);
+}
+
+.manage-submenu-link.active {
+  color: var(--accent, #1a73e8);
+  font-weight: 600;
+  border-bottom-color: var(--accent, #1a73e8);
+}
+
+.manage-submenu-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border, #e0e0e0);
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+@media (max-width: 768px) {
+  .manage-submenu-link {
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
 }

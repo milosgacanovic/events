@@ -36,51 +36,7 @@ textarea.field-invalid {
   border-color: #e57373 !important;
 }
 
-/* Horizontal submenu bar */
-.manage-submenu {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  border-bottom: 1px solid var(--border, #e0e0e0);
-  background: var(--surface, #f8f8f8);
-  padding: 0 16px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.manage-submenu::-webkit-scrollbar {
-  display: none;
-}
-
-.manage-submenu-link {
-  display: block;
-  padding: 10px 14px;
-  color: var(--ink, #333);
-  text-decoration: none;
-  font-size: 0.88rem;
-  white-space: nowrap;
-  border-bottom: 2px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.manage-submenu-link:hover {
-  color: var(--accent, #1a73e8);
-}
-
-.manage-submenu-link.active {
-  color: var(--accent, #1a73e8);
-  font-weight: 600;
-  border-bottom-color: var(--accent, #1a73e8);
-}
-
-.manage-submenu-sep {
-  width: 1px;
-  height: 20px;
-  background: var(--border, #e0e0e0);
-  flex-shrink: 0;
-  margin: 0 4px;
-}
+/* Submenu rules live in globals.css so they apply on /profile as well. */
 
 .manage-main {
   padding: 24px 32px;
@@ -1087,11 +1043,6 @@ textarea.field-invalid {
 @media (max-width: 768px) {
   .manage-main {
     padding: 16px;
-  }
-
-  .manage-submenu-link {
-    padding: 8px 10px;
-    font-size: 0.82rem;
   }
 }
 
