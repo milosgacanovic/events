@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
+import { ApplicationsList } from "../../../../components/manage/ApplicationsList";
+import { TagSuggestionsList } from "../../../../components/manage/TagSuggestionsList";
 import { authorizedGet, authorizedPatch } from "../../../../lib/manageApi";
 
 type ModerationItem = {
@@ -50,9 +53,9 @@ type ModerationSettings = {
   emailNotifications: boolean;
 };
 
-type Tab = "comment" | "edit_suggestion" | "report";
+type Tab = "comment" | "edit_suggestion" | "report" | "application" | "tag_suggestion";
 
-const TABS: Tab[] = ["comment", "edit_suggestion", "report"];
+const TABS: Tab[] = ["comment", "edit_suggestion", "report", "application", "tag_suggestion"];
 
 const REPORT_REASONS = [
   { value: "", key: "reasonAll" },
@@ -67,8 +70,14 @@ const REPORT_REASONS = [
 export default function AdminModerationPage() {
   const { getToken } = useKeycloakAuth();
   const { t } = useI18n();
+  const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState<Tab>("comment");
+  const initialTab = (() => {
+    const q = searchParams?.get("tab");
+    if (q && (TABS as string[]).includes(q)) return q as Tab;
+    return "comment" as Tab;
+  })();
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [stats, setStats] = useState<ModerationStats>({});
   const [items, setItems] = useState<ModerationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +97,18 @@ export default function AdminModerationPage() {
   const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
   const settingsDialogRef = useRef<HTMLDialogElement>(null);
 
+  const isNativeTab = tab === "comment" || tab === "edit_suggestion" || tab === "report";
+
   const load = useCallback(async () => {
+    if (!isNativeTab) {
+      // Stats still load so pending counts show, but items are rendered by child components.
+      try {
+        const statsData = await authorizedGet<ModerationStats>(getToken, "/admin/moderation/stats");
+        setStats(statsData);
+      } catch { /* ignore */ }
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -112,7 +132,7 @@ export default function AdminModerationPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, tab, page, statusFilter, search, targetType, reason, dateFrom, dateTo]);
+  }, [getToken, tab, page, statusFilter, search, targetType, reason, dateFrom, dateTo, isNativeTab]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -160,6 +180,8 @@ export default function AdminModerationPage() {
     comment: t("manage.admin.moderation.comments"),
     edit_suggestion: t("manage.admin.moderation.suggestions"),
     report: t("manage.admin.moderation.reports"),
+    application: t("manage.admin.moderation.applications"),
+    tag_suggestion: t("manage.admin.moderation.tagSuggestions"),
   };
 
   return (
@@ -185,6 +207,12 @@ export default function AdminModerationPage() {
         })}
       </div>
 
+      {/* Applications / Tag suggestions: render self-contained list components */}
+      {tab === "application" && <ApplicationsList />}
+      {tab === "tag_suggestion" && <TagSuggestionsList />}
+
+      {/* Native moderation UI (comment / edit_suggestion / report) */}
+      {isNativeTab && <>
       {/* Filters */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input
@@ -356,6 +384,7 @@ export default function AdminModerationPage() {
           </div>
         </>
       )}
+      </>}
 
       {/* Settings dialog */}
       <dialog ref={settingsDialogRef} className="manage-dialog" style={{ maxWidth: 480 }}>

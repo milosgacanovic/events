@@ -159,7 +159,7 @@ export async function listActivityLogs(
     whereParts.push(`al.actor_id = $${values.length}`);
   }
   if (input.excludeServiceAccounts) {
-    whereParts.push(`(al.actor_id IS NULL OR al.actor_id NOT IN (SELECT id FROM users WHERE is_service_account = true))`);
+    whereParts.push(`(al.actor_id IS NULL OR NOT EXISTS (SELECT 1 FROM users u_svc WHERE u_svc.id = al.actor_id AND u_svc.is_service_account = true))`);
   }
   if (input.dateFrom) {
     values.push(input.dateFrom);
@@ -172,26 +172,32 @@ export async function listActivityLogs(
 
   const whereSQL = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
 
-  const [itemsResult, totalResult] = await Promise.all([
-    pool.query<ActivityLogRow & { resolved_name: string | null; resolved_slug: string | null }>(
-      `SELECT al.id, al.actor_id, al.actor_name, al.action, al.target_type, al.target_id, al.target_label,
-              al.metadata, al.ip_address, al.user_agent, al.created_at,
-              COALESCE(al.target_label, e.title, o.name, u.display_name, u.email) AS resolved_name,
-              COALESCE(e.slug, o.slug) AS resolved_slug
-       FROM activity_log al
-       LEFT JOIN events e ON al.target_type = 'event' AND al.target_id::text = e.id::text
-       LEFT JOIN organizers o ON al.target_type = 'host' AND al.target_id::text = o.id::text
-       LEFT JOIN users u ON al.target_type = 'user' AND al.target_id::text = u.id::text
-       ${whereSQL}
-       ORDER BY al.created_at DESC
-       LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
-      [...values, pageSize, offset],
-    ),
-    pool.query<{ total: string }>(
-      `SELECT COUNT(*) as total FROM activity_log al ${whereSQL}`,
-      values,
-    ),
-  ]);
+  const hasFilters = whereParts.length > 0;
+  const itemsPromise = pool.query<ActivityLogRow & { resolved_name: string | null; resolved_slug: string | null }>(
+    `SELECT al.id, al.actor_id, al.actor_name, al.action, al.target_type, al.target_id, al.target_label,
+            al.metadata, al.ip_address, al.user_agent, al.created_at,
+            COALESCE(al.target_label, e.title, o.name, u.display_name, u.email) AS resolved_name,
+            COALESCE(e.slug, o.slug) AS resolved_slug
+     FROM activity_log al
+     LEFT JOIN events e ON al.target_type = 'event' AND al.target_id = e.id
+     LEFT JOIN organizers o ON al.target_type = 'host' AND al.target_id = o.id
+     LEFT JOIN users u ON al.target_type = 'user' AND al.target_id = u.id
+     ${whereSQL}
+     ORDER BY al.created_at DESC
+     LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+    [...values, pageSize, offset],
+  );
+
+  const totalPromise = hasFilters
+    ? pool.query<{ total: string }>(
+        `SELECT COUNT(*) as total FROM activity_log al ${whereSQL}`,
+        values,
+      )
+    : pool.query<{ total: string }>(
+        `SELECT reltuples::bigint::text AS total FROM pg_class WHERE relname = 'activity_log'`,
+      );
+
+  const [itemsResult, totalResult] = await Promise.all([itemsPromise, totalPromise]);
 
   const total = parseInt(totalResult.rows[0]?.total ?? "0", 10);
 
@@ -225,9 +231,9 @@ export async function getActivityLogById(pool: Pool, id: string) {
             COALESCE(al.target_label, e.title, o.name, u.display_name, u.email) AS resolved_name,
             COALESCE(e.slug, o.slug) AS resolved_slug
      FROM activity_log al
-     LEFT JOIN events e ON al.target_type = 'event' AND al.target_id::text = e.id::text
-     LEFT JOIN organizers o ON al.target_type = 'host' AND al.target_id::text = o.id::text
-     LEFT JOIN users u ON al.target_type = 'user' AND al.target_id::text = u.id::text
+     LEFT JOIN events e ON al.target_type = 'event' AND al.target_id = e.id
+     LEFT JOIN organizers o ON al.target_type = 'host' AND al.target_id = o.id
+     LEFT JOIN users u ON al.target_type = 'user' AND al.target_id = u.id
      WHERE al.id = $1`,
     [id],
   );

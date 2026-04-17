@@ -215,16 +215,28 @@ export async function listModerationItems(
 }
 
 export async function getModerationStats(pool: Pool) {
-  const result = await pool.query<{ item_type: string; status: string; count: string }>(
-    `select item_type, status, count(*)::text as count
-     from moderation_queue
-     group by item_type, status`,
-  );
+  const [queue, apps, tags] = await Promise.all([
+    pool.query<{ item_type: string; status: string; count: string }>(
+      `select item_type, status, count(*)::text as count
+       from moderation_queue
+       group by item_type, status`,
+    ),
+    pool.query<{ status: string; count: string }>(
+      `select status, count(*)::text as count from editor_applications group by status`,
+    ),
+    pool.query<{ status: string; count: string }>(
+      `select status, count(*)::text as count from tag_suggestions group by status`,
+    ),
+  ]);
   const stats: Record<string, Record<string, number>> = {};
-  for (const row of result.rows) {
+  for (const row of queue.rows) {
     if (!stats[row.item_type]) stats[row.item_type] = {};
     stats[row.item_type][row.status] = Number(row.count);
   }
+  stats.application = {};
+  for (const row of apps.rows) stats.application[row.status] = Number(row.count);
+  stats.tag_suggestion = {};
+  for (const row of tags.rows) stats.tag_suggestion[row.status] = Number(row.count);
   return stats;
 }
 

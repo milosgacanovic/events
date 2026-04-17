@@ -16,12 +16,13 @@ type ProfileCounts = {
 };
 
 const TABS = [
+  { href: "/profile/account", key: "account", countKey: null },
   { href: "/profile/saved", key: "savedEvents", countKey: "saves" as const },
   { href: "/profile/going", key: "rsvps", countKey: "rsvps" as const },
   { href: "/profile/following", key: "following", countKey: "follows" as const },
+  { href: "/profile/alerts", key: "alerts", countKey: null },
   { href: "/profile/notifications", key: "notifications", countKey: null },
   { href: "/profile/comments", key: "comments", countKey: "comments" as const },
-  { href: "/profile/account", key: "account", countKey: null },
 ] as const;
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {
@@ -62,36 +63,17 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
     );
   }
 
-  const displayName = auth.userName ?? auth.userEmail ?? "";
-  const initial = (displayName || "?")[0].toUpperCase();
-
   return (
     <section className="panel cards">
-      {/* Profile header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: "50%", background: "var(--accent-bg)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "1.1rem", fontWeight: 600, color: "var(--accent)", flexShrink: 0,
-        }}>
-          {initial}
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: "1.05rem" }}>{displayName}</div>
-          {auth.userEmail && auth.userEmail !== displayName && (
-            <div className="meta" style={{ fontSize: "0.8rem" }}>{auth.userEmail}</div>
-          )}
-        </div>
-      </div>
-
-      <nav className="profile-tabs">
+      <nav className="manage-submenu" style={{ marginBottom: 16 }}>
         {TABS.map((tab) => {
           const count = tab.countKey && counts ? counts[tab.countKey] : 0;
+          const active = pathname.startsWith(tab.href);
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`profile-tab${pathname.startsWith(tab.href) ? " active" : ""}`}
+              className={`manage-submenu-link${active ? " active" : ""}`}
             >
               {t(`profile.tabs.${tab.key}`)}
               {tab.countKey && count > 0 ? ` (${count})` : ""}

@@ -5,6 +5,6 @@ import { useRouter } from "next/navigation";
 
 export default function ProfileRedirect() {
   const router = useRouter();
-  useEffect(() => { router.replace("/profile/saved"); }, [router]);
+  useEffect(() => { router.replace("/profile/account"); }, [router]);
   return null;
 }

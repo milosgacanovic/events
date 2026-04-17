@@ -129,81 +129,123 @@ export default function AccountTab() {
 
   if (loading) return <p className="muted">{t("profile.loading")}</p>;
 
+  const displayNameForAvatar = displayName || profile?.email || auth.userEmail || "";
+  const initial = (displayNameForAvatar || "?")[0].toUpperCase();
+  const usernameDisplay = profile?.email ?? auth.userName ?? t("common.none");
+
+  const sectionStyle: React.CSSProperties = { marginBottom: 32 };
+  const fieldColumnStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 12 };
+
   return (
     <div>
-      {error && <div className="muted">{error}</div>}
+      {error && <div className="muted" style={{ color: "var(--danger, #dc2626)", marginBottom: 12 }}>{error}</div>}
 
-      <LocaleSwitcher />
+      {/* Profile section */}
+      <section style={sectionStyle}>
+        <h2 className="title-m" style={{ marginTop: 0, marginBottom: 12 }}>{t("profile.account.profileSection")}</h2>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%", background: "var(--accent-bg)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "1.4rem", fontWeight: 600, color: "var(--accent)", flexShrink: 0,
+          }}>
+            {initial}
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: "1.05rem" }}>{displayNameForAvatar}</div>
+            <div className="meta" style={{ fontSize: "0.8rem" }}>
+              {usernameDisplay}
+              <span style={{ marginLeft: 8, opacity: 0.7 }}>({t("profile.managedBySSO")})</span>
+            </div>
+          </div>
+        </div>
+        <div style={fieldColumnStyle}>
+          <div className="modal-field">
+            <label className="modal-label" htmlFor="profile-display-name">{t("profile.displayName")}</label>
+            <input
+              id="profile-display-name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              style={{ width: "100%", maxWidth: 360 }}
+            />
+          </div>
+          <div>
+            <button className="secondary-btn" type="button" onClick={() => void saveProfile()} disabled={saving}>
+              {saving ? t("profile.saving") : t("profile.save")}
+            </button>
+          </div>
+        </div>
+      </section>
 
-      <label>
-        {t("profile.displayName")}
-        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-      </label>
-      <div className="meta">
-        {t("profile.username")} {profile?.email ?? auth.userName ?? t("common.none")}
-        <span style={{ marginLeft: 8, fontSize: "0.75rem", opacity: 0.7 }}>({t("profile.managedBySSO")})</span>
-      </div>
-      <label className="toggle-control">
-        <input
-          className="toggle-control-input"
-          type="checkbox"
-          checked={timeDisplayMode === "event"}
-          onChange={(e) => {
-            const next = e.target.checked ? "event" : "user";
-            setTimeDisplayMode(next);
-            writeTimeDisplayMode(next);
-          }}
-        />
-        <span className="toggle-control-track" aria-hidden />
-        <span className="meta">
-          {timeDisplayMode === "event"
-            ? t("profile.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
-            : t("profile.timeMode.userWithZone", { zone: userTimeZone })}
-        </span>
-      </label>
-      <button className="secondary-btn" type="button" onClick={() => void saveProfile()} disabled={saving}>
-        {saving ? t("profile.saving") : t("profile.save")}
-      </button>
+      {/* Language section */}
+      <section style={sectionStyle}>
+        <h2 className="title-m" style={{ marginTop: 0, marginBottom: 12 }}>{t("profile.account.languageSection")}</h2>
+        <LocaleSwitcher />
+      </section>
 
-      <hr />
-
-      <h2 className="title-l">{t("profile.homeLocation.title")}</h2>
-      <p className="muted">{t("profile.homeLocation.description")}</p>
-      <div className="modal-field">
-        <label className="modal-label" htmlFor="profile-home-city">
-          {t("profile.homeLocation.cityLabel")}
+      {/* Time display section */}
+      <section style={sectionStyle}>
+        <h2 className="title-m" style={{ marginTop: 0, marginBottom: 12 }}>{t("profile.account.timeSection")}</h2>
+        <label className="toggle-control">
+          <input
+            className="toggle-control-input"
+            type="checkbox"
+            checked={timeDisplayMode === "event"}
+            onChange={(e) => {
+              const next = e.target.checked ? "event" : "user";
+              setTimeDisplayMode(next);
+              writeTimeDisplayMode(next);
+            }}
+          />
+          <span className="toggle-control-track" aria-hidden />
+          <span className="meta">
+            {timeDisplayMode === "event"
+              ? t("profile.timeMode.eventWithZone", { zone: t("common.eventTimezone") })
+              : t("profile.timeMode.userWithZone", { zone: userTimeZone })}
+          </span>
         </label>
-        <CityAutocomplete
-          inputId="profile-home-city"
-          value={homeCity}
-          onChange={setHomeCity}
-          placeholder={t("profile.homeLocation.cityPlaceholder")}
-        />
-      </div>
-      <div className="modal-field">
-        <label className="modal-label" htmlFor="profile-default-radius">
-          {t("profile.homeLocation.radiusLabel")}
-        </label>
-        <select
-          id="profile-default-radius"
-          className="modal-select"
-          value={defaultRadiusKm}
-          onChange={(e) => setDefaultRadiusKm(Number(e.target.value))}
-        >
-          {RADIUS_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>
-              {t("profile.homeLocation.radiusOption", { km: opt })}
-            </option>
-          ))}
-        </select>
-      </div>
-      <button className="secondary-btn" type="button" onClick={() => void saveHomeLocation()} disabled={savingHome}>
-        {savingHome ? t("profile.saving") : t("profile.homeLocation.save")}
-      </button>
-      {homeStatus && <div className="meta">{homeStatus}</div>}
+      </section>
 
-      <div style={{ marginTop: 24, padding: 16, border: "1px solid var(--danger, #dc2626)", borderRadius: 8 }}>
-        <h3 style={{ margin: "0 0 8px", color: "var(--danger, #dc2626)" }}>{t("profile.dangerZone")}</h3>
+      {/* Home location section */}
+      <section style={sectionStyle}>
+        <h2 className="title-m" style={{ marginTop: 0, marginBottom: 8 }}>{t("profile.homeLocation.title")}</h2>
+        <p className="muted" style={{ marginTop: 0, marginBottom: 12, fontSize: "0.85rem" }}>{t("profile.homeLocation.description")}</p>
+        <div style={fieldColumnStyle}>
+          <div className="modal-field">
+            <label className="modal-label" htmlFor="profile-home-city">{t("profile.homeLocation.cityLabel")}</label>
+            <CityAutocomplete
+              inputId="profile-home-city"
+              value={homeCity}
+              onChange={setHomeCity}
+              placeholder={t("profile.homeLocation.cityPlaceholder")}
+            />
+          </div>
+          <div className="modal-field">
+            <label className="modal-label" htmlFor="profile-default-radius">{t("profile.homeLocation.radiusLabel")}</label>
+            <select
+              id="profile-default-radius"
+              className="modal-select"
+              value={defaultRadiusKm}
+              onChange={(e) => setDefaultRadiusKm(Number(e.target.value))}
+              style={{ maxWidth: 200 }}
+            >
+              {RADIUS_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>{t("profile.homeLocation.radiusOption", { km: opt })}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button className="secondary-btn" type="button" onClick={() => void saveHomeLocation()} disabled={savingHome}>
+              {savingHome ? t("profile.saving") : t("profile.homeLocation.save")}
+            </button>
+            {homeStatus && <span className="meta" style={{ color: "var(--success, #16a34a)" }}>{homeStatus}</span>}
+          </div>
+        </div>
+      </section>
+
+      {/* Danger zone */}
+      <section style={{ ...sectionStyle, padding: 16, border: "1px solid var(--danger, #dc2626)", borderRadius: 8 }}>
+        <h2 className="title-m" style={{ margin: "0 0 8px", color: "var(--danger, #dc2626)" }}>{t("profile.dangerZone")}</h2>
         <p className="meta" style={{ marginBottom: 12 }}>{t("profile.deleteAccountWarning")}</p>
         <button
           type="button"
@@ -212,7 +254,7 @@ export default function AccountTab() {
         >
           {t("profile.deleteAccount")}
         </button>
-      </div>
+      </section>
 
       <dialog ref={deleteDialogRef} className="manage-dialog">
         <h3>{t("profile.deleteAccount")}</h3>

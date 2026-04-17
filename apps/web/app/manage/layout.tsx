@@ -54,10 +54,12 @@ export default function ManageLayout({ children }: { children: React.ReactNode }
     );
   }
 
+  const wide = pathname === "/manage/admin/users";
+
   return (
     <div className="manage-layout">
       <ManageSubmenu isAdmin={isAdmin} />
-      <div className="manage-main">
+      <div className={`manage-main${wide ? " manage-main--wide" : ""}`}>
         {children}
       </div>
     </div>

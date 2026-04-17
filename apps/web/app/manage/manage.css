@@ -89,6 +89,10 @@ textarea.field-invalid {
   width: 100%;
 }
 
+.manage-main.manage-main--wide {
+  max-width: none;
+}
+
 /* List pages with filter sidebar: match public page width, reduce padding for more card space */
 .manage-main:has(> .grid) {
   padding-left: 16px;
