@@ -64,8 +64,8 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
   }
 
   return (
-    <section className="panel cards">
-      <nav className="manage-submenu" style={{ marginBottom: 16 }}>
+    <>
+      <nav className="manage-submenu">
         {TABS.map((tab) => {
           const count = tab.countKey && counts ? counts[tab.countKey] : 0;
           const active = pathname.startsWith(tab.href);
@@ -81,7 +81,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
           );
         })}
       </nav>
-      {children}
-    </section>
+      <div style={{ paddingTop: 24 }}>{children}</div>
+    </>
   );
 }
