@@ -35,6 +35,7 @@ import { clearSearchCache, getSearchCache, setSearchCache } from "../services/se
 import {
   buildEventDateRangeMap,
   EVENT_DATE_PRESETS,
+  type EventDatePreset,
   parseEventDatePresets,
   resolveSafeTimeZone,
 } from "../utils/eventDatePresets";
@@ -318,32 +319,12 @@ function buildEventDateClause(input: { fromUtc: string; toUtc: string }): string
 }
 
 /**
- * Expand a UTC date range [fromUtc, toUtc) into a list of YYYY-MM-DD strings.
- * End is exclusive to match the half-open preset ranges from
- * buildEventDateRangeMap (e.g. "today" = [todayMidnight, tomorrowMidnight)).
- * Used by the series-index search path to OR-filter `upcoming_dates`.
- * Capped at 400 elements to stay within Meili filter sizing for year-long
- * horizons; wider ranges fall through to an earliest_upcoming_ts inequality.
- */
-function expandUtcDateBuckets(fromUtc: string, toUtc: string): string[] {
-  const start = DateTime.fromISO(fromUtc, { zone: "utc" });
-  const end = DateTime.fromISO(toUtc, { zone: "utc" });
-  if (!start.isValid || !end.isValid || end <= start) return [];
-  const buckets: string[] = [];
-  let cursor = start.startOf("day");
-  const stop = end.startOf("day");
-  while (cursor < stop && buckets.length < 400) {
-    buckets.push(cursor.toFormat("yyyy-MM-dd"));
-    cursor = cursor.plus({ days: 1 });
-  }
-  return buckets;
-}
-
-/**
  * Meili filter set for the series index. Same filter semantics as
  * {@link buildMeiliFilters} but with series-level attribute names:
  *   - `starts_at_ts` → `earliest_upcoming_ts` (for inequalities / sort)
- *   - Date-range presets emit an OR over `upcoming_dates` bucket strings.
+ *   - Date-range presets filter on the precomputed `event_date_buckets`
+ *     attribute — the exact same attribute whose facet distribution drives
+ *     the preset-chip counts, so chip count === filter count by construction.
  * Geo / tag / language / organizer filters reuse the same attribute shapes.
  */
 function buildSeriesMeiliFilters(input: {
@@ -362,7 +343,7 @@ function buildSeriesMeiliFilters(input: {
   geoLat?: number;
   geoLng?: number;
   geoRadius?: number;
-  selectedEventDateRanges: Array<{ fromUtc: string; toUtc: string }>;
+  selectedEventDatePresets: EventDatePreset[];
 }): string[] {
   const filters: string[] = [];
 
@@ -372,22 +353,15 @@ function buildSeriesMeiliFilters(input: {
   filters.push(`earliest_upcoming_ts >= ${Date.parse(input.fromUtc)}`);
   filters.push(`earliest_upcoming_ts <= ${Date.parse(input.toUtc)}`);
 
-  // Date-range preset refinement (e.g. "this weekend"): OR over the UTC
-  // date-bucket array. Each preset expands to its own bucket list; the
-  // whole expression is ORed together, matching the old semantic.
-  if (input.selectedEventDateRanges.length > 0) {
-    const perPresetClauses: string[] = [];
-    for (const range of input.selectedEventDateRanges) {
-      const buckets = expandUtcDateBuckets(range.fromUtc, range.toUtc);
-      if (buckets.length === 0) continue;
-      const bucketClauses = buckets
-        .map((d) => `upcoming_dates = ${JSON.stringify(d)}`)
-        .join(" OR ");
-      perPresetClauses.push(`(${bucketClauses})`);
-    }
-    if (perPresetClauses.length > 0) {
-      filters.push(`(${perPresetClauses.join(" OR ")})`);
-    }
+  // Preset refinement (e.g. "today", "this_weekend") uses the precomputed
+  // UTC-anchored `event_date_buckets` attribute directly. That attribute is
+  // also what backs the facet count shown in the chip — filtering by it
+  // guarantees the chip number matches the result count exactly.
+  if (input.selectedEventDatePresets.length > 0) {
+    const presetClauses = input.selectedEventDatePresets
+      .map((p) => `event_date_buckets = ${JSON.stringify(p)}`)
+      .join(" OR ");
+    filters.push(`(${presetClauses})`);
   }
 
   if (input.practiceCategoryIds?.length === 1) {
@@ -737,7 +711,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           geoLat: parsed.data.geoLat,
           geoLng: parsed.data.geoLng,
           geoRadius: parsed.data.geoRadius,
-          selectedEventDateRanges,
+          selectedEventDatePresets: eventDatePresets,
         });
         if (!showUnlisted) {
           seriesFilters.push(`visibility = "public"`);
@@ -842,10 +816,10 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         // groups. Fire one extra variant with the eventDate filter stripped
         // and read the bucket facet from it when present.
         let dateBucketVariantIndex: number | null = null;
-        if (includeDateBucketFacet && selectedEventDateRanges.length > 0) {
+        if (includeDateBucketFacet && eventDatePresets.length > 0) {
           const dateBucketVariantFilters = buildSeriesMeiliFilters({
             ...baseFilterInput,
-            selectedEventDateRanges: [],
+            selectedEventDatePresets: [],
           });
           if (!showUnlisted) {
             dateBucketVariantFilters.push(`visibility = "public"`);
@@ -865,7 +839,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           const variantFilters = buildSeriesMeiliFilters({
             ...baseFilterInput,
             ...disjunctiveOverride(group),
-            selectedEventDateRanges,
+            selectedEventDatePresets: eventDatePresets,
           });
           if (!showUnlisted) {
             variantFilters.push(`visibility = "public"`);
