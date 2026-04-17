@@ -375,7 +375,9 @@ describe("events idempotency conflict handling", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.headers["cache-control"]).toBe("public, max-age=30");
+    expect(response.headers["cache-control"]).toBe(
+      "public, max-age=30, s-maxage=60, stale-while-revalidate=120",
+    );
     expect(response.headers.vary).toContain("Authorization");
     const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
     expect(options?.filter?.some((item) => item === "starts_at_ts >= 0")).toBe(true);

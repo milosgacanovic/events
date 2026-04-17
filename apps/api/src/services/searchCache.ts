@@ -4,9 +4,13 @@ import { LRUCache } from "lru-cache";
 
 type CacheValue = object;
 
+// 120s origin TTL. Longer than the edge's s-maxage=60 so the origin can
+// serve repeated requests from memory while the CDN revalidates. Safe
+// because every event-write lifecycle calls clearSearchCache() — the TTL
+// is only a ceiling for cases where no write fires.
 const cache = new LRUCache<string, CacheValue>({
-  max: 500,
-  ttl: 30_000,
+  max: 1000,
+  ttl: 120_000,
 });
 
 type SearchCacheNamespace = "events_search" | "organizers_search" | "map_clusters" | "organizers_map_clusters";

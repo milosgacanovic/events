@@ -656,7 +656,19 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const isEditor = Boolean(request.auth?.isEditor);
     const showUnlisted = isEditor && parsed.data.showUnlisted === "true";
 
-    reply.header("Cache-Control", "public, max-age=30");
+    // Anonymous requests get CDN-friendly caching; authenticated ones (admins
+    // with showUnlisted) must never share a cache entry with anon users.
+    // s-maxage lets a front edge (Cloudflare) cache for 60s while allowing
+    // stale-while-revalidate to mask origin blips. Vary on Authorization so
+    // any auth scheme segments the cache correctly.
+    if (request.auth) {
+      reply.header("Cache-Control", "private, max-age=0, must-revalidate");
+    } else {
+      reply.header("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=120");
+      // Cache-Tag is a Cloudflare Enterprise purge hook; harmless on lower
+      // plans. Lets us fire a single tag-purge on any event-write lifecycle.
+      reply.header("Cache-Tag", "events-search,series-index");
+    }
     reply.header("Vary", "Authorization");
 
     const normalizedSort =
@@ -664,24 +676,27 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         : parsed.data.sort === "date_asc" ? "startsAtAsc"
           : parsed.data.sort;
 
+    // Canonicalize array filter values so equivalent requests (e.g.
+    // tags=b,a vs tags=a,b) collapse to the same cache slot.
+    const sortedStrings = (arr: string[]) => [...arr].sort();
     const cacheKeyPayload = {
       q: parsed.data.q ?? "",
       from: from ?? "",
       to: to ?? "",
-      practiceCategoryId: practiceCategoryIds.join(",") || null,
+      practiceCategoryId: sortedStrings(practiceCategoryIds).join(",") || null,
       practiceSubcategoryId: parsed.data.practiceSubcategoryId ?? null,
-      eventFormatId: eventFormatIds.join(",") || null,
-      tags,
-      languages,
-      attendanceMode: attendanceModes.join(",") || null,
+      eventFormatId: sortedStrings(eventFormatIds).join(",") || null,
+      tags: sortedStrings(tags),
+      languages: sortedStrings(languages),
+      attendanceMode: sortedStrings(attendanceModes).join(",") || null,
       organizerId: parsed.data.organizerId ?? null,
-      countryCode: countryCodes.join(",") || null,
-      city: cityFilters.join(",") || null,
+      countryCode: sortedStrings(countryCodes).join(",") || null,
+      city: sortedStrings(cityFilters).join(",") || null,
       hasGeo: hasGeo ?? null,
       geoLat: parsed.data.geoLat ?? null,
       geoLng: parsed.data.geoLng ?? null,
       geoRadius: parsed.data.geoRadius ?? null,
-      eventDate: eventDatePresets,
+      eventDate: sortedStrings(eventDatePresets),
       tz: timezone,
       skipEventDateFacet: parsed.data.skipEventDateFacet === "true",
       showUnlisted,
