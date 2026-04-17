@@ -336,8 +336,17 @@ export async function setEventOrganizersByRoleKey(
     return { ok: false, missingRoleKeys };
   }
 
-  await pool.query("delete from event_organizers where event_id = $1", [eventId]);
+  const seen = new Set<string>();
+  const deduped: typeof organizerRoles = [];
   for (const row of organizerRoles) {
+    const key = `${row.organizerId}|${row.roleKey}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(row);
+  }
+
+  await pool.query("delete from event_organizers where event_id = $1", [eventId]);
+  for (const row of deduped) {
     await pool.query(
       `
         insert into event_organizers (event_id, organizer_id, role_id, display_order)
