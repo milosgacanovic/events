@@ -756,20 +756,30 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           geoRadius: parsed.data.geoRadius,
         };
 
+        const mainFacets = [
+          "practice_category_id",
+          "practice_subcategory_id",
+          "event_format_id",
+          "languages",
+          "attendance_mode",
+          "country_code",
+          "tags",
+          "organizer_ids",
+        ];
+        // Tier 2: date-bucket counts come back as a facet on the main query
+        // when the caller wants them. The bucket set is precomputed at index
+        // time in UTC, so one facet distribution replaces the 7 preset-bucket
+        // sub-searches we used to fire.
+        const includeDateBucketFacet = parsed.data.skipEventDateFacet !== "true";
+        if (includeDateBucketFacet) {
+          mainFacets.push("event_date_buckets");
+        }
+
         const queries: Parameters<typeof app.meiliService.multiSearchSeries>[0] = [
           {
             q: parsed.data.q ?? "",
             filter: seriesFilters,
-            facets: [
-              "practice_category_id",
-              "practice_subcategory_id",
-              "event_format_id",
-              "languages",
-              "attendance_mode",
-              "country_code",
-              "tags",
-              "organizer_ids",
-            ],
+            facets: mainFacets,
             sort: [sortExpression],
             hitsPerPage: parsed.data.pageSize,
             page: parsed.data.page,
@@ -796,44 +806,6 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           });
         }
 
-        let dateFacetStartIndex = -1;
-        if (parsed.data.skipEventDateFacet !== "true") {
-          const baseNoDatePresets = buildSeriesMeiliFilters({
-            ...baseFilterInput,
-            selectedEventDateRanges: [],
-          });
-          if (!showUnlisted) {
-            baseNoDatePresets.push(`visibility = "public"`);
-          }
-          dateFacetStartIndex = queries.length;
-          for (const preset of EVENT_DATE_PRESETS) {
-            const presetRange = eventDateRangeMap[preset];
-            const buckets = expandUtcDateBuckets(presetRange.fromUtc, presetRange.toUtc);
-            if (buckets.length === 0) {
-              // Sentinel: a filter that always matches nothing keeps indexes
-              // aligned without hitting the data. `upcoming_dates` is an
-              // empty-array-never field for docs with no upcoming occurrences,
-              // but a plain impossible comparison is safer.
-              queries.push({
-                q: "",
-                filter: ['visibility = "__unreachable__"'],
-                hitsPerPage: 0,
-                page: 1,
-              });
-              continue;
-            }
-            const bucketFilter = `(${buckets
-              .map((d) => `upcoming_dates = ${JSON.stringify(d)}`)
-              .join(" OR ")})`;
-            queries.push({
-              q: parsed.data.q ?? "",
-              filter: [...baseNoDatePresets, bucketFilter],
-              hitsPerPage: 0,
-              page: 1,
-            });
-          }
-        }
-
         const multiResult = await app.meiliService.multiSearchSeries(queries);
         const mainResult = multiResult[0];
         const result = mainResult;
@@ -847,12 +819,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           disjunctiveFacets[meta.responseKey] = distribution;
         }
 
-        let eventDateFacet: Record<string, number> = {};
-        if (dateFacetStartIndex >= 0) {
-          EVENT_DATE_PRESETS.forEach((preset, offset) => {
-            const res = multiResult[dateFacetStartIndex + offset];
-            eventDateFacet[preset] = res?.totalHits ?? res?.hits?.length ?? 0;
-          });
+        const eventDateFacet: Record<string, number> = {};
+        if (includeDateBucketFacet) {
+          const bucketDistribution = mainResult.facetDistribution?.event_date_buckets ?? {};
+          for (const preset of EVENT_DATE_PRESETS) {
+            eventDateFacet[preset] = bucketDistribution[preset] ?? 0;
+          }
         }
 
         const payload = {

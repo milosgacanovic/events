@@ -47,6 +47,7 @@ export type SeriesDoc = {
     roles: string[];
   }>;
   upcoming_dates: string[];
+  event_date_buckets: string[];
   earliest_upcoming_ts: number | null;
   earliest_upcoming_end_ts: number | null;
   upcoming_count: number;
@@ -154,6 +155,7 @@ export class MeilisearchService {
       "city",
       "organizer_ids",
       "upcoming_dates",
+      "event_date_buckets",
       "earliest_upcoming_ts",
       "has_geo",
       "_geo",
@@ -398,6 +400,7 @@ export class MeilisearchService {
       organizer_ids: row.organizer_ids,
       organizers: row.organizers_json,
       upcoming_dates: row.upcoming_dates,
+      event_date_buckets: row.event_date_buckets,
       earliest_upcoming_ts: row.earliest_upcoming_ts ? Date.parse(row.earliest_upcoming_ts) : null,
       earliest_upcoming_end_ts: row.earliest_upcoming_end_ts ? Date.parse(row.earliest_upcoming_end_ts) : null,
       upcoming_count: row.upcoming_count,

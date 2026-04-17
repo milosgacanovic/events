@@ -39,6 +39,7 @@ export type EventSeriesDocRow = {
     roles: string[];
   }>;
   upcoming_dates: string[]; // YYYY-MM-DD UTC strings
+  event_date_buckets: string[]; // subset of EVENT_DATE_PRESETS (UTC-anchored)
   earliest_upcoming_ts: string | null; // ISO UTC
   earliest_upcoming_end_ts: string | null; // ISO UTC
   upcoming_count: number;
@@ -175,6 +176,43 @@ export async function refreshEventSeries(
         count(*)::int as upcoming_count
       from upcoming_all
     ),
+    date_bucket_agg as (
+      -- UTC-based preset windows. Week starts Monday (ISO). "Weekend" spans
+      -- Sat 00:00 → Mon 00:00; if we're already past Friday, the window is
+      -- anchored to the current/past Saturday.
+      select array(
+        select bucket from (values
+          ('today',         date_trunc('day', now() at time zone 'UTC'),                      date_trunc('day', now() at time zone 'UTC') + interval '1 day'),
+          ('tomorrow',      date_trunc('day', now() at time zone 'UTC') + interval '1 day',   date_trunc('day', now() at time zone 'UTC') + interval '2 days'),
+          ('this_weekend',  date_trunc('day', now() at time zone 'UTC')
+                            + case
+                                when extract(isodow from now() at time zone 'UTC') <= 5
+                                then make_interval(days := 6 - extract(isodow from now() at time zone 'UTC')::int)
+                                when extract(isodow from now() at time zone 'UTC') = 6
+                                then interval '0'
+                                else interval '-1 day'
+                              end,
+                            date_trunc('day', now() at time zone 'UTC')
+                            + case
+                                when extract(isodow from now() at time zone 'UTC') <= 5
+                                then make_interval(days := 6 - extract(isodow from now() at time zone 'UTC')::int)
+                                when extract(isodow from now() at time zone 'UTC') = 6
+                                then interval '0'
+                                else interval '-1 day'
+                              end + interval '2 days'),
+          ('this_week',     date_trunc('week', now() at time zone 'UTC'),                     date_trunc('week', now() at time zone 'UTC') + interval '1 week'),
+          ('next_week',     date_trunc('week', now() at time zone 'UTC') + interval '1 week', date_trunc('week', now() at time zone 'UTC') + interval '2 weeks'),
+          ('this_month',    date_trunc('month', now() at time zone 'UTC'),                    date_trunc('month', now() at time zone 'UTC') + interval '1 month'),
+          ('next_month',    date_trunc('month', now() at time zone 'UTC') + interval '1 month', date_trunc('month', now() at time zone 'UTC') + interval '2 months')
+        ) as t(bucket, from_ts, to_ts)
+        where exists (
+          select 1
+          from upcoming_all ua
+          where ua.starts_at_utc >= t.from_ts
+            and ua.starts_at_utc <  t.to_ts
+        )
+      ) as event_date_buckets
+    ),
     sibling_agg as (
       select count(*)::int as sibling_count from siblings
     ),
@@ -202,6 +240,7 @@ export async function refreshEventSeries(
       organizer_ids,
       organizers_json,
       upcoming_dates,
+      event_date_buckets,
       earliest_upcoming_ts,
       earliest_upcoming_end_ts,
       upcoming_count,
@@ -231,6 +270,7 @@ export async function refreshEventSeries(
       coalesce((select organizer_ids from organizer_union), '{}'),
       coalesce((select organizers_json from organizer_json_build), '[]'::jsonb),
       ua.upcoming_dates,
+      coalesce((select event_date_buckets from date_bucket_agg), '{}'),
       ua.earliest_upcoming_ts,
       ua.earliest_upcoming_end_ts,
       ua.upcoming_count,
@@ -262,6 +302,7 @@ export async function refreshEventSeries(
       organizer_ids = excluded.organizer_ids,
       organizers_json = excluded.organizers_json,
       upcoming_dates = excluded.upcoming_dates,
+      event_date_buckets = excluded.event_date_buckets,
       earliest_upcoming_ts = excluded.earliest_upcoming_ts,
       earliest_upcoming_end_ts = excluded.earliest_upcoming_end_ts,
       upcoming_count = excluded.upcoming_count,
@@ -320,6 +361,7 @@ export async function fetchAllEventSeries(
       roles: string[];
     }>;
     upcoming_dates: string[];
+    event_date_buckets: string[];
     earliest_upcoming_ts: string | null;
     earliest_upcoming_end_ts: string | null;
     upcoming_count: number;
@@ -350,6 +392,7 @@ export async function fetchAllEventSeries(
       organizer_ids,
       organizers_json,
       upcoming_dates::text[] as upcoming_dates,
+      event_date_buckets,
       earliest_upcoming_ts,
       earliest_upcoming_end_ts,
       upcoming_count,
@@ -396,6 +439,7 @@ export async function fetchAllEventSeries(
       organizer_ids: row.organizer_ids,
       organizers_json: row.organizers_json ?? [],
       upcoming_dates: row.upcoming_dates,
+      event_date_buckets: row.event_date_buckets ?? [],
       earliest_upcoming_ts: row.earliest_upcoming_ts,
       earliest_upcoming_end_ts: row.earliest_upcoming_end_ts,
       upcoming_count: row.upcoming_count,
@@ -443,6 +487,7 @@ export async function getEventSeriesBySeriesId(
       roles: string[];
     }>;
     upcoming_dates: string[];
+    event_date_buckets: string[];
     earliest_upcoming_ts: string | null;
     earliest_upcoming_end_ts: string | null;
     upcoming_count: number;
@@ -473,6 +518,7 @@ export async function getEventSeriesBySeriesId(
       organizer_ids,
       organizers_json,
       upcoming_dates::text[] as upcoming_dates,
+      event_date_buckets,
       earliest_upcoming_ts,
       earliest_upcoming_end_ts,
       upcoming_count,
@@ -519,6 +565,7 @@ export async function getEventSeriesBySeriesId(
     organizer_ids: row.organizer_ids,
     organizers_json: row.organizers_json ?? [],
     upcoming_dates: row.upcoming_dates,
+    event_date_buckets: row.event_date_buckets ?? [],
     earliest_upcoming_ts: row.earliest_upcoming_ts,
     earliest_upcoming_end_ts: row.earliest_upcoming_end_ts,
     upcoming_count: row.upcoming_count,
