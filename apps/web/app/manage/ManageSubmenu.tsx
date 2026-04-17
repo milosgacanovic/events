@@ -20,10 +20,6 @@ export function ManageSubmenu({
 
   return (
     <nav className="manage-submenu">
-      <Link href="/profile" className={linkClass("/profile")}>
-        {t("manage.sidebar.myProfile")}
-      </Link>
-      <span className="manage-submenu-sep" aria-hidden="true" />
       <Link href="/manage" className={linkClass("/manage", true)}>
         {t("manage.sidebar.dashboard")}
       </Link>
@@ -62,6 +58,26 @@ export function ManageSubmenu({
           </Link>
         </>
       )}
+      <Link
+        href="/profile"
+        className={`manage-submenu-link manage-submenu-link--profile${pathname.startsWith("/profile") ? " active" : ""}`}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+        <span>{t("manage.sidebar.myProfile")}</span>
+      </Link>
     </nav>
   );
 }

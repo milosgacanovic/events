@@ -3778,6 +3778,24 @@ img[loading="lazy"] {
   border-bottom-color: var(--accent, #1a73e8);
 }
 
+.manage-submenu-link--profile {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-left: 1px solid var(--border, #e0e0e0);
+  color: var(--muted, #666);
+}
+
+.manage-submenu-link--profile:hover {
+  color: var(--accent);
+}
+
+.manage-submenu-link--profile.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
 .manage-submenu-sep {
   width: 1px;
   height: 20px;
