@@ -318,7 +318,9 @@ function buildEventDateClause(input: { fromUtc: string; toUtc: string }): string
 }
 
 /**
- * Expand a UTC date range into a list of YYYY-MM-DD strings (inclusive).
+ * Expand a UTC date range [fromUtc, toUtc) into a list of YYYY-MM-DD strings.
+ * End is exclusive to match the half-open preset ranges from
+ * buildEventDateRangeMap (e.g. "today" = [todayMidnight, tomorrowMidnight)).
  * Used by the series-index search path to OR-filter `upcoming_dates`.
  * Capped at 400 elements to stay within Meili filter sizing for year-long
  * horizons; wider ranges fall through to an earliest_upcoming_ts inequality.
@@ -326,11 +328,11 @@ function buildEventDateClause(input: { fromUtc: string; toUtc: string }): string
 function expandUtcDateBuckets(fromUtc: string, toUtc: string): string[] {
   const start = DateTime.fromISO(fromUtc, { zone: "utc" });
   const end = DateTime.fromISO(toUtc, { zone: "utc" });
-  if (!start.isValid || !end.isValid || end < start) return [];
+  if (!start.isValid || !end.isValid || end <= start) return [];
   const buckets: string[] = [];
   let cursor = start.startOf("day");
   const stop = end.startOf("day");
-  while (cursor <= stop && buckets.length < 400) {
+  while (cursor < stop && buckets.length < 400) {
     buckets.push(cursor.toFormat("yyyy-MM-dd"));
     cursor = cursor.plus({ days: 1 });
   }

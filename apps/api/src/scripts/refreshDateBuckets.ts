@@ -62,7 +62,7 @@ async function main() {
               select 1
               from event_occurrences eo
               where eo.series_id = es.series_id
-                and eo.starts_at_utc >= t.from_ts
+                and eo.starts_at_utc >= greatest(t.from_ts, (select n from now_utc))
                 and eo.starts_at_utc <  t.to_ts
             )
           ) as new_buckets
