@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
+import { useKeycloakAuth } from "../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../components/i18n/I18nProvider";
+import { authorizedGet } from "../../lib/manageApi";
+
+type ModerationStats = Record<string, Record<string, number>>;
 
 export function ManageSubmenu({
   isAdmin,
@@ -12,6 +17,25 @@ export function ManageSubmenu({
 }) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const { getToken } = useKeycloakAuth();
+  const [moderationPending, setModerationPending] = useState(0);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stats = await authorizedGet<ModerationStats>(getToken, "/admin/moderation/stats");
+        if (cancelled) return;
+        const total = Object.values(stats).reduce(
+          (sum, byStatus) => sum + (byStatus?.pending ?? 0),
+          0,
+        );
+        setModerationPending(total);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [isAdmin, getToken, pathname]);
 
   function linkClass(href: string, exact?: boolean) {
     const active = exact ? pathname === href : pathname.startsWith(href);
@@ -46,6 +70,7 @@ export function ManageSubmenu({
           </Link>
           <Link href="/manage/admin/moderation" className={linkClass("/manage/admin/moderation")}>
             {t("manage.sidebar.moderation")}
+            {moderationPending > 0 ? ` (${moderationPending})` : ""}
           </Link>
           <Link href="/manage/admin/notifications" className={linkClass("/manage/admin/notifications")}>
             {t("manage.sidebar.notifications")}

@@ -92,7 +92,16 @@ export default function FollowingTab() {
 
   if (loading) return <p className="muted">{t("profile.loading")}</p>;
 
-  if (alerts.length === 0) return <p className="muted">{t("profile.alerts.empty")}</p>;
+  if (alerts.length === 0) {
+    return (
+      <div className="manage-empty">
+        <p className="muted">{t("profile.alerts.empty")}</p>
+        <a href="/hosts" className="primary-btn" style={{ display: "inline-block", marginTop: 8 }}>
+          {t("profile.alerts.browseHosts")}
+        </a>
+      </div>
+    );
+  }
 
   return (
     <>

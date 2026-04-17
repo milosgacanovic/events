@@ -71,6 +71,25 @@ export default function SearchAlertsTab() {
 
   if (loading) return <p className="muted">{t("profile.loading")}</p>;
 
+  function buildFilterSummary(snap: Record<string, unknown>): { text: string; href: string } {
+    const entries = Object.entries(snap).filter(([k, v]) => v != null && String(v).length > 0 && k !== "page" && k !== "view" && k !== "sort");
+    const params = new URLSearchParams();
+    for (const [k, v] of entries) params.set(k, String(v));
+    const href = `/events${params.toString() ? `?${params.toString()}` : ""}`;
+
+    if (entries.length === 0) return { text: t("profile.savedSearches.allEvents"), href };
+
+    const parts: string[] = [];
+    const q = snap["q"];
+    if (typeof q === "string" && q.length > 0) parts.push(`"${q}"`);
+    for (const [k, v] of entries) {
+      if (k === "q") continue;
+      const val = String(v);
+      parts.push(`${k}: ${val.length > 40 ? `${val.slice(0, 40)}…` : val}`);
+    }
+    return { text: parts.join(" · "), href };
+  }
+
   return (
     <>
       <h3 className="title-s" style={{ marginBottom: 12 }}>{t("profile.savedSearches.title")}</h3>
@@ -78,61 +97,72 @@ export default function SearchAlertsTab() {
         <p className="muted">{t("profile.savedSearches.empty")}</p>
       ) : (
         <ul className="alerts-list">
-          {items.map((search) => (
-            <li key={search.id} className="alerts-item">
-              <div className="alerts-item-main" style={{ flex: 1 }}>
-                <div className="alerts-item-host">
-                  {search.label || t("profile.savedSearches.untitled")}
+          {items.map((search) => {
+            const summary = buildFilterSummary(search.filterSnapshot);
+            return (
+              <li key={search.id} className="alerts-item">
+                <div className="alerts-item-main" style={{ flex: 1 }}>
+                  <div className="alerts-item-host">
+                    {search.label || t("profile.savedSearches.untitled")}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: "0.9rem", color: "var(--ink)" }}>
+                    <strong className="muted" style={{ fontWeight: 600, marginRight: 6 }}>
+                      {t("profile.savedSearches.filters")}:
+                    </strong>
+                    <a href={summary.href} style={{ textDecoration: "underline" }}>
+                      {summary.text}
+                    </a>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+                    <select
+                      className="modal-select"
+                      style={{ width: "auto", fontSize: "0.9rem", padding: "4px 8px" }}
+                      value={search.frequency}
+                      onChange={(e) => void updateSearch(search.id, { frequency: e.target.value })}
+                    >
+                      <option value="weekly">{t("notifyMe.dialog.weekly")}</option>
+                      <option value="daily">{t("notifyMe.dialog.daily")}</option>
+                    </select>
+                    {search.unsubscribedAt && (
+                      <span className="profile-comment-status profile-comment-status--rejected">
+                        {t("profile.savedSearches.paused")}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 8 }}>
+                    <label className="toggle-control toggle-control-sm">
+                      <input
+                        className="toggle-control-input"
+                        type="checkbox"
+                        checked={search.notifyReminders}
+                        onChange={(e) => void updateSearch(search.id, { notifyReminders: e.target.checked })}
+                      />
+                      <span className="toggle-control-track" aria-hidden />
+                      <span className="meta">{t("profile.savedSearches.reminders")}</span>
+                    </label>
+                    <label className="toggle-control toggle-control-sm">
+                      <input
+                        className="toggle-control-input"
+                        type="checkbox"
+                        checked={search.notifyUpdates}
+                        onChange={(e) => void updateSearch(search.id, { notifyUpdates: e.target.checked })}
+                      />
+                      <span className="toggle-control-track" aria-hidden />
+                      <span className="meta">{t("profile.savedSearches.updates")}</span>
+                    </label>
+                  </div>
                 </div>
-                <div className="meta" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 4 }}>
-                  <select
-                    className="modal-select"
-                    style={{ width: "auto", fontSize: "0.8rem", padding: "2px 6px" }}
-                    value={search.frequency}
-                    onChange={(e) => void updateSearch(search.id, { frequency: e.target.value })}
-                  >
-                    <option value="weekly">{t("notifyMe.dialog.weekly")}</option>
-                    <option value="daily">{t("notifyMe.dialog.daily")}</option>
-                  </select>
-                  {search.unsubscribedAt && (
-                    <span className="profile-comment-status profile-comment-status--rejected">
-                      {t("profile.savedSearches.paused")}
-                    </span>
-                  )}
+                <div className="alerts-item-actions" style={{ display: "flex", gap: 6, flexDirection: "column" }}>
+                  <button className="primary-btn" type="button" onClick={() => void updateSearch(search.id, { paused: !search.unsubscribedAt })}>
+                    {search.unsubscribedAt ? t("profile.savedSearches.resume") : t("profile.savedSearches.pause")}
+                  </button>
+                  <button className="primary-btn" type="button" onClick={() => void removeSearch(search.id)}>
+                    {t("profile.savedSearches.delete")}
+                  </button>
                 </div>
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 6 }}>
-                  <label className="toggle-control toggle-control-sm">
-                    <input
-                      className="toggle-control-input"
-                      type="checkbox"
-                      checked={search.notifyReminders}
-                      onChange={(e) => void updateSearch(search.id, { notifyReminders: e.target.checked })}
-                    />
-                    <span className="toggle-control-track" aria-hidden />
-                    <span className="meta">{t("profile.savedSearches.reminders")}</span>
-                  </label>
-                  <label className="toggle-control toggle-control-sm">
-                    <input
-                      className="toggle-control-input"
-                      type="checkbox"
-                      checked={search.notifyUpdates}
-                      onChange={(e) => void updateSearch(search.id, { notifyUpdates: e.target.checked })}
-                    />
-                    <span className="toggle-control-track" aria-hidden />
-                    <span className="meta">{t("profile.savedSearches.updates")}</span>
-                  </label>
-                </div>
-              </div>
-              <div className="alerts-item-actions" style={{ display: "flex", gap: 6, flexDirection: "column" }}>
-                <button className="primary-btn" type="button" onClick={() => void updateSearch(search.id, { paused: !search.unsubscribedAt })}>
-                  {search.unsubscribedAt ? t("profile.savedSearches.resume") : t("profile.savedSearches.pause")}
-                </button>
-                <button className="primary-btn" type="button" onClick={() => void removeSearch(search.id)}>
-                  {t("profile.savedSearches.delete")}
-                </button>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </>

@@ -69,24 +69,25 @@ export default function CommentsTab() {
     <ul className="comments-list">
       {items.map((comment) => (
         <li key={comment.id} className="comments-item">
-          <div className="comments-item-header">
-            <a href={`/events/${comment.eventSlug}`}>{comment.eventTitle}</a>
-            <span className="muted">
-              {new Date(comment.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
-            </span>
-            <span className={`profile-comment-status profile-comment-status--${comment.status}`}>
-              {comment.status}
-            </span>
-          </div>
-          <p className="comments-item-body">{comment.body}</p>
-          {comment.status === "removed" ? (
-            <p className="meta" style={{ fontSize: "0.8rem", fontStyle: "italic" }}>{t("profile.comments.removedByModerator")}</p>
-          ) : (
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-              <button type="button" className="report-btn" onClick={() => void remove(comment.eventId, comment.id)}>
-                {t("profile.comments.delete")}
-              </button>
+          <div className="comments-item-info">
+            <div className="comments-item-header">
+              <a href={`/events/${comment.eventSlug}`}>{comment.eventTitle}</a>
+              <span className="muted">
+                {new Date(comment.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+              </span>
+              <span className={`profile-comment-status profile-comment-status--${comment.status}`}>
+                {comment.status}
+              </span>
             </div>
+            <p className="comments-item-body">{comment.body}</p>
+            {comment.status === "removed" && (
+              <p className="meta" style={{ fontSize: "0.8rem", fontStyle: "italic", marginTop: 4 }}>{t("profile.comments.removedByModerator")}</p>
+            )}
+          </div>
+          {comment.status !== "removed" && (
+            <button type="button" className="primary-btn" onClick={() => void remove(comment.eventId, comment.id)}>
+              {t("profile.comments.delete")}
+            </button>
           )}
         </li>
       ))}

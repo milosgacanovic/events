@@ -998,7 +998,6 @@ label.meta {
 
 .toggle-control-sm {
   gap: 6px;
-  opacity: 0.65;
 }
 
 .toggle-control-sm .toggle-control-track {
@@ -1018,7 +1017,8 @@ label.meta {
 }
 
 .toggle-control-sm .meta {
-  font-size: 0.78rem;
+  font-size: 0.88rem;
+  color: var(--ink);
 }
 
 /* ── Hero section ─────────────────────────────────────── */
@@ -2276,10 +2276,17 @@ label.meta {
   gap: 12px;
 }
 .comments-item {
-  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
+}
+.comments-item-info {
+  flex: 1;
+  min-width: 0;
 }
 .comments-item-header {
   display: flex;
