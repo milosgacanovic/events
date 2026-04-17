@@ -143,12 +143,15 @@ export class MeilisearchService {
     // facetDistribution are exact by construction.
     await this.client.createIndex(SERIES_INDEX, { primaryKey: "series_id" }).catch(() => {});
     const seriesIndex = this.client.index(SERIES_INDEX);
+    // Filterable attributes: only the fields the route actually uses as
+    // filters. `schedule_kind` and `canonical_event_id` were previously
+    // indexed here but never filtered on — Meili's inverted-index memory
+    // scales with this list, so trimming is pure win at 100k doc scale.
     await seriesIndex.updateFilterableAttributes([
       "practice_category_id",
       "practice_subcategory_id",
       "event_format_id",
       "attendance_mode",
-      "schedule_kind",
       "tags",
       "languages",
       "country_code",
@@ -160,11 +163,19 @@ export class MeilisearchService {
       "has_geo",
       "_geo",
       "visibility",
-      "canonical_event_id",
     ]);
     await seriesIndex.updateSortableAttributes(["earliest_upcoming_ts"]);
     await seriesIndex.updateSearchableAttributes(["title", "description_text", "tags"]);
-    await seriesIndex.updatePagination({ maxTotalHits: 50000 });
+    // At 100k docs typo-tolerance on short tokens becomes a latency
+    // driver. Raising the minimum word size cuts tail latency without
+    // materially affecting match quality for long-enough tokens.
+    await seriesIndex.updateTypoTolerance({
+      minWordSizeForTypos: { oneTypo: 5, twoTypos: 9 },
+    });
+    // 500k headroom: with a UTC-filtered upcoming-only ingestion path the
+    // series index stays proportional to "events with upcoming dates",
+    // but 50k was already within an order of magnitude of our 100k target.
+    await seriesIndex.updatePagination({ maxTotalHits: 500000 });
   }
 
   async healthcheck(): Promise<boolean> {

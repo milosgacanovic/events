@@ -790,6 +790,35 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           mainFacets.push("event_date_buckets");
         }
 
+        // Explicit field list: strip `description_text` and `upcoming_dates`
+        // from the listing payload. Neither is read by the event card and
+        // both are heavy (description_text is an HTML paragraph per doc,
+        // upcoming_dates is an array up to the horizon length). Cuts JSON
+        // payload roughly in half without affecting rendering.
+        const listingAttributes = [
+          "series_id",
+          "canonical_event_id",
+          "slug",
+          "title",
+          "cover_image_path",
+          "attendance_mode",
+          "event_timezone",
+          "languages",
+          "tags",
+          "practice_category_id",
+          "practice_subcategory_id",
+          "event_format_id",
+          "visibility",
+          "schedule_kind",
+          "sibling_count",
+          "earliest_upcoming_ts",
+          "earliest_upcoming_end_ts",
+          "_geo",
+          "city",
+          "country_code",
+          "organizers",
+        ];
+
         const queries: Parameters<typeof app.meiliService.multiSearchSeries>[0] = [
           {
             q: parsed.data.q ?? "",
@@ -798,6 +827,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             sort: [sortExpression],
             hitsPerPage: parsed.data.pageSize,
             page: parsed.data.page,
+            attributesToRetrieve: listingAttributes,
           },
         ];
 
