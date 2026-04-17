@@ -8,7 +8,7 @@ import {
   listAdminOrganizers,
 } from "../db/adminRepo";
 import { recordActivity } from "../services/activityLogger";
-import { syncSeriesAfterHardDelete } from "../services/eventLifecycleService";
+import { syncSeriesAfterHardDelete, syncSeriesForEvent } from "../services/eventLifecycleService";
 import { getEventById, setEventOrganizersByRoleKey } from "../db/eventRepo";
 import { createLocation } from "../db/locationRepo";
 import { listManagedEvents, listManagedOrganizers, getEventFacets, getHostFacets } from "../db/manageRepo";
@@ -552,6 +552,7 @@ const adminContentRoutes: FastifyPluginAsync = async (app) => {
         missingRoleKeys: result.missingRoleKeys,
       };
     }
+    await syncSeriesForEvent(app.db, app.meiliService, event.id, "ownership.replace");
     recordActivity(app.db, request, {
       action: "ownership.replace",
       targetType: "event",

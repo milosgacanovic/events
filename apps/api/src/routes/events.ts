@@ -855,11 +855,6 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           });
         }
 
-        const organizerMap = await loadEventOrganizers(
-          app.db,
-          Array.from(new Set(seriesHits.map((hit) => hit.canonical_event_id).filter(Boolean))),
-        );
-
         const payload = {
           hits: seriesHits.map((doc) => ({
             // occurrenceId retained for client-compat; each "hit" is now a
@@ -904,7 +899,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
                   lng: doc._geo?.lng ?? null,
                 }
               : null,
-            organizers: organizerMap.get(doc.canonical_event_id) ?? [],
+            organizers: doc.organizers ?? [],
           })),
           totalHits,
           facets: {

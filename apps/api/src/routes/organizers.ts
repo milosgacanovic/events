@@ -15,6 +15,7 @@ import { resolveUserId, requireOrganizerAccess } from "../middleware/ownership";
 import { canUserEditOrganizer } from "../db/manageRepo";
 import { isServiceAccount } from "../db/userRepo";
 import { clearSearchCache, debouncedClearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
+import { syncSeriesForEvent } from "../services/eventLifecycleService";
 import { recordActivity } from "../services/activityLogger";
 import { logValidation } from "../utils/validationError";
 
@@ -394,6 +395,23 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
             app.meiliService.upsertOccurrencesForEvent(app.db, row.event_id).catch(() => {}),
           ),
         );
+      }
+    }
+
+    // Organizer display fields (name, slug) are denormalized into the series
+    // doc's `organizers` array. When they change, every series carrying this
+    // organizer needs a refresh — otherwise listing cards render stale names.
+    const displayChanged =
+      (parsed.data.name !== undefined && parsed.data.name !== previousOrganizer?.name) ||
+      (parsed.data.slug !== undefined && parsed.data.slug !== previousOrganizer?.slug) ||
+      parsed.data.status !== undefined;
+    if (displayChanged) {
+      const linkedEventIds = await app.db.query<{ event_id: string }>(
+        `SELECT DISTINCT event_id FROM event_organizers WHERE organizer_id = $1`,
+        [params.data.id],
+      );
+      for (const row of linkedEventIds.rows) {
+        await syncSeriesForEvent(app.db, app.meiliService, row.event_id, "organizer.update").catch(() => {});
       }
     }
 

@@ -31,6 +31,13 @@ export type EventSeriesDocRow = {
   tags: string[];
   languages: string[];
   organizer_ids: string[];
+  organizers_json: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    avatarUrl: string | null;
+    roles: string[];
+  }>;
   upcoming_dates: string[]; // YYYY-MM-DD UTC strings
   earliest_upcoming_ts: string | null; // ISO UTC
   earliest_upcoming_end_ts: string | null; // ISO UTC
@@ -117,6 +124,40 @@ export async function refreshEventSeries(
       from siblings s
       join event_organizers eoz on eoz.event_id = s.id
     ),
+    organizer_roles_agg as (
+      -- Group by organizer across all siblings; union their role keys and
+      -- take the earliest display_order seen (for the canonical ordering).
+      select
+        o.id as organizer_id,
+        o.slug as organizer_slug,
+        o.name as organizer_name,
+        min(eoz.display_order) as display_order,
+        coalesce(
+          array_agg(distinct r.key) filter (where r.key is not null),
+          '{}'
+        ) as role_keys
+      from siblings s
+      join event_organizers eoz on eoz.event_id = s.id
+      join organizers o on o.id = eoz.organizer_id and o.status = 'published'
+      left join organizer_roles r on r.id = eoz.role_id
+      group by o.id, o.slug, o.name
+    ),
+    organizer_json_build as (
+      select coalesce(
+        jsonb_agg(
+          jsonb_build_object(
+            'id', organizer_id::text,
+            'slug', organizer_slug,
+            'name', organizer_name,
+            'avatarUrl', null,
+            'roles', to_jsonb(role_keys)
+          )
+          order by display_order asc nulls last, organizer_name asc
+        ),
+        '[]'::jsonb
+      ) as organizers_json
+      from organizer_roles_agg
+    ),
     upcoming_all as (
       select eo.starts_at_utc, eo.ends_at_utc
       from event_occurrences eo
@@ -159,6 +200,7 @@ export async function refreshEventSeries(
       tags,
       languages,
       organizer_ids,
+      organizers_json,
       upcoming_dates,
       earliest_upcoming_ts,
       earliest_upcoming_end_ts,
@@ -187,6 +229,7 @@ export async function refreshEventSeries(
       (select tags from tag_union),
       (select languages from language_union),
       coalesce((select organizer_ids from organizer_union), '{}'),
+      coalesce((select organizers_json from organizer_json_build), '[]'::jsonb),
       ua.upcoming_dates,
       ua.earliest_upcoming_ts,
       ua.earliest_upcoming_end_ts,
@@ -217,6 +260,7 @@ export async function refreshEventSeries(
       tags = excluded.tags,
       languages = excluded.languages,
       organizer_ids = excluded.organizer_ids,
+      organizers_json = excluded.organizers_json,
       upcoming_dates = excluded.upcoming_dates,
       earliest_upcoming_ts = excluded.earliest_upcoming_ts,
       earliest_upcoming_end_ts = excluded.earliest_upcoming_end_ts,
@@ -268,6 +312,13 @@ export async function fetchAllEventSeries(
     tags: string[];
     languages: string[];
     organizer_ids: string[];
+    organizers_json: Array<{
+      id: string;
+      slug: string;
+      name: string;
+      avatarUrl: string | null;
+      roles: string[];
+    }>;
     upcoming_dates: string[];
     earliest_upcoming_ts: string | null;
     earliest_upcoming_end_ts: string | null;
@@ -297,6 +348,7 @@ export async function fetchAllEventSeries(
       tags,
       languages,
       organizer_ids,
+      organizers_json,
       upcoming_dates::text[] as upcoming_dates,
       earliest_upcoming_ts,
       earliest_upcoming_end_ts,
@@ -342,6 +394,7 @@ export async function fetchAllEventSeries(
       tags: row.tags,
       languages: row.languages,
       organizer_ids: row.organizer_ids,
+      organizers_json: row.organizers_json ?? [],
       upcoming_dates: row.upcoming_dates,
       earliest_upcoming_ts: row.earliest_upcoming_ts,
       earliest_upcoming_end_ts: row.earliest_upcoming_end_ts,
@@ -382,6 +435,13 @@ export async function getEventSeriesBySeriesId(
     tags: string[];
     languages: string[];
     organizer_ids: string[];
+    organizers_json: Array<{
+      id: string;
+      slug: string;
+      name: string;
+      avatarUrl: string | null;
+      roles: string[];
+    }>;
     upcoming_dates: string[];
     earliest_upcoming_ts: string | null;
     earliest_upcoming_end_ts: string | null;
@@ -411,6 +471,7 @@ export async function getEventSeriesBySeriesId(
       tags,
       languages,
       organizer_ids,
+      organizers_json,
       upcoming_dates::text[] as upcoming_dates,
       earliest_upcoming_ts,
       earliest_upcoming_end_ts,
@@ -456,6 +517,7 @@ export async function getEventSeriesBySeriesId(
     tags: row.tags,
     languages: row.languages,
     organizer_ids: row.organizer_ids,
+    organizers_json: row.organizers_json ?? [],
     upcoming_dates: row.upcoming_dates,
     earliest_upcoming_ts: row.earliest_upcoming_ts,
     earliest_upcoming_end_ts: row.earliest_upcoming_end_ts,

@@ -39,6 +39,13 @@ export type SeriesDoc = {
   tags: string[];
   languages: string[];
   organizer_ids: string[];
+  organizers: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    avatarUrl: string | null;
+    roles: string[];
+  }>;
   upcoming_dates: string[];
   earliest_upcoming_ts: number | null;
   earliest_upcoming_end_ts: number | null;
@@ -389,6 +396,7 @@ export class MeilisearchService {
       tags: row.tags.map((t) => t.toLowerCase()),
       languages: row.languages,
       organizer_ids: row.organizer_ids,
+      organizers: row.organizers_json,
       upcoming_dates: row.upcoming_dates,
       earliest_upcoming_ts: row.earliest_upcoming_ts ? Date.parse(row.earliest_upcoming_ts) : null,
       earliest_upcoming_end_ts: row.earliest_upcoming_end_ts ? Date.parse(row.earliest_upcoming_end_ts) : null,
