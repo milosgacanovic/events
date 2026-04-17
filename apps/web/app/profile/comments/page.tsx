@@ -58,7 +58,7 @@ export default function CommentsTab() {
     return (
       <div className="manage-empty">
         <p className="muted">{t("profile.comments.empty")}</p>
-        <a href="/events" className="secondary-btn" style={{ display: "inline-block", marginTop: 8 }}>
+        <a href="/events" className="primary-btn" style={{ display: "inline-block", marginTop: 8 }}>
           {t("profile.savedEvents.browseEvents")}
         </a>
       </div>
@@ -82,9 +82,11 @@ export default function CommentsTab() {
           {comment.status === "removed" ? (
             <p className="meta" style={{ fontSize: "0.8rem", fontStyle: "italic" }}>{t("profile.comments.removedByModerator")}</p>
           ) : (
-            <button type="button" className="report-btn" onClick={() => void remove(comment.eventId, comment.id)}>
-              {t("profile.comments.delete")}
-            </button>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+              <button type="button" className="report-btn" onClick={() => void remove(comment.eventId, comment.id)}>
+                {t("profile.comments.delete")}
+              </button>
+            </div>
           )}
         </li>
       ))}

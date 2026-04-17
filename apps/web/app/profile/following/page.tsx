@@ -120,10 +120,10 @@ export default function FollowingTab() {
               </div>
             </div>
             <div className="alerts-item-actions">
-              <button className="secondary-btn" type="button" onClick={() => setEditingAlert(alert)}>
+              <button className="primary-btn" type="button" onClick={() => setEditingAlert(alert)}>
                 {t("profile.alerts.edit")}
               </button>
-              <button className="secondary-btn" type="button" onClick={() => void unfollow(alert.id)}>
+              <button className="primary-btn" type="button" onClick={() => void unfollow(alert.id)}>
                 {t("profile.alerts.unfollow")}
               </button>
             </div>

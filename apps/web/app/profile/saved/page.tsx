@@ -62,7 +62,7 @@ export default function SavedEventsTab() {
     return (
       <div className="manage-empty">
         <p className="muted">{t("profile.savedEvents.empty")}</p>
-        <a href="/events" className="secondary-btn" style={{ display: "inline-block", marginTop: 8 }}>
+        <a href="/events" className="primary-btn" style={{ display: "inline-block", marginTop: 8 }}>
           {t("profile.savedEvents.browseEvents")}
         </a>
       </div>
@@ -103,7 +103,7 @@ export default function SavedEventsTab() {
             )}
           </div>
         </div>
-        <button className="secondary-btn" type="button" onClick={() => void unsave(item.eventId)}>
+        <button className="primary-btn" type="button" onClick={() => void unsave(item.eventId)}>
           {t("profile.savedEvents.unsave")}
         </button>
       </li>

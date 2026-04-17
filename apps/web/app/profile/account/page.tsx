@@ -222,7 +222,7 @@ export default function AccountTab() {
             </div>
 
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-              <button className="secondary-btn" type="button" onClick={() => void saveProfile()} disabled={saving}>
+              <button className="primary-btn" type="button" onClick={() => void saveProfile()} disabled={saving}>
                 {saving ? t("profile.saving") : t("profile.save")}
               </button>
               {profileStatus && <span className="meta" style={{ color: "var(--success, #16a34a)" }}>{profileStatus}</span>}
@@ -261,7 +261,7 @@ export default function AccountTab() {
               </select>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-              <button className="secondary-btn" type="button" onClick={() => void saveHomeLocation()} disabled={savingHome}>
+              <button className="primary-btn" type="button" onClick={() => void saveHomeLocation()} disabled={savingHome}>
                 {savingHome ? t("profile.saving") : t("profile.homeLocation.save")}
               </button>
               {homeStatus && <span className="meta" style={{ color: "var(--success, #16a34a)" }}>{homeStatus}</span>}
@@ -294,7 +294,7 @@ export default function AccountTab() {
           style={{ width: "100%", marginBottom: 12 }}
         />
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button type="button" className="secondary-btn" onClick={() => deleteDialogRef.current?.close()}>
+          <button type="button" className="primary-btn" onClick={() => deleteDialogRef.current?.close()}>
             {t("manage.common.cancel")}
           </button>
           <a

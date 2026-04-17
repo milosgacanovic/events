@@ -140,7 +140,7 @@ export default function NotificationsTab() {
       </div>
 
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button className="secondary-btn" type="button" onClick={() => void savePrefs()} disabled={prefsSaving}>
+        <button className="primary-btn" type="button" onClick={() => void savePrefs()} disabled={prefsSaving}>
           {prefsSaving ? t("profile.saving") : t("profile.emailPrefs.save")}
         </button>
         {prefsMsg && <span className="meta" style={{ color: "var(--success, #16a34a)" }}>{prefsMsg}</span>}

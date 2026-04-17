@@ -18,11 +18,11 @@ type ProfileCounts = {
 const TABS = [
   { href: "/profile/account", key: "account", countKey: null },
   { href: "/profile/saved", key: "savedEvents", countKey: "saves" as const },
+  { href: "/profile/alerts", key: "alerts", countKey: null },
   { href: "/profile/going", key: "rsvps", countKey: "rsvps" as const },
   { href: "/profile/following", key: "following", countKey: "follows" as const },
-  { href: "/profile/alerts", key: "alerts", countKey: null },
-  { href: "/profile/notifications", key: "notifications", countKey: null },
   { href: "/profile/comments", key: "comments", countKey: "comments" as const },
+  { href: "/profile/notifications", key: "notifications", countKey: null },
 ] as const;
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {
@@ -56,7 +56,7 @@ export default function ProfileLayout({ children }: { children: React.ReactNode 
       <section className="panel cards">
         <h1 className="title-xl">{t("profile.title")}</h1>
         <p className="muted">{t("profile.loginRequired")}</p>
-        <button className="secondary-btn" type="button" onClick={() => void auth.login()}>
+        <button className="primary-btn" type="button" onClick={() => void auth.login()}>
           {t("nav.login")}
         </button>
       </section>

@@ -124,10 +124,10 @@ export default function SearchAlertsTab() {
                 </div>
               </div>
               <div className="alerts-item-actions" style={{ display: "flex", gap: 6, flexDirection: "column" }}>
-                <button className="secondary-btn" type="button" onClick={() => void updateSearch(search.id, { paused: !search.unsubscribedAt })}>
+                <button className="primary-btn" type="button" onClick={() => void updateSearch(search.id, { paused: !search.unsubscribedAt })}>
                   {search.unsubscribedAt ? t("profile.savedSearches.resume") : t("profile.savedSearches.pause")}
                 </button>
-                <button className="secondary-btn" type="button" onClick={() => void removeSearch(search.id)}>
+                <button className="primary-btn" type="button" onClick={() => void removeSearch(search.id)}>
                   {t("profile.savedSearches.delete")}
                 </button>
               </div>
