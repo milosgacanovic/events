@@ -62,6 +62,7 @@ const searchQuerySchema = z.object({
   eventDate: z.string().optional(),
   tz: z.string().optional(),
   skipEventDateFacet: z.enum(["true", "false"]).optional(),
+  disjunctiveFacets: z.string().optional(),
   showUnlisted: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),
@@ -87,6 +88,33 @@ function csvToList(value?: string): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+type DisjunctiveGroup = "practice" | "eventFormat" | "languages" | "attendance" | "country";
+
+const DISJUNCTIVE_GROUP_META: Record<DisjunctiveGroup, { meiliAttribute: string; responseKey: string }> = {
+  practice: { meiliAttribute: "practice_category_id", responseKey: "practiceCategoryId" },
+  eventFormat: { meiliAttribute: "event_format_id", responseKey: "eventFormatId" },
+  languages: { meiliAttribute: "languages", responseKey: "languages" },
+  attendance: { meiliAttribute: "attendance_mode", responseKey: "attendanceMode" },
+  country: { meiliAttribute: "country_code", responseKey: "countryCode" },
+};
+
+function disjunctiveOverride(
+  group: DisjunctiveGroup,
+): Partial<Parameters<typeof buildSeriesMeiliFilters>[0]> {
+  switch (group) {
+    case "practice":
+      return { practiceCategoryIds: [] };
+    case "eventFormat":
+      return { eventFormatIds: [] };
+    case "languages":
+      return { languages: [] };
+    case "attendance":
+      return { attendanceModes: [] };
+    case "country":
+      return { countryCodes: [] };
+  }
 }
 
 async function loadEventOrganizers(
@@ -701,80 +729,136 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           normalizedSort === "startsAtDesc"
             ? "earliest_upcoming_ts:desc"
             : "earliest_upcoming_ts:asc"; // publishedAtDesc falls back to starts-asc for now.
-        const seriesIndex = app.meiliService.client.index(SERIES_INDEX);
-        const result = await seriesIndex.search<SeriesDoc>(parsed.data.q ?? "", {
-          filter: seriesFilters,
-          facets: [
-            "practice_category_id",
-            "practice_subcategory_id",
-            "event_format_id",
-            "languages",
-            "attendance_mode",
-            "country_code",
-            "tags",
-            "organizer_ids",
-          ],
-          sort: [sortExpression],
-          hitsPerPage: parsed.data.pageSize,
-          page: parsed.data.page,
-        });
-        const seriesHits = result.hits as SeriesDoc[];
-        const resultTotals = result as typeof result & { totalHits?: number };
-        const totalHits = resultTotals.totalHits ?? result.hits.length;
+
+        // Multi-search bundles main query + disjunctive-facet variants +
+        // date-preset bucket counts into a single Meili request. See the
+        // 10x-scale design doc: one HTTP roundtrip, one Meili queue entry.
+        const disjunctiveGroups = csvToList(parsed.data.disjunctiveFacets)
+          .filter((g): g is DisjunctiveGroup =>
+            g === "practice" || g === "eventFormat" || g === "languages" || g === "attendance" || g === "country",
+          );
+
+        const baseFilterInput = {
+          fromUtc,
+          toUtc,
+          practiceCategoryIds,
+          practiceSubcategoryId: parsed.data.practiceSubcategoryId,
+          eventFormatIds,
+          tags,
+          languages,
+          attendanceModes,
+          organizerId: parsed.data.organizerId,
+          countryCodes,
+          cities: cityFilters,
+          hasGeo,
+          geoLat: parsed.data.geoLat,
+          geoLng: parsed.data.geoLng,
+          geoRadius: parsed.data.geoRadius,
+        };
+
+        const queries: Parameters<typeof app.meiliService.multiSearchSeries>[0] = [
+          {
+            q: parsed.data.q ?? "",
+            filter: seriesFilters,
+            facets: [
+              "practice_category_id",
+              "practice_subcategory_id",
+              "event_format_id",
+              "languages",
+              "attendance_mode",
+              "country_code",
+              "tags",
+              "organizer_ids",
+            ],
+            sort: [sortExpression],
+            hitsPerPage: parsed.data.pageSize,
+            page: parsed.data.page,
+          },
+        ];
+
+        const disjunctiveResultIndexes = new Map<DisjunctiveGroup, number>();
+        for (const group of disjunctiveGroups) {
+          const variantFilters = buildSeriesMeiliFilters({
+            ...baseFilterInput,
+            ...disjunctiveOverride(group),
+            selectedEventDateRanges,
+          });
+          if (!showUnlisted) {
+            variantFilters.push(`visibility = "public"`);
+          }
+          disjunctiveResultIndexes.set(group, queries.length);
+          queries.push({
+            q: parsed.data.q ?? "",
+            filter: variantFilters,
+            facets: [DISJUNCTIVE_GROUP_META[group].meiliAttribute],
+            hitsPerPage: 0,
+            page: 1,
+          });
+        }
+
+        let dateFacetStartIndex = -1;
+        if (parsed.data.skipEventDateFacet !== "true") {
+          const baseNoDatePresets = buildSeriesMeiliFilters({
+            ...baseFilterInput,
+            selectedEventDateRanges: [],
+          });
+          if (!showUnlisted) {
+            baseNoDatePresets.push(`visibility = "public"`);
+          }
+          dateFacetStartIndex = queries.length;
+          for (const preset of EVENT_DATE_PRESETS) {
+            const presetRange = eventDateRangeMap[preset];
+            const buckets = expandUtcDateBuckets(presetRange.fromUtc, presetRange.toUtc);
+            if (buckets.length === 0) {
+              // Sentinel: a filter that always matches nothing keeps indexes
+              // aligned without hitting the data. `upcoming_dates` is an
+              // empty-array-never field for docs with no upcoming occurrences,
+              // but a plain impossible comparison is safer.
+              queries.push({
+                q: "",
+                filter: ['visibility = "__unreachable__"'],
+                hitsPerPage: 0,
+                page: 1,
+              });
+              continue;
+            }
+            const bucketFilter = `(${buckets
+              .map((d) => `upcoming_dates = ${JSON.stringify(d)}`)
+              .join(" OR ")})`;
+            queries.push({
+              q: parsed.data.q ?? "",
+              filter: [...baseNoDatePresets, bucketFilter],
+              hitsPerPage: 0,
+              page: 1,
+            });
+          }
+        }
+
+        const multiResult = await app.meiliService.multiSearchSeries(queries);
+        const mainResult = multiResult[0];
+        const result = mainResult;
+        const seriesHits = mainResult.hits;
+        const totalHits = mainResult.totalHits ?? seriesHits.length;
+
+        const disjunctiveFacets: Record<string, Record<string, number>> = {};
+        for (const [group, idx] of disjunctiveResultIndexes) {
+          const meta = DISJUNCTIVE_GROUP_META[group];
+          const distribution = multiResult[idx]?.facetDistribution?.[meta.meiliAttribute] ?? {};
+          disjunctiveFacets[meta.responseKey] = distribution;
+        }
+
+        let eventDateFacet: Record<string, number> = {};
+        if (dateFacetStartIndex >= 0) {
+          EVENT_DATE_PRESETS.forEach((preset, offset) => {
+            const res = multiResult[dateFacetStartIndex + offset];
+            eventDateFacet[preset] = res?.totalHits ?? res?.hits?.length ?? 0;
+          });
+        }
 
         const organizerMap = await loadEventOrganizers(
           app.db,
           Array.from(new Set(seriesHits.map((hit) => hit.canonical_event_id).filter(Boolean))),
         );
-
-        // Event-date-preset facet counts: run one search per preset with the
-        // base filters (minus the preset itself) + that preset's bucket list.
-        let eventDateFacet: Record<string, number> = {};
-        if (parsed.data.skipEventDateFacet !== "true") {
-          try {
-            const baseNoDatePresets = buildSeriesMeiliFilters({
-              fromUtc,
-              toUtc,
-              practiceCategoryIds,
-              practiceSubcategoryId: parsed.data.practiceSubcategoryId,
-              eventFormatIds,
-              tags,
-              languages,
-              attendanceModes,
-              organizerId: parsed.data.organizerId,
-              countryCodes,
-              cities: cityFilters,
-              hasGeo,
-              geoLat: parsed.data.geoLat,
-              geoLng: parsed.data.geoLng,
-              geoRadius: parsed.data.geoRadius,
-              selectedEventDateRanges: [],
-            });
-            if (!showUnlisted) {
-              baseNoDatePresets.push(`visibility = "public"`);
-            }
-            const dateFacetQueries = EVENT_DATE_PRESETS.map(async (preset) => {
-              const presetRange = eventDateRangeMap[preset];
-              const buckets = expandUtcDateBuckets(presetRange.fromUtc, presetRange.toUtc);
-              if (buckets.length === 0) return { preset, count: 0 };
-              const bucketFilter = `(${buckets
-                .map((d) => `upcoming_dates = ${JSON.stringify(d)}`)
-                .join(" OR ")})`;
-              const countResult = await seriesIndex.search<SeriesDoc>(parsed.data.q ?? "", {
-                filter: [...baseNoDatePresets, bucketFilter],
-                hitsPerPage: 1,
-                page: 1,
-              });
-              const countTotals = countResult as typeof countResult & { totalHits?: number };
-              return { preset, count: countTotals.totalHits ?? countResult.hits.length };
-            });
-            const counts = await Promise.all(dateFacetQueries);
-            eventDateFacet = Object.fromEntries(counts.map((c) => [c.preset, c.count]));
-          } catch (error) {
-            request.log.warn({ err: error, msg: "events.search.series.event_date_facet_failed" });
-            eventDateFacet = {};
-          }
-        }
 
         const payload = {
           hits: seriesHits.map((doc) => ({
@@ -834,6 +918,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             organizerId: result.facetDistribution?.organizer_ids ?? {},
             eventDate: eventDateFacet,
           },
+          disjunctiveFacets,
           pagination: {
             page: parsed.data.page,
             pageSize: parsed.data.pageSize,

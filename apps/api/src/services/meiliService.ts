@@ -167,6 +167,33 @@ export class MeilisearchService {
     }
   }
 
+  async multiSearchSeries(
+    queries: Array<{
+      q?: string;
+      filter?: string[];
+      facets?: string[];
+      sort?: string[];
+      hitsPerPage?: number;
+      page?: number;
+      attributesToRetrieve?: string[];
+    }>,
+  ): Promise<
+    Array<{
+      hits: SeriesDoc[];
+      totalHits?: number;
+      facetDistribution?: Record<string, Record<string, number>>;
+    }>
+  > {
+    const response = await this.client.multiSearch({
+      queries: queries.map((query) => ({ indexUid: SERIES_INDEX, ...query })),
+    });
+    return response.results as unknown as Array<{
+      hits: SeriesDoc[];
+      totalHits?: number;
+      facetDistribution?: Record<string, Record<string, number>>;
+    }>;
+  }
+
   async fetchOccurrenceDocs(pool: Pool, eventId?: string): Promise<OccurrenceDoc[]> {
     const query = `
       select

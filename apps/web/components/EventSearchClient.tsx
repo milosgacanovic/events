@@ -74,6 +74,13 @@ export type SearchResponse = {
     countryCode?: Record<string, number>;
     eventDate?: Record<string, number>;
   };
+  disjunctiveFacets?: {
+    practiceCategoryId?: Record<string, number>;
+    eventFormatId?: Record<string, number>;
+    languages?: Record<string, number>;
+    attendanceMode?: Record<string, number>;
+    countryCode?: Record<string, number>;
+  };
 };
 
 export type TaxonomyResponse = {
@@ -239,7 +246,6 @@ export function EventSearchClient({
   const restoredKeyRef = useRef<string | null>(null);
   const syncingFromUrlRef = useRef(false);
   const filterTrackMountedRef = useRef(false);
-  const facetRequestRef = useRef(0);
   const pendingPaginationScrollRef = useRef(false);
   const skipNextScrollRestoreRef = useRef(false);
   const isTypingQRef = useRef(false);
@@ -485,6 +491,7 @@ export function EventSearchClient({
     }
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
+    params.set("disjunctiveFacets", "practice,eventFormat,languages,attendance,country");
     return params.toString();
   }, [
     q,
@@ -556,53 +563,6 @@ export function EventSearchClient({
     categoryKeyById,
     eventFormatKeyById,
     geoRadius,
-  ]);
-
-  const buildFacetQueryString = useCallback((exclude: "practice" | "eventFormat" | "languages" | "attendance" | "country") => {
-    const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
-    if (exclude !== "practice") {
-      if (practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
-      if (practiceSubcategoryId) params.set("practiceSubcategoryId", practiceSubcategoryId);
-    }
-    if (exclude !== "eventFormat" && eventFormatIds.length) params.set("eventFormatId", eventFormatIds.join(","));
-    if (tags.length) params.set("tags", tags.join(","));
-    if (exclude !== "languages" && languages.length) params.set("languages", languages.join(","));
-    if (exclude !== "attendance" && attendanceModes.length) params.set("attendanceMode", attendanceModes.join(","));
-    if (geoRadius && geo.lat != null && geo.lng != null) {
-      params.set("geoLat", String(geo.lat));
-      params.set("geoLng", String(geo.lng));
-      params.set("geoRadius", String(geoRadius));
-    } else {
-      if (exclude !== "country" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
-      if (cities.length) params.set("city", cities.join(","));
-    }
-    if (eventDates.length) params.set("eventDate", eventDates.join(","));
-    if (includePast) {
-      params.set("includePast", "true");
-      params.set("to", new Date().toISOString());
-    }
-    params.set("tz", userTimeZone);
-    params.set("skipEventDateFacet", "true");
-    params.set("page", "1");
-    params.set("pageSize", "1");
-    return params.toString();
-  }, [
-    q,
-    practiceCategoryIds,
-    practiceSubcategoryId,
-    eventFormatIds,
-    tags,
-    languages,
-    attendanceModes,
-    countryCodes,
-    cities,
-    eventDates,
-    includePast,
-    userTimeZone,
-    geoRadius,
-    geo.lat,
-    geo.lng,
   ]);
 
   const handleCustomFrom = useCallback((value: string) => {
@@ -782,8 +742,27 @@ export function EventSearchClient({
         setAccumulatedHits(result.hits);
       }
       setDisjunctiveFacets((current) => ({
-        ...current,
-        eventDate: result.facets?.eventDate ?? {},
+        practiceCategoryId:
+          result.disjunctiveFacets?.practiceCategoryId ??
+          result.facets?.practiceCategoryId ??
+          current.practiceCategoryId,
+        eventFormatId:
+          result.disjunctiveFacets?.eventFormatId ??
+          result.facets?.eventFormatId ??
+          current.eventFormatId,
+        languages:
+          result.disjunctiveFacets?.languages ??
+          result.facets?.languages ??
+          current.languages,
+        attendanceMode:
+          result.disjunctiveFacets?.attendanceMode ??
+          result.facets?.attendanceMode ??
+          current.attendanceMode,
+        countryCode:
+          result.disjunctiveFacets?.countryCode ??
+          result.facets?.countryCode ??
+          current.countryCode,
+        eventDate: result.facets?.eventDate ?? current.eventDate,
       }));
       setActiveQueryString(currentQuery);
       setRefreshToken((value) => value + 1);
@@ -869,45 +848,6 @@ export function EventSearchClient({
     };
   }, [runSearch, page, scrollStorageKey]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const requestId = facetRequestRef.current + 1;
-      facetRequestRef.current = requestId;
-
-      void Promise.all([
-        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("practice")}`),
-        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("eventFormat")}`),
-        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("languages")}`),
-        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("attendance")}`),
-        fetchJson<SearchResponse>(`/events/search?${buildFacetQueryString("country")}`),
-      ]).then(([practiceResult, eventFormatResult, languageResult, attendanceResult, countryResult]) => {
-        if (requestId !== facetRequestRef.current) {
-          return;
-        }
-        setDisjunctiveFacets((current) => ({
-          practiceCategoryId: practiceResult?.facets?.practiceCategoryId ?? {},
-          eventFormatId: eventFormatResult?.facets?.eventFormatId ?? {},
-          languages: languageResult?.facets?.languages ?? {},
-          attendanceMode: attendanceResult?.facets?.attendanceMode ?? {},
-          countryCode: countryResult?.facets?.countryCode ?? {},
-          eventDate: current.eventDate,
-        }));
-      }).catch(() => {
-        if (requestId !== facetRequestRef.current) {
-          return;
-        }
-        setDisjunctiveFacets((current) => ({
-          practiceCategoryId: {},
-          eventFormatId: {},
-          languages: {},
-          attendanceMode: {},
-          countryCode: {},
-          eventDate: current.eventDate,
-        }));
-      });
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [buildFacetQueryString]);
 
   useEffect(() => {
     if (syncingFromUrlRef.current) {
