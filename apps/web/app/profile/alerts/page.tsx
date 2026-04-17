@@ -71,6 +71,28 @@ export default function SearchAlertsTab() {
 
   if (loading) return <p className="muted">{t("profile.loading")}</p>;
 
+  function labelKey(k: string): string {
+    const translated = t(`profile.savedSearches.filterKey.${k}`);
+    return translated.startsWith("profile.savedSearches.filterKey.") ? k : translated;
+  }
+
+  function formatValue(key: string, val: string): string {
+    if (key === "countryCode") {
+      try {
+        const dn = new Intl.DisplayNames([navigator.language || "en"], { type: "region" });
+        return val.split(",").map((c) => dn.of(c.trim().toUpperCase()) ?? c).join(", ");
+      } catch {
+        return val.toUpperCase();
+      }
+    }
+    const parts = val.split(",");
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (parts.length > 0 && parts.every((p) => uuidRe.test(p.trim()))) {
+      return `${parts.length} ${t("profile.savedSearches.selected")}`;
+    }
+    return val.length > 60 ? `${val.slice(0, 60)}…` : val;
+  }
+
   function buildFilterSummary(snap: Record<string, unknown>): { text: string; href: string } {
     const entries = Object.entries(snap).filter(([k, v]) => v != null && String(v).length > 0 && k !== "page" && k !== "view" && k !== "sort");
     const params = new URLSearchParams();
@@ -84,8 +106,7 @@ export default function SearchAlertsTab() {
     if (typeof q === "string" && q.length > 0) parts.push(`"${q}"`);
     for (const [k, v] of entries) {
       if (k === "q") continue;
-      const val = String(v);
-      parts.push(`${k}: ${val.length > 40 ? `${val.slice(0, 40)}…` : val}`);
+      parts.push(`${labelKey(k)}: ${formatValue(k, String(v))}`);
     }
     return { text: parts.join(" · "), href };
   }
