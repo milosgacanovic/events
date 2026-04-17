@@ -107,13 +107,19 @@ export async function logError(pool: Pool, entry: ErrorLogEntry): Promise<void> 
 // ---------------------------------------------------------------------------
 
 export async function listActivityActors(pool: Pool) {
-  const result = await pool.query<{ actor_id: string; actor_name: string }>(
-    `SELECT DISTINCT actor_id, actor_name
-     FROM activity_log
-     WHERE actor_id IS NOT NULL AND actor_name IS NOT NULL
-     ORDER BY actor_name`,
+  // Distinct-scan the actor_id index (idx_activity_log_actor) instead of
+  // the (actor_id, actor_name) pair over the whole table, then join users
+  // once per distinct actor for a current display name.
+  const result = await pool.query<{ id: string; name: string }>(
+    `WITH actors AS (
+       SELECT DISTINCT actor_id FROM activity_log WHERE actor_id IS NOT NULL
+     )
+     SELECT u.id, COALESCE(NULLIF(u.display_name, ''), u.email) AS name
+     FROM actors a
+     JOIN users u ON u.id = a.actor_id
+     ORDER BY name`,
   );
-  return result.rows.map((r) => ({ id: r.actor_id, name: r.actor_name }));
+  return result.rows;
 }
 
 export async function listActivityLogs(
@@ -291,20 +297,26 @@ export async function listErrorLogs(
   }
 
   const whereSQL = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
+  const hasFilters = whereParts.length > 0;
 
-  const [itemsResult, totalResult] = await Promise.all([
-    pool.query<ErrorLogRow>(
-      `SELECT id, error_message, stack_trace, request_method, request_url, status_code, actor_id, actor_name, ip_address, user_agent, created_at
-       FROM error_log ${whereSQL}
-       ORDER BY created_at DESC
-       LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
-      [...values, pageSize, offset],
-    ),
-    pool.query<{ total: string }>(
-      `SELECT COUNT(*) as total FROM error_log ${whereSQL}`,
-      values,
-    ),
-  ]);
+  const itemsPromise = pool.query<ErrorLogRow>(
+    `SELECT id, error_message, stack_trace, request_method, request_url, status_code, actor_id, actor_name, ip_address, user_agent, created_at
+     FROM error_log ${whereSQL}
+     ORDER BY created_at DESC
+     LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+    [...values, pageSize, offset],
+  );
+
+  const totalPromise = hasFilters
+    ? pool.query<{ total: string }>(
+        `SELECT COUNT(*) as total FROM error_log ${whereSQL}`,
+        values,
+      )
+    : pool.query<{ total: string }>(
+        `SELECT reltuples::bigint::text AS total FROM pg_class WHERE relname = 'error_log'`,
+      );
+
+  const [itemsResult, totalResult] = await Promise.all([itemsPromise, totalPromise]);
 
   const total = parseInt(totalResult.rows[0]?.total ?? "0", 10);
 

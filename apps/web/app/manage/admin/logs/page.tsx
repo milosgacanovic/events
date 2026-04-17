@@ -220,8 +220,11 @@ export default function AdminLogsPage() {
     }
   }, [getToken, errorPage, errorSearch, errorDateFrom, errorDateTo]);
 
-  useEffect(() => { if (tab === "activity") void loadActivity(); }, [tab, loadActivity]);
-  useEffect(() => { if (tab === "errors") void loadErrors(); }, [tab, loadErrors]);
+  // Fire both loaders so tab-button counts populate on first render, not
+  // only after the user switches to that tab. Each loader's deps are its
+  // own filter state, so changing activity filters won't re-fire errors.
+  useEffect(() => { void loadActivity(); }, [loadActivity]);
+  useEffect(() => { void loadErrors(); }, [loadErrors]);
 
   // --- Open detail ---
   async function openDetail(type: "activity" | "error", id: string) {
