@@ -1313,18 +1313,6 @@ export function EventDetailClient({
       )}
 
 
-      {/* Community comments */}
-      <CommentsSection
-        eventId={data.event.id}
-        seriesName={
-          data.event.schedule_kind !== "single" || (data.series?.siblingCount ?? 1) > 1
-            ? (data.series ? data.event.title : undefined)
-            : undefined
-        }
-        scheduleKind={data.event.schedule_kind}
-        singleEndAt={data.event.single_end_at}
-      />
-
       {/* Hosts */}
       {hosts.length > 0 && (
         <div className="event-detail-section event-detail-hosts-section">
@@ -1355,6 +1343,20 @@ export function EventDetailClient({
           </div>
         </div>
       )}
+
+      {/* Community comments */}
+      <div className="event-detail-comments-section">
+        <CommentsSection
+          eventId={data.event.id}
+          seriesName={
+            data.event.schedule_kind !== "single" || (data.series?.siblingCount ?? 1) > 1
+              ? (data.series ? data.event.title : undefined)
+              : undefined
+          }
+          scheduleKind={data.event.schedule_kind}
+          singleEndAt={data.event.single_end_at}
+        />
+      </div>
 
       {/* Schedule: shown for native recurring events OR imported series (siblingCount > 1) */}
       {(data.event.schedule_kind !== "single" || (data.series?.siblingCount ?? 1) > 1) && (

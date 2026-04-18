@@ -2550,7 +2550,8 @@ label.meta {
 }
 .event-detail-schedule,
 .event-detail-map-section,
-.event-detail-hosts-section {
+.event-detail-hosts-section,
+.event-detail-comments-section {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--line);
