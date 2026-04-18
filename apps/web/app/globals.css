@@ -2698,6 +2698,12 @@ label.meta {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
+@media (hover: none) {
+  .event-detail-occurrence-rsvp {
+    opacity: 1;
+  }
+}
+
 .event-detail-occurrence-rsvp:disabled {
   opacity: 0.5;
   cursor: wait;
