@@ -48,7 +48,7 @@ type ModerationSettings = {
   emailNotifications: boolean;
 };
 
-export type NativeModerationTab = "comment" | "edit_suggestion" | "report";
+export type NativeModerationTab = "comment" | "suggestion" | "report";
 
 const REPORT_REASONS = [
   { value: "", key: "reasonAll" },
@@ -242,13 +242,13 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
                   return (
                     <tr key={item.id} style={escalated ? { backgroundColor: "rgba(217, 119, 6, 0.1)" } : undefined}>
                       <td style={{ whiteSpace: "nowrap" }}>{new Date(item.created_at).toLocaleDateString()}</td>
-                      <td>{item.item_type === "comment" ? item.comment_user_name : item.item_type === "edit_suggestion" ? item.suggestion_user_name : item.reporter_name}</td>
+                      <td>{item.item_type === "comment" ? item.comment_user_name : item.item_type === "suggestion" ? item.suggestion_user_name : item.reporter_name}</td>
                       <td>
                         {item.item_type === "comment" && item.comment_event_id ? (
                           <Link href={`/manage/events/${item.comment_event_id}`} target="_blank" style={{ textDecoration: "none" }}>
                             {item.comment_event_title}
                           </Link>
-                        ) : item.item_type === "edit_suggestion" && item.suggestion_target_id ? (
+                        ) : item.item_type === "suggestion" && item.suggestion_target_id ? (
                           <Link href={`/manage/${item.suggestion_target_type === "organizer" ? "hosts" : "events"}/${item.suggestion_target_id}`} target="_blank" style={{ textDecoration: "none" }}>
                             {item.suggestion_event_title}
                           </Link>
@@ -262,7 +262,7 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
                       </td>
                       <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {item.item_type === "comment" ? item.comment_body
-                          : item.item_type === "edit_suggestion" ? `[${item.suggestion_category}] ${item.suggestion_value ?? ""}`
+                          : item.item_type === "suggestion" ? `[${item.suggestion_category}] ${item.suggestion_value ?? ""}`
                           : `${item.report_reason}: ${item.report_detail ?? ""}`}
                       </td>
                       {tab === "report" && (

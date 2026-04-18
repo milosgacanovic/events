@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 const LEGACY_TAB_MAP: Record<string, string> = {
   comment: "comments",
-  edit_suggestion: "suggestions",
   report: "reports",
   application: "applications",
   tag_suggestion: "tag-suggestions",

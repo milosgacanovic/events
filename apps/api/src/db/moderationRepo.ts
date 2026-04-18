@@ -86,7 +86,7 @@ export type ModerationDetailRow = ModerationQueueRow & {
   comment_user_name: string | null;
   comment_event_id: string | null;
   comment_event_title: string | null;
-  // suggestion fields (when item_type = 'edit_suggestion')
+  // suggestion fields (when item_type = 'suggestion')
   suggestion_category: string | null;
   suggestion_value: string | null;
   suggestion_user_name: string | null;
@@ -185,7 +185,7 @@ export async function listModerationItems(
        left join comments c on mq.item_type = 'comment' and c.id = mq.item_id
        left join users cu on cu.id = c.user_id
        left join events ce on ce.id = c.event_id
-       left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id
+       left join edit_suggestions es on mq.item_type = 'suggestion' and es.id = mq.item_id
        left join users esu on esu.id = es.user_id
        left join events ese on es.target_type = 'event' and ese.id = es.target_id
        left join reports r on mq.item_type = 'report' and r.id = mq.item_id
@@ -203,7 +203,7 @@ export async function listModerationItems(
        left join comments c on mq.item_type = 'comment' and c.id = mq.item_id
        left join users cu on cu.id = c.user_id
        left join events ce on ce.id = c.event_id
-       left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id
+       left join edit_suggestions es on mq.item_type = 'suggestion' and es.id = mq.item_id
        left join users esu on esu.id = es.user_id
        left join events ese on es.target_type = 'event' and ese.id = es.target_id
        left join reports r on mq.item_type = 'report' and r.id = mq.item_id
@@ -278,7 +278,7 @@ export async function getModerationDetail(
      left join comments c on mq.item_type = 'comment' and c.id = mq.item_id
      left join users cu on cu.id = c.user_id
      left join events ce on ce.id = c.event_id
-     left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id
+     left join edit_suggestions es on mq.item_type = 'suggestion' and es.id = mq.item_id
      left join users esu on esu.id = es.user_id
      left join events ese on es.target_type = 'event' and ese.id = es.target_id
      left join reports r on mq.item_type = 'report' and r.id = mq.item_id

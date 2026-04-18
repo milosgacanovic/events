@@ -44,7 +44,7 @@ export default function ModerationLayout({ children }: { children: React.ReactNo
           {t("manage.admin.moderation.comments")}{pending("comment") > 0 ? ` (${pending("comment")})` : ""}
         </Link>
         <Link href="/manage/admin/moderation/suggestions" className={linkClass("/manage/admin/moderation/suggestions")}>
-          {t("manage.admin.moderation.suggestions")}{pending("edit_suggestion") > 0 ? ` (${pending("edit_suggestion")})` : ""}
+          {t("manage.admin.moderation.suggestions")}{pending("suggestion") > 0 ? ` (${pending("suggestion")})` : ""}
         </Link>
         <Link href="/manage/admin/moderation/reports" className={linkClass("/manage/admin/moderation/reports")}>
           {t("manage.admin.moderation.reports")}{pending("report") > 0 ? ` (${pending("report")})` : ""}
