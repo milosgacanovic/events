@@ -841,10 +841,15 @@ export function EventDetailClient({
         return key ? getFormatLabel(key, label, t) : label;
       })()
     : null;
-  const whenFormatted = data.event.single_start_at && data.event.single_end_at
+  const selectedOccurrence = highlightedOccurrenceId
+    ? data.occurrences.upcoming.find((o) => o.id === highlightedOccurrenceId) ?? null
+    : null;
+  const whenStartIso = selectedOccurrence?.starts_at_utc ?? data.event.single_start_at ?? null;
+  const whenEndIso = selectedOccurrence?.ends_at_utc ?? data.event.single_end_at ?? null;
+  const whenFormatted = whenStartIso && whenEndIso
     ? formatDateTimeRange(
-        data.event.single_start_at,
-        data.event.single_end_at,
+        whenStartIso,
+        whenEndIso,
         data.event.event_timezone,
         timeDisplayMode,
       )
@@ -877,8 +882,8 @@ export function EventDetailClient({
   const isLongDesc = (sanitizedDescriptionHtml?.length ?? 0) > 800;
 
   const calEventTitle = data?.event.title ?? "";
-  const calStartUtc = data?.event.single_start_at ?? null;
-  const calEndUtc = data?.event.single_end_at ?? null;
+  const calStartUtc = selectedOccurrence?.starts_at_utc ?? data?.event.single_start_at ?? null;
+  const calEndUtc = selectedOccurrence?.ends_at_utc ?? data?.event.single_end_at ?? null;
   const calTimezone = data?.event.event_timezone ?? "UTC";
   const calLocation = data?.defaultLocation
     ? [data.defaultLocation.city, data.defaultLocation.country_code ? getCountryLabel(data.defaultLocation.country_code) : null].filter(Boolean).join(", ")
