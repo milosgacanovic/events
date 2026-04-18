@@ -548,7 +548,7 @@ export async function getEventBySlug(
       from event_occurrences eo
       join events e on e.id = eo.event_id
       where eo.series_id = $1
-        and eo.starts_at_utc >= now()
+        and eo.ends_at_utc >= now()
         and e.status = 'published'
         and e.visibility = 'public'
       order by eo.starts_at_utc asc
@@ -610,7 +610,7 @@ export async function getEventBySlug(
         st_y(eo.geom::geometry) as lat,
         st_x(eo.geom::geometry) as lng
       from event_occurrences eo
-      where eo.event_id = $1 and eo.starts_at_utc < now()
+      where eo.event_id = $1 and eo.ends_at_utc < now()
       order by eo.starts_at_utc desc
       limit 5
     `,
