@@ -2225,16 +2225,20 @@ label.meta {
   gap: 4px;
   margin-left: auto;
   background: transparent;
-  border: 1px solid var(--accent, #0d6efd);
+  border: 1px solid var(--line, #d0d7de);
   border-radius: 8px;
   padding: 4px 12px;
   font-size: 0.82rem;
   cursor: pointer;
-  color: var(--accent, #0d6efd);
+  color: var(--muted, #6b7280);
+  opacity: 0.75;
   transition: all 0.15s;
   white-space: nowrap;
 }
 .notify-me-btn:hover {
+  opacity: 1;
+  border-color: var(--accent, #0d6efd);
+  color: var(--accent, #0d6efd);
   background: rgba(13, 110, 253, 0.08);
 }
 
