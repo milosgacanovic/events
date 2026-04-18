@@ -45,14 +45,6 @@ const configSchema = z.object({
     .string()
     .default("false")
     .transform((v) => v.toLowerCase() === "true" || v === "1"),
-  // Phase 6: switch /events/search from the occurrence index (with SQL
-  // count-distinct stopgap) to the new series index backed by event_series.
-  // Deploy sequencing: ship false first, run backfill + reindex, then flip.
-  // Remove the flag and the fallback code path once stable.
-  EVENTS_SERIES_SEARCH_ENABLED: z
-    .string()
-    .default("false")
-    .transform((v) => v.toLowerCase() === "true" || v === "1"),
 });
 
 export const config = configSchema.parse(process.env);

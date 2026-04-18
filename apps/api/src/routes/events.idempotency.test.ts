@@ -346,26 +346,15 @@ describe("events idempotency conflict handling", () => {
   });
 
   it("includePast=true widens search lower bound", async () => {
-    const searchSpy = vi.fn().mockResolvedValue({
-      hits: [],
-      facetDistribution: {},
-      estimatedTotalHits: 0,
-    });
-    vi.mocked(searchEventsFallback).mockResolvedValue({
-      hits: [],
-      totalHits: 0,
-      facets: {},
-      pagination: { page: 1, pageSize: 20, totalPages: 1 },
-    } as never);
+    const multiSearchSpy = vi.fn().mockResolvedValue([
+      { hits: [], totalHits: 0, facetDistribution: {} },
+    ]);
 
     const app = Fastify();
     app.decorate("db", {} as never);
     app.decorate("meiliService", {
-      client: {
-        index: () => ({
-          search: searchSpy,
-        }),
-      },
+      client: { index: () => ({ search: vi.fn() }) },
+      multiSearchSeries: multiSearchSpy,
     } as never);
     app.decorate("authenticate", async () => {});
     app.decorate("requireEditor", async () => {});
@@ -382,26 +371,21 @@ describe("events idempotency conflict handling", () => {
       "public, max-age=30, s-maxage=60, stale-while-revalidate=120",
     );
     expect(response.headers.vary).toContain("Authorization");
-    const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
-    expect(options?.filter?.some((item) => item === "starts_at_ts >= 0")).toBe(true);
+    const firstQuery = multiSearchSpy.mock.calls[0]?.[0]?.[0] as { filter?: string[] } | undefined;
+    expect(firstQuery?.filter?.some((item) => item === "earliest_upcoming_ts >= 0")).toBe(true);
     await app.close();
   });
 
   it("uses now+365 days as default upper bound when to is not provided", async () => {
-    const searchSpy = vi.fn().mockResolvedValue({
-      hits: [],
-      facetDistribution: {},
-      estimatedTotalHits: 0,
-    });
+    const multiSearchSpy = vi.fn().mockResolvedValue([
+      { hits: [], totalHits: 0, facetDistribution: {} },
+    ]);
 
     const app = Fastify();
     app.decorate("db", {} as never);
     app.decorate("meiliService", {
-      client: {
-        index: () => ({
-          search: searchSpy,
-        }),
-      },
+      client: { index: () => ({ search: vi.fn() }) },
+      multiSearchSeries: multiSearchSpy,
     } as never);
     app.decorate("authenticate", async () => {});
     app.decorate("requireEditor", async () => {});
@@ -414,11 +398,11 @@ describe("events idempotency conflict handling", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
-    const upperBound = options?.filter?.find((item) => item.startsWith("starts_at_ts <= "));
+    const firstQuery = multiSearchSpy.mock.calls[0]?.[0]?.[0] as { filter?: string[] } | undefined;
+    const upperBound = firstQuery?.filter?.find((item) => item.startsWith("earliest_upcoming_ts <= "));
     expect(upperBound).toBeDefined();
 
-    const raw = upperBound?.replace("starts_at_ts <= ", "");
+    const raw = upperBound?.replace("earliest_upcoming_ts <= ", "");
     const toTs = raw ? Number(raw) : null;
     expect(Number.isFinite(toTs)).toBe(true);
 
@@ -430,21 +414,16 @@ describe("events idempotency conflict handling", () => {
     await app.close();
   });
 
-  it("maps sort=date_desc to starts_at_ts:desc", async () => {
-    const searchSpy = vi.fn().mockResolvedValue({
-      hits: [],
-      facetDistribution: {},
-      estimatedTotalHits: 0,
-    });
+  it("maps sort=date_desc to earliest_upcoming_ts:desc", async () => {
+    const multiSearchSpy = vi.fn().mockResolvedValue([
+      { hits: [], totalHits: 0, facetDistribution: {} },
+    ]);
 
     const app = Fastify();
     app.decorate("db", {} as never);
     app.decorate("meiliService", {
-      client: {
-        index: () => ({
-          search: searchSpy,
-        }),
-      },
+      client: { index: () => ({ search: vi.fn() }) },
+      multiSearchSeries: multiSearchSpy,
     } as never);
     app.decorate("authenticate", async () => {});
     app.decorate("requireEditor", async () => {});
@@ -457,26 +436,21 @@ describe("events idempotency conflict handling", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const options = searchSpy.mock.calls[0]?.[1] as { sort?: string[] } | undefined;
-    expect(options?.sort).toEqual(["starts_at_ts:desc"]);
+    const firstQuery = multiSearchSpy.mock.calls[0]?.[0]?.[0] as { sort?: string[] } | undefined;
+    expect(firstQuery?.sort).toEqual(["earliest_upcoming_ts:desc"]);
     await app.close();
   });
 
   it("supports countryCode CSV filtering with OR semantics", async () => {
-    const searchSpy = vi.fn().mockResolvedValue({
-      hits: [],
-      facetDistribution: {},
-      estimatedTotalHits: 0,
-    });
+    const multiSearchSpy = vi.fn().mockResolvedValue([
+      { hits: [], totalHits: 0, facetDistribution: {} },
+    ]);
 
     const app = Fastify();
     app.decorate("db", {} as never);
     app.decorate("meiliService", {
-      client: {
-        index: () => ({
-          search: searchSpy,
-        }),
-      },
+      client: { index: () => ({ search: vi.fn() }) },
+      multiSearchSeries: multiSearchSpy,
     } as never);
     app.decorate("authenticate", async () => {});
     app.decorate("requireEditor", async () => {});
@@ -489,26 +463,21 @@ describe("events idempotency conflict handling", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
-    expect(options?.filter).toContain("(country_code = \"rs\" OR country_code = \"de\")");
+    const firstQuery = multiSearchSpy.mock.calls[0]?.[0]?.[0] as { filter?: string[] } | undefined;
+    expect(firstQuery?.filter).toContain("(country_code = \"rs\" OR country_code = \"de\")");
     await app.close();
   });
 
   it("supports languages CSV filtering with OR semantics", async () => {
-    const searchSpy = vi.fn().mockResolvedValue({
-      hits: [],
-      facetDistribution: {},
-      estimatedTotalHits: 0,
-    });
+    const multiSearchSpy = vi.fn().mockResolvedValue([
+      { hits: [], totalHits: 0, facetDistribution: {} },
+    ]);
 
     const app = Fastify();
     app.decorate("db", {} as never);
     app.decorate("meiliService", {
-      client: {
-        index: () => ({
-          search: searchSpy,
-        }),
-      },
+      client: { index: () => ({ search: vi.fn() }) },
+      multiSearchSeries: multiSearchSpy,
     } as never);
     app.decorate("authenticate", async () => {});
     app.decorate("requireEditor", async () => {});
@@ -521,26 +490,21 @@ describe("events idempotency conflict handling", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
-    expect(options?.filter).toContain("(languages = \"en\" OR languages = \"fr\")");
+    const firstQuery = multiSearchSpy.mock.calls[0]?.[0]?.[0] as { filter?: string[] } | undefined;
+    expect(firstQuery?.filter).toContain("(languages = \"en\" OR languages = \"fr\")");
     await app.close();
   });
 
   it("supports attendanceMode CSV filtering with OR semantics", async () => {
-    const searchSpy = vi.fn().mockResolvedValue({
-      hits: [],
-      facetDistribution: {},
-      estimatedTotalHits: 0,
-    });
+    const multiSearchSpy = vi.fn().mockResolvedValue([
+      { hits: [], totalHits: 0, facetDistribution: {} },
+    ]);
 
     const app = Fastify();
     app.decorate("db", {} as never);
     app.decorate("meiliService", {
-      client: {
-        index: () => ({
-          search: searchSpy,
-        }),
-      },
+      client: { index: () => ({ search: vi.fn() }) },
+      multiSearchSeries: multiSearchSpy,
     } as never);
     app.decorate("authenticate", async () => {});
     app.decorate("requireEditor", async () => {});
@@ -553,17 +517,15 @@ describe("events idempotency conflict handling", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const options = searchSpy.mock.calls[0]?.[1] as { filter?: string[] } | undefined;
-    expect(options?.filter).toContain("(attendance_mode = \"in_person\" OR attendance_mode = \"online\")");
+    const firstQuery = multiSearchSpy.mock.calls[0]?.[0]?.[0] as { filter?: string[] } | undefined;
+    expect(firstQuery?.filter).toContain("(attendance_mode = \"in_person\" OR attendance_mode = \"online\")");
     await app.close();
   });
 
   it("logs events.search.timing with includePast/page/pageSize", async () => {
-    const searchSpy = vi.fn().mockResolvedValue({
-      hits: [],
-      facetDistribution: {},
-      estimatedTotalHits: 0,
-    });
+    const multiSearchSpy = vi.fn().mockResolvedValue([
+      { hits: [], totalHits: 0, facetDistribution: {} },
+    ]);
     const logInfo = vi.fn();
 
     const app = Fastify({
@@ -573,11 +535,8 @@ describe("events idempotency conflict handling", () => {
     });
     app.decorate("db", {} as never);
     app.decorate("meiliService", {
-      client: {
-        index: () => ({
-          search: searchSpy,
-        }),
-      },
+      client: { index: () => ({ search: vi.fn() }) },
+      multiSearchSeries: multiSearchSpy,
     } as never);
     app.decorate("authenticate", async () => {});
     app.decorate("requireEditor", async () => {});
