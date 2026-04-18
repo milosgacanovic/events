@@ -2661,12 +2661,13 @@ label.meta {
 }
 
 .event-detail-occurrence > .meta {
-  flex: 1;
+  flex: none;
   min-width: 0;
 }
 
 .event-detail-occurrence-rsvp {
   flex: none;
+  margin-left: auto;
   padding: 3px 10px;
   font-size: 0.85rem;
   font-weight: 500;
@@ -2709,10 +2710,11 @@ label.meta {
   cursor: wait;
 }
 
-/* Arrival from a date-filtered search/map (?date=YYYY-MM-DD). Briefly
-   draws attention to the specific occurrence the user came from. */
-.event-detail-occurrence--highlighted {
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface-alt));
+/* Arrival from a date-filtered search/map (?date=YYYY-MM-DD) or user
+   click on a date. The highlight is applied to the date span so it
+   hugs the text rather than the full row. */
+.event-detail-occurrence--highlighted .event-detail-occurrence-date {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
   box-shadow: inset 3px 0 0 var(--accent);
   animation: event-detail-occurrence-pulse 2.4s ease-out 1;
 }
@@ -2727,9 +2729,11 @@ label.meta {
 
 .event-detail-occurrence-date {
   cursor: pointer;
+  display: inline-block;
+  min-width: 22ch;
   border-radius: var(--radius-sm);
-  padding: 2px 4px;
-  margin: -2px -4px;
+  padding: 2px 6px;
+  margin: -2px -6px;
   transition: background-color 0.15s ease;
 }
 
@@ -2754,8 +2758,8 @@ label.meta {
 }
 
 @keyframes event-detail-occurrence-pulse {
-  0% { background: color-mix(in srgb, var(--accent) 42%, var(--surface-alt)); }
-  100% { background: color-mix(in srgb, var(--accent) 18%, var(--surface-alt)); }
+  0% { background: color-mix(in srgb, var(--accent) 42%, transparent); }
+  100% { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 }
 
 .event-detail-footer {
