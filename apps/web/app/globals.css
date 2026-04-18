@@ -2681,7 +2681,6 @@ label.meta {
 }
 
 .event-detail-occurrence:hover .event-detail-occurrence-rsvp,
-.event-detail-occurrence:focus-within .event-detail-occurrence-rsvp,
 .event-detail-occurrence-rsvp:focus-visible {
   opacity: 1;
 }
