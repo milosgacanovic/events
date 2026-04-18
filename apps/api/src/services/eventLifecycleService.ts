@@ -84,6 +84,7 @@ export async function regenerateOccurrences(
   eventId: string,
   skipSearch = false,
   previousSeriesId?: string | null,
+  asyncMeili = false,
 ): Promise<void> {
   const eventWithLocation = await getEventByIdWithLocation(pool, eventId);
 
@@ -106,23 +107,40 @@ export async function regenerateOccurrences(
     generated,
   );
 
-  // Always refresh the event_series DB table so metadata stays consistent
-  // (e.g. when the importer uses skipSearch=true). Only skip the Meili sync.
-  await syncSeriesForEvent(
-    pool,
-    meiliService,
-    eventId,
-    "regenerateOccurrences",
-    previousSeriesId,
-    skipSearch,
-  );
+  // Meili sync (+ series refresh which also does a Meili upsert) — the
+  // waitForTask polling dominates save latency, so user-facing save paths
+  // pass asyncMeili=true to return the response before Meili catches up.
+  const meiliWork = async () => {
+    await syncSeriesForEvent(
+      pool,
+      meiliService,
+      eventId,
+      "regenerateOccurrences",
+      previousSeriesId,
+      skipSearch,
+    );
+    if (!skipSearch) {
+      await meiliService.upsertOccurrencesForEvent(pool, eventId);
+      clearSearchCache();
+    }
+  };
 
-  if (!skipSearch) {
-    await meiliService.upsertOccurrencesForEvent(pool, eventId).catch((err) => {
-      console.error(`[regenerateOccurrences] Failed to sync Meilisearch for event ${eventId}:`, err);
+  if (asyncMeili) {
+    void meiliWork().catch((err) => {
+      console.error(
+        `[regenerateOccurrences][async] Meili sync failed for event ${eventId}:`,
+        err,
+      );
     });
-    clearSearchCache();
+    return;
   }
+
+  await meiliWork().catch((err) => {
+    console.error(
+      `[regenerateOccurrences] Meili sync failed for event ${eventId}:`,
+      err,
+    );
+  });
 }
 
 export async function publishEvent(

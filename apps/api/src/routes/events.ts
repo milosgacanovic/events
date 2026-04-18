@@ -1451,15 +1451,21 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const seriesIdChanged =
       Boolean(previousEvent) && previousSeriesId !== currentSeriesId;
 
+    // Meili sync on this path is fire-and-forget so the PATCH response
+    // returns quickly. The waitForTask polling during Meili indexing is the
+    // dominant latency (~1–3s on recurring events); running it after the
+    // response cuts save time to ~300–500ms. Tradeoff: a newly-saved event
+    // may take a second or two to appear in search results.
     if (previousEvent && event.status === "published") {
       if (previousEvent.status !== "published") {
-        // Transition to published — regenerate occurrences
+        // Transition to published — regenerate occurrences (DB sync, Meili async)
         await regenerateOccurrences(
           app.db,
           app.meiliService,
           params.data.id,
           skipSearch,
           previousSeriesId,
+          true,
         );
       } else {
         const scheduleChanged = hasScheduleShapeChanges(previousEvent, event);
@@ -1473,49 +1479,73 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
             params.data.id,
             skipSearch,
             previousSeriesId,
+            true,
           );
         } else {
-          // Metadata change (languages, tags, title, etc.) — resync without regenerating occurrences
+          // Metadata-only change — fire-and-forget Meili resync
+          void (async () => {
+            try {
+              if (!skipSearch) {
+                await app.meiliService.upsertOccurrencesForEvent(app.db, params.data.id);
+              }
+              await syncSeriesForEvent(
+                app.db,
+                app.meiliService,
+                params.data.id,
+                "update.metadata",
+                previousSeriesId,
+                skipSearch,
+              );
+              if (!skipSearch) clearSearchCache();
+            } catch (err) {
+              console.error(
+                `[patch.event][async] metadata meili sync failed for ${params.data.id}:`,
+                err,
+              );
+            }
+          })();
+        }
+      }
+    } else if (previousEvent && previousEvent.status === "published"
+               && (event.status === "archived" || event.status === "draft" || event.status === "cancelled")) {
+      void (async () => {
+        try {
           if (!skipSearch) {
-            await app.meiliService.upsertOccurrencesForEvent(app.db, params.data.id).catch(() => {});
+            await app.meiliService.deleteOccurrencesByEventId(params.data.id);
           }
           await syncSeriesForEvent(
             app.db,
             app.meiliService,
             params.data.id,
-            "update.metadata",
+            "update.deactivate",
             previousSeriesId,
             skipSearch,
           );
           if (!skipSearch) clearSearchCache();
+        } catch (err) {
+          console.error(
+            `[patch.event][async] deactivate meili sync failed for ${params.data.id}:`,
+            err,
+          );
         }
-      }
-    } else if (previousEvent && previousEvent.status === "published"
-               && (event.status === "archived" || event.status === "draft" || event.status === "cancelled")) {
-      if (!skipSearch) {
-        await app.meiliService.deleteOccurrencesByEventId(params.data.id).catch(() => {});
-      }
-      await syncSeriesForEvent(
-        app.db,
-        app.meiliService,
-        params.data.id,
-        "update.deactivate",
-        previousSeriesId,
-        skipSearch,
-      );
-      if (!skipSearch) clearSearchCache();
+      })();
     } else if (seriesIdChanged && previousSeriesId) {
       // series_id edited on a non-published event — no occurrence index
       // impact, but the previous series row still needs to drop this event
       // from its aggregates.
-      await syncSeriesForEvent(
+      void syncSeriesForEvent(
         app.db,
         app.meiliService,
         params.data.id,
         "update.seriesMove",
         previousSeriesId,
         skipSearch,
-      );
+      ).catch((err) => {
+        console.error(
+          `[patch.event][async] seriesMove sync failed for ${params.data.id}:`,
+          err,
+        );
+      });
     }
 
     recordActivity(app.db, request, {

@@ -338,6 +338,9 @@ describe("events idempotency conflict handling", () => {
       // previousSeriesId — null here because the fixture previousEvent has
       // no series_id set. Included to pin the new arg in place.
       null,
+      // asyncMeili=true — PATCH handler runs Meili sync fire-and-forget so
+      // the save response returns before search reindexing completes.
+      true,
     );
     await app.close();
   });
