@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "การเตือนก่อนกิจกรรมเริ่ม",
   "notifyMe.dialog.save": "บันทึกการแจ้งเตือน",
   "notifyMe.dialog.cancel": "ยกเลิก",
-  "comments.title": "ชุมชน",
+  "comments.title": "ความคิดเห็น",
   "comments.seriesNote": "การสนทนาที่แชร์ระหว่างทุกวันของ {name}",
-  "comments.placeholder": "แบ่งปันความคิดเห็น ถามคำถาม หรือบอกให้คนอื่นรู้ว่าคุณจะมา...",
+  "comments.placeholder": "แบ่งปันความคิดหรือถามคำถาม...",
   "comments.loginToComment": "เข้าสู่ระบบเพื่อแสดงความคิดเห็น",
   "comments.loginHint": "คุณต้องเข้าสู่ระบบเพื่อโพสต์",
   "comments.post": "โพสต์",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "การฝึกอบรมครู",
   "tag.trauma-informed": "ตระหนักต่อบาดแผลทางใจ",
   "tag.wheelchair-friendly": "เข้าถึงได้ด้วยรถเข็น",
-  "tag.women's-circle": "วงผู้หญิง"
+  "tag.women's-circle": "วงผู้หญิง",
+  "common.delete": "ลบ",
+  "profile.savedSearches.confirmDeleteTitle": "ลบการค้นหาที่บันทึกไว้?",
+  "profile.savedSearches.confirmDeleteBody": "คุณจะไม่ได้รับการแจ้งเตือนสำหรับการค้นหานี้อีกต่อไป",
+  "profile.comments.statusPending": "รอดำเนินการ",
+  "profile.comments.statusApproved": "อนุมัติแล้ว",
+  "profile.comments.statusRejected": "ปฏิเสธแล้ว",
+  "manage.admin.moderation.byModerator": "โดย {name}"
 }

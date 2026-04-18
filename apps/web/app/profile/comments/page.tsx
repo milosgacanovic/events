@@ -65,6 +65,21 @@ export default function CommentsTab() {
     );
   }
 
+  const STATUS_LABEL: Record<string, string> = {
+    pending: t("profile.comments.statusPending"),
+    approved: t("profile.comments.statusApproved"),
+    hidden: t("profile.comments.statusRejected"),
+    removed: t("profile.comments.statusRejected"),
+  };
+
+  function isRejected(status: string): boolean {
+    return status === "hidden" || status === "removed";
+  }
+
+  function statusClass(status: string): string {
+    return isRejected(status) ? "rejected" : status;
+  }
+
   return (
     <ul className="comments-list">
       {items.map((comment) => (
@@ -75,16 +90,16 @@ export default function CommentsTab() {
               <span className="muted">
                 {new Date(comment.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
               </span>
-              <span className={`profile-comment-status profile-comment-status--${comment.status}`}>
-                {comment.status}
+              <span className={`profile-comment-status profile-comment-status--${statusClass(comment.status)}`}>
+                {STATUS_LABEL[comment.status] ?? comment.status}
               </span>
             </div>
             <p className="comments-item-body">{comment.body}</p>
-            {comment.status === "removed" && (
+            {isRejected(comment.status) && (
               <p className="meta" style={{ fontSize: "0.8rem", fontStyle: "italic", marginTop: 4 }}>{t("profile.comments.removedByModerator")}</p>
             )}
           </div>
-          {comment.status !== "removed" && (
+          {!isRejected(comment.status) && (
             <button type="button" className="primary-btn" onClick={() => void remove(comment.eventId, comment.id)}>
               {t("profile.comments.delete")}
             </button>

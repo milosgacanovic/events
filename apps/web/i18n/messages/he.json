@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "תזכורות לפני תחילת אירועים",
   "notifyMe.dialog.save": "שמור התראה",
   "notifyMe.dialog.cancel": "ביטול",
-  "comments.title": "קהילה",
+  "comments.title": "תגובות",
   "comments.seriesNote": "דיון משותף לכל המועדים של {name}.",
-  "comments.placeholder": "שתפו מחשבות, שאלו שאלה, או ספרו לאחרים שאתם מגיעים...",
+  "comments.placeholder": "שתפו את מחשבותיכם או שאלו שאלה...",
   "comments.loginToComment": "התחברו כדי להשאיר תגובה",
   "comments.loginHint": "צריך להתחבר כדי לפרסם.",
   "comments.post": "פרסם",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "הכשרת מורים",
   "tag.trauma-informed": "מודע לטראומה",
   "tag.wheelchair-friendly": "נגיש לכיסאות גלגלים",
-  "tag.women's-circle": "מעגל נשים"
+  "tag.women's-circle": "מעגל נשים",
+  "common.delete": "מחק",
+  "profile.savedSearches.confirmDeleteTitle": "למחוק חיפוש שמור?",
+  "profile.savedSearches.confirmDeleteBody": "לא תקבלו עוד התראות עבור חיפוש זה.",
+  "profile.comments.statusPending": "ממתין",
+  "profile.comments.statusApproved": "אושר",
+  "profile.comments.statusRejected": "נדחה",
+  "manage.admin.moderation.byModerator": "מאת {name}"
 }

@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Reminders before events start",
   "notifyMe.dialog.save": "Save alert",
   "notifyMe.dialog.cancel": "Cancel",
-  "comments.title": "Community",
+  "comments.title": "Comments",
   "comments.seriesNote": "Discussion shared across all dates of {name}.",
-  "comments.placeholder": "Share your thoughts, ask a question, or let others know you're coming...",
+  "comments.placeholder": "Share your thoughts or ask a question...",
   "comments.loginToComment": "Log in to leave a comment",
   "comments.loginHint": "You'll need to log in to post.",
   "comments.post": "Post",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Teacher Training",
   "tag.trauma-informed": "Trauma Informed",
   "tag.wheelchair-friendly": "Wheelchair Friendly",
-  "tag.women's-circle": "Women's Circle"
+  "tag.women's-circle": "Women's Circle",
+  "common.delete": "Delete",
+  "profile.savedSearches.confirmDeleteTitle": "Delete saved search?",
+  "profile.savedSearches.confirmDeleteBody": "You won't receive notifications for this search anymore.",
+  "profile.comments.statusPending": "pending",
+  "profile.comments.statusApproved": "approved",
+  "profile.comments.statusRejected": "rejected",
+  "manage.admin.moderation.byModerator": "by {name}"
 }

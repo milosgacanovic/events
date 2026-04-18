@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Izikhumbuzo ngaphambi kokuthi imicimbi iqale",
   "notifyMe.dialog.save": "Londoloza isaziso",
   "notifyMe.dialog.cancel": "Khansela",
-  "comments.title": "Umphakathi",
+  "comments.title": "Amazwana",
   "comments.seriesNote": "Ingxoxo yabiwa kuzo zonke izinsuku zika-{name}.",
-  "comments.placeholder": "Yabelana ngemicabango yakho, buza umbuzo, noma wazise abanye ukuthi uyeza...",
+  "comments.placeholder": "Yabelana ngemicabango yakho noma ubuze umbuzo...",
   "comments.loginToComment": "Ngena ukuze ushiye amazwana",
   "comments.loginHint": "Udinga ukungena ukuze uphoste.",
   "comments.post": "Phoste",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Ukuqeqeshwa kothisha",
   "tag.trauma-informed": "Okuqaphela inhlupheko",
   "tag.wheelchair-friendly": "Kulungele izihlalo ezinama-vili",
-  "tag.women's-circle": "Isiyingi sabesifazane"
+  "tag.women's-circle": "Isiyingi sabesifazane",
+  "common.delete": "Susa",
+  "profile.savedSearches.confirmDeleteTitle": "Susa usesho olugciniwe?",
+  "profile.savedSearches.confirmDeleteBody": "Ngeke usathola izaziso zalolu sesho.",
+  "profile.comments.statusPending": "kulindile",
+  "profile.comments.statusApproved": "kuvunyelwe",
+  "profile.comments.statusRejected": "kwenqatshiwe",
+  "manage.admin.moderation.byModerator": "ngu-{name}"
 }

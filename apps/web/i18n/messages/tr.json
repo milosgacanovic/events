@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Etkinlik başlamadan önce hatırlatmalar",
   "notifyMe.dialog.save": "Uyarıyı kaydet",
   "notifyMe.dialog.cancel": "İptal",
-  "comments.title": "Topluluk",
+  "comments.title": "Yorumlar",
   "comments.seriesNote": "Tartışma {name} tüm tarihleri için ortaktır.",
-  "comments.placeholder": "Düşüncelerinizi paylaşın, soru sorun veya geleceğinizi bildirin...",
+  "comments.placeholder": "Düşüncelerini paylaş veya bir soru sor...",
   "comments.loginToComment": "Yorum yapmak için giriş yapın",
   "comments.loginHint": "Yorum yapmak için giriş yapmanız gerekiyor.",
   "comments.post": "Gönder",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Öğretmen eğitimi",
   "tag.trauma-informed": "Travma bilinçli",
   "tag.wheelchair-friendly": "Tekerlekli sandalye dostu",
-  "tag.women's-circle": "Kadın çemberi"
+  "tag.women's-circle": "Kadın çemberi",
+  "common.delete": "Sil",
+  "profile.savedSearches.confirmDeleteTitle": "Kayıtlı arama silinsin mi?",
+  "profile.savedSearches.confirmDeleteBody": "Bu arama için artık bildirim almayacaksınız.",
+  "profile.comments.statusPending": "beklemede",
+  "profile.comments.statusApproved": "onaylandı",
+  "profile.comments.statusRejected": "reddedildi",
+  "manage.admin.moderation.byModerator": "{name} tarafından"
 }

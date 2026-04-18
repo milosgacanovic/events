@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Przypomnienia przed wydarzeniami",
   "notifyMe.dialog.save": "Zapisz alert",
   "notifyMe.dialog.cancel": "Anuluj",
-  "comments.title": "Spolecznosc",
+  "comments.title": "Komentarze",
   "comments.seriesNote": "Dyskusja wspolna dla wszystkich terminow {name}.",
-  "comments.placeholder": "Podziel sie przemysleniami, zadaj pytanie lub daj znac, ze przyjdziesz...",
+  "comments.placeholder": "Podziel się myślami lub zadaj pytanie...",
   "comments.loginToComment": "Zaloguj sie, aby zostawic komentarz",
   "comments.loginHint": "Musisz sie zalogowac, aby pisac.",
   "comments.post": "Opublikuj",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Szkolenie nauczycieli",
   "tag.trauma-informed": "Świadome traumy",
   "tag.wheelchair-friendly": "Przyjazne dla wózków",
-  "tag.women's-circle": "Krąg kobiet"
+  "tag.women's-circle": "Krąg kobiet",
+  "common.delete": "Usuń",
+  "profile.savedSearches.confirmDeleteTitle": "Usunąć zapisane wyszukiwanie?",
+  "profile.savedSearches.confirmDeleteBody": "Nie będziesz już otrzymywać powiadomień dla tego wyszukiwania.",
+  "profile.comments.statusPending": "oczekujące",
+  "profile.comments.statusApproved": "zatwierdzone",
+  "profile.comments.statusRejected": "odrzucone",
+  "manage.admin.moderation.byModerator": "przez {name}"
 }

@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "შეხსენებები ღონისძიების დაწყებამდე",
   "notifyMe.dialog.save": "შეტყობინების შენახვა",
   "notifyMe.dialog.cancel": "გაუქმება",
-  "comments.title": "საზოგადოება",
+  "comments.title": "კომენტარები",
   "comments.seriesNote": "დისკუსია საერთოა {name}-ის ყველა თარიღისთვის.",
-  "comments.placeholder": "გაუზიარეთ აზრები, დასვით შეკითხვა ან აცნობეთ სხვებს, რომ მიდიხართ...",
+  "comments.placeholder": "გააზიარეთ თქვენი აზრები ან დაუსვით კითხვა...",
   "comments.loginToComment": "შედით კომენტარის დასატოვებლად",
   "comments.loginHint": "გამოსაქვეყნებლად შესვლა საჭიროა.",
   "comments.post": "გამოქვეყნება",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "მასწავლებლის მომზადება",
   "tag.trauma-informed": "ტრავმის გათვალისწინებით",
   "tag.wheelchair-friendly": "ეტლისთვის ხელმისაწვდომი",
-  "tag.women's-circle": "ქალთა წრე"
+  "tag.women's-circle": "ქალთა წრე",
+  "common.delete": "წაშლა",
+  "profile.savedSearches.confirmDeleteTitle": "წაშალე შენახული ძებნა?",
+  "profile.savedSearches.confirmDeleteBody": "ამ ძებნისთვის შეტყობინებებს აღარ მიიღებთ.",
+  "profile.comments.statusPending": "მოლოდინში",
+  "profile.comments.statusApproved": "დამტკიცებული",
+  "profile.comments.statusRejected": "უარყოფილი",
+  "manage.admin.moderation.byModerator": "{name}-ისგან"
 }

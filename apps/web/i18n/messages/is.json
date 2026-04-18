@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Áminningar áður en viðburðir hefjast",
   "notifyMe.dialog.save": "Vista tilkynningu",
   "notifyMe.dialog.cancel": "Hætta við",
-  "comments.title": "Samfélag",
+  "comments.title": "Athugasemdir",
   "comments.seriesNote": "Umræða deild milli allra dagsetninga {name}.",
-  "comments.placeholder": "Deildu hugsunum þínum, spurðu spurningu, eða láttu aðra vita að þú komir...",
+  "comments.placeholder": "Deildu hugsunum þínum eða spurðu spurningar...",
   "comments.loginToComment": "Skráðu þig inn til að skrifa athugasemd",
   "comments.loginHint": "Þú þarft að skrá þig inn til að skrifa.",
   "comments.post": "Senda",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Kennaraþjálfun",
   "tag.trauma-informed": "Áfallamiðað",
   "tag.wheelchair-friendly": "Hjólastólsvænt",
-  "tag.women's-circle": "Kvenna hringur"
+  "tag.women's-circle": "Kvenna hringur",
+  "common.delete": "Eyða",
+  "profile.savedSearches.confirmDeleteTitle": "Eyða vistaðri leit?",
+  "profile.savedSearches.confirmDeleteBody": "Þú færð ekki lengur tilkynningar fyrir þessa leit.",
+  "profile.comments.statusPending": "í bið",
+  "profile.comments.statusApproved": "samþykkt",
+  "profile.comments.statusRejected": "hafnað",
+  "manage.admin.moderation.byModerator": "af {name}"
 }

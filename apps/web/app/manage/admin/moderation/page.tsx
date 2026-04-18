@@ -156,8 +156,7 @@ export default function AdminModerationPage() {
   }
 
   async function handleAction(id: string, status: "approved" | "rejected" | "dismissed") {
-    const note = status === "rejected" ? prompt(t("manage.admin.moderation.notePrompt")) : undefined;
-    await authorizedPatch(getToken, `/admin/moderation/${id}`, { status, note: note || undefined });
+    await authorizedPatch(getToken, `/admin/moderation/${id}`, { status });
     void load();
   }
 
@@ -228,7 +227,6 @@ export default function AdminModerationPage() {
             { value: "pending", label: t("manage.admin.moderation.statusPending") },
             { value: "approved", label: t("manage.admin.moderation.statusApproved") },
             { value: "rejected", label: t("manage.admin.moderation.statusRejected") },
-            { value: "dismissed", label: t("manage.admin.moderation.statusDismissed") },
           ].map((opt) => (
             <button key={opt.value} type="button" data-active={statusFilter === opt.value} onClick={() => { setStatusFilter(opt.value); setPage(1); }}>
               {opt.label}
@@ -337,39 +335,46 @@ export default function AdminModerationPage() {
                         <span className={`tag tag--${item.status}`} style={{ fontSize: "0.7rem" }}>{item.status}</span>
                       </td>
                       <td className="text-right">
-                        {item.status === "pending" && (
-                          <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                            {tab === "comment" && (<>
-                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "approved")}>
-                                {t("manage.admin.moderation.approve")}
-                              </button>
-                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => void handleAction(item.id, "rejected")}>
-                                {t("manage.admin.moderation.remove")}
-                              </button>
-                            </>)}
-                            {tab === "edit_suggestion" && (<>
-                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "approved")}>
-                                {t("manage.admin.moderation.approve")}
-                              </button>
-                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }} onClick={() => void handleAction(item.id, "rejected")}>
-                                {t("manage.admin.moderation.reject")}
-                              </button>
-                            </>)}
-                            {tab === "report" && (<>
-                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "approved")}>
-                                {t("manage.admin.moderation.resolve")}
-                              </button>
-                              <button type="button" className="secondary-btn" style={{ fontSize: "0.75rem", padding: "2px 8px" }} onClick={() => void handleAction(item.id, "dismissed")}>
-                                {t("manage.admin.moderation.dismiss")}
-                              </button>
-                            </>)}
-                          </div>
-                        )}
-                        {item.moderator_name && (
-                          <div className="meta" style={{ fontSize: "0.7rem", marginTop: 2 }}>
-                            {item.moderator_name}
-                          </div>
-                        )}
+                        {(() => {
+                          const tooltip = item.moderator_name
+                            ? t("manage.admin.moderation.byModerator", { name: item.moderator_name })
+                            : undefined;
+                          const approveLabel = tab === "report"
+                            ? t("manage.admin.moderation.resolve")
+                            : t("manage.admin.moderation.approve");
+                          const rejectLabel = tab === "report"
+                            ? t("manage.admin.moderation.dismiss")
+                            : t("manage.admin.moderation.reject");
+                          const rejectStatus = tab === "report" ? "dismissed" : "rejected";
+                          const isApproved = item.status === "approved";
+                          const isRejected = item.status === "rejected" || item.status === "dismissed";
+                          return (
+                            <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                              {!isApproved && (
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  style={{ fontSize: "0.75rem", padding: "2px 8px" }}
+                                  title={tooltip}
+                                  onClick={() => void handleAction(item.id, "approved")}
+                                >
+                                  {approveLabel}
+                                </button>
+                              )}
+                              {!isRejected && (
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  style={{ fontSize: "0.75rem", padding: "2px 8px", color: "var(--danger, #c53030)" }}
+                                  title={tooltip}
+                                  onClick={() => void handleAction(item.id, rejectStatus)}
+                                >
+                                  {rejectLabel}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   );

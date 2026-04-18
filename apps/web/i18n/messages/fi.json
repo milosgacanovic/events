@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Muistutukset ennen tapahtumien alkua",
   "notifyMe.dialog.save": "Tallenna hälytys",
   "notifyMe.dialog.cancel": "Peruuta",
-  "comments.title": "Yhteisö",
+  "comments.title": "Kommentit",
   "comments.seriesNote": "Keskustelu jaettu kaikkien {name} päivämäärien kesken.",
-  "comments.placeholder": "Jaa ajatuksiasi, kysy kysymys tai kerro muille tulevasi...",
+  "comments.placeholder": "Jaa ajatuksesi tai esitä kysymys...",
   "comments.loginToComment": "Kirjaudu sisään jättääksesi kommentin",
   "comments.loginHint": "Sinun on kirjauduttava sisään kirjoittaaksesi.",
   "comments.post": "Lähetä",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Opettajakoulutus",
   "tag.trauma-informed": "Traumatietoinen",
   "tag.wheelchair-friendly": "Esteettömyys",
-  "tag.women's-circle": "Naistenpiiri"
+  "tag.women's-circle": "Naistenpiiri",
+  "common.delete": "Poista",
+  "profile.savedSearches.confirmDeleteTitle": "Poista tallennettu haku?",
+  "profile.savedSearches.confirmDeleteBody": "Et enää saa ilmoituksia tästä hausta.",
+  "profile.comments.statusPending": "odottaa",
+  "profile.comments.statusApproved": "hyväksytty",
+  "profile.comments.statusRejected": "hylätty",
+  "manage.admin.moderation.byModerator": "käyttäjältä {name}"
 }

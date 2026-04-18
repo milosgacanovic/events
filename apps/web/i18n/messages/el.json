@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Υπενθυμίσεις πριν ξεκινήσουν οι εκδηλώσεις",
   "notifyMe.dialog.save": "Αποθήκευση ειδοποίησης",
   "notifyMe.dialog.cancel": "Ακύρωση",
-  "comments.title": "Κοινότητα",
+  "comments.title": "Σχόλια",
   "comments.seriesNote": "Η συζήτηση είναι κοινή σε όλες τις ημερομηνίες του {name}.",
-  "comments.placeholder": "Μοιραστείτε σκέψεις, κάντε ερώτηση, ή ενημερώστε ότι θα είστε εκεί...",
+  "comments.placeholder": "Μοιραστείτε τις σκέψεις σας ή κάντε μια ερώτηση...",
   "comments.loginToComment": "Συνδεθείτε για να αφήσετε σχόλιο",
   "comments.loginHint": "Πρέπει να συνδεθείτε για να δημοσιεύσετε.",
   "comments.post": "Δημοσίευση",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Εκπαίδευση δασκάλων",
   "tag.trauma-informed": "Ευαίσθητο σε τραύμα",
   "tag.wheelchair-friendly": "Προσβάσιμο σε αναπηρικά αμαξίδια",
-  "tag.women's-circle": "Κύκλος γυναικών"
+  "tag.women's-circle": "Κύκλος γυναικών",
+  "common.delete": "Διαγραφή",
+  "profile.savedSearches.confirmDeleteTitle": "Διαγραφή αποθηκευμένης αναζήτησης;",
+  "profile.savedSearches.confirmDeleteBody": "Δεν θα λαμβάνετε πλέον ειδοποιήσεις για αυτήν την αναζήτηση.",
+  "profile.comments.statusPending": "εκκρεμεί",
+  "profile.comments.statusApproved": "εγκρίθηκε",
+  "profile.comments.statusRejected": "απορρίφθηκε",
+  "manage.admin.moderation.byModerator": "από {name}"
 }

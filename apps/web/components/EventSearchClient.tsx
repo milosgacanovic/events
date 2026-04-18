@@ -1913,6 +1913,14 @@ export function EventSearchClient({
             </span>
           </label>
         </div>
+        <div className="filters-notify-row">
+          <NotifyMeButton
+            filterSnapshot={Object.fromEntries(
+              Array.from(searchParams.entries()).filter(([k]) => k !== "page" && k !== "view" && k !== "sort"),
+            )}
+            filterSummary={selectedFilterChips.map((c) => c.label).join(", ")}
+          />
+        </div>
         <div className="filters-mobile-footer">
           <button
             type="button"

@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "イベント開始前のリマインダー",
   "notifyMe.dialog.save": "アラートを保存",
   "notifyMe.dialog.cancel": "キャンセル",
-  "comments.title": "コミュニティ",
+  "comments.title": "コメント",
   "comments.seriesNote": "{name}の全日程で共通の掲示板です。",
-  "comments.placeholder": "感想をシェアしたり、質問したり、参加を知らせましょう...",
+  "comments.placeholder": "感想を共有したり、質問を投稿しましょう...",
   "comments.loginToComment": "コメントするにはログインしてください",
   "comments.loginHint": "投稿するにはログインが必要です。",
   "comments.post": "投稿",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "指導者養成",
   "tag.trauma-informed": "トラウマ配慮",
   "tag.wheelchair-friendly": "車椅子対応",
-  "tag.women's-circle": "ウィメンズサークル"
+  "tag.women's-circle": "ウィメンズサークル",
+  "common.delete": "削除",
+  "profile.savedSearches.confirmDeleteTitle": "保存した検索を削除しますか?",
+  "profile.savedSearches.confirmDeleteBody": "この検索の通知は今後届きません。",
+  "profile.comments.statusPending": "保留中",
+  "profile.comments.statusApproved": "承認済み",
+  "profile.comments.statusRejected": "却下",
+  "manage.admin.moderation.byModerator": "{name}による"
 }

@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Нагадування перед початком подій",
   "notifyMe.dialog.save": "Зберегти оповіщення",
   "notifyMe.dialog.cancel": "Скасувати",
-  "comments.title": "Спільнота",
+  "comments.title": "Коментарі",
   "comments.seriesNote": "Обговорення спільне для всіх дат {name}.",
-  "comments.placeholder": "Поділіться думками, поставте запитання або повідомте, що прийдете...",
+  "comments.placeholder": "Поділіться думками або задайте питання...",
   "comments.loginToComment": "Увійдіть, щоб залишити коментар",
   "comments.loginHint": "Для публікації потрібно увійти.",
   "comments.post": "Надіслати",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Підготовка вчителів",
   "tag.trauma-informed": "Травма-інформовано",
   "tag.wheelchair-friendly": "Доступно для візків",
-  "tag.women's-circle": "Жіноче коло"
+  "tag.women's-circle": "Жіноче коло",
+  "common.delete": "Видалити",
+  "profile.savedSearches.confirmDeleteTitle": "Видалити збережений пошук?",
+  "profile.savedSearches.confirmDeleteBody": "Ви більше не будете отримувати сповіщення для цього пошуку.",
+  "profile.comments.statusPending": "очікує",
+  "profile.comments.statusApproved": "схвалено",
+  "profile.comments.statusRejected": "відхилено",
+  "manage.admin.moderation.byModerator": "від {name}"
 }

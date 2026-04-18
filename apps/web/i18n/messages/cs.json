@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Pripominky pred akcemi",
   "notifyMe.dialog.save": "Ulozit upozorneni",
   "notifyMe.dialog.cancel": "Zrusit",
-  "comments.title": "Komunita",
+  "comments.title": "Komentáře",
   "comments.seriesNote": "Diskuse sdilena pres vsechny terminy {name}.",
-  "comments.placeholder": "Podelte se o sve postrehy, zeptejte se nebo dejte vedet, ze prijdete...",
+  "comments.placeholder": "Podělte se o své myšlenky nebo položte otázku...",
   "comments.loginToComment": "Prihlas se pro psani komentaru",
   "comments.loginHint": "Pro pridani komentare se musis prihlasit.",
   "comments.post": "Odeslat",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Výcvik učitelů",
   "tag.trauma-informed": "S ohledem na trauma",
   "tag.wheelchair-friendly": "Bezbariérové",
-  "tag.women's-circle": "Ženský kruh"
+  "tag.women's-circle": "Ženský kruh",
+  "common.delete": "Smazat",
+  "profile.savedSearches.confirmDeleteTitle": "Smazat uloženou hledání?",
+  "profile.savedSearches.confirmDeleteBody": "Pro toto hledání již nebudete dostávat oznámení.",
+  "profile.comments.statusPending": "čekající",
+  "profile.comments.statusApproved": "schváleno",
+  "profile.comments.statusRejected": "zamítnuto",
+  "manage.admin.moderation.byModerator": "od {name}"
 }

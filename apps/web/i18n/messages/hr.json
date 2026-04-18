@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Podsjetnici prije dogadaja",
   "notifyMe.dialog.save": "Spremi obavijest",
   "notifyMe.dialog.cancel": "Odustani",
-  "comments.title": "Zajednica",
+  "comments.title": "Komentari",
   "comments.seriesNote": "Rasprava zajednicka za sve termine {name}.",
-  "comments.placeholder": "Podijelite misli, postavite pitanje ili javite da dolazite...",
+  "comments.placeholder": "Podijelite svoje misli ili postavite pitanje...",
   "comments.loginToComment": "Prijavite se za pisanje komentara",
   "comments.loginHint": "Morate se prijaviti za komentiranje.",
   "comments.post": "Objavi",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Učiteljski trening",
   "tag.trauma-informed": "Svjesnost o traumi",
   "tag.wheelchair-friendly": "Pristupačno za kolica",
-  "tag.women's-circle": "Ženski krug"
+  "tag.women's-circle": "Ženski krug",
+  "common.delete": "Izbriši",
+  "profile.savedSearches.confirmDeleteTitle": "Izbrisati spremljeno pretraživanje?",
+  "profile.savedSearches.confirmDeleteBody": "Više nećete primati obavijesti za ovo pretraživanje.",
+  "profile.comments.statusPending": "na čekanju",
+  "profile.comments.statusApproved": "odobreno",
+  "profile.comments.statusRejected": "odbijeno",
+  "manage.admin.moderation.byModerator": "od {name}"
 }

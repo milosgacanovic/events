@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Напоминания перед началом мероприятий",
   "notifyMe.dialog.save": "Сохранить оповещение",
   "notifyMe.dialog.cancel": "Отмена",
-  "comments.title": "Сообщество",
+  "comments.title": "Комментарии",
   "comments.seriesNote": "Обсуждение общее для всех дат {name}.",
-  "comments.placeholder": "Поделитесь мыслями, задайте вопрос или сообщите, что придёте...",
+  "comments.placeholder": "Поделитесь мыслями или задайте вопрос...",
   "comments.loginToComment": "Войдите, чтобы оставить комментарий",
   "comments.loginHint": "Для публикации нужно войти.",
   "comments.post": "Отправить",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Подготовка учителей",
   "tag.trauma-informed": "Травма-информированно",
   "tag.wheelchair-friendly": "Доступно для колясок",
-  "tag.women's-circle": "Женский круг"
+  "tag.women's-circle": "Женский круг",
+  "common.delete": "Удалить",
+  "profile.savedSearches.confirmDeleteTitle": "Удалить сохранённый поиск?",
+  "profile.savedSearches.confirmDeleteBody": "Вы больше не будете получать уведомления по этому поиску.",
+  "profile.comments.statusPending": "на рассмотрении",
+  "profile.comments.statusApproved": "одобрено",
+  "profile.comments.statusRejected": "отклонено",
+  "manage.admin.moderation.byModerator": "от {name}"
 }

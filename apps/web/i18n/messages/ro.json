@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Remindere înainte de evenimente",
   "notifyMe.dialog.save": "Salvare alertă",
   "notifyMe.dialog.cancel": "Anulare",
-  "comments.title": "Comunitate",
+  "comments.title": "Comentarii",
   "comments.seriesNote": "Discuția este comună pentru toate datele {name}.",
-  "comments.placeholder": "Împărtășește gânduri, pune o întrebare, sau anunță că vii...",
+  "comments.placeholder": "Împărtășește-ți gândurile sau pune o întrebare...",
   "comments.loginToComment": "Conectați-vă pentru a lăsa un comentariu",
   "comments.loginHint": "Trebuie să vă conectați pentru a posta.",
   "comments.post": "Postează",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Formare profesori",
   "tag.trauma-informed": "Conștient de traumă",
   "tag.wheelchair-friendly": "Accesibil pentru scaune cu rotile",
-  "tag.women's-circle": "Cercul femeilor"
+  "tag.women's-circle": "Cercul femeilor",
+  "common.delete": "Șterge",
+  "profile.savedSearches.confirmDeleteTitle": "Ștergeți căutarea salvată?",
+  "profile.savedSearches.confirmDeleteBody": "Nu veți mai primi notificări pentru această căutare.",
+  "profile.comments.statusPending": "în așteptare",
+  "profile.comments.statusApproved": "aprobat",
+  "profile.comments.statusRejected": "respins",
+  "manage.admin.moderation.byModerator": "de {name}"
 }

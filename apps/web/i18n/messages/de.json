@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Erinnerungen vor Eventbeginn",
   "notifyMe.dialog.save": "Benachrichtigung speichern",
   "notifyMe.dialog.cancel": "Abbrechen",
-  "comments.title": "Community",
+  "comments.title": "Kommentare",
   "comments.seriesNote": "Diskussion für alle Termine von {name}.",
-  "comments.placeholder": "Teile deine Gedanken, stelle eine Frage oder sag, dass du kommst...",
+  "comments.placeholder": "Teile deine Gedanken oder stelle eine Frage...",
   "comments.loginToComment": "Anmelden, um zu kommentieren",
   "comments.loginHint": "Du musst angemeldet sein, um zu kommentieren.",
   "comments.post": "Posten",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Lehrerausbildung",
   "tag.trauma-informed": "Traumasensibel",
   "tag.wheelchair-friendly": "Rollstuhlfreundlich",
-  "tag.women's-circle": "Frauenkreis"
+  "tag.women's-circle": "Frauenkreis",
+  "common.delete": "Löschen",
+  "profile.savedSearches.confirmDeleteTitle": "Gespeicherte Suche löschen?",
+  "profile.savedSearches.confirmDeleteBody": "Sie erhalten keine Benachrichtigungen mehr für diese Suche.",
+  "profile.comments.statusPending": "ausstehend",
+  "profile.comments.statusApproved": "genehmigt",
+  "profile.comments.statusRejected": "abgelehnt",
+  "manage.admin.moderation.byModerator": "von {name}"
 }

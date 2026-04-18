@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Påminnelser før arrangementer starter",
   "notifyMe.dialog.save": "Lagre varsel",
   "notifyMe.dialog.cancel": "Avbryt",
-  "comments.title": "Fellesskap",
+  "comments.title": "Kommentarer",
   "comments.seriesNote": "Diskusjon delt på tvers av alle datoer for {name}.",
-  "comments.placeholder": "Del tankene dine, still et spørsmål, eller fortell andre at du kommer...",
+  "comments.placeholder": "Del tankene dine eller still et spørsmål...",
   "comments.loginToComment": "Logg inn for å skrive en kommentar",
   "comments.loginHint": "Du må logge inn for å skrive.",
   "comments.post": "Send",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Lærerutdanning",
   "tag.trauma-informed": "Traumebevisst",
   "tag.wheelchair-friendly": "Rullestolvennlig",
-  "tag.women's-circle": "Kvinnesirkel"
+  "tag.women's-circle": "Kvinnesirkel",
+  "common.delete": "Slett",
+  "profile.savedSearches.confirmDeleteTitle": "Slette lagret søk?",
+  "profile.savedSearches.confirmDeleteBody": "Du vil ikke lenger motta varsler for dette søket.",
+  "profile.comments.statusPending": "avventer",
+  "profile.comments.statusApproved": "godkjent",
+  "profile.comments.statusRejected": "avvist",
+  "manage.admin.moderation.byModerator": "av {name}"
 }

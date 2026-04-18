@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Promemoria prima dell'inizio degli eventi",
   "notifyMe.dialog.save": "Salva avviso",
   "notifyMe.dialog.cancel": "Annulla",
-  "comments.title": "Comunità",
+  "comments.title": "Commenti",
   "comments.seriesNote": "Discussione condivisa tra tutte le date di {name}.",
-  "comments.placeholder": "Condividi le tue impressioni, fai una domanda o fai sapere che verrai...",
+  "comments.placeholder": "Condividi i tuoi pensieri o fai una domanda...",
   "comments.loginToComment": "Accedi per commentare",
   "comments.loginHint": "Devi accedere per pubblicare.",
   "comments.post": "Pubblica",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Formazione insegnanti",
   "tag.trauma-informed": "Sensibile al trauma",
   "tag.wheelchair-friendly": "Accessibile in sedia a rotelle",
-  "tag.women's-circle": "Cerchio femminile"
+  "tag.women's-circle": "Cerchio femminile",
+  "common.delete": "Elimina",
+  "profile.savedSearches.confirmDeleteTitle": "Eliminare la ricerca salvata?",
+  "profile.savedSearches.confirmDeleteBody": "Non riceverai più notifiche per questa ricerca.",
+  "profile.comments.statusPending": "in attesa",
+  "profile.comments.statusApproved": "approvato",
+  "profile.comments.statusRejected": "rifiutato",
+  "manage.admin.moderation.byModerator": "da {name}"
 }

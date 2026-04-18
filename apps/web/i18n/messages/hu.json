@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Emlékeztetők események kezdete előtt",
   "notifyMe.dialog.save": "Értesítés mentése",
   "notifyMe.dialog.cancel": "Mégse",
-  "comments.title": "Közösség",
+  "comments.title": "Hozzászólások",
   "comments.seriesNote": "A beszélgetés közös {name} minden időpontjára.",
-  "comments.placeholder": "Oszd meg gondolataidat, tegyél fel kérdést, vagy jelezd, hogy jössz...",
+  "comments.placeholder": "Oszd meg gondolataid vagy tegyél fel egy kérdést...",
   "comments.loginToComment": "Jelentkezz be hozzászóláshoz",
   "comments.loginHint": "A hozzászóláshoz be kell jelentkezned.",
   "comments.post": "Küldés",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Tanárképzés",
   "tag.trauma-informed": "Traumatudatos",
   "tag.wheelchair-friendly": "Kerekesszék-barát",
-  "tag.women's-circle": "Női kör"
+  "tag.women's-circle": "Női kör",
+  "common.delete": "Törlés",
+  "profile.savedSearches.confirmDeleteTitle": "Törlöd a mentett keresést?",
+  "profile.savedSearches.confirmDeleteBody": "Többé nem kapsz értesítéseket ehhez a kereséshez.",
+  "profile.comments.statusPending": "függőben",
+  "profile.comments.statusApproved": "jóváhagyva",
+  "profile.comments.statusRejected": "elutasítva",
+  "manage.admin.moderation.byModerator": "{name} által"
 }

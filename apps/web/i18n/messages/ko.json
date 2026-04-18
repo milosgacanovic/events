@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "이벤트 시작 전 리마인더",
   "notifyMe.dialog.save": "알림 저장",
   "notifyMe.dialog.cancel": "취소",
-  "comments.title": "커뮤니티",
+  "comments.title": "댓글",
   "comments.seriesNote": "{name}의 모든 날짜에서 공유되는 게시판이에요.",
-  "comments.placeholder": "생각을 나누거나, 질문하거나, 참가를 알려 주세요...",
+  "comments.placeholder": "의견을 공유하거나 질문을 남겨주세요...",
   "comments.loginToComment": "댓글을 남기려면 로그인하세요",
   "comments.loginHint": "글을 올리려면 로그인이 필요해요.",
   "comments.post": "게시",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "교사 연수",
   "tag.trauma-informed": "트라우마 인식",
   "tag.wheelchair-friendly": "휠체어 접근 가능",
-  "tag.women's-circle": "여성 서클"
+  "tag.women's-circle": "여성 서클",
+  "common.delete": "삭제",
+  "profile.savedSearches.confirmDeleteTitle": "저장된 검색을 삭제하시겠습니까?",
+  "profile.savedSearches.confirmDeleteBody": "이 검색에 대한 알림을 더 이상 받지 않습니다.",
+  "profile.comments.statusPending": "대기 중",
+  "profile.comments.statusApproved": "승인됨",
+  "profile.comments.statusRejected": "거부됨",
+  "manage.admin.moderation.byModerator": "{name} 작성"
 }

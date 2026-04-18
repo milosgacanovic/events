@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Nhắc nhở trước khi sự kiện bắt đầu",
   "notifyMe.dialog.save": "Lưu thông báo",
   "notifyMe.dialog.cancel": "Hủy",
-  "comments.title": "Cộng đồng",
+  "comments.title": "Bình luận",
   "comments.seriesNote": "Thảo luận chung cho tất cả các ngày của {name}.",
-  "comments.placeholder": "Chia sẻ suy nghĩ, đặt câu hỏi, hoặc cho mọi người biết bạn sẽ đến...",
+  "comments.placeholder": "Chia sẻ suy nghĩ hoặc đặt câu hỏi...",
   "comments.loginToComment": "Đăng nhập để bình luận",
   "comments.loginHint": "Bạn cần đăng nhập để đăng bài.",
   "comments.post": "Đăng",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Đào tạo giáo viên",
   "tag.trauma-informed": "Nhận thức sang chấn",
   "tag.wheelchair-friendly": "Thân thiện xe lăn",
-  "tag.women's-circle": "Vòng tròn phụ nữ"
+  "tag.women's-circle": "Vòng tròn phụ nữ",
+  "common.delete": "Xóa",
+  "profile.savedSearches.confirmDeleteTitle": "Xóa tìm kiếm đã lưu?",
+  "profile.savedSearches.confirmDeleteBody": "Bạn sẽ không nhận được thông báo cho tìm kiếm này nữa.",
+  "profile.comments.statusPending": "đang chờ",
+  "profile.comments.statusApproved": "đã duyệt",
+  "profile.comments.statusRejected": "đã từ chối",
+  "manage.admin.moderation.byModerator": "bởi {name}"
 }

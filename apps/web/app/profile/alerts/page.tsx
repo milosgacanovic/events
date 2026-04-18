@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useKeycloakAuth } from "../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../components/i18n/I18nProvider";
+import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { apiBase } from "../../../lib/api";
 
 type SavedSearchItem = {
@@ -24,6 +25,7 @@ export default function SearchAlertsTab() {
 
   const [items, setItems] = useState<SavedSearchItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -113,28 +115,20 @@ export default function SearchAlertsTab() {
 
   return (
     <>
-      <h3 className="title-s" style={{ marginBottom: 12 }}>{t("profile.savedSearches.title")}</h3>
       {items.length === 0 ? (
         <p className="muted">{t("profile.savedSearches.empty")}</p>
       ) : (
         <ul className="alerts-list">
           {items.map((search) => {
             const summary = buildFilterSummary(search.filterSnapshot);
+            const title = search.label || summary.text;
             return (
               <li key={search.id} className="alerts-item">
                 <div className="alerts-item-main" style={{ flex: 1 }}>
-                  <div className="alerts-item-host">
-                    {search.label || t("profile.savedSearches.untitled")}
-                  </div>
-                  <div style={{ marginTop: 4, fontSize: "0.9rem", color: "var(--ink)" }}>
-                    <strong className="muted" style={{ fontWeight: 600, marginRight: 6 }}>
-                      {t("profile.savedSearches.filters")}:
-                    </strong>
-                    <a href={summary.href} style={{ textDecoration: "underline" }}>
-                      {summary.text}
-                    </a>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+                  <a href={summary.href} className="alerts-item-title">
+                    {title}
+                  </a>
+                  <div className="alerts-item-controls-row">
                     <select
                       className="modal-select"
                       style={{ width: "auto", fontSize: "0.9rem", padding: "4px 8px" }}
@@ -144,13 +138,6 @@ export default function SearchAlertsTab() {
                       <option value="weekly">{t("notifyMe.dialog.weekly")}</option>
                       <option value="daily">{t("notifyMe.dialog.daily")}</option>
                     </select>
-                    {search.unsubscribedAt && (
-                      <span className="profile-comment-status profile-comment-status--rejected">
-                        {t("profile.savedSearches.paused")}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 8 }}>
                     <label className="toggle-control toggle-control-sm">
                       <input
                         className="toggle-control-input"
@@ -171,13 +158,18 @@ export default function SearchAlertsTab() {
                       <span className="toggle-control-track" aria-hidden />
                       <span className="meta">{t("profile.savedSearches.updates")}</span>
                     </label>
+                    {search.unsubscribedAt && (
+                      <span className="profile-comment-status profile-comment-status--rejected">
+                        {t("profile.savedSearches.paused")}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="alerts-item-actions" style={{ display: "flex", gap: 6, flexDirection: "column" }}>
                   <button className="primary-btn" type="button" onClick={() => void updateSearch(search.id, { paused: !search.unsubscribedAt })}>
                     {search.unsubscribedAt ? t("profile.savedSearches.resume") : t("profile.savedSearches.pause")}
                   </button>
-                  <button className="primary-btn" type="button" onClick={() => void removeSearch(search.id)}>
+                  <button className="primary-btn" type="button" onClick={() => setConfirmDeleteId(search.id)}>
                     {t("profile.savedSearches.delete")}
                   </button>
                 </div>
@@ -185,6 +177,16 @@ export default function SearchAlertsTab() {
             );
           })}
         </ul>
+      )}
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title={t("profile.savedSearches.confirmDeleteTitle")}
+          message={t("profile.savedSearches.confirmDeleteBody")}
+          confirmLabel={t("profile.savedSearches.delete")}
+          danger
+          onConfirm={() => void removeSearch(confirmDeleteId)}
+          onClose={() => setConfirmDeleteId(null)}
+        />
       )}
     </>
   );

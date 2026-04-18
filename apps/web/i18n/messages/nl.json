@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Herinneringen voor aanvang van evenementen",
   "notifyMe.dialog.save": "Melding opslaan",
   "notifyMe.dialog.cancel": "Annuleren",
-  "comments.title": "Community",
+  "comments.title": "Opmerkingen",
   "comments.seriesNote": "Gesprek gedeeld over alle data van {name}.",
-  "comments.placeholder": "Deel je gedachten, stel een vraag of laat weten dat je komt...",
+  "comments.placeholder": "Deel je gedachten of stel een vraag...",
   "comments.loginToComment": "Log in om een reactie te plaatsen",
   "comments.loginHint": "Je moet ingelogd zijn om te reageren.",
   "comments.post": "Plaatsen",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Lerarenopleiding",
   "tag.trauma-informed": "Traumabewust",
   "tag.wheelchair-friendly": "Rolstoelvriendelijk",
-  "tag.women's-circle": "Vrouwencirkel"
+  "tag.women's-circle": "Vrouwencirkel",
+  "common.delete": "Verwijderen",
+  "profile.savedSearches.confirmDeleteTitle": "Opgeslagen zoekopdracht verwijderen?",
+  "profile.savedSearches.confirmDeleteBody": "Je ontvangt geen meldingen meer voor deze zoekopdracht.",
+  "profile.comments.statusPending": "in afwachting",
+  "profile.comments.statusApproved": "goedgekeurd",
+  "profile.comments.statusRejected": "afgewezen",
+  "manage.admin.moderation.byModerator": "door {name}"
 }

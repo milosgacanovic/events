@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "活动开始前提醒",
   "notifyMe.dialog.save": "保存提醒",
   "notifyMe.dialog.cancel": "取消",
-  "comments.title": "社区",
+  "comments.title": "评论",
   "comments.seriesNote": "{name}所有日期共用的讨论区。",
-  "comments.placeholder": "分享你的想法、提个问题，或告诉大家你要来...",
+  "comments.placeholder": "分享你的想法或提出问题...",
   "comments.loginToComment": "登录后发表评论",
   "comments.loginHint": "发帖需要先登录。",
   "comments.post": "发布",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "教师培训",
   "tag.trauma-informed": "创伤知情",
   "tag.wheelchair-friendly": "无障碍",
-  "tag.women's-circle": "女性圈"
+  "tag.women's-circle": "女性圈",
+  "common.delete": "删除",
+  "profile.savedSearches.confirmDeleteTitle": "删除已保存的搜索？",
+  "profile.savedSearches.confirmDeleteBody": "您将不再收到此搜索的通知。",
+  "profile.comments.statusPending": "待处理",
+  "profile.comments.statusApproved": "已批准",
+  "profile.comments.statusRejected": "已拒绝",
+  "manage.admin.moderation.byModerator": "由 {name}"
 }

@@ -1080,12 +1080,6 @@ export function EventDetailClient({
         )}
       </div>
 
-      <SuggestEditButton
-        targetType="event"
-        targetId={data.event.id}
-        targetName={data.event.title}
-      />
-
       {/* Timezone toggle for recurring events (no When cell in grid) */}
       {data.event.schedule_kind !== "single" && (
         <label className="toggle-control toggle-control-sm">
@@ -1130,16 +1124,23 @@ export function EventDetailClient({
             className={isLongDesc && !descExpanded ? "event-detail-desc" : "event-detail-desc expanded"}
             dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }}
           />
-          {isLongDesc && (
-            <button
-              type="button"
-              className="event-detail-expand-btn"
-              onClick={() => setDescExpanded((v) => !v)}
-              aria-expanded={descExpanded}
-            >
-              {descExpanded ? t("eventDetail.readLess") : t("eventDetail.readMore")}
-            </button>
-          )}
+          <div className="event-detail-desc-footer">
+            {isLongDesc && (
+              <button
+                type="button"
+                className="event-detail-expand-btn"
+                onClick={() => setDescExpanded((v) => !v)}
+                aria-expanded={descExpanded}
+              >
+                {descExpanded ? t("eventDetail.readLess") : t("eventDetail.readMore")}
+              </button>
+            )}
+            <SuggestEditButton
+              targetType="event"
+              targetId={data.event.id}
+              targetName={data.event.title}
+            />
+          </div>
         </div>
       )}
 
@@ -1147,7 +1148,11 @@ export function EventDetailClient({
       {/* Community comments */}
       <CommentsSection
         eventId={data.event.id}
-        seriesName={data.series ? data.event.title : undefined}
+        seriesName={
+          data.event.schedule_kind !== "single" || (data.series?.siblingCount ?? 1) > 1
+            ? (data.series ? data.event.title : undefined)
+            : undefined
+        }
         scheduleKind={data.event.schedule_kind}
         singleEndAt={data.event.single_end_at}
       />

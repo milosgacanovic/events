@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Påmindelser inden begivenheder starter",
   "notifyMe.dialog.save": "Gem alarm",
   "notifyMe.dialog.cancel": "Annuller",
-  "comments.title": "Fællesskab",
+  "comments.title": "Kommentarer",
   "comments.seriesNote": "Diskussion delt på tværs af alle datoer for {name}.",
-  "comments.placeholder": "Del dine tanker, stil et spørgsmål, eller fortæl andre at du kommer...",
+  "comments.placeholder": "Del dine tanker eller stil et spørgsmål...",
   "comments.loginToComment": "Log ind for at skrive en kommentar",
   "comments.loginHint": "Du skal logge ind for at skrive.",
   "comments.post": "Send",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Læreruddannelse",
   "tag.trauma-informed": "Traumainformeret",
   "tag.wheelchair-friendly": "Kørestolsvenlig",
-  "tag.women's-circle": "Kvindecirkel"
+  "tag.women's-circle": "Kvindecirkel",
+  "common.delete": "Slet",
+  "profile.savedSearches.confirmDeleteTitle": "Slet gemt søgning?",
+  "profile.savedSearches.confirmDeleteBody": "Du modtager ikke længere meddelelser for denne søgning.",
+  "profile.comments.statusPending": "afventer",
+  "profile.comments.statusApproved": "godkendt",
+  "profile.comments.statusRejected": "afvist",
+  "manage.admin.moderation.byModerator": "af {name}"
 }

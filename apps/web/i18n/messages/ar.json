@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "تذكيرات قبل بدء الفعاليات",
   "notifyMe.dialog.save": "حفظ التنبيه",
   "notifyMe.dialog.cancel": "إلغاء",
-  "comments.title": "المجتمع",
+  "comments.title": "التعليقات",
   "comments.seriesNote": "نقاش مشترك عبر جميع مواعيد {name}.",
-  "comments.placeholder": "شارك أفكارك، اطرح سؤالاً، أو أخبر الآخرين بحضورك...",
+  "comments.placeholder": "شارك أفكارك أو اطرح سؤالاً...",
   "comments.loginToComment": "سجّل الدخول لترك تعليق",
   "comments.loginHint": "يجب تسجيل الدخول للنشر.",
   "comments.post": "نشر",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "تدريب المعلمين",
   "tag.trauma-informed": "مراعٍ للصدمات",
   "tag.wheelchair-friendly": "مناسب للكراسي المتحركة",
-  "tag.women's-circle": "حلقة نساء"
+  "tag.women's-circle": "حلقة نساء",
+  "common.delete": "حذف",
+  "profile.savedSearches.confirmDeleteTitle": "حذف البحث المحفوظ؟",
+  "profile.savedSearches.confirmDeleteBody": "لن تتلقى إشعارات لهذا البحث بعد الآن.",
+  "profile.comments.statusPending": "قيد الانتظار",
+  "profile.comments.statusApproved": "موافق عليه",
+  "profile.comments.statusRejected": "مرفوض",
+  "manage.admin.moderation.byModerator": "بواسطة {name}"
 }

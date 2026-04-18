@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "Pengingat sebelum acara dimulai",
   "notifyMe.dialog.save": "Simpan notifikasi",
   "notifyMe.dialog.cancel": "Batal",
-  "comments.title": "Komunitas",
+  "comments.title": "Komentar",
   "comments.seriesNote": "Diskusi berlaku untuk semua tanggal {name}.",
-  "comments.placeholder": "Bagikan pemikiranmu, ajukan pertanyaan, atau beri tahu yang lain bahwa kamu akan datang...",
+  "comments.placeholder": "Bagikan pikiran Anda atau ajukan pertanyaan...",
   "comments.loginToComment": "Masuk untuk berkomentar",
   "comments.loginHint": "Kamu perlu masuk untuk memposting.",
   "comments.post": "Kirim",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "Pelatihan guru",
   "tag.trauma-informed": "Sadar trauma",
   "tag.wheelchair-friendly": "Ramah kursi roda",
-  "tag.women's-circle": "Lingkaran wanita"
+  "tag.women's-circle": "Lingkaran wanita",
+  "common.delete": "Hapus",
+  "profile.savedSearches.confirmDeleteTitle": "Hapus pencarian tersimpan?",
+  "profile.savedSearches.confirmDeleteBody": "Anda tidak akan menerima notifikasi untuk pencarian ini lagi.",
+  "profile.comments.statusPending": "tertunda",
+  "profile.comments.statusApproved": "disetujui",
+  "profile.comments.statusRejected": "ditolak",
+  "manage.admin.moderation.byModerator": "oleh {name}"
 }

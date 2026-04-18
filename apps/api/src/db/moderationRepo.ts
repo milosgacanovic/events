@@ -129,6 +129,10 @@ export async function listModerationItems(
       c.body ilike $${idx} or cu.display_name ilike $${idx}
       or es.body ilike $${idx} or esu.display_name ilike $${idx}
       or r.detail ilike $${idx} or ru.display_name ilike $${idx}
+      or ce.title ilike $${idx}
+      or ese.title ilike $${idx}
+      or re.title ilike $${idx}
+      or ro.name ilike $${idx}
     )`);
   }
   if (input.targetType) {
@@ -198,10 +202,14 @@ export async function listModerationItems(
        from moderation_queue mq
        left join comments c on mq.item_type = 'comment' and c.id = mq.item_id
        left join users cu on cu.id = c.user_id
+       left join events ce on ce.id = c.event_id
        left join edit_suggestions es on mq.item_type = 'edit_suggestion' and es.id = mq.item_id
        left join users esu on esu.id = es.user_id
+       left join events ese on es.target_type = 'event' and ese.id = es.target_id
        left join reports r on mq.item_type = 'report' and r.id = mq.item_id
        left join users ru on ru.id = r.user_id
+       left join events re on r.target_type = 'event' and re.id = r.target_id::uuid
+       left join organizers ro on r.target_type = 'organizer' and ro.id = r.target_id::uuid
        ${whereClause}`,
       values,
     ),

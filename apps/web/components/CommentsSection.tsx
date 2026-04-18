@@ -8,7 +8,6 @@ import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 import { useToast } from "./ToastProvider";
 import { LoginPromptDialog } from "./LoginPromptDialog";
-import { ReportModal } from "./ReportModal";
 
 type Comment = {
   id: string;
@@ -48,7 +47,6 @@ export function CommentsSection({ eventId, seriesName, singleEndAt, scheduleKind
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [reportCommentId, setReportCommentId] = useState<string | null>(null);
 
   // Fetch approved comments
   useEffect(() => {
@@ -134,18 +132,20 @@ export function CommentsSection({ eventId, seriesName, singleEndAt, scheduleKind
         <p className="muted">{t("comments.readOnly")}</p>
       ) : (
         <div className="comments-post">
-          <textarea
-            className="comments-textarea"
-            value={body}
-            onChange={(e) => setBody(e.target.value.slice(0, MAX_CHARS))}
-            placeholder={auth.authenticated ? t("comments.placeholder") : t("comments.loginToComment")}
-            rows={3}
-            maxLength={MAX_CHARS}
-          />
-          <div className="comments-post-footer">
-            <span className="muted comments-char-count">
+          <div className="comments-textarea-wrap">
+            <textarea
+              className="comments-textarea"
+              value={body}
+              onChange={(e) => setBody(e.target.value.slice(0, MAX_CHARS))}
+              placeholder={auth.authenticated ? t("comments.placeholder") : t("comments.loginToComment")}
+              rows={3}
+              maxLength={MAX_CHARS}
+            />
+            <span className="comments-char-count-inside">
               {body.length}/{MAX_CHARS}
             </span>
+          </div>
+          <div className="comments-post-footer">
             <button
               className="primary-btn"
               type="button"
@@ -173,13 +173,6 @@ export function CommentsSection({ eventId, seriesName, singleEndAt, scheduleKind
                 <span className="muted">{relativeTime(c.createdAt)}</span>
               </div>
               <p className="comments-item-body">{c.body}</p>
-              <button
-                type="button"
-                className="comments-report-link"
-                onClick={() => setReportCommentId(c.id)}
-              >
-                {t("comments.report")}
-              </button>
             </li>
           ))}
         </ul>
@@ -191,15 +184,6 @@ export function CommentsSection({ eventId, seriesName, singleEndAt, scheduleKind
           onLogin={handleLogin}
           onRegister={handleRegister}
           onClose={() => setShowLogin(false)}
-        />
-      )}
-
-      {reportCommentId && (
-        <ReportModal
-          targetType="comment"
-          targetId={reportCommentId}
-          onClose={() => setReportCommentId(null)}
-          onReported={() => setReportCommentId(null)}
         />
       )}
     </div>

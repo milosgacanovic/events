@@ -300,9 +300,9 @@
   "notifyMe.dialog.notifyReminders": "कार्यक्रम शुरू होने से पहले अनुस्मारक",
   "notifyMe.dialog.save": "अलर्ट सहेजें",
   "notifyMe.dialog.cancel": "रद्द करें",
-  "comments.title": "समुदाय",
+  "comments.title": "टिप्पणियाँ",
   "comments.seriesNote": "{name} की सभी तिथियों में साझा चर्चा।",
-  "comments.placeholder": "अपने विचार साझा करें, कोई सवाल पूछें, या बताएँ कि आप आ रहे हैं...",
+  "comments.placeholder": "अपने विचार साझा करें या प्रश्न पूछें...",
   "comments.loginToComment": "टिप्पणी करने के लिए लॉग इन करें",
   "comments.loginHint": "पोस्ट करने के लिए आपको लॉग इन करना होगा।",
   "comments.post": "पोस्ट करें",
@@ -1322,5 +1322,12 @@
   "tag.teacher-training": "शिक्षक प्रशिक्षण",
   "tag.trauma-informed": "आघात-जागरूक",
   "tag.wheelchair-friendly": "व्हीलचेयर अनुकूल",
-  "tag.women's-circle": "महिला सर्कल"
+  "tag.women's-circle": "महिला सर्कल",
+  "common.delete": "हटाएँ",
+  "profile.savedSearches.confirmDeleteTitle": "सहेजी गई खोज हटाएँ?",
+  "profile.savedSearches.confirmDeleteBody": "अब आपको इस खोज के लिए सूचनाएँ नहीं मिलेंगी।",
+  "profile.comments.statusPending": "लंबित",
+  "profile.comments.statusApproved": "स्वीकृत",
+  "profile.comments.statusRejected": "अस्वीकृत",
+  "manage.admin.moderation.byModerator": "{name} द्वारा"
 }
