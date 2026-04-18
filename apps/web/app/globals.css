@@ -676,8 +676,14 @@ main:has(.manage-main--wide) {
   flex: 1;
 }
 
-.modal-action-danger {
-  color: #b00020;
+.secondary-btn.modal-action-danger {
+  color: #ffffff;
+  background: #c53030;
+  border-color: #c53030;
+}
+.secondary-btn.modal-action-danger:hover {
+  background: #9b2424;
+  border-color: #9b2424;
 }
 
 .login-prompt-actions {
