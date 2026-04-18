@@ -1177,14 +1177,14 @@ export function EventDetailClient({
               ) : null}
               <span className="event-detail-meta-value">
                 {data.defaultLocation?.city && !data.defaultLocation.city.includes(',') && data.defaultLocation?.country_code ? (
-                  <Link href={`/events?city=${encodeURIComponent(data.defaultLocation.city.toLowerCase())}&countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit", textDecoration: "none" }}>{data.defaultLocation.city}</Link>
+                  <Link href={`/events?city=${encodeURIComponent(data.defaultLocation.city.toLowerCase())}&countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit" }}>{data.defaultLocation.city}</Link>
                 ) : !data.defaultLocation?.formatted_address ? (
                   data.defaultLocation?.city ?? t("eventDetail.locationTbd")
                 ) : null}
               </span>
               {data.defaultLocation?.country_code && (
                 <span className="event-detail-meta-value" style={{ color: "var(--muted)" }}>
-                  <Link href={`/events?countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit", textDecoration: "none" }}>{getCountryLabel(data.defaultLocation.country_code)}</Link>
+                  <Link href={`/events?countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit" }}>{getCountryLabel(data.defaultLocation.country_code)}</Link>
                 </span>
               )}
             </>

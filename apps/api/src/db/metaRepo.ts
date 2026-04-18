@@ -11,19 +11,18 @@ export async function listCitySuggestions(
   const result = await pool.query<{ city: string; count: string }>(
     `
       select
-        lower(eo.city) as city,
+        lower(es.city) as city,
         count(*)::text as count
-      from event_occurrences eo
-      join events e on e.id = eo.event_id
-      where e.status = 'published'
-        and eo.starts_at_utc >= now()
-        and eo.city is not null
-        and eo.city <> ''
-        and ($1 = '' or lower(eo.city) like $1 || '%')
-        and ($2 = '' or lower(eo.country_code) = $2)
-        and (cardinality($4::text[]) = 0 or lower(eo.city) <> all($4::text[]))
-      group by lower(eo.city)
-      order by count(*) desc, lower(eo.city) asc
+      from event_series es
+      where es.visibility = 'public'
+        and es.upcoming_count > 0
+        and es.city is not null
+        and es.city <> ''
+        and ($1 = '' or lower(es.city) like $1 || '%')
+        and ($2 = '' or lower(es.country_code) = $2)
+        and (cardinality($4::text[]) = 0 or lower(es.city) <> all($4::text[]))
+      group by lower(es.city)
+      order by count(*) desc, lower(es.city) asc
       limit $3
     `,
     [query, countryCode, input.limit, excluded],
@@ -41,12 +40,11 @@ export async function listTagSuggestions(
   const result = await pool.query<{ tag: string; display: string | null; count: string }>(
     `
       with usage as (
-        select lower(t.tag) as tag, count(*)::text as count
-        from event_occurrences eo
-        join events e on e.id = eo.event_id
-        cross join unnest(e.tags) as t(tag)
-        where eo.starts_at_utc >= now() and e.status = 'published'
-        group by lower(t.tag)
+        select lower(tag) as tag, count(*)::text as count
+        from event_series es
+        cross join unnest(es.tags) as tag
+        where es.visibility = 'public' and es.upcoming_count > 0
+        group by lower(tag)
       )
       select t.tag, t.display, coalesce(u.count, '0') as count
       from tags t

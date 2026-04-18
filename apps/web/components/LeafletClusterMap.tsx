@@ -140,6 +140,7 @@ export function LeafletClusterMap({
   const { t } = useI18n();
   const router = useRouter();
   const mapRef = useRef<LeafletMap | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -243,6 +244,17 @@ export function LeafletClusterMap({
     const timer = setTimeout(() => setLeavingMarkers([]), 550);
     return () => clearTimeout(timer);
   }, [leavingMarkers]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    const shell = shellRef.current;
+    if (!shell || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      mapRef.current?.invalidateSize();
+    });
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [mapReady]);
 
   const markers = useMemo(
     () =>
@@ -355,7 +367,7 @@ export function LeafletClusterMap({
   );
 
   return (
-    <div className="map-shell">
+    <div className="map-shell" ref={shellRef}>
       <MapContainer
         center={[20, 0]}
         zoom={2}
