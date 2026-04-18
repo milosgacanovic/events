@@ -298,8 +298,6 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <h1 className="manage-page-title">{t("manage.admin.users.title")}</h1>
-
       {/* Filter bar */}
       <div className="manage-filter-bar">
         <div className="manage-filter-row">

@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
-import { useI18n } from "../../../../components/i18n/I18nProvider";
-import { authorizedGet } from "../../../../lib/manageApi";
+import { useKeycloakAuth } from "../../../../../components/auth/KeycloakAuthProvider";
+import { useI18n } from "../../../../../components/i18n/I18nProvider";
+import { authorizedGet } from "../../../../../lib/manageApi";
 
 type Stats = {
   total: number;
@@ -65,9 +65,6 @@ export default function AdminReferralsPage() {
 
   return (
     <div>
-      <h1 className="manage-page-title">{t("manage.admin.referrals.title")}</h1>
-
-      {/* Stats cards */}
       {stats && (
         <div className="manage-cards-grid" style={{ marginBottom: 24 }}>
           <div className="manage-stat-card">
@@ -85,7 +82,6 @@ export default function AdminReferralsPage() {
         </div>
       )}
 
-      {/* Search filters */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <input
           type="text"
@@ -146,7 +142,6 @@ export default function AdminReferralsPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="manage-pagination" style={{ marginTop: 12 }}>
             {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>{t("manage.common.previous")}</button>}
             {referrals.length === pageSize && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>{t("manage.common.next")}</button>}

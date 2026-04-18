@@ -3910,3 +3910,59 @@ img[loading="lazy"] {
     font-size: 0.82rem;
   }
 }
+
+/* Subsubmenu — nested admin nav, visually similar to .manage-submenu but
+   slightly darker to signal hierarchy. Used by /manage/admin/config,
+   /manage/admin/moderation, /manage/admin/logs layouts. */
+.manage-subsubmenu {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--border, #e0e0e0);
+  background: color-mix(in srgb, var(--surface, #f8f8f8) 85%, var(--ink, #333) 5%);
+  padding: 0 16px;
+  margin: 0 0 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.manage-subsubmenu::-webkit-scrollbar {
+  display: none;
+}
+
+.manage-subsubmenu-link {
+  display: block;
+  padding: 8px 12px;
+  color: var(--ink, #333);
+  text-decoration: none;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.manage-subsubmenu-link:hover {
+  color: var(--accent, #1a73e8);
+}
+
+.manage-subsubmenu-link.active {
+  color: var(--accent, #1a73e8);
+  font-weight: 600;
+  border-bottom-color: var(--accent, #1a73e8);
+}
+
+.manage-subsubmenu-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border, #e0e0e0);
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+@media (max-width: 768px) {
+  .manage-subsubmenu-link {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+}

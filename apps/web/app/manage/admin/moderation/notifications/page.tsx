@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
-import { useI18n } from "../../../../components/i18n/I18nProvider";
-import { authorizedGet, authorizedPatch } from "../../../../lib/manageApi";
+import { useKeycloakAuth } from "../../../../../components/auth/KeycloakAuthProvider";
+import { useI18n } from "../../../../../components/i18n/I18nProvider";
+import { authorizedGet, authorizedPatch } from "../../../../../lib/manageApi";
 
 type Overview = {
   totalAlerts: number;
@@ -73,9 +73,6 @@ export default function AdminNotificationsPage() {
 
   return (
     <div>
-      <h1 className="manage-page-title">{t("manage.admin.notifications.title")}</h1>
-
-      {/* Overview stats */}
       {overview && (
         <div className="manage-cards-grid" style={{ marginBottom: 24 }}>
           <div className="manage-stat-card">
@@ -93,7 +90,6 @@ export default function AdminNotificationsPage() {
         </div>
       )}
 
-      {/* Filters */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <input
           type="text"
@@ -180,7 +176,6 @@ export default function AdminNotificationsPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="manage-pagination" style={{ marginTop: 12 }}>
             {page > 1 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p - 1)}>{t("manage.common.previous")}</button>}
             {alerts.length === 20 && <button type="button" className="secondary-btn" onClick={() => setPage((p) => p + 1)}>{t("manage.common.next")}</button>}

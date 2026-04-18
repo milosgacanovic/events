@@ -65,18 +65,12 @@ export function ManageSubmenu({
           <Link href="/manage/admin/users" className={linkClass("/manage/admin/users")}>
             {t("manage.sidebar.users")}
           </Link>
-          <Link href="/manage/admin/taxonomies" className={linkClass("/manage/admin/taxonomies")}>
-            {t("manage.sidebar.taxonomies")}
+          <Link href="/manage/admin/config" className={linkClass("/manage/admin/config")}>
+            {t("manage.sidebar.config")}
           </Link>
           <Link href="/manage/admin/moderation" className={linkClass("/manage/admin/moderation")}>
             {t("manage.sidebar.moderation")}
             {moderationPending > 0 ? ` (${moderationPending})` : ""}
-          </Link>
-          <Link href="/manage/admin/notifications" className={linkClass("/manage/admin/notifications")}>
-            {t("manage.sidebar.notifications")}
-          </Link>
-          <Link href="/manage/admin/referrals" className={linkClass("/manage/admin/referrals")}>
-            {t("manage.sidebar.referrals")}
           </Link>
           <Link href="/manage/admin/logs" className={linkClass("/manage/admin/logs")}>
             {t("manage.sidebar.activityLogs")}

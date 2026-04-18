@@ -20,42 +20,36 @@ type TaxonomyResponse = {
   eventFormats?: Array<TaxItem>;
 };
 
-export default function AdminTaxonomiesPage() {
+export type TaxonomyTab = "practices" | "formats" | "roles" | "labels";
+
+export function TaxonomyContent({ tab }: { tab: TaxonomyTab }) {
   const { getToken } = useKeycloakAuth();
   const { t } = useI18n();
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(null);
-  const [tab, setTab] = useState<"practices" | "formats" | "roles" | "labels">("practices");
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
 
-  // Practice form
   const [practiceLevel, setPracticeLevel] = useState<"1" | "2">("1");
   const [practiceParentId, setPracticeParentId] = useState("");
   const [practiceLabel, setPracticeLabel] = useState("");
   const [practiceKey, setPracticeKey] = useState("");
 
-  // Role form
   const [roleKey, setRoleKey] = useState("");
   const [roleLabel, setRoleLabel] = useState("");
 
-  // Format form
   const [formatKey, setFormatKey] = useState("");
   const [formatLabel, setFormatLabel] = useState("");
 
-  // Labels form
   const [catSingular, setCatSingular] = useState("");
   const [catPlural, setCatPlural] = useState("");
 
-  // Inline edit
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
 
-  // Delete confirmation dialog
   const [deleteTarget, setDeleteTarget] = useState<{ endpoint: string; id: string; label: string } | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
 
-  // Drag state
   const [dragEndpoint, setDragEndpoint] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -206,7 +200,6 @@ export default function AdminTaxonomiesPage() {
   async function handleDragDrop(endpoint: string, items: TaxItem[], fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex) return;
 
-    // Build new sort order array: move item from fromIndex to toIndex
     const reordered = [...items];
     const [moved] = reordered.splice(fromIndex, 1);
     reordered.splice(toIndex, 0, moved);
@@ -318,21 +311,6 @@ export default function AdminTaxonomiesPage() {
 
   return (
     <div>
-      <h1 className="manage-page-title">{t("manage.admin.taxonomies.title")}</h1>
-
-      <div className="manage-tab-bar">
-        {(["practices", "formats", "roles", "labels"] as const).map((tabKey) => (
-          <button
-            key={tabKey}
-            type="button"
-            className={tab === tabKey ? "primary-btn" : "secondary-btn"}
-            onClick={() => setTab(tabKey)}
-          >
-            {tabKey === "practices" ? t("manage.admin.taxonomies.dancePractices") : tabKey === "formats" ? t("manage.admin.taxonomies.eventFormats") : tabKey === "roles" ? t("manage.admin.taxonomies.hostRoles") : t("manage.admin.taxonomies.uiLabels")}
-          </button>
-        ))}
-      </div>
-
       {tab === "practices" && (
         <div>
           <h2 className="manage-section-heading">{t("manage.admin.taxonomies.existing", { type: t("manage.admin.taxonomies.dancePractices") })}</h2>
@@ -439,7 +417,6 @@ export default function AdminTaxonomiesPage() {
 
       {status && <div className="meta" style={{ padding: "8px 0" }}>{status}</div>}
 
-      {/* Delete confirmation dialog */}
       <dialog ref={deleteDialogRef} className="manage-dialog">
         {deleteTarget && (
           <>
