@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { setPendingAction } from "../lib/pendingAction";
@@ -33,6 +33,26 @@ export function SaveEventButton({
   const [loading, setLoading] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showScopeMenu, setShowScopeMenu] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showScopeMenu) return;
+    function onPointerDown(e: MouseEvent | TouchEvent) {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) setShowScopeMenu(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowScopeMenu(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [showScopeMenu]);
 
   // Fetch initial save status
   useEffect(() => {
@@ -113,9 +133,9 @@ export function SaveEventButton({
       return;
     }
 
-    // For recurring events, show scope menu on first save
+    // For recurring events, toggle the scope menu (open on first click, close on second)
     if (isRecurring && !saved) {
-      setShowScopeMenu(true);
+      setShowScopeMenu((v) => !v);
       return;
     }
 
@@ -170,12 +190,13 @@ export function SaveEventButton({
   }
 
   return (
-    <div className="save-button-wrap">
+    <div className="save-button-wrap" ref={wrapRef}>
       <button
         type="button"
         className={`save-button${saved ? " save-button--saved" : ""}`}
         onClick={handleClick}
         disabled={loading}
+        aria-expanded={showScopeMenu}
       >
         {heartIcon}
         <span>{saved ? t("save.saved") : t("save.save")}</span>

@@ -1054,10 +1054,35 @@ export function EventDetailClient({
           isRecurring={data.event.schedule_kind === "recurring" || (data.series?.siblingCount ?? 1) > 1}
           occurrenceId={highlightedOccurrenceId ?? undefined}
         />
-        <RsvpButton
-          eventId={data.event.id}
-          occurrenceId={highlightedOccurrenceId ?? undefined}
-        />
+        {(() => {
+          const isSeriesView =
+            data.event.schedule_kind !== "single" ||
+            (data.series?.siblingCount ?? 1) > 1;
+          const selected = data.occurrences.upcoming.find(
+            (o) => o.id === highlightedOccurrenceId,
+          );
+          const hoverLabel = isSeriesView && selected
+            ? formatDateTimeRange(
+                selected.starts_at_utc,
+                selected.ends_at_utc,
+                data.event.event_timezone,
+                timeDisplayMode,
+              ).primary
+            : null;
+          return (
+            <div className="event-detail-rsvp-wrap">
+              <RsvpButton
+                eventId={data.event.id}
+                occurrenceId={highlightedOccurrenceId ?? undefined}
+              />
+              {hoverLabel && (
+                <span className="event-detail-rsvp-date meta" aria-hidden="true">
+                  {hoverLabel}
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Metadata grid */}

@@ -2086,6 +2086,24 @@ label.meta {
   padding: 10px 0;
 }
 
+.event-detail-rsvp-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.event-detail-rsvp-date {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.event-detail-rsvp-wrap:hover .event-detail-rsvp-date,
+.event-detail-rsvp-wrap:focus-within .event-detail-rsvp-date {
+  opacity: 1;
+}
+
 .save-button-wrap {
   position: relative;
 }
