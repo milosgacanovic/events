@@ -62,16 +62,33 @@ export async function getRsvpStatus(
   pool: Pool,
   userId: string,
   eventId: string,
-): Promise<{ going: boolean; occurrenceId: string | null }> {
+  occurrenceId?: string | null,
+): Promise<{ going: boolean; occurrenceId: string | null; occurrenceIds: string[] }> {
   const result = await pool.query<RsvpRow>(
     `SELECT ${RSVP_COLUMNS} FROM event_rsvps
-     WHERE user_id = $1 AND event_id = $2 LIMIT 1`,
+     WHERE user_id = $1 AND event_id = $2`,
     [userId, eventId],
   );
-  if (result.rows.length === 0) {
-    return { going: false, occurrenceId: null };
+  const rows = result.rows;
+  const occurrenceIds = rows
+    .map((row) => row.occurrence_id)
+    .filter((id): id is string => typeof id === "string");
+  if (rows.length === 0) {
+    return { going: false, occurrenceId: null, occurrenceIds };
   }
-  return { going: true, occurrenceId: result.rows[0].occurrence_id };
+  if (occurrenceId) {
+    const match = rows.find((row) => row.occurrence_id === occurrenceId);
+    return {
+      going: !!match,
+      occurrenceId: match ? match.occurrence_id : null,
+      occurrenceIds,
+    };
+  }
+  return {
+    going: true,
+    occurrenceId: rows[0].occurrence_id,
+    occurrenceIds,
+  };
 }
 
 export async function getRsvpCount(

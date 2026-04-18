@@ -74,8 +74,9 @@ const rsvpRoutes: FastifyPluginAsync = async (app) => {
     if (!auth?.sub) throw app.httpErrors.unauthorized("invalid_subject");
 
     const { eventId } = request.params as { eventId: string };
+    const query = request.query as { occurrenceId?: string };
     const userId = await resolveUserId(app.db, auth);
-    return getRsvpStatus(app.db, userId, eventId);
+    return getRsvpStatus(app.db, userId, eventId, query.occurrenceId || undefined);
   });
 
   // Public RSVP count for an event

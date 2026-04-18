@@ -49,8 +49,9 @@ export function RsvpButton({ eventId, occurrenceId }: Props) {
       try {
         const token = await auth.getToken();
         if (!token || !active) return;
+        const qs = occurrenceId ? `?occurrenceId=${occurrenceId}` : "";
         const res = await fetchJson<{ going: boolean }>(
-          `/events/${eventId}/rsvp-status`,
+          `/events/${eventId}/rsvp-status${qs}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
         if (active) setGoing(res.going);
@@ -59,10 +60,34 @@ export function RsvpButton({ eventId, occurrenceId }: Props) {
       }
     })();
     return () => { active = false; };
-  }, [auth.ready, auth.authenticated, auth.getToken, eventId]);
+  }, [auth.ready, auth.authenticated, auth.getToken, eventId, occurrenceId]);
 
-  // Listen for pending-rsvp custom event from PendingActionExecutor
+  // Refetch status + count when another component toggles an RSVP for this event
+  // (e.g. the inline per-row button on the event detail page).
   useEffect(() => {
+    async function refetch() {
+      try {
+        const qs = occurrenceId ? `?occurrenceId=${occurrenceId}` : "";
+        const countRes = await fetchJson<{ count: number }>(
+          `/events/${eventId}/rsvp-count${qs}`,
+        );
+        setCount(countRes.count);
+        if (!auth.authenticated) return;
+        const token = await auth.getToken();
+        if (!token) return;
+        const statusRes = await fetchJson<{ going: boolean }>(
+          `/events/${eventId}/rsvp-status${qs}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        setGoing(statusRes.going);
+      } catch {
+        // soft fail
+      }
+    }
+    function onChanged(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.eventId === eventId) void refetch();
+    }
     function onPendingRsvp(e: Event) {
       const detail = (e as CustomEvent).detail;
       if (detail?.eventId === eventId) {
@@ -71,8 +96,12 @@ export function RsvpButton({ eventId, occurrenceId }: Props) {
       }
     }
     window.addEventListener("dr:pending-rsvp", onPendingRsvp);
-    return () => window.removeEventListener("dr:pending-rsvp", onPendingRsvp);
-  }, [eventId]);
+    window.addEventListener("dr:rsvp-changed", onChanged);
+    return () => {
+      window.removeEventListener("dr:pending-rsvp", onPendingRsvp);
+      window.removeEventListener("dr:rsvp-changed", onChanged);
+    };
+  }, [eventId, occurrenceId, auth]);
 
   const doRsvp = useCallback(async () => {
     setLoading(true);

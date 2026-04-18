@@ -15,10 +15,12 @@ import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 import { SaveEventButton } from "./SaveEventButton";
 import { RsvpButton } from "./RsvpButton";
+import { LoginPromptDialog } from "./LoginPromptDialog";
 import { CommentsSection } from "./CommentsSection";
 import { SuggestEditButton } from "./SuggestEditButton";
 import { RecommendButton } from "./RecommendButton";
 import { ReportButton } from "./ReportButton";
+import { setPendingAction } from "../lib/pendingAction";
 import { pushDataLayer } from "../lib/gtm";
 
 const SHORTENER_BLOCKLIST = new Set([
@@ -89,6 +91,90 @@ function getBookingDomain(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+function RowRsvpButton({
+  eventId,
+  occurrenceId,
+  isGoing,
+  onToggled,
+}: {
+  eventId: string;
+  occurrenceId: string;
+  isGoing: boolean;
+  onToggled: () => void;
+}) {
+  const auth = useKeycloakAuth();
+  const { t } = useI18n();
+  const [loading, setLoading] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+
+  async function handleClick(e: React.MouseEvent | React.KeyboardEvent) {
+    e.stopPropagation();
+    if (!auth.authenticated) {
+      setShowLogin(true);
+      return;
+    }
+    setLoading(true);
+    try {
+      const token = await auth.getToken();
+      if (!token) return;
+      if (isGoing) {
+        await fetchJson(`/profile/rsvps/${eventId}?occurrenceId=${occurrenceId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        await fetchJson(`/profile/rsvps`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ eventId, occurrenceId }),
+        });
+      }
+      onToggled();
+      window.dispatchEvent(new CustomEvent("dr:rsvp-changed", { detail: { eventId } }));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleLogin() {
+    setShowLogin(false);
+    setPendingAction({ action: "rsvp_event", payload: { eventId } });
+    auth.login();
+  }
+
+  function handleRegister() {
+    setShowLogin(false);
+    setPendingAction({ action: "rsvp_event", payload: { eventId } });
+    auth.register();
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`event-detail-occurrence-rsvp${isGoing ? " event-detail-occurrence-rsvp--going" : ""}`}
+        onClick={handleClick}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); }}
+        disabled={loading}
+        aria-pressed={isGoing}
+      >
+        {isGoing ? `\u2713 ${t("rsvp.going")}` : t("rsvp.imGoing")}
+      </button>
+      {showLogin && (
+        <LoginPromptDialog
+          featureKey="rsvp"
+          onLogin={handleLogin}
+          onRegister={handleRegister}
+          onClose={() => setShowLogin(false)}
+        />
+      )}
+    </>
+  );
 }
 
 export type TaxonomyResponse = {
@@ -356,6 +442,7 @@ export function EventDetailClient({
   const [copied, setCopied] = useState(false);
   const [upcomingExpanded, setUpcomingExpanded] = useState(false);
   const [userSelectedOccurrenceId, setUserSelectedOccurrenceId] = useState<string | null>(null);
+  const [goingOccurrenceIds, setGoingOccurrenceIds] = useState<Set<string>>(new Set());
   const calRef = useRef<HTMLDivElement>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
@@ -368,6 +455,47 @@ export function EventDetailClient({
   const highlightedOccurrenceId = userSelectedOccurrenceId ?? defaultHighlightedOccurrenceId;
 
   useEffect(() => { setUserSelectedOccurrenceId(null); }, [slug]);
+
+  const eventIdForRsvp = data?.event?.id ?? null;
+  const refreshRsvpSet = useCallback(async () => {
+    if (!auth.ready || !auth.authenticated || !eventIdForRsvp) {
+      setGoingOccurrenceIds(new Set());
+      return;
+    }
+    try {
+      const token = await auth.getToken();
+      if (!token) return;
+      const res = await fetchJson<{ occurrenceIds: string[] }>(
+        `/events/${eventIdForRsvp}/rsvp-status`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setGoingOccurrenceIds(new Set(res.occurrenceIds ?? []));
+    } catch {
+      // soft fail
+    }
+  }, [auth.ready, auth.authenticated, auth.getToken, eventIdForRsvp]);
+
+  useEffect(() => { void refreshRsvpSet(); }, [refreshRsvpSet]);
+
+  useEffect(() => {
+    function onChanged(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (eventIdForRsvp && detail?.eventId === eventIdForRsvp) void refreshRsvpSet();
+    }
+    window.addEventListener("dr:rsvp-changed", onChanged);
+    return () => window.removeEventListener("dr:rsvp-changed", onChanged);
+  }, [eventIdForRsvp, refreshRsvpSet]);
+
+  const selectOccurrence = useCallback((id: string, startsAtUtc: string) => {
+    setUserSelectedOccurrenceId(id);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("date", startsAtUtc.slice(0, 10));
+      window.history.replaceState(null, "", url.toString());
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1224,27 +1352,35 @@ export function EventDetailClient({
                     const isHighlighted = item.id === highlightedOccurrenceId;
                     const isLastVisible = idx === visible.length - 1;
                     const applyFade = canExpand && isLastVisible;
+                    const isRsvpdHere = goingOccurrenceIds.has(item.id);
                     return (
                       <div
                         className={
                           "event-detail-occurrence"
                           + (isHighlighted ? " event-detail-occurrence--highlighted" : "")
                           + (applyFade ? " event-detail-occurrence--fade" : "")
+                          + (isRsvpdHere ? " event-detail-occurrence--going" : "")
                         }
                         key={item.id}
                         aria-current={isHighlighted ? "date" : undefined}
                         aria-pressed={isHighlighted}
-                        onClick={() => setUserSelectedOccurrenceId(item.id)}
+                        onClick={() => selectOccurrence(item.id, item.starts_at_utc)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            setUserSelectedOccurrenceId(item.id);
+                            selectOccurrence(item.id, item.starts_at_utc);
                           }
                         }}
                         role="button"
                         tabIndex={0}
                       >
                         <span className="meta">{formatted.primary}</span>
+                        <RowRsvpButton
+                          eventId={data.event.id}
+                          occurrenceId={item.id}
+                          isGoing={isRsvpdHere}
+                          onToggled={() => void refreshRsvpSet()}
+                        />
                       </div>
                     );
                   })}

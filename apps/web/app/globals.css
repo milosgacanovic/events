@@ -2614,6 +2614,52 @@ label.meta {
   padding: 6px 10px;
   background: var(--surface-alt);
   border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.event-detail-occurrence > .meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-detail-occurrence-rsvp {
+  flex: none;
+  padding: 3px 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid var(--line, #d0d7de);
+  background: transparent;
+  color: var(--muted, #6b7280);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.event-detail-occurrence:hover .event-detail-occurrence-rsvp,
+.event-detail-occurrence:focus-within .event-detail-occurrence-rsvp,
+.event-detail-occurrence-rsvp:focus-visible {
+  opacity: 1;
+}
+
+.event-detail-occurrence-rsvp:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.event-detail-occurrence-rsvp--going {
+  opacity: 1;
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.event-detail-occurrence-rsvp:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 /* Arrival from a date-filtered search/map (?date=YYYY-MM-DD). Briefly
