@@ -2345,11 +2345,9 @@ label.meta {
   justify-content: space-between;
 }
 .profile-comments-list .comments-item-info { flex: 1; min-width: 0; }
-.primary-btn.profile-comments-delete-btn {
+.profile-comments-delete-btn {
   flex-shrink: 0;
   align-self: flex-start;
-  font-size: 0.85rem;
-  padding: 4px 10px;
 }
 .comments-item-info {
   flex: 1;
