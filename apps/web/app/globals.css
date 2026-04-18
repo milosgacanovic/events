@@ -2549,13 +2549,35 @@ label.meta {
   margin: 0;
 }
 .event-detail-schedule,
-.event-detail-map-section {
+.event-detail-map-section,
+.event-detail-hosts-section {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--line);
 }
-.event-detail-schedule .event-detail-section + .event-detail-section {
-  margin-top: 1.5rem;
+.event-detail-schedule {
+  display: grid;
+  gap: 24px;
+}
+@media (min-width: 720px) {
+  .event-detail-schedule {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+.event-detail-schedule > .event-detail-section {
+  margin-top: 0;
+}
+
+.event-detail-upcoming-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.event-detail-upcoming-link:hover,
+.event-detail-upcoming-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .event-detail-desc-footer {

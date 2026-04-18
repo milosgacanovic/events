@@ -1002,7 +1002,18 @@ export function EventDetailClient({
           if (isSeries && upcomingCount > 1) {
             return (
               <div className="event-detail-cadence meta">
-                {t("eventDetail.nUpcomingDates", { count: upcomingCount })}
+                <a
+                  href="#event-detail-upcoming"
+                  className="event-detail-upcoming-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document
+                      .getElementById("event-detail-upcoming")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  {t("eventDetail.nUpcomingDates", { count: upcomingCount })}
+                </a>
               </div>
             );
           }
@@ -1316,7 +1327,7 @@ export function EventDetailClient({
 
       {/* Hosts */}
       {hosts.length > 0 && (
-        <div className="event-detail-section">
+        <div className="event-detail-section event-detail-hosts-section">
           <h2 className="event-detail-section-title">{hosts.length === 1 ? t("eventDetail.host") : t("eventDetail.hosts")}</h2>
           <div className="event-hosts-grid">
             {hosts.map((host) => (
@@ -1347,7 +1358,7 @@ export function EventDetailClient({
 
       {/* Schedule: shown for native recurring events OR imported series (siblingCount > 1) */}
       {(data.event.schedule_kind !== "single" || (data.series?.siblingCount ?? 1) > 1) && (
-        <div className="event-detail-schedule">
+        <div className="event-detail-schedule" id="event-detail-upcoming">
           <div className="event-detail-section">
             <h2 className="event-detail-section-title">{t("eventDetail.upcoming")}</h2>
             {data.occurrences.upcoming.length === 0 ? (
