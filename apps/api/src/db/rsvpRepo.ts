@@ -103,6 +103,7 @@ export type RsvpListItem = {
   event_slug: string;
   single_start_at: string | null;
   next_occurrence_start: string | null;
+  rsvp_occurrence_start: string | null;
   cover_image_path: string | null;
 };
 
@@ -128,11 +129,17 @@ export async function listUserRsvps(
          ORDER BY eo.starts_at_utc
          LIMIT 1
        ) AS next_occurrence_start,
+       (
+         SELECT eo.starts_at_utc
+         FROM event_occurrences eo
+         WHERE eo.id = r.occurrence_id
+       ) AS rsvp_occurrence_start,
        e.cover_image_path
      FROM event_rsvps r
      JOIN events e ON e.id = r.event_id
      WHERE r.user_id = $1
      ORDER BY COALESCE(
+       (SELECT eo3.starts_at_utc FROM event_occurrences eo3 WHERE eo3.id = r.occurrence_id),
        (SELECT eo2.starts_at_utc FROM event_occurrences eo2
         WHERE eo2.event_id = e.id AND eo2.starts_at_utc >= now() AND eo2.status = 'active'
         ORDER BY eo2.starts_at_utc LIMIT 1),

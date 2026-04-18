@@ -144,9 +144,12 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
           where r.user_id = u.id
             and exists (
               select 1 from event_occurrences eo
-              where eo.event_id = r.event_id
-                and eo.starts_at_utc >= now()
+              where eo.starts_at_utc >= now()
                 and eo.status = 'active'
+                and (
+                  (r.occurrence_id is not null and eo.id = r.occurrence_id)
+                  or (r.occurrence_id is null and eo.event_id = r.event_id)
+                )
             )
         ) as rsvp_count,
         (select count(*)::int from user_alerts where user_id = u.id and unsubscribed_at is null) as follow_count,

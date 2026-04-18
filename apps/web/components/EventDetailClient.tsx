@@ -355,15 +355,19 @@ export function EventDetailClient({
   const [shareExpanded, setShareExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [upcomingExpanded, setUpcomingExpanded] = useState(false);
+  const [userSelectedOccurrenceId, setUserSelectedOccurrenceId] = useState<string | null>(null);
   const calRef = useRef<HTMLDivElement>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
   // Resolve which occurrence is "the one" for this page view. Decides which
   // row anchors the collapsed list + gets the highlighted styling.
-  const highlightedOccurrenceId = useMemo(
+  const defaultHighlightedOccurrenceId = useMemo(
     () => resolveHighlightedId(data?.occurrences?.upcoming ?? [], targetDate, slug),
     [data?.occurrences?.upcoming, targetDate, slug],
   );
+  const highlightedOccurrenceId = userSelectedOccurrenceId ?? defaultHighlightedOccurrenceId;
+
+  useEffect(() => { setUserSelectedOccurrenceId(null); }, [slug]);
 
   useEffect(() => {
     let active = true;
@@ -1229,9 +1233,16 @@ export function EventDetailClient({
                         }
                         key={item.id}
                         aria-current={isHighlighted ? "date" : undefined}
-                        onClick={canExpand ? () => setUpcomingExpanded(true) : undefined}
-                        role={canExpand ? "button" : undefined}
-                        tabIndex={canExpand ? 0 : undefined}
+                        aria-pressed={isHighlighted}
+                        onClick={() => setUserSelectedOccurrenceId(item.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setUserSelectedOccurrenceId(item.id);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
                       >
                         <span className="meta">{formatted.primary}</span>
                       </div>

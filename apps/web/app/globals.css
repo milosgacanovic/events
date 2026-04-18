@@ -2634,6 +2634,17 @@ label.meta {
 
 .event-detail-occurrences--series .event-detail-occurrence[role="button"] {
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.event-detail-occurrences--series .event-detail-occurrence[role="button"]:hover,
+.event-detail-occurrences--series .event-detail-occurrence[role="button"]:focus-visible {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-alt));
+}
+
+.event-detail-occurrences--series .event-detail-occurrence[role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .event-detail-occurrences-expand {

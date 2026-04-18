@@ -15,6 +15,7 @@ type RsvpItem = {
   eventSlug: string;
   singleStartAt: string | null;
   nextOccurrenceStart: string | null;
+  rsvpOccurrenceStart: string | null;
   coverImagePath: string | null;
 };
 
@@ -68,12 +69,14 @@ export default function GoingTab() {
   }
 
   const now = Date.now();
+  const effectiveDate = (r: RsvpItem) =>
+    r.rsvpOccurrenceStart ?? r.nextOccurrenceStart ?? r.singleStartAt;
   const upcoming = items.filter((r) => {
-    const d = r.nextOccurrenceStart ?? r.singleStartAt;
+    const d = effectiveDate(r);
     return !d || new Date(d).getTime() >= now;
   });
   const past = items.filter((r) => {
-    const d = r.nextOccurrenceStart ?? r.singleStartAt;
+    const d = effectiveDate(r);
     return d && new Date(d).getTime() < now;
   });
 
@@ -90,12 +93,14 @@ export default function GoingTab() {
             {item.eventTitle}
           </a>
           <div className="meta">
-            {(item.nextOccurrenceStart ?? item.singleStartAt) &&
-              new Date(item.nextOccurrenceStart ?? item.singleStartAt!).toLocaleDateString(undefined, {
+            {(() => {
+              const d = item.rsvpOccurrenceStart ?? item.nextOccurrenceStart ?? item.singleStartAt;
+              return d ? new Date(d).toLocaleDateString(undefined, {
                 weekday: "short",
                 month: "short",
                 day: "numeric",
-              })}
+              }) : null;
+            })()}
           </div>
           {isPast && (
             <a href={`/events/${item.eventSlug}#comments`} className="meta" style={{ fontSize: "0.8rem", marginTop: 4, display: "inline-block" }}>

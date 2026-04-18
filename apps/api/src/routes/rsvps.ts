@@ -105,6 +105,7 @@ const rsvpRoutes: FastifyPluginAsync = async (app) => {
         eventSlug: row.event_slug,
         singleStartAt: row.single_start_at,
         nextOccurrenceStart: row.next_occurrence_start,
+        rsvpOccurrenceStart: row.rsvp_occurrence_start,
         coverImagePath: row.cover_image_path,
       })),
     };
