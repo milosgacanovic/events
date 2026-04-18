@@ -102,7 +102,7 @@ export default function CommentsTab() {
           {!isRejected(comment.status) && (
             <button
               type="button"
-              className="secondary-btn profile-comments-delete-btn"
+              className="primary-btn profile-comments-delete-btn"
               onClick={() => void remove(comment.eventId, comment.id)}
             >
               {t("profile.comments.delete")}
