@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
+import { SubsubmenuPortal } from "../../../../components/manage/SubsubmenuPortal";
 import { authorizedGet } from "../../../../lib/manageApi";
 
 type CountResponse = { pagination: { totalItems: number } };
@@ -22,7 +23,7 @@ export default function LogsLayout({ children }: { children: React.ReactNode }) 
     (async () => {
       try {
         const [a, e] = await Promise.all([
-          authorizedGet<CountResponse>(getToken, "/admin/activity-logs?pageSize=1"),
+          authorizedGet<CountResponse>(getToken, "/admin/activity-logs?pageSize=1&excludeServiceAccounts=true"),
           authorizedGet<CountResponse>(getToken, "/admin/error-logs?pageSize=1"),
         ]);
         if (!cancelled) {
@@ -40,14 +41,16 @@ export default function LogsLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <>
-      <nav className="manage-subsubmenu">
-        <Link href="/manage/admin/logs/activity" className={linkClass("/manage/admin/logs/activity")}>
-          {t("manage.admin.logs.activityLog")}{activityTotal !== null ? ` (${activityTotal})` : ""}
-        </Link>
-        <Link href="/manage/admin/logs/errors" className={linkClass("/manage/admin/logs/errors")}>
-          {t("manage.admin.logs.errorLog")}{errorTotal !== null ? ` (${errorTotal})` : ""}
-        </Link>
-      </nav>
+      <SubsubmenuPortal>
+        <nav className="manage-subsubmenu">
+          <Link href="/manage/admin/logs/activity" className={linkClass("/manage/admin/logs/activity")}>
+            {t("manage.admin.logs.activityLog")}{activityTotal !== null ? ` (${activityTotal})` : ""}
+          </Link>
+          <Link href="/manage/admin/logs/errors" className={linkClass("/manage/admin/logs/errors")}>
+            {t("manage.admin.logs.errorLog")}{errorTotal !== null ? ` (${errorTotal})` : ""}
+          </Link>
+        </nav>
+      </SubsubmenuPortal>
       {children}
     </>
   );

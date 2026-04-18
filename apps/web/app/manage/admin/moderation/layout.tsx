@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
+import { SubsubmenuPortal } from "../../../../components/manage/SubsubmenuPortal";
 import { authorizedGet } from "../../../../lib/manageApi";
 
 type ModerationStats = Record<string, Record<string, number>>;
@@ -37,6 +38,7 @@ export default function ModerationLayout({ children }: { children: React.ReactNo
 
   return (
     <>
+      <SubsubmenuPortal>
       <nav className="manage-subsubmenu">
         <Link href="/manage/admin/moderation/comments" className={linkClass("/manage/admin/moderation/comments")}>
           {t("manage.admin.moderation.comments")}{pending("comment") > 0 ? ` (${pending("comment")})` : ""}
@@ -61,6 +63,7 @@ export default function ModerationLayout({ children }: { children: React.ReactNo
           {t("manage.sidebar.referrals")}
         </Link>
       </nav>
+      </SubsubmenuPortal>
       {children}
     </>
   );

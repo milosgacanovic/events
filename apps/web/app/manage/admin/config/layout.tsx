@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useI18n } from "../../../../components/i18n/I18nProvider";
+import { SubsubmenuPortal } from "../../../../components/manage/SubsubmenuPortal";
 
 export default function ConfigLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -21,12 +22,14 @@ export default function ConfigLayout({ children }: { children: React.ReactNode }
 
   return (
     <>
-      <nav className="manage-subsubmenu">
-        {link("/manage/admin/config/dance-practices", t("manage.admin.taxonomies.dancePractices"))}
-        {link("/manage/admin/config/event-formats", t("manage.admin.taxonomies.eventFormats"))}
-        {link("/manage/admin/config/host-roles", t("manage.admin.taxonomies.hostRoles"))}
-        {link("/manage/admin/config/ui-labels", t("manage.admin.taxonomies.uiLabels"))}
-      </nav>
+      <SubsubmenuPortal>
+        <nav className="manage-subsubmenu">
+          {link("/manage/admin/config/dance-practices", t("manage.admin.taxonomies.dancePractices"))}
+          {link("/manage/admin/config/event-formats", t("manage.admin.taxonomies.eventFormats"))}
+          {link("/manage/admin/config/host-roles", t("manage.admin.taxonomies.hostRoles"))}
+          {link("/manage/admin/config/ui-labels", t("manage.admin.taxonomies.uiLabels"))}
+        </nav>
+      </SubsubmenuPortal>
       {children}
     </>
   );

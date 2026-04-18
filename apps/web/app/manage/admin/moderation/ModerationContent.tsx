@@ -148,14 +148,6 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
 
   return (
     <div>
-      {tab === "comment" && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-          <button type="button" className="secondary-btn" onClick={openSettings}>
-            {t("manage.admin.moderation.settings")}
-          </button>
-        </div>
-      )}
-
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input
           type="text"
@@ -176,6 +168,11 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
             </button>
           ))}
         </div>
+        {tab === "comment" && (
+          <button type="button" className="secondary-btn" style={{ marginLeft: "auto" }} onClick={openSettings}>
+            {t("manage.admin.moderation.settings")}
+          </button>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>

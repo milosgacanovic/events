@@ -59,6 +59,7 @@ export default function ManageLayout({ children }: { children: React.ReactNode }
   return (
     <div className="manage-layout">
       <ManageSubmenu isAdmin={isAdmin} />
+      <div id="manage-subsubmenu-slot" />
       <div className={`manage-main${wide ? " manage-main--wide" : ""}`}>
         {children}
       </div>
