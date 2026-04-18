@@ -1399,18 +1399,22 @@ export function EventDetailClient({
                         }
                         key={item.id}
                         aria-current={isHighlighted ? "date" : undefined}
-                        aria-pressed={isHighlighted}
-                        onClick={() => selectOccurrence(item.id, item.starts_at_utc)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            selectOccurrence(item.id, item.starts_at_utc);
-                          }
-                        }}
-                        role="button"
-                        tabIndex={0}
                       >
-                        <span className="meta">{formatted.primary}</span>
+                        <span
+                          className="meta event-detail-occurrence-date"
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={isHighlighted}
+                          onClick={() => selectOccurrence(item.id, item.starts_at_utc)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              selectOccurrence(item.id, item.starts_at_utc);
+                            }
+                          }}
+                        >
+                          {formatted.primary}
+                        </span>
                         <RowRsvpButton
                           eventId={data.event.id}
                           occurrenceId={item.id}

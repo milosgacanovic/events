@@ -2718,19 +2718,22 @@ label.meta {
   cursor: pointer;
 }
 
-.event-detail-occurrences--series .event-detail-occurrence[role="button"] {
+.event-detail-occurrence-date {
   cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  margin: -2px -4px;
   transition: background-color 0.15s ease;
 }
 
-.event-detail-occurrences--series .event-detail-occurrence[role="button"]:hover,
-.event-detail-occurrences--series .event-detail-occurrence[role="button"]:focus-visible {
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface-alt));
+.event-detail-occurrence-date:hover,
+.event-detail-occurrence-date:focus-visible {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  outline: none;
 }
 
-.event-detail-occurrences--series .event-detail-occurrence[role="button"]:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.event-detail-occurrence-date:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .event-detail-occurrences-expand {
