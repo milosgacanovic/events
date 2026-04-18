@@ -1372,15 +1372,7 @@ export function EventDetailClient({
               <div className="meta">{t("eventDetail.noUpcoming")}</div>
             ) : (() => {
               const upcoming = data.occurrences.upcoming;
-              // Collapsed view: start at the highlighted occurrence and show up
-              // to 3 rows after it (highlighted + next two). Full list when expanded.
-              const highlightedIdx = highlightedOccurrenceId
-                ? upcoming.findIndex((o) => o.id === highlightedOccurrenceId)
-                : 0;
-              const startIdx = Math.max(0, highlightedIdx);
-              const visible = upcomingExpanded
-                ? upcoming
-                : upcoming.slice(startIdx, startIdx + 3);
+              const visible = upcomingExpanded ? upcoming : upcoming.slice(0, 3);
               const hiddenCount = upcoming.length - visible.length;
               const canExpand = !upcomingExpanded && hiddenCount > 0;
 
