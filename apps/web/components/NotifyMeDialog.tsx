@@ -55,11 +55,12 @@ export function NotifyMeDialog({ filterSnapshot, filterSummary, onClose, onSaved
 
   return (
     <ModalPortal onClose={onClose}>
-        <button className="modal-close" type="button" onClick={onClose} aria-label="Close">
-          &times;
-        </button>
-
-        <h2 className="modal-title">{t("notifyMe.dialog.title")}</h2>
+        <div className="modal-header">
+          <h2 className="modal-title">{t("notifyMe.dialog.title")}</h2>
+          <button className="modal-close" type="button" onClick={onClose} aria-label="Close">
+            &times;
+          </button>
+        </div>
         <p className="muted">{t("notifyMe.dialog.description")}</p>
 
         <div className="notify-me-filters-summary">

@@ -648,12 +648,14 @@ main:has(.manage-main--wide) {
 
 .modal-select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 8px 36px 8px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--surface) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='none' stroke='%23777' stroke-width='1.5' d='M1 1 L6 6 L11 1'/></svg>") no-repeat right 14px center;
   color: var(--ink);
   font-size: 1rem;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .modal-error {
@@ -2335,6 +2337,20 @@ label.meta {
   border-radius: 8px;
   background: var(--surface);
 }
+
+.profile-comments-list .comments-item {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  justify-content: space-between;
+}
+.profile-comments-list .comments-item-info { flex: 1; min-width: 0; }
+.profile-comments-delete-btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+}
 .comments-item-info {
   flex: 1;
   min-width: 0;
@@ -2541,7 +2557,9 @@ label.meta {
 .filters-notify-row {
   padding: 12px 0 8px;
   border-top: 1px solid var(--line);
-  margin-top: 8px;
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
 }
 
 .event-detail-desc {

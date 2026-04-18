@@ -131,7 +131,7 @@ export default function SearchAlertsTab() {
                   <div className="alerts-item-controls-row">
                     <select
                       className="modal-select"
-                      style={{ width: "auto", fontSize: "0.9rem", padding: "4px 8px" }}
+                      style={{ width: "auto", fontSize: "0.9rem", padding: "4px 24px 4px 8px" }}
                       value={search.frequency}
                       onChange={(e) => void updateSearch(search.id, { frequency: e.target.value })}
                     >
@@ -165,7 +165,7 @@ export default function SearchAlertsTab() {
                     )}
                   </div>
                 </div>
-                <div className="alerts-item-actions" style={{ display: "flex", gap: 6, flexDirection: "column" }}>
+                <div className="alerts-item-actions" style={{ display: "flex", gap: 6 }}>
                   <button className="primary-btn" type="button" onClick={() => void updateSearch(search.id, { paused: !search.unsubscribedAt })}>
                     {search.unsubscribedAt ? t("profile.savedSearches.resume") : t("profile.savedSearches.pause")}
                   </button>

@@ -81,7 +81,7 @@ export default function CommentsTab() {
   }
 
   return (
-    <ul className="comments-list">
+    <ul className="comments-list profile-comments-list">
       {items.map((comment) => (
         <li key={comment.id} className="comments-item">
           <div className="comments-item-info">
@@ -100,7 +100,11 @@ export default function CommentsTab() {
             )}
           </div>
           {!isRejected(comment.status) && (
-            <button type="button" className="primary-btn" onClick={() => void remove(comment.eventId, comment.id)}>
+            <button
+              type="button"
+              className="secondary-btn profile-comments-delete-btn"
+              onClick={() => void remove(comment.eventId, comment.id)}
+            >
               {t("profile.comments.delete")}
             </button>
           )}
