@@ -2345,7 +2345,7 @@ label.meta {
   justify-content: space-between;
 }
 .profile-comments-list .comments-item-info { flex: 1; min-width: 0; }
-.profile-comments-delete-btn {
+.secondary-btn.profile-comments-delete-btn {
   flex-shrink: 0;
   align-self: flex-start;
   font-size: 0.85rem;
@@ -2561,6 +2561,7 @@ label.meta {
   display: flex;
   justify-content: center;
 }
+.filters-notify-row .notify-me-btn { margin-left: 0; }
 
 .event-detail-desc {
   line-height: 1.7;
