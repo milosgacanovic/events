@@ -479,7 +479,7 @@
   "profile.title": "프로필",
   "profile.loading": "프로필 불러오는 중...",
   "profile.loginRequired": "프로필을 보려면 로그인하세요.",
-  "profile.tabs.savedEvents": "Saved Events",
+  "profile.tabs.savedEvents": "Saved",
   "profile.tabs.rsvps": "Going",
   "profile.tabs.following": "Following",
   "profile.tabs.alerts": "Event alerts",

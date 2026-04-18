@@ -479,7 +479,7 @@
   "profile.title": "个人资料",
   "profile.loading": "加载个人资料中...",
   "profile.loginRequired": "请登录以查看您的个人资料。",
-  "profile.tabs.savedEvents": "Saved Events",
+  "profile.tabs.savedEvents": "Saved",
   "profile.tabs.rsvps": "Going",
   "profile.tabs.following": "Following",
   "profile.tabs.alerts": "Event alerts",

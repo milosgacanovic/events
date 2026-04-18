@@ -479,7 +479,7 @@
   "profile.title": "โปรไฟล์",
   "profile.loading": "กำลังโหลดโปรไฟล์...",
   "profile.loginRequired": "กรุณาเข้าสู่ระบบเพื่อดูโปรไฟล์ของคุณ",
-  "profile.tabs.savedEvents": "Saved Events",
+  "profile.tabs.savedEvents": "Saved",
   "profile.tabs.rsvps": "Going",
   "profile.tabs.following": "Following",
   "profile.tabs.alerts": "Event alerts",

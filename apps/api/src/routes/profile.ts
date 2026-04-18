@@ -127,21 +127,26 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
       comment_count: string;
     }>(
       `select
-        (select count(*)::int from saved_events where user_id = u.id) as save_count,
+        (
+          select count(*)::int
+          from saved_events s
+          where s.user_id = u.id
+            and exists (
+              select 1 from event_occurrences eo
+              where eo.event_id = s.event_id
+                and eo.starts_at_utc >= now()
+                and eo.status = 'active'
+            )
+        ) as save_count,
         (
           select count(*)::int
           from event_rsvps r
-          join events e on e.id = r.event_id
           where r.user_id = u.id
-            and (
-              exists (
-                select 1 from event_occurrences eo
-                where eo.event_id = e.id
-                  and eo.starts_at_utc >= now()
-                  and eo.status = 'active'
-              )
-              or e.single_start_at is null
-              or e.single_start_at >= now()
+            and exists (
+              select 1 from event_occurrences eo
+              where eo.event_id = r.event_id
+                and eo.starts_at_utc >= now()
+                and eo.status = 'active'
             )
         ) as rsvp_count,
         (select count(*)::int from user_alerts where user_id = u.id and unsubscribed_at is null) as follow_count,

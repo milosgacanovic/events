@@ -479,7 +479,7 @@
   "profile.title": "プロフィール",
   "profile.loading": "プロフィールを読み込んでいます...",
   "profile.loginRequired": "プロフィールを表示するにはログインしてください。",
-  "profile.tabs.savedEvents": "Saved Events",
+  "profile.tabs.savedEvents": "Saved",
   "profile.tabs.rsvps": "Going",
   "profile.tabs.following": "Following",
   "profile.tabs.alerts": "Event alerts",

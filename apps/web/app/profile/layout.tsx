@@ -18,8 +18,8 @@ type ProfileCounts = {
 const TABS = [
   { href: "/profile/account", key: "account", countKey: null },
   { href: "/profile/saved", key: "savedEvents", countKey: "saves" as const },
-  { href: "/profile/alerts", key: "alerts", countKey: null },
   { href: "/profile/going", key: "rsvps", countKey: "rsvps" as const },
+  { href: "/profile/alerts", key: "alerts", countKey: null },
   { href: "/profile/following", key: "following", countKey: "follows" as const },
   { href: "/profile/comments", key: "comments", countKey: "comments" as const },
   { href: "/profile/notifications", key: "notifications", countKey: null },

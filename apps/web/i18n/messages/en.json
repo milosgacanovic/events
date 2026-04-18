@@ -479,7 +479,7 @@
   "profile.title": "Profile",
   "profile.loading": "Loading profile...",
   "profile.loginRequired": "Please log in to view your profile.",
-  "profile.tabs.savedEvents": "Saved Events",
+  "profile.tabs.savedEvents": "Saved",
   "profile.tabs.rsvps": "Going",
   "profile.tabs.following": "Following",
   "profile.tabs.alerts": "Event alerts",
