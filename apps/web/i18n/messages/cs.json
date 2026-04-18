@@ -424,6 +424,8 @@
   "profile.comments.title": "Me komentare",
   "profile.comments.empty": "Jeste jste nenapsal zadny komentar.",
   "profile.comments.delete": "Smazat",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Your alerts",
   "profile.alerts.empty": "Zatim nikoho nesledujete.",

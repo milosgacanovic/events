@@ -424,6 +424,8 @@
   "profile.comments.title": "Moje komentare",
   "profile.comments.empty": "Este ste nenapusali ziaden komentar.",
   "profile.comments.delete": "Zmazat",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Your alerts",
   "profile.alerts.empty": "Zatial nikoho nesledujete.",

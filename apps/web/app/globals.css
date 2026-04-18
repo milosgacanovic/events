@@ -3795,12 +3795,11 @@ label.meta {
 
 /* Top-bar filter-chips row — slide down when first chip added */
 @keyframes chips-row-appear {
-  from { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; }
-  to   { opacity: 1; max-height: 80px; }
+  from { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; overflow: hidden; }
+  to   { opacity: 1; max-height: 600px; }
 }
 .filter-chips {
   animation: chips-row-appear 200ms ease both;
-  overflow: hidden;
 }
 
 /* Loading overlay for stale card results */

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useKeycloakAuth } from "../../../components/auth/KeycloakAuthProvider";
+import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { useI18n } from "../../../components/i18n/I18nProvider";
 import { apiBase } from "../../../lib/api";
 
@@ -21,6 +22,7 @@ export default function CommentsTab() {
   const { t } = useI18n();
   const [items, setItems] = useState<UserCommentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<{ eventId: string; commentId: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,13 +105,23 @@ export default function CommentsTab() {
             <button
               type="button"
               className="primary-btn profile-comments-delete-btn"
-              onClick={() => void remove(comment.eventId, comment.id)}
+              onClick={() => setPendingDelete({ eventId: comment.eventId, commentId: comment.id })}
             >
               {t("profile.comments.delete")}
             </button>
           )}
         </li>
       ))}
+      {pendingDelete && (
+        <ConfirmDialog
+          title={t("profile.comments.confirmDeleteTitle")}
+          message={t("profile.comments.confirmDeleteBody")}
+          confirmLabel={t("profile.comments.delete")}
+          danger
+          onConfirm={() => void remove(pendingDelete.eventId, pendingDelete.commentId)}
+          onClose={() => setPendingDelete(null)}
+        />
+      )}
     </ul>
   );
 }

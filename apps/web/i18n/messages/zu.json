@@ -424,6 +424,8 @@
   "profile.comments.title": "Amazwana ami",
   "profile.comments.empty": "Awukaphosti mazwana okwamanje.",
   "profile.comments.delete": "Susa",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Your alerts",
   "profile.alerts.empty": "Awukalandeli bahleli okwamanje.",

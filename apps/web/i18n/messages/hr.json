@@ -424,6 +424,8 @@
   "profile.comments.title": "Moji komentari",
   "profile.comments.empty": "Niste jos napisali nijedan komentar.",
   "profile.comments.delete": "Obrisi",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Your alerts",
   "profile.alerts.empty": "Ne pratite jos nijednog organizatora.",

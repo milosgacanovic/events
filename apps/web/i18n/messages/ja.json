@@ -424,6 +424,8 @@
   "profile.comments.title": "マイコメント",
   "profile.comments.empty": "まだコメントを投稿していません。",
   "profile.comments.delete": "削除",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Your alerts",
   "profile.alerts.empty": "まだホストをフォローしていません。",

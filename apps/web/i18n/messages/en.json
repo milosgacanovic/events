@@ -424,6 +424,8 @@
   "profile.comments.title": "My comments",
   "profile.comments.empty": "You haven't posted any comments yet.",
   "profile.comments.delete": "Delete",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Followed hosts",
   "profile.alerts.empty": "You're not following any hosts yet.",

@@ -424,6 +424,8 @@
   "profile.comments.title": "내 댓글",
   "profile.comments.empty": "아직 작성한 댓글이 없어요.",
   "profile.comments.delete": "삭제",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Your alerts",
   "profile.alerts.empty": "아직 팔로우 중인 호스트가 없어요.",

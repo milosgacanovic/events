@@ -424,6 +424,8 @@
   "profile.comments.title": "मेरी टिप्पणियाँ",
   "profile.comments.empty": "आपने अभी तक कोई टिप्पणी नहीं की है।",
   "profile.comments.delete": "हटाएँ",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Your alerts",
   "profile.alerts.empty": "आप अभी तक किसी आयोजक को फ़ॉलो नहीं कर रहे।",

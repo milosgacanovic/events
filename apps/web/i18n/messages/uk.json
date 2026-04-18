@@ -424,6 +424,8 @@
   "profile.comments.title": "Мої коментарі",
   "profile.comments.empty": "Ви ще не залишали коментарів.",
   "profile.comments.delete": "Видалити",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Your alerts",
   "profile.alerts.empty": "Ви ще ні на кого не підписані.",

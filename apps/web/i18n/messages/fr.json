@@ -424,6 +424,8 @@
   "profile.comments.title": "Mes commentaires",
   "profile.comments.empty": "Vous n'avez encore publié aucun commentaire.",
   "profile.comments.delete": "Supprimer",
+  "profile.comments.confirmDeleteTitle": "Delete comment?",
+  "profile.comments.confirmDeleteBody": "This can't be undone.",
   "profile.comments.removedByModerator": "This comment was removed by a moderator.",
   "profile.alerts.title": "Your alerts",
   "profile.alerts.empty": "Vous ne suivez encore aucun organisateur.",
