@@ -33,10 +33,10 @@ import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 import {
   EVENT_DATE_PRESETS,
-  type EventDatePreset,
   parseEventDatePresets,
   resolveSafeTimeZone,
 } from "../utils/eventDatePresets";
+import { buildSeriesMeiliFilters } from "../utils/seriesFilters";
 
 const searchQuerySchema = z.object({
   q: z.string().optional(),
@@ -171,104 +171,6 @@ function resolveCoverImagePath(input: { coverImagePath?: string | null; coverIma
   return input.coverImagePath;
 }
 
-
-/**
- * Meili filter set for the series index.
- *   - Inequalities and sort use `earliest_upcoming_ts`.
- *   - Date-range presets filter on the precomputed `event_date_buckets`
- *     attribute — the exact same attribute whose facet distribution drives
- *     the preset-chip counts, so chip count === filter count by construction.
- */
-function buildSeriesMeiliFilters(input: {
-  fromUtc: string;
-  toUtc: string;
-  practiceCategoryIds?: string[];
-  practiceSubcategoryId?: string;
-  eventFormatIds?: string[];
-  tags: string[];
-  languages: string[];
-  attendanceModes?: string[];
-  organizerId?: string;
-  countryCodes?: string[];
-  cities?: string[];
-  hasGeo?: boolean;
-  geoLat?: number;
-  geoLng?: number;
-  geoRadius?: number;
-  selectedEventDatePresets: EventDatePreset[];
-}): string[] {
-  const filters: string[] = [];
-
-  // Primary date window: always constrain earliest_upcoming_ts to the search
-  // horizon so past-only series (no upcoming dates) are excluded when the
-  // caller wants future-only results.
-  filters.push(`earliest_upcoming_ts >= ${Date.parse(input.fromUtc)}`);
-  filters.push(`earliest_upcoming_ts <= ${Date.parse(input.toUtc)}`);
-
-  // Preset refinement (e.g. "today", "this_weekend") uses the precomputed
-  // UTC-anchored `event_date_buckets` attribute directly. That attribute is
-  // also what backs the facet count shown in the chip — filtering by it
-  // guarantees the chip number matches the result count exactly.
-  if (input.selectedEventDatePresets.length > 0) {
-    const presetClauses = input.selectedEventDatePresets
-      .map((p) => `event_date_buckets = ${JSON.stringify(p)}`)
-      .join(" OR ");
-    filters.push(`(${presetClauses})`);
-  }
-
-  if (input.practiceCategoryIds?.length === 1) {
-    filters.push(`practice_category_id = ${JSON.stringify(input.practiceCategoryIds[0])}`);
-  } else if (input.practiceCategoryIds && input.practiceCategoryIds.length > 1) {
-    filters.push(`(${input.practiceCategoryIds.map((v) => `practice_category_id = ${JSON.stringify(v)}`).join(" OR ")})`);
-  }
-  if (input.practiceSubcategoryId) {
-    filters.push(`practice_subcategory_id = ${JSON.stringify(input.practiceSubcategoryId)}`);
-  }
-  if (input.eventFormatIds?.length === 1) {
-    filters.push(`event_format_id = ${JSON.stringify(input.eventFormatIds[0])}`);
-  } else if (input.eventFormatIds && input.eventFormatIds.length > 1) {
-    filters.push(`(${input.eventFormatIds.map((v) => `event_format_id = ${JSON.stringify(v)}`).join(" OR ")})`);
-  }
-  if (input.tags.length === 1) {
-    filters.push(`tags = ${JSON.stringify(input.tags[0])}`);
-  } else if (input.tags.length > 1) {
-    filters.push(`(${input.tags.map((t) => `tags = ${JSON.stringify(t)}`).join(" OR ")})`);
-  }
-  if (input.languages.length === 1) {
-    filters.push(`languages = ${JSON.stringify(input.languages[0])}`);
-  } else if (input.languages.length > 1) {
-    filters.push(`(${input.languages.map((l) => `languages = ${JSON.stringify(l)}`).join(" OR ")})`);
-  }
-  if (input.attendanceModes?.length === 1) {
-    filters.push(`attendance_mode = ${JSON.stringify(input.attendanceModes[0])}`);
-  } else if (input.attendanceModes && input.attendanceModes.length > 1) {
-    filters.push(`(${input.attendanceModes.map((m) => `attendance_mode = ${JSON.stringify(m)}`).join(" OR ")})`);
-  }
-  if (input.organizerId) {
-    filters.push(`organizer_ids = ${JSON.stringify(input.organizerId)}`);
-  }
-  if (input.countryCodes?.length) {
-    const normalized = input.countryCodes.map((v) => v.trim().toLowerCase()).filter(Boolean);
-    if (normalized.length === 1) {
-      filters.push(`country_code = ${JSON.stringify(normalized[0])}`);
-    } else if (normalized.length > 1) {
-      filters.push(`(${normalized.map((v) => `country_code = ${JSON.stringify(v)}`).join(" OR ")})`);
-    }
-  }
-  if (input.cities?.length === 1) {
-    filters.push(`city = ${JSON.stringify(input.cities[0])}`);
-  } else if (input.cities && input.cities.length > 1) {
-    filters.push(`(${input.cities.map((v) => `city = ${JSON.stringify(v)}`).join(" OR ")})`);
-  }
-  if (typeof input.hasGeo === "boolean") {
-    filters.push(`has_geo = ${input.hasGeo}`);
-  }
-  if (input.geoLat !== undefined && input.geoLng !== undefined && input.geoRadius !== undefined) {
-    filters.push(`_geoRadius(${input.geoLat}, ${input.geoLng}, ${input.geoRadius})`);
-  }
-
-  return filters;
-}
 
 function hasScheduleShapeChanges(
   previous: {

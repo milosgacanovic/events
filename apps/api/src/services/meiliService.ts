@@ -187,6 +187,33 @@ export class MeilisearchService {
     }
   }
 
+  /**
+   * Single-query search against the series index. Used by the map route,
+   * which fetches up to `limit` series matching the viewport/filter set and
+   * runs supercluster on them client-side. The list route uses
+   * `multiSearchSeries` to bundle the main query with facet variants.
+   */
+  async searchSeries(query: {
+    q?: string;
+    filter?: string[];
+    sort?: string[];
+    limit?: number;
+    offset?: number;
+    attributesToRetrieve?: string[];
+  }): Promise<{ hits: SeriesDoc[]; estimatedTotalHits?: number }> {
+    const response = await this.client.index(SERIES_INDEX).search(query.q ?? "", {
+      filter: query.filter,
+      sort: query.sort,
+      limit: query.limit,
+      offset: query.offset,
+      attributesToRetrieve: query.attributesToRetrieve,
+    });
+    return {
+      hits: response.hits as unknown as SeriesDoc[],
+      estimatedTotalHits: (response as { estimatedTotalHits?: number }).estimatedTotalHits,
+    };
+  }
+
   async multiSearchSeries(
     queries: Array<{
       q?: string;

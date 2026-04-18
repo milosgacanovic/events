@@ -17,6 +17,7 @@ describe("map clusters route", () => {
   it("returns 400 for invalid bbox", async () => {
     const app = Fastify();
     app.decorate("db", {} as never);
+    app.decorate("meiliService", {} as never);
     await app.register(mapRoutes);
 
     const response = await app.inject({
@@ -39,7 +40,7 @@ describe("map clusters route", () => {
             geometry: { type: "Point", coordinates: [10, 20] },
             properties: {
               cluster: false,
-              occurrence_id: "occ_1",
+              occurrence_id: "series_1",
               event_slug: "sample-event",
             },
           },
@@ -50,6 +51,7 @@ describe("map clusters route", () => {
 
     const app = Fastify();
     app.decorate("db", {} as never);
+    app.decorate("meiliService", {} as never);
     await app.register(mapRoutes);
 
     const response = await app.inject({
@@ -65,7 +67,7 @@ describe("map clusters route", () => {
         {
           properties: {
             cluster: false,
-            occurrence_id: "occ_1",
+            occurrence_id: "series_1",
             event_slug: "sample-event",
           },
         },
@@ -82,6 +84,7 @@ describe("map clusters route", () => {
 
     const app = Fastify();
     app.decorate("db", {} as never);
+    app.decorate("meiliService", {} as never);
     await app.register(mapRoutes);
 
     const response = await app.inject({
@@ -94,7 +97,7 @@ describe("map clusters route", () => {
       expect.anything(),
       expect.objectContaining({
         q: "Berlin",
-        countryCode: "de",
+        countryCodes: ["de"],
         languages: ["en", "sr"],
         limit: 5000,
       }),

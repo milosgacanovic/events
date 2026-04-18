@@ -2,7 +2,41 @@ import Supercluster from "supercluster";
 import type { Pool } from "pg";
 import type { Feature, FeatureCollection, Point } from "geojson";
 
-import { fetchMapPoints, fetchOrganizerMapPoints, type MapFilterInput, type OrganizerMapFilterInput } from "../db/mapRepo";
+import { fetchOrganizerMapPoints, type OrganizerMapFilterInput } from "../db/mapRepo";
+import { buildSeriesMeiliFilters } from "../utils/seriesFilters";
+import type { EventDatePreset } from "../utils/eventDatePresets";
+import type { MeilisearchService } from "./meiliService";
+
+/**
+ * Map cluster inputs. Sourced from the Meili series index so map totals and
+ * /events/search totals stay identical for the same filter state — one hit
+ * per series regardless of occurrence count.
+ */
+export type MapFilterInput = {
+  q?: string;
+  fromUtc: string;
+  toUtc: string;
+  eventDatePresets: EventDatePreset[];
+  practiceCategoryIds: string[];
+  practiceSubcategoryId?: string;
+  tags: string[];
+  languages: string[];
+  attendanceModes: Array<"in_person" | "online" | "hybrid">;
+  eventFormatIds: string[];
+  organizerId?: string;
+  countryCodes: string[];
+  cities: string[];
+  geoLat?: number;
+  geoLng?: number;
+  geoRadius?: number;
+  bbox: {
+    west: number;
+    south: number;
+    east: number;
+    north: number;
+  };
+  limit: number;
+};
 
 type PointProps = {
   occurrence_id: string;
@@ -19,24 +53,70 @@ type OrganizerPointProps = {
 };
 
 export async function buildClusters(
-  pool: Pool,
+  meiliService: MeilisearchService,
   input: MapFilterInput & { zoom: number },
 ): Promise<{ collection: FeatureCollection; truncated: boolean }> {
-  const { points, truncated } = await fetchMapPoints(pool, input);
-  const features: Feature<Point, PointProps>[] = points.map((point) => ({
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: [point.lng, point.lat],
-    },
-    properties: {
-      occurrence_id: point.occurrence_id,
-      event_slug: point.event_slug,
-      event_title: point.event_title,
-      starts_at_utc: point.starts_at_utc,
-      event_timezone: point.event_timezone,
-    },
-  }));
+  const filters = buildSeriesMeiliFilters({
+    fromUtc: input.fromUtc,
+    toUtc: input.toUtc,
+    practiceCategoryIds: input.practiceCategoryIds,
+    practiceSubcategoryId: input.practiceSubcategoryId,
+    eventFormatIds: input.eventFormatIds,
+    tags: input.tags,
+    languages: input.languages,
+    attendanceModes: input.attendanceModes,
+    organizerId: input.organizerId,
+    countryCodes: input.countryCodes,
+    cities: input.cities,
+    hasGeo: true,
+    geoLat: input.geoLat,
+    geoLng: input.geoLng,
+    geoRadius: input.geoRadius,
+    bbox: input.bbox,
+    selectedEventDatePresets: input.eventDatePresets,
+  });
+  // Map is a public surface; don't leak unlisted series.
+  filters.push('visibility = "public"');
+
+  const { hits } = await meiliService.searchSeries({
+    q: input.q,
+    filter: filters,
+    limit: input.limit + 1,
+    attributesToRetrieve: [
+      "series_id",
+      "slug",
+      "title",
+      "_geo",
+      "earliest_upcoming_ts",
+      "event_timezone",
+    ],
+  });
+
+  const truncated = hits.length > input.limit;
+  const points = hits.slice(0, input.limit);
+
+  const features: Feature<Point, PointProps>[] = [];
+  for (const doc of points) {
+    if (!doc._geo) continue;
+    features.push({
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [doc._geo.lng, doc._geo.lat],
+      },
+      properties: {
+        // occurrence_id kept as the property name for frontend compat; the
+        // value is now the series_id (one pin per series).
+        occurrence_id: doc.series_id,
+        event_slug: doc.slug,
+        event_title: doc.title,
+        starts_at_utc: doc.earliest_upcoming_ts
+          ? new Date(doc.earliest_upcoming_ts).toISOString()
+          : new Date().toISOString(),
+        event_timezone: doc.event_timezone,
+      },
+    });
+  }
 
   if (input.zoom >= 13) {
     return {

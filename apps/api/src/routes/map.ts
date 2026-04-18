@@ -4,11 +4,7 @@ import { z } from "zod";
 
 import { buildClusters, buildOrganizerClusters } from "../services/mapClusterService";
 import { getSearchCache, setSearchCache } from "../services/searchCache";
-import {
-  buildEventDateRangeMap,
-  parseEventDatePresets,
-  resolveSafeTimeZone,
-} from "../utils/eventDatePresets";
+import { parseEventDatePresets } from "../utils/eventDatePresets";
 import { logValidation } from "../utils/validationError";
 
 const mapQuerySchema = z.object({
@@ -24,7 +20,6 @@ const mapQuerySchema = z.object({
   organizerId: z.string().uuid().optional(),
   countryCode: z.string().optional(),
   city: z.string().optional(),
-  hasGeo: z.enum(["true", "false"]).optional(),
   eventDate: z.string().optional(),
   includePast: z.enum(["true", "false"]).optional(),
   tz: z.string().optional(),
@@ -85,12 +80,9 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
 
     const now = DateTime.utc();
     const includePast = parsed.data.includePast === "true";
-    const from = parsed.data.from ?? (includePast ? now.minus({ years: 1 }).toISO()! : now.toISO()!);
-    const to = parsed.data.to ?? (includePast ? now.toISO()! : now.plus({ days: 90 }).toISO()!);
+    const fromUtc = parsed.data.from ?? (includePast ? "1970-01-01T00:00:00.000Z" : now.toISO()!);
+    const toUtc = parsed.data.to ?? now.plus({ days: 365 }).toISO()!;
     const eventDatePresets = parseEventDatePresets(parsed.data.eventDate);
-    const timezone = resolveSafeTimeZone(parsed.data.tz);
-    const dateRangeMap = buildEventDateRangeMap(timezone, now);
-    const selectedDateRanges = eventDatePresets.map((key) => dateRangeMap[key]);
 
     const tags = parseCsv(parsed.data.tags);
     const languages = parseCsv(parsed.data.languages);
@@ -113,28 +105,27 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       reply.code(400);
       return { error: "invalid_uuid_list" };
     }
+    const countryCodes = parseCsv(parsed.data.countryCode).map((value) => value.toLowerCase());
+    const cityFilters = parseCsv(parsed.data.city);
     const roundedBbox = bboxParts.map((value) => Number(value.toFixed(4)));
     const cacheKeyPayload = {
       q: parsed.data.q?.trim().toLowerCase() ?? null,
-      from,
-      to,
-      practiceCategoryId: parsed.data.practiceCategoryId ?? null,
-      practiceCategoryIds: practiceCategoryIds ?? [],
+      fromUtc,
+      toUtc,
+      practiceCategoryIds,
       practiceSubcategoryId: parsed.data.practiceSubcategoryId ?? null,
       tags,
       languages,
-      attendanceMode: attendanceModes.join(",") || null,
-      eventFormatIds: eventFormatIds ?? [],
+      attendanceModes,
+      eventFormatIds,
       includePast,
       organizerId: parsed.data.organizerId ?? null,
-      countryCode: parsed.data.countryCode ?? null,
-      city: parsed.data.city ?? null,
-      hasGeo: parsed.data.hasGeo ?? null,
+      countryCodes,
+      cities: cityFilters,
       geoLat: parsed.data.geoLat ?? null,
       geoLng: parsed.data.geoLng ?? null,
       geoRadius: parsed.data.geoRadius ?? null,
       eventDate: eventDatePresets,
-      tz: timezone,
       bbox: roundedBbox,
       zoom: parsed.data.zoom,
     };
@@ -145,21 +136,20 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
     }
     request.log.info({ msg: "search_cache_miss", scope: "map_clusters" });
 
-    const { collection, truncated } = await buildClusters(app.db, {
+    const { collection, truncated } = await buildClusters(app.meiliService, {
       q: parsed.data.q,
-      from,
-      to,
-      dateRanges: selectedDateRanges.length > 0 ? selectedDateRanges : undefined,
-      practiceCategoryIds: practiceCategoryIds ?? [],
+      fromUtc,
+      toUtc,
+      eventDatePresets,
+      practiceCategoryIds,
       practiceSubcategoryId: parsed.data.practiceSubcategoryId,
       tags,
       languages,
       attendanceModes,
-      eventFormatIds: eventFormatIds ?? [],
+      eventFormatIds,
       organizerId: parsed.data.organizerId,
-      countryCode: parsed.data.countryCode,
-      city: parsed.data.city,
-      hasGeo: parsed.data.hasGeo ? parsed.data.hasGeo === "true" : undefined,
+      countryCodes,
+      cities: cityFilters,
       geoLat: parsed.data.geoLat,
       geoLng: parsed.data.geoLng,
       geoRadius: parsed.data.geoRadius,
