@@ -657,6 +657,18 @@ export async function replaceOccurrencesInWindow(
   const isSingleEvent = scheduleResult.rows[0]?.schedule_kind === "single";
 
   if (isSingleEvent) {
+    // Snapshot RSVPs attached to the existing occurrences so we can reattach
+    // them by starts_at_utc after regeneration. Without this, the ON DELETE
+    // CASCADE on event_rsvps.occurrence_id silently drops users' RSVPs when a
+    // PATCH rewrites the occurrence.
+    const rsvpSnapshot = await pool.query<{ user_id: string; starts_at_utc: string; created_at: string }>(
+      `select r.user_id, eo.starts_at_utc::text as starts_at_utc, r.created_at::text as created_at
+       from event_rsvps r
+       join event_occurrences eo on eo.id = r.occurrence_id
+       where eo.event_id = $1`,
+      [eventId],
+    );
+
     // Single-series events must have at most one occurrence at any time.
     await pool.query(`delete from event_occurrences where event_id = $1`, [eventId]);
 
@@ -724,8 +736,32 @@ export async function replaceOccurrencesInWindow(
       `,
       [eventId],
     );
+
+    for (const snap of rsvpSnapshot.rows) {
+      await pool.query(
+        `insert into event_rsvps (user_id, event_id, occurrence_id, created_at)
+         select $1::uuid, $2::uuid, eo.id, $3::timestamptz
+         from event_occurrences eo
+         where eo.event_id = $2::uuid and eo.starts_at_utc = $4::timestamptz
+         on conflict (user_id, event_id, coalesce(occurrence_id, '00000000-0000-0000-0000-000000000000'))
+         do nothing`,
+        [snap.user_id, eventId, snap.created_at, snap.starts_at_utc],
+      );
+    }
     return;
   }
+
+  // Snapshot RSVPs for occurrences inside the window before we delete them,
+  // so they can be re-attached to the regenerated occurrences by starts_at_utc.
+  const rsvpSnapshot = await pool.query<{ user_id: string; starts_at_utc: string; created_at: string }>(
+    `select r.user_id, eo.starts_at_utc::text as starts_at_utc, r.created_at::text as created_at
+     from event_rsvps r
+     join event_occurrences eo on eo.id = r.occurrence_id
+     where eo.event_id = $1
+       and eo.starts_at_utc >= $2::timestamptz
+       and eo.starts_at_utc <= $3::timestamptz`,
+    [eventId, fromIso, toIso],
+  );
 
   await pool.query(
     `
@@ -776,6 +812,18 @@ export async function replaceOccurrencesInWindow(
         occurrence.lat,
         occurrence.lng,
       ],
+    );
+  }
+
+  for (const snap of rsvpSnapshot.rows) {
+    await pool.query(
+      `insert into event_rsvps (user_id, event_id, occurrence_id, created_at)
+       select $1::uuid, $2::uuid, eo.id, $3::timestamptz
+       from event_occurrences eo
+       where eo.event_id = $2::uuid and eo.starts_at_utc = $4::timestamptz
+       on conflict (user_id, event_id, coalesce(occurrence_id, '00000000-0000-0000-0000-000000000000'))
+       do nothing`,
+      [snap.user_id, eventId, snap.created_at, snap.starts_at_utc],
     );
   }
 }

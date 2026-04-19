@@ -3,6 +3,22 @@ import type { Pool } from "pg";
 import type { LocationRow } from "../types/domain";
 import { inferCountryCode } from "../utils/countryCode";
 
+// UK postcode pattern, anchored — rejects "London N6 6BA" style fragments that
+// importers have occasionally mis-routed into the city column.
+const UK_POSTCODE_RE = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/i;
+
+// Drop city values that are obviously not a city name — e.g. the venue label
+// itself, or a string containing a UK postcode. Prevents "Acland Burghley School
+// Sports Centre" or "London N6 6BA" from ending up in locations.city, which
+// breaks /events?city=london filtering.
+function sanitizeCity(city: string | null | undefined, label: string | null | undefined): string | null {
+  const trimmed = city?.trim();
+  if (!trimmed) return null;
+  if (UK_POSTCODE_RE.test(trimmed)) return null;
+  if (label && trimmed.toLowerCase() === label.trim().toLowerCase()) return null;
+  return trimmed;
+}
+
 export async function getLocationById(pool: Pool, id: string): Promise<LocationRow | null> {
   const result = await pool.query<LocationRow>(
     `
@@ -57,6 +73,7 @@ export async function createLocation(
   },
 ): Promise<LocationRow> {
   const resolvedCountryCode = inferCountryCode(input.countryCode ?? null, input.formattedAddress);
+  const sanitizedCity = sanitizeCity(input.city, input.label);
 
   const result = await pool.query<LocationRow>(
     `
@@ -75,7 +92,7 @@ export async function createLocation(
       input.label ?? null,
       input.formattedAddress,
       resolvedCountryCode,
-      input.city ?? null,
+      sanitizedCity,
       input.lng,
       input.lat,
     ],
@@ -97,6 +114,7 @@ export async function updateLocation(
   },
 ): Promise<void> {
   const resolvedCountryCode = inferCountryCode(input.countryCode ?? null, input.formattedAddress ?? "");
+  const sanitizedCity = sanitizeCity(input.city, input.label);
   await pool.query(
     `
       update locations set
@@ -112,7 +130,7 @@ export async function updateLocation(
       input.label ?? null,
       input.formattedAddress ?? null,
       resolvedCountryCode,
-      input.city ?? null,
+      sanitizedCity,
       input.lat ?? 0,
       input.lng ?? 0,
     ],

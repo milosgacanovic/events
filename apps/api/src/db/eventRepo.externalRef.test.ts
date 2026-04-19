@@ -95,7 +95,7 @@ describe("eventRepo external reference persistence", () => {
     );
 
     const sqlCalls = query.mock.calls.map((call) => String(call[0]));
-    expect(sqlCalls[1]).toContain("delete from event_occurrences where event_id = $1");
+    expect(sqlCalls.some((sql) => sql.includes("delete from event_occurrences where event_id = $1"))).toBe(true);
     expect(sqlCalls.some((sql) => sql.includes("and starts_at_utc >= $2::timestamptz"))).toBe(false);
     expect(sqlCalls.some((sql) => sql.includes("insert into event_occurrences"))).toBe(true);
     expect(sqlCalls.some((sql) => sql.includes("row_number() over"))).toBe(true);
