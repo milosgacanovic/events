@@ -76,7 +76,7 @@
 - Web UI uses ICU message catalogs with `intl-messageformat`.
 - Supported locales: 35 total, BCP-47 codes aligned with the Keycloak realm locales (ar, cs, da, de, el, en, es, fi, fr, he, hi, hr, hu, id, is, it, ja, ka, ko, nl, no, pl, pt, ro, ru, sk, sl, sr, sv, th, tr, uk, vi, zh, zu). Default: `en`.
 - Locale selection is stored in cookie `dr_locale` (Domain=.danceresource.org in prod) and can also be inferred from `Accept-Language` or the `?lang=xx` URL param.
-- The same cookie is consumed by www/wiki/sso so the user's language choice propagates across the ecosystem. On Keycloak redirect, `kc_locale` is appended to the authorization URL so the login page renders in the chosen language.
+- The same cookie is consumed by www/wiki/sso so the user's language choice propagates across the ecosystem. On Keycloak redirect, the OIDC-standard `ui_locales` parameter is appended to the authorization URL so the login page renders in the chosen language.
 
 ## Health
 - API: `/api/health`
