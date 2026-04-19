@@ -23,6 +23,7 @@ const WHEN_LABELS: Record<WhenPreset, string> = {
   tomorrow: "Tomorrow",
   this_weekend: "This weekend",
   this_week: "This week",
+  next_weekend: "Next weekend",
   next_week: "Next week",
   next_month: "Next month",
 };

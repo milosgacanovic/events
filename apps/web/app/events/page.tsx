@@ -36,6 +36,7 @@ const eventDateAllowed = new Set([
   "tomorrow",
   "this_weekend",
   "this_week",
+  "next_weekend",
   "next_week",
   "this_month",
   "next_month",

@@ -132,6 +132,7 @@ type EventDatePreset =
   | "tomorrow"
   | "this_weekend"
   | "this_week"
+  | "next_weekend"
   | "next_week"
   | "this_month"
   | "next_month";
@@ -141,6 +142,7 @@ const EVENT_DATE_PRESETS: EventDatePreset[] = [
   "tomorrow",
   "this_weekend",
   "this_week",
+  "next_weekend",
   "next_week",
   "this_month",
   "next_month",

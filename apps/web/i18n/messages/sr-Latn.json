@@ -103,6 +103,7 @@
   "eventSearch.eventDateOption.tomorrow": "Sutra",
   "eventSearch.eventDateOption.this_weekend": "Ovaj vikend",
   "eventSearch.eventDateOption.this_week": "Ove nedelje",
+  "eventSearch.eventDateOption.next_weekend": "Sledeći vikend",
   "eventSearch.eventDateOption.next_week": "Sledeće nedelje",
   "eventSearch.eventDateOption.this_month": "Ovog meseca",
   "eventSearch.eventDateOption.next_month": "Sledećeg meseca",

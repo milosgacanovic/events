@@ -13,6 +13,7 @@ const WHEN_OPTIONS: WhenOption[] = [
   { id: "tomorrow", label: "Tomorrow", icon: "🌅" },
   { id: "this_weekend", label: "This weekend", icon: "🌙" },
   { id: "this_week", label: "This week", icon: "📅" },
+  { id: "next_weekend", label: "Next weekend", icon: "🌃" },
   { id: "next_week", label: "Next week", icon: "➡️" },
   { id: "next_month", label: "Next month", icon: "📆" },
 ];

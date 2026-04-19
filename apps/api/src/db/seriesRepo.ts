@@ -201,6 +201,22 @@ export async function refreshEventSeries(
                                 else interval '-1 day'
                               end + interval '2 days'),
           ('this_week',     date_trunc('week', now() at time zone 'UTC'),                     date_trunc('week', now() at time zone 'UTC') + interval '1 week'),
+          ('next_weekend',  date_trunc('day', now() at time zone 'UTC')
+                            + case
+                                when extract(isodow from now() at time zone 'UTC') <= 5
+                                then make_interval(days := 6 - extract(isodow from now() at time zone 'UTC')::int)
+                                when extract(isodow from now() at time zone 'UTC') = 6
+                                then interval '0'
+                                else interval '-1 day'
+                              end + interval '7 days',
+                            date_trunc('day', now() at time zone 'UTC')
+                            + case
+                                when extract(isodow from now() at time zone 'UTC') <= 5
+                                then make_interval(days := 6 - extract(isodow from now() at time zone 'UTC')::int)
+                                when extract(isodow from now() at time zone 'UTC') = 6
+                                then interval '0'
+                                else interval '-1 day'
+                              end + interval '9 days'),
           ('next_week',     date_trunc('week', now() at time zone 'UTC') + interval '1 week', date_trunc('week', now() at time zone 'UTC') + interval '2 weeks'),
           ('this_month',    date_trunc('month', now() at time zone 'UTC'),                    date_trunc('month', now() at time zone 'UTC') + interval '1 month'),
           ('next_month',    date_trunc('month', now() at time zone 'UTC') + interval '1 month', date_trunc('month', now() at time zone 'UTC') + interval '2 months')

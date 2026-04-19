@@ -62,7 +62,7 @@ type EventsResponse = {
   pagination: { page: number; pageSize: number; totalPages: number; totalItems: number };
 };
 
-const EVENT_DATE_PRESETS = ["today", "tomorrow", "this_weekend", "this_week", "next_week", "this_month", "next_month"] as const;
+const EVENT_DATE_PRESETS = ["today", "tomorrow", "this_weekend", "this_week", "next_weekend", "next_week", "this_month", "next_month"] as const;
 
 function presetToDateRange(preset: string): { dateFrom: string; dateTo: string } | null {
   const d = new Date();
@@ -73,6 +73,7 @@ function presetToDateRange(preset: string): { dateFrom: string; dateTo: string }
     case "tomorrow": { const t = new Date(d); t.setDate(t.getDate() + 1); return { dateFrom: fmt(t), dateTo: fmt(t) }; }
     case "this_weekend": { const day = d.getDay(); const sat = new Date(d); sat.setDate(d.getDate() + (6 - day)); const sun = new Date(sat); sun.setDate(sat.getDate() + 1); return { dateFrom: fmt(sat), dateTo: fmt(sun) }; }
     case "this_week": { const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { dateFrom: fmt(mon), dateTo: fmt(sun) }; }
+    case "next_weekend": { const day = d.getDay(); const sat = new Date(d); sat.setDate(d.getDate() + (6 - day) + 7); const sun = new Date(sat); sun.setDate(sat.getDate() + 1); return { dateFrom: fmt(sat), dateTo: fmt(sun) }; }
     case "next_week": { const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 7); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return { dateFrom: fmt(mon), dateTo: fmt(sun) }; }
     case "this_month": { const start = new Date(d.getFullYear(), d.getMonth(), 1); const end = new Date(d.getFullYear(), d.getMonth() + 1, 0); return { dateFrom: fmt(start), dateTo: fmt(end) }; }
     case "next_month": { const start = new Date(d.getFullYear(), d.getMonth() + 1, 1); const end = new Date(d.getFullYear(), d.getMonth() + 2, 0); return { dateFrom: fmt(start), dateTo: fmt(end) }; }

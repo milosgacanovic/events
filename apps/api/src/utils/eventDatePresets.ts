@@ -5,6 +5,7 @@ export const EVENT_DATE_PRESETS = [
   "tomorrow",
   "this_weekend",
   "this_week",
+  "next_weekend",
   "next_week",
   "this_month",
   "next_month",
@@ -61,6 +62,8 @@ export function buildEventDateRangeMap(
       ? todayStart
       : todayStart.minus({ days: 1 });
   const weekendEnd = weekendStart.plus({ days: 2 });
+  const nextWeekendStart = weekendStart.plus({ weeks: 1 });
+  const nextWeekendEnd = nextWeekendStart.plus({ days: 2 });
 
   const thisWeekStart = zoneNow.startOf("week");
   const nextWeekStart = thisWeekStart.plus({ weeks: 1 });
@@ -80,6 +83,7 @@ export function buildEventDateRangeMap(
     tomorrow: toRange(tomorrowStart, tomorrowStart.plus({ days: 1 })),
     this_weekend: toRange(weekendStart, weekendEnd),
     this_week: toRange(thisWeekStart, nextWeekStart),
+    next_weekend: toRange(nextWeekendStart, nextWeekendEnd),
     next_week: toRange(nextWeekStart, weekAfterNextStart),
     this_month: toRange(thisMonthStart, nextMonthStart),
     next_month: toRange(nextMonthStart, monthAfterNextStart),

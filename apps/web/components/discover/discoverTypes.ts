@@ -7,6 +7,7 @@ export type WhenPreset =
   | "tomorrow"
   | "this_weekend"
   | "this_week"
+  | "next_weekend"
   | "next_week"
   | "next_month";
 

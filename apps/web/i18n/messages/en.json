@@ -103,6 +103,7 @@
   "eventSearch.eventDateOption.tomorrow": "Tomorrow",
   "eventSearch.eventDateOption.this_weekend": "This weekend",
   "eventSearch.eventDateOption.this_week": "This week",
+  "eventSearch.eventDateOption.next_weekend": "Next weekend",
   "eventSearch.eventDateOption.next_week": "Next week",
   "eventSearch.eventDateOption.this_month": "This month",
   "eventSearch.eventDateOption.next_month": "Next month",

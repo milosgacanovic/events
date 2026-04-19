@@ -51,6 +51,17 @@ async function main() {
                  from now_utc)),
               ('this_week',    (select date_trunc('week', n) from now_utc),
                                 (select date_trunc('week', n) + interval '1 week' from now_utc)),
+              ('next_weekend',
+                (select date_trunc('day', n) +
+                  case when extract(isodow from n) <= 5 then make_interval(days := 6 - extract(isodow from n)::int)
+                       when extract(isodow from n) = 6 then interval '0'
+                       else interval '-1 day' end + interval '7 days'
+                 from now_utc),
+                (select date_trunc('day', n) +
+                  case when extract(isodow from n) <= 5 then make_interval(days := 6 - extract(isodow from n)::int)
+                       when extract(isodow from n) = 6 then interval '0'
+                       else interval '-1 day' end + interval '9 days'
+                 from now_utc)),
               ('next_week',    (select date_trunc('week', n) + interval '1 week' from now_utc),
                                 (select date_trunc('week', n) + interval '2 weeks' from now_utc)),
               ('this_month',   (select date_trunc('month', n) from now_utc),
