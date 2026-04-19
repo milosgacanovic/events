@@ -5,7 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useKeycloakAuth } from "../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../components/i18n/I18nProvider";
 import { CityAutocomplete, type CitySelection } from "../../../components/CityAutocomplete";
-import { supportedLocales, localeCookieName, type AppLocale } from "../../../lib/i18n/config";
+import { supportedLocales, type AppLocale } from "../../../lib/i18n/config";
+import { setLocaleCookie } from "../../../lib/i18n/cookie";
 import { apiBase } from "../../../lib/api";
 import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../../../lib/timeDisplay";
 
@@ -98,7 +99,7 @@ export default function AccountTab() {
       writeTimeDisplayMode(pendingTimeMode);
 
       if (pendingLocale !== locale) {
-        document.cookie = `${localeCookieName}=${encodeURIComponent(pendingLocale)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+        setLocaleCookie(pendingLocale);
         window.location.reload();
         return;
       }

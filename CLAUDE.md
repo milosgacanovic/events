@@ -83,7 +83,7 @@ docs/          API contracts, runbook, architecture decisions
 - `app/` — App Router pages: `events/`, `hosts/`, `admin/` (SSO-protected), `auth/`, `profile/`, `sitemap*`
 - `components/admin/` — Editor forms for events and hosts
 - `lib/api.ts` — Typed API client wrapper
-- `i18n/messages/` — ICU message catalogs (`en`, `sr-Latn`)
+- `i18n/messages/` — ICU message catalogs (35 locales, BCP-47 codes matching Keycloak realm)
 
 ### Data Model
 

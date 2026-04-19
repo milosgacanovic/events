@@ -2,16 +2,8 @@
 
 import { useEffect } from "react";
 
-import { isSupportedLocale, localeCookieName, type AppLocale } from "../../lib/i18n/config";
-
-function getLocaleCookie(): string | undefined {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${localeCookieName}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : undefined;
-}
-
-function setLocaleCookie(locale: AppLocale) {
-  document.cookie = `${localeCookieName}=${encodeURIComponent(locale)}; Path=/; Max-Age=31536000; SameSite=Lax`;
-}
+import { isSupportedLocale } from "../../lib/i18n/config";
+import { getLocaleCookie, setLocaleCookie } from "../../lib/i18n/cookie";
 
 /**
  * Reads ?lang=xx from the URL. If it's a supported locale and differs from

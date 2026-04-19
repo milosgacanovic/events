@@ -6,6 +6,20 @@ import Keycloak from "keycloak-js";
 import type { KeycloakClientConfig } from "../../lib/keycloakConfig";
 import { useI18n } from "../i18n/I18nProvider";
 import { pushDataLayer } from "../../lib/gtm";
+import { getLocaleCookie } from "../../lib/i18n/cookie";
+import { isSupportedLocale } from "../../lib/i18n/config";
+
+// Build a Keycloak auth URL with kc_locale appended so the login/register pages
+// render in the user's chosen language. Keycloak reads kc_locale from query
+// string or its own KEYCLOAK_LOCALE cookie; passing it explicitly keeps the
+// realm in sync with dr_locale across www/wiki/events/sso.
+function appendKcLocale(url: string): string {
+  const cookieLocale = typeof window !== "undefined" ? getLocaleCookie() : undefined;
+  const locale = cookieLocale && isSupportedLocale(cookieLocale) ? cookieLocale : null;
+  if (!locale) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}kc_locale=${encodeURIComponent(locale)}`;
+}
 
 type MessageValues = Record<string, string | number | boolean | null | undefined>;
 type Translate = (key: string, values?: MessageValues) => string;
@@ -264,9 +278,9 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
           sessionStorage.setItem("auth_return_path", window.location.pathname + window.location.search);
         } catch {}
 
-        await keycloakRef.current.login({
-          redirectUri: `${window.location.origin}${loginRedirectPath}`,
-        });
+        const redirectUri = `${window.location.origin}${loginRedirectPath}`;
+        const url = appendKcLocale(keycloakRef.current.createLoginUrl({ redirectUri }));
+        window.location.href = url;
       },
       register: async () => {
         if (!keycloakRef.current) {
@@ -277,9 +291,9 @@ export function KeycloakAuthProvider({ children, config }: KeycloakAuthProviderP
           sessionStorage.setItem("auth_return_path", window.location.pathname + window.location.search);
         } catch {}
 
-        await keycloakRef.current.register({
-          redirectUri: `${window.location.origin}${loginRedirectPath}`,
-        });
+        const redirectUri = `${window.location.origin}${loginRedirectPath}`;
+        const url = appendKcLocale(keycloakRef.current.createRegisterUrl({ redirectUri }));
+        window.location.href = url;
       },
       logout: async () => {
         if (!keycloakRef.current) {

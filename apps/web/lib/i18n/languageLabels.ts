@@ -5,9 +5,7 @@ const languageLabelOverrides: Record<string, string> = {
 };
 
 // Strip script subtag for cleaner display (e.g. "sr-latn" → "sr" → "Serbian" not "Serbian (Latin)")
-const STRIP_SCRIPT_FOR_DISPLAY: Record<string, string> = {
-  "sr-latn": "sr",
-};
+const STRIP_SCRIPT_FOR_DISPLAY: Record<string, string> = {};
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);

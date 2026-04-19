@@ -4,7 +4,7 @@ import nlMessages from "../../i18n/messages/nl.json";
 import frMessages from "../../i18n/messages/fr.json";
 import esMessages from "../../i18n/messages/es.json";
 import itMessages from "../../i18n/messages/it.json";
-import srLatnMessages from "../../i18n/messages/sr-Latn.json";
+import srMessages from "../../i18n/messages/sr.json";
 import ptMessages from "../../i18n/messages/pt.json";
 import elMessages from "../../i18n/messages/el.json";
 import hrMessages from "../../i18n/messages/hr.json";
@@ -24,7 +24,7 @@ import skMessages from "../../i18n/messages/sk.json";
 import idMessages from "../../i18n/messages/id.json";
 import arMessages from "../../i18n/messages/ar.json";
 import hiMessages from "../../i18n/messages/hi.json";
-import nbMessages from "../../i18n/messages/nb.json";
+import noMessages from "../../i18n/messages/no.json";
 import csMessages from "../../i18n/messages/cs.json";
 import koMessages from "../../i18n/messages/ko.json";
 import kaMessages from "../../i18n/messages/ka.json";
@@ -44,7 +44,7 @@ const catalogs: Record<AppLocale, MessageCatalog> = {
   fr: frMessages,
   es: esMessages,
   it: itMessages,
-  "sr-Latn": srLatnMessages,
+  sr: srMessages,
   pt: ptMessages,
   el: elMessages,
   hr: hrMessages,
@@ -64,7 +64,7 @@ const catalogs: Record<AppLocale, MessageCatalog> = {
   id: idMessages,
   ar: arMessages,
   hi: hiMessages,
-  nb: nbMessages,
+  no: noMessages,
   cs: csMessages,
   ko: koMessages,
   ka: kaMessages,

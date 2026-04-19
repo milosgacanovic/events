@@ -2,12 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
-import { localeCookieName, supportedLocales, type AppLocale } from "../../lib/i18n/config";
+import { supportedLocales, type AppLocale } from "../../lib/i18n/config";
+import { setLocaleCookie } from "../../lib/i18n/cookie";
 import { useI18n } from "./I18nProvider";
-
-function setLocaleCookie(locale: AppLocale) {
-  document.cookie = `${localeCookieName}=${encodeURIComponent(locale)}; Path=/; Max-Age=31536000; SameSite=Lax`;
-}
 
 export function LocaleSwitcher() {
   const { locale, t } = useI18n();
