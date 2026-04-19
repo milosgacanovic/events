@@ -16,7 +16,7 @@ const ALLOWED_TAGS = [
 ];
 
 const ALLOWED_ATTRS: Record<string, string[]> = {
-  a: ["href", "title"],
+  a: ["href", "title", "rel", "target"],
   img: ["src", "alt", "title", "width", "height"],
 };
 

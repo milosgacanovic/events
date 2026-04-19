@@ -86,6 +86,13 @@ retry_curl "${PUBLIC_URL}/api/health" 20 2
 retry_curl "${PUBLIC_URL}/events" 20 2
 retry_curl "${PUBLIC_URL}/sitemap.xml" 20 2
 
+echo "Running functional post-deploy smoke suite ..."
+if ! SMOKE_URL="$PUBLIC_URL" npm run postdeploy:smoke --silent; then
+  echo "Post-deploy smoke FAILED — previous color ($active_color) is still running." >&2
+  echo "Inspect failures above; run 'npm run bg:rollback' to switch traffic back." >&2
+  exit 1
+fi
+
 echo "Stopping previous color ($active_color) ..."
 prev_compose="$REPO_ROOT/deploy/docker/docker-compose.${active_color}.yml"
 docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" -f "$prev_compose" stop "api_${active_color}" "web_${active_color}"

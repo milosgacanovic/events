@@ -698,6 +698,17 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       coverImagePath: resolveCoverImagePath(parsed.data),
     };
 
+    // Guard against the "importer token posts a non-imported event" loophole
+    // that produced the 4 anomalous rows on 2026-02-26 (import source + id
+    // blank, so the unique-pair dedup couldn't trigger and duplicates slipped
+    // through). A service-account caller MUST identify the upstream row.
+    if (await isServiceAccount(app.db, auth.sub)) {
+      if (!normalizedInput.externalSource || !normalizedInput.externalId) {
+        reply.code(400);
+        return { error: "service_account_missing_external_ref" };
+      }
+    }
+
     if (normalizedInput.externalSource && normalizedInput.externalId) {
       const existing = await getEventByExternalRef(
         app.db,

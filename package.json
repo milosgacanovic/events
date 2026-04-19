@@ -13,6 +13,7 @@
     "typecheck": "npm run build -w @dr-events/shared && npm run typecheck -w @dr-events/api && npm run typecheck -w @dr-events/web && npm run typecheck -w @dr-events/shared",
     "test": "npm run test -w @dr-events/api",
     "import:smoke": "tsx scripts/import-smoke.ts",
+    "postdeploy:smoke": "tsx scripts/post-deploy-smoke.ts",
     "test:live:admin": "tsx scripts/live-admin-verify.ts",
     "release:gate": "ts-node scripts/releaseGate.ts",
     "meili:backup": "ts-node scripts/meiliBackup.ts",
