@@ -15,3 +15,4 @@ data/meili/
 data/uploads/
 temporary/
 .playwright-mcp/
+.claude/
