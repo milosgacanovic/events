@@ -7,6 +7,16 @@ import { getSearchCache, setSearchCache } from "../services/searchCache";
 import { parseEventDatePresets } from "../utils/eventDatePresets";
 import { logValidation } from "../utils/validationError";
 
+function normalizeBbox(parts: number[]): [number, number, number, number] {
+  const [rawWest, rawSouth, rawEast, rawNorth] = parts;
+  const spansWorld = rawEast - rawWest >= 360;
+  const west = spansWorld ? -180 : Math.max(-180, Math.min(180, rawWest));
+  const east = spansWorld ? 180 : Math.max(-180, Math.min(180, rawEast));
+  const south = Math.max(-90, Math.min(90, rawSouth));
+  const north = Math.max(-90, Math.min(90, rawNorth));
+  return [west, south, east, north];
+}
+
 const mapQuerySchema = z.object({
   q: z.string().optional(),
   from: z.string().datetime().optional(),
@@ -72,11 +82,12 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       return logValidation(request, parsed.error);
     }
 
-    const bboxParts = parsed.data.bbox.split(",").map((value) => Number(value.trim()));
-    if (bboxParts.length !== 4 || bboxParts.some((value) => Number.isNaN(value))) {
+    const rawBboxParts = parsed.data.bbox.split(",").map((value) => Number(value.trim()));
+    if (rawBboxParts.length !== 4 || rawBboxParts.some((value) => Number.isNaN(value))) {
       reply.code(400);
       return { error: "bbox must be west,south,east,north" };
     }
+    const bboxParts = normalizeBbox(rawBboxParts);
 
     const now = DateTime.utc();
     const includePast = parsed.data.includePast === "true";
@@ -181,11 +192,12 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       return logValidation(request, parsed.error);
     }
 
-    const bboxParts = parsed.data.bbox.split(",").map((value) => Number(value.trim()));
-    if (bboxParts.length !== 4 || bboxParts.some((value) => Number.isNaN(value))) {
+    const rawBboxParts = parsed.data.bbox.split(",").map((value) => Number(value.trim()));
+    if (rawBboxParts.length !== 4 || rawBboxParts.some((value) => Number.isNaN(value))) {
       reply.code(400);
       return { error: "bbox must be west,south,east,north" };
     }
+    const bboxParts = normalizeBbox(rawBboxParts);
 
     const practiceCategoryIds = parseUuidCsv(parsed.data.practiceCategoryId);
     if (!practiceCategoryIds) {

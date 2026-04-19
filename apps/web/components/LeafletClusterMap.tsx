@@ -163,7 +163,16 @@ export function LeafletClusterMap({
     if (!bounds.isValid()) {
       return;
     }
-    const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(",");
+    const rawWest = bounds.getWest();
+    const rawEast = bounds.getEast();
+    const rawSouth = bounds.getSouth();
+    const rawNorth = bounds.getNorth();
+    const spansWorld = rawEast - rawWest >= 360;
+    const west = spansWorld ? -180 : Math.max(-180, Math.min(180, rawWest));
+    const east = spansWorld ? 180 : Math.max(-180, Math.min(180, rawEast));
+    const south = Math.max(-90, Math.min(90, rawSouth));
+    const north = Math.max(-90, Math.min(90, rawNorth));
+    const bbox = [west, south, east, north].join(",");
     const zoom = Math.round(mapRef.current.getZoom());
     setCurrentZoom(zoom);
 
@@ -281,12 +290,12 @@ export function LeafletClusterMap({
             center={[lat, lng]}
             key={`${lat}-${lng}-${feature.properties.occurrence_id ?? "cluster"}-${index}`}
             eventHandlers={{
-              add: isEntering
-                ? (e) => {
-                    const path = (e.target as any)._path as SVGElement | undefined;
-                    if (path) path.classList.add("marker-entering");
-                  }
-                : undefined,
+              ...(isEntering && {
+                add: (e) => {
+                  const path = (e.target as any)._path as SVGElement | undefined;
+                  if (path) path.classList.add("marker-entering");
+                },
+              }),
               mouseover: (e) => { (e.target as any).setStyle({ fillOpacity: 1 }); },
               mouseout: (e) => { (e.target as any).setStyle({ fillOpacity: isCluster ? 0.5 : 0.8 }); },
               click: () => {
