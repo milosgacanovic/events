@@ -66,7 +66,7 @@ export default function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var t;try{t=localStorage.getItem('dr-theme')}catch(e){}if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t;try{var m=document.cookie.match(/(?:^|; )dr_theme=([^;]*)/);if(m)t=decodeURIComponent(m[1])}catch(e){}if(t!=='light'&&t!=='dark'){try{var ls=localStorage.getItem('dr-theme');if(ls==='light'||ls==='dark')t=ls}catch(e){}}if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.setAttribute('data-theme',t)})()` }} />
         <script dangerouslySetInnerHTML={{ __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-KFG8MVPC');` }} />
       </head>
       <body>

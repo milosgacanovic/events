@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 
-type Theme = "light" | "dark";
+import { getThemeCookie, setThemeCookie, type Theme } from "./theme/cookie";
 
-const STORAGE_KEY = "dr-theme";
+const LEGACY_STORAGE_KEY = "dr-theme";
 
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 function getStored(): Theme | null {
+  const cookie = getThemeCookie();
+  if (cookie) return cookie;
   try {
-    const val = localStorage.getItem(STORAGE_KEY);
+    const val = localStorage.getItem(LEGACY_STORAGE_KEY);
     if (val === "light" || val === "dark") return val;
   } catch {}
   return null;
@@ -62,6 +64,15 @@ export function useTheme() {
     }
   }, []);
 
+  // One-shot migration: copy legacy localStorage value into the shared cookie
+  useEffect(() => {
+    if (getThemeCookie()) return;
+    try {
+      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacy === "light" || legacy === "dark") setThemeCookie(legacy);
+    } catch {}
+  }, []);
+
   // Listen for OS preference changes (for users who never explicitly chose)
   useEffect(() => {
     if (getStored()) return; // User made explicit choice, ignore OS changes
@@ -76,9 +87,7 @@ export function useTheme() {
 
   const toggle = useCallback(() => {
     const next: Theme = getSnapshot() === "dark" ? "light" : "dark";
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {}
+    setThemeCookie(next);
     apply(next);
     emit();
   }, []);
