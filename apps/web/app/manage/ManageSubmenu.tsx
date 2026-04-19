@@ -43,6 +43,7 @@ export function ManageSubmenu({
   }
 
   return (
+    <div className="manage-submenu-wrap">
     <nav className="manage-submenu">
       <Link href="/manage" className={linkClass("/manage", true)}>
         {t("manage.sidebar.dashboard")}
@@ -98,5 +99,6 @@ export function ManageSubmenu({
         <span>{t("manage.sidebar.myProfile")}</span>
       </Link>
     </nav>
+    </div>
   );
 }

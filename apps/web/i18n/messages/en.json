@@ -117,7 +117,7 @@
   "eventSearch.applyFilters": "Apply",
   "eventSearch.languagesFacet": "Languages facet values: {values}",
   "eventSearch.hero.heading": "Find your next dance",
-  "eventSearch.hero.placeholder": "Search events, teachers, practices...",
+  "eventSearch.hero.placeholder": "Search events, teachers…",
   "eventSearch.hero.nearYou": "Near you",
   "eventSearch.hero.detecting": "Detecting...",
   "eventSearch.hero.eventsIn": "Events in {city}",

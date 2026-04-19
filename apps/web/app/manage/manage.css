@@ -757,7 +757,9 @@ textarea.field-invalid {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
+  row-gap: 8px;
   padding: 16px 20px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -768,7 +770,20 @@ textarea.field-invalid {
 .manage-form-actions-right {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  row-gap: 8px;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .manage-form-actions {
+    justify-content: flex-start;
+  }
+  .manage-form-actions-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 .manage-back-btn {

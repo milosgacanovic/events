@@ -766,7 +766,7 @@ export function EventForm({
         </div>
 
         {form.scheduleKind === "single" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+          <div className="event-form-datetime-row">
             <div id="field-singleStartAt">
               <label>{t("manage.eventForm.start")} <span className="field-required-mark">*</span></label>
               <input
@@ -849,7 +849,7 @@ export function EventForm({
             >
               &times;
             </button>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, paddingRight: 24 }}>
+            <div className="event-form-location-grid">
               <div className="kv" style={{ gridColumn: "1 / -1" }}>
                 <label>{t("manage.eventForm.address")}</label>
                 <input value={form.locationAddress} onChange={(e) => update("locationAddress", e.target.value)} />

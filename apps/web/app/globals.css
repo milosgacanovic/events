@@ -1135,6 +1135,19 @@ label.meta {
   margin-top: 20px;
 }
 
+@media (max-width: 480px) {
+  .hero-pills {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .hero-pills::-webkit-scrollbar { display: none; }
+  .hero-pill { flex-shrink: 0; }
+}
+
 .hero-pill {
   display: inline-flex;
   align-items: center;
@@ -1338,8 +1351,19 @@ label.meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
+  row-gap: 8px;
   align-self: start;
+}
+
+.results-count { white-space: nowrap; }
+
+@media (max-width: 480px) {
+  .results-toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 .results-toolbar-actions {
@@ -1962,18 +1986,43 @@ label.meta {
   }
 }
 
+/* ── Event Form (manage) shared grids ─────── */
+.event-form-datetime-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+.event-form-location-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-right: 24px;
+}
+@media (max-width: 480px) {
+  .event-form-datetime-row,
+  .event-form-location-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Event Detail ───────────────────── */
 .event-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   max-width: 760px;
   margin: 0 auto;
+  min-width: 0;
 }
 
 .event-detail-breadcrumb {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  min-width: 0;
   font-size: 0.88rem;
 }
 
@@ -1989,7 +2038,9 @@ label.meta {
 .breadcrumb-share {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
+  row-gap: 6px;
 }
 
 .breadcrumb-share-btn {
@@ -2054,7 +2105,10 @@ label.meta {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
+  row-gap: 8px;
+  min-width: 0;
 }
 
 .event-detail-title {
@@ -2201,6 +2255,17 @@ label.meta {
 }
 .save-scope-option:hover {
   background: var(--hover-bg);
+}
+
+@media (max-width: 480px) {
+  .save-scope-menu {
+    top: auto;
+    bottom: 100%;
+    left: auto;
+    right: 0;
+    margin-top: 0;
+    margin-bottom: 4px;
+  }
 }
 
 /* RSVP button */
@@ -3954,6 +4019,17 @@ img[loading="lazy"] {
 }
 
 /* Shared submenu bar — used on /profile and /manage */
+.manage-submenu-wrap {
+  position: relative;
+}
+.manage-submenu-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 24px;
+  background: linear-gradient(to left, var(--surface, #f8f8f8), transparent);
+  pointer-events: none;
+}
 .manage-submenu {
   display: flex;
   align-items: center;
