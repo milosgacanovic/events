@@ -13,3 +13,13 @@ export const localeCookieName = "dr_locale";
 export function isSupportedLocale(value: string): value is AppLocale {
   return supportedLocales.includes(value as AppLocale);
 }
+
+const rtlLocales: ReadonlySet<AppLocale> = new Set(["ar", "he"]);
+
+export function isRtlLocale(locale: AppLocale): boolean {
+  return rtlLocales.has(locale);
+}
+
+export function localeDirection(locale: AppLocale): "ltr" | "rtl" {
+  return isRtlLocale(locale) ? "rtl" : "ltr";
+}
