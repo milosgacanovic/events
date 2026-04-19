@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Breyta viðburði",
   "eventDetail.import.officialBooking": "Opinberar upplýsingar og bókun:",
   "eventDetail.import.sharedWithCare": "Deilt með umhyggju: DanceResource birtir opinbera viðburði til að auðvelda leit að meðvitunsdansi um allan heim.",
-  "eventDetail.import.sourceLine": "Þessi færsla var sjálfkrafa flutt inn frá {source}.",
+  "eventDetail.import.sourceLine": "Þessi færsla var sjálfkrafa flutt inn.",
   "eventDetail.import.officialLink": "Upprunatengillinn er opinberi staðurinn fyrir bókun og uppfærslur:",
   "eventDetail.import.lastSynced": "Síðast samstillt: {value}",
   "eventDetail.import.contact": "Viltu breyta/fjarlægja þetta, gera tilkall til þess, eða fá staðfesta skráningu? Hafðu samband við okkur á hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "í bið",
   "profile.comments.statusApproved": "samþykkt",
   "profile.comments.statusRejected": "hafnað",
-  "manage.admin.moderation.byModerator": "af {name}"
+  "manage.admin.moderation.byModerator": "af {name}",
+  "eventSearch.eventDateOption.next_weekend": "Næsta helgi",
+  "manage.admin.logs.activityLog": "Virkniskrá",
+  "manage.admin.logs.errorLog": "Villuskrá",
+  "manage.sidebar.config": "Stillingar"
 }

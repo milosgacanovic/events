@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "イベントを編集",
   "eventDetail.import.officialBooking": "公式詳細および予約：",
   "eventDetail.import.sharedWithCare": "大切にシェアされています：DanceResourceは、意識的なダンスを世界中で見つけやすくするために公開イベントを掲載しています。",
-  "eventDetail.import.sourceLine": "このエントリーは{source}から自動的にインポートされました。",
+  "eventDetail.import.sourceLine": "このエントリーは自動的にインポートされました。",
   "eventDetail.import.officialLink": "ソースリンクが予約と更新の公式場所です：",
   "eventDetail.import.lastSynced": "最終同期：{value}",
   "eventDetail.import.contact": "変更・削除を希望する場合、所有権を主張したい場合、または認証済みリストを希望する場合は、hello@danceresource.orgまでご連絡ください",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "保留中",
   "profile.comments.statusApproved": "承認済み",
   "profile.comments.statusRejected": "却下",
-  "manage.admin.moderation.byModerator": "{name}による"
+  "manage.admin.moderation.byModerator": "{name}による",
+  "eventSearch.eventDateOption.next_weekend": "来週末",
+  "manage.admin.logs.activityLog": "アクティビティログ",
+  "manage.admin.logs.errorLog": "エラーログ",
+  "manage.sidebar.config": "設定"
 }

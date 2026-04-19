@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Rediger arrangement",
   "eventDetail.import.officialBooking": "Offisielle detaljer og bestilling:",
   "eventDetail.import.sharedWithCare": "Delt med omsorg: DanceResource lister offentlige arrangementer for å gjøre det lettere å finne bevisst dans verden over.",
-  "eventDetail.import.sourceLine": "Denne oppføringen ble automatisk importert fra {source}.",
+  "eventDetail.import.sourceLine": "Denne oppføringen ble automatisk importert.",
   "eventDetail.import.officialLink": "Kildelenken er det offisielle stedet for bestilling og oppdateringer:",
   "eventDetail.import.lastSynced": "Sist synkronisert: {value}",
   "eventDetail.import.contact": "Ønsker du endring/fjerning, vil kreve det, eller vil ha en verifisert oppføring? Kontakt oss på hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "avventer",
   "profile.comments.statusApproved": "godkjent",
   "profile.comments.statusRejected": "avvist",
-  "manage.admin.moderation.byModerator": "av {name}"
+  "manage.admin.moderation.byModerator": "av {name}",
+  "eventSearch.eventDateOption.next_weekend": "Neste helg",
+  "manage.admin.logs.activityLog": "Aktivitetslogg",
+  "manage.admin.logs.errorLog": "Feillogg",
+  "manage.sidebar.config": "Konfigurasjon"
 }

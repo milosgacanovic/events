@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Editați evenimentul",
   "eventDetail.import.officialBooking": "Detalii oficiale și rezervare:",
   "eventDetail.import.sharedWithCare": "Distribuit cu grijă: DanceResource listează evenimente publice pentru a face dansul conștient mai ușor de găsit în întreaga lume.",
-  "eventDetail.import.sourceLine": "Această intrare a fost importată automat din {source}.",
+  "eventDetail.import.sourceLine": "Această intrare a fost importată automat.",
   "eventDetail.import.officialLink": "Linkul sursă este locul oficial pentru rezervări și actualizări:",
   "eventDetail.import.lastSynced": "Ultima sincronizare: {value}",
   "eventDetail.import.contact": "Doriți modificarea/eliminarea, să revendicați intrarea sau un listing verificat? Contactați-ne la hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "în așteptare",
   "profile.comments.statusApproved": "aprobat",
   "profile.comments.statusRejected": "respins",
-  "manage.admin.moderation.byModerator": "de {name}"
+  "manage.admin.moderation.byModerator": "de {name}",
+  "eventSearch.eventDateOption.next_weekend": "Weekendul viitor",
+  "manage.admin.logs.activityLog": "Jurnal de activitate",
+  "manage.admin.logs.errorLog": "Jurnal de erori",
+  "manage.sidebar.config": "Configurare"
 }

@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "ערוך אירוע",
   "eventDetail.import.officialBooking": "פרטים רשמיים והזמנה:",
   "eventDetail.import.sharedWithCare": "שותף בקפידה: DanceResource מפרסם אירועים ציבוריים כדי להקל על מציאת ריקוד מודע ברחבי העולם.",
-  "eventDetail.import.sourceLine": "רשומה זו יובאה אוטומטית מ-{source}.",
+  "eventDetail.import.sourceLine": "רשומה זו יובאה אוטומטית.",
   "eventDetail.import.officialLink": "קישור המקור הוא המקום הרשמי להזמנה ועדכונים:",
   "eventDetail.import.lastSynced": "סונכרן לאחרונה: {value}",
   "eventDetail.import.contact": "רוצים לשנות/להסיר, לתבוע בעלות, או לקבל רישום מאומת? צרו קשר: hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "ממתין",
   "profile.comments.statusApproved": "אושר",
   "profile.comments.statusRejected": "נדחה",
-  "manage.admin.moderation.byModerator": "מאת {name}"
+  "manage.admin.moderation.byModerator": "מאת {name}",
+  "eventSearch.eventDateOption.next_weekend": "סוף השבוע הבא",
+  "manage.admin.logs.activityLog": "יומן פעילות",
+  "manage.admin.logs.errorLog": "יומן שגיאות",
+  "manage.sidebar.config": "הגדרות"
 }

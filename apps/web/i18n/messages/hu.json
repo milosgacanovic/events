@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Esemény szerkesztése",
   "eventDetail.import.officialBooking": "Hivatalos adatok és foglalás:",
   "eventDetail.import.sharedWithCare": "Gondossággal megosztva: a DanceResource nyilvános eseményeket listáz, hogy a tudatos tánc könnyebben megtalálható legyen világszerte.",
-  "eventDetail.import.sourceLine": "Ez a bejegyzés automatikusan importálva lett innen: {source}.",
+  "eventDetail.import.sourceLine": "Ez a bejegyzés automatikusan importálva lett.",
   "eventDetail.import.officialLink": "A forrás link a hivatalos hely a foglaláshoz és a frissítésekhez:",
   "eventDetail.import.lastSynced": "Utoljára szinkronizálva: {value}",
   "eventDetail.import.contact": "Módosítást vagy eltávolítást szeretnél, igényt tartasz rá, vagy ellenőrzött listát szeretnél? Vedd fel velünk a kapcsolatot: hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "függőben",
   "profile.comments.statusApproved": "jóváhagyva",
   "profile.comments.statusRejected": "elutasítva",
-  "manage.admin.moderation.byModerator": "{name} által"
+  "manage.admin.moderation.byModerator": "{name} által",
+  "eventSearch.eventDateOption.next_weekend": "Jövő hétvége",
+  "manage.admin.logs.activityLog": "Tevékenységnapló",
+  "manage.admin.logs.errorLog": "Hibanapló",
+  "manage.sidebar.config": "Konfiguráció"
 }

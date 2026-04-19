@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Upraviť podujatie",
   "eventDetail.import.officialBooking": "Oficiálne podrobnosti a rezervácia:",
   "eventDetail.import.sharedWithCare": "Zdieľané so starostlivosťou: DanceResource uvádza verejné podujatia, aby uľahčilo hľadanie vedomého tanca po celom svete.",
-  "eventDetail.import.sourceLine": "Tento záznam bol automaticky importovaný z {source}.",
+  "eventDetail.import.sourceLine": "Tento záznam bol automaticky importovaný.",
   "eventDetail.import.officialLink": "Odkaz na zdroj je oficiálne miesto pre rezervácie a aktualizácie:",
   "eventDetail.import.lastSynced": "Naposledy synchronizované: {value}",
   "eventDetail.import.contact": "Chcete zmeniť/odstrániť, prevziať alebo získať overený záznam? Kontaktujte nás na hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "čakajúce",
   "profile.comments.statusApproved": "schválené",
   "profile.comments.statusRejected": "zamietnuté",
-  "manage.admin.moderation.byModerator": "od {name}"
+  "manage.admin.moderation.byModerator": "od {name}",
+  "eventSearch.eventDateOption.next_weekend": "Budúci víkend",
+  "manage.admin.logs.activityLog": "Protokol aktivít",
+  "manage.admin.logs.errorLog": "Protokol chýb",
+  "manage.sidebar.config": "Konfigurácia"
 }

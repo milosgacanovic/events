@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Edit Acara",
   "eventDetail.import.officialBooking": "Detail resmi dan pemesanan:",
   "eventDetail.import.sharedWithCare": "Dibagikan dengan penuh perhatian: DanceResource mendaftarkan acara publik agar tari sadar lebih mudah ditemukan di seluruh dunia.",
-  "eventDetail.import.sourceLine": "Entri ini diimpor secara otomatis dari {source}.",
+  "eventDetail.import.sourceLine": "Entri ini diimpor secara otomatis.",
   "eventDetail.import.officialLink": "Tautan sumber adalah tempat resmi untuk pemesanan dan pembaruan:",
   "eventDetail.import.lastSynced": "Terakhir disinkronkan: {value}",
   "eventDetail.import.contact": "Ingin mengubah/menghapus, mengklaim, atau mendapatkan daftar terverifikasi? Hubungi kami di hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "tertunda",
   "profile.comments.statusApproved": "disetujui",
   "profile.comments.statusRejected": "ditolak",
-  "manage.admin.moderation.byModerator": "oleh {name}"
+  "manage.admin.moderation.byModerator": "oleh {name}",
+  "eventSearch.eventDateOption.next_weekend": "Akhir pekan depan",
+  "manage.admin.logs.activityLog": "Log Aktivitas",
+  "manage.admin.logs.errorLog": "Log Kesalahan",
+  "manage.sidebar.config": "Konfigurasi"
 }

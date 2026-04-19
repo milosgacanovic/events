@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Редагувати подію",
   "eventDetail.import.officialBooking": "Офіційні деталі та бронювання:",
   "eventDetail.import.sharedWithCare": "З турботою: DanceResource публікує відкриті події, щоб усвідомлений танець було легше знайти по всьому світу.",
-  "eventDetail.import.sourceLine": "Цей запис було автоматично імпортовано з {source}.",
+  "eventDetail.import.sourceLine": "Цей запис було автоматично імпортовано.",
   "eventDetail.import.officialLink": "Вихідне посилання є офіційним місцем для бронювання та оновлень:",
   "eventDetail.import.lastSynced": "Остання синхронізація: {value}",
   "eventDetail.import.contact": "Хочете змінити/видалити запис, заявити права або отримати верифікований список? Зв'яжіться з нами: hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "очікує",
   "profile.comments.statusApproved": "схвалено",
   "profile.comments.statusRejected": "відхилено",
-  "manage.admin.moderation.byModerator": "від {name}"
+  "manage.admin.moderation.byModerator": "від {name}",
+  "eventSearch.eventDateOption.next_weekend": "Наступні вихідні",
+  "manage.admin.logs.activityLog": "Журнал активності",
+  "manage.admin.logs.errorLog": "Журнал помилок",
+  "manage.sidebar.config": "Налаштування"
 }

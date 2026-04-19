@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "编辑活动",
   "eventDetail.import.officialBooking": "官方详情与预订：",
   "eventDetail.import.sharedWithCare": "用心分享：DanceResource 收录公开活动，旨在让全球有意识舞蹈更易发现。",
-  "eventDetail.import.sourceLine": "此条目已从 {source} 自动导入。",
+  "eventDetail.import.sourceLine": "此条目已自动导入。",
   "eventDetail.import.officialLink": "源链接是官方预订和更新的指定位置：",
   "eventDetail.import.lastSynced": "最后同步：{value}",
   "eventDetail.import.contact": "如需更改/删除、认领或申请认证列表，请联系我们：hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "待处理",
   "profile.comments.statusApproved": "已批准",
   "profile.comments.statusRejected": "已拒绝",
-  "manage.admin.moderation.byModerator": "由 {name}"
+  "manage.admin.moderation.byModerator": "由 {name}",
+  "eventSearch.eventDateOption.next_weekend": "下个周末",
+  "manage.admin.logs.activityLog": "活动日志",
+  "manage.admin.logs.errorLog": "错误日志",
+  "manage.sidebar.config": "配置"
 }

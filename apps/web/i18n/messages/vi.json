@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Chỉnh sửa sự kiện",
   "eventDetail.import.officialBooking": "Thông tin chính thức và đặt chỗ:",
   "eventDetail.import.sharedWithCare": "Được chia sẻ chu đáo: DanceResource liệt kê các sự kiện công khai để giúp tìm điệu nhảy có ý thức dễ dàng hơn trên toàn thế giới.",
-  "eventDetail.import.sourceLine": "Mục này được nhập tự động từ {source}.",
+  "eventDetail.import.sourceLine": "Mục này được nhập tự động.",
   "eventDetail.import.officialLink": "Liên kết nguồn là nơi chính thức để đặt chỗ và cập nhật:",
   "eventDetail.import.lastSynced": "Đồng bộ lần cuối: {value}",
   "eventDetail.import.contact": "Muốn thay đổi/xóa, muốn nhận quyền sở hữu, hoặc muốn có danh sách đã xác minh? Liên hệ với chúng tôi tại hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "đang chờ",
   "profile.comments.statusApproved": "đã duyệt",
   "profile.comments.statusRejected": "đã từ chối",
-  "manage.admin.moderation.byModerator": "bởi {name}"
+  "manage.admin.moderation.byModerator": "bởi {name}",
+  "eventSearch.eventDateOption.next_weekend": "Cuối tuần tới",
+  "manage.admin.logs.activityLog": "Nhật ký hoạt động",
+  "manage.admin.logs.errorLog": "Nhật ký lỗi",
+  "manage.sidebar.config": "Cấu hình"
 }

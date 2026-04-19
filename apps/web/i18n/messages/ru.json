@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Редактировать мероприятие",
   "eventDetail.import.officialBooking": "Официальные сведения и бронирование:",
   "eventDetail.import.sharedWithCare": "С заботой: DanceResource публикует открытые мероприятия, чтобы осознанный танец стало легче найти по всему миру.",
-  "eventDetail.import.sourceLine": "Эта запись была автоматически импортирована из {source}.",
+  "eventDetail.import.sourceLine": "Эта запись была автоматически импортирована.",
   "eventDetail.import.officialLink": "Исходная ссылка — официальное место для бронирования и обновлений:",
   "eventDetail.import.lastSynced": "Последняя синхронизация: {value}",
   "eventDetail.import.contact": "Хотите изменить/удалить запись, заявить права или получить верифицированный листинг? Свяжитесь с нами: hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "на рассмотрении",
   "profile.comments.statusApproved": "одобрено",
   "profile.comments.statusRejected": "отклонено",
-  "manage.admin.moderation.byModerator": "от {name}"
+  "manage.admin.moderation.byModerator": "от {name}",
+  "eventSearch.eventDateOption.next_weekend": "Следующие выходные",
+  "manage.admin.logs.activityLog": "Журнал активности",
+  "manage.admin.logs.errorLog": "Журнал ошибок",
+  "manage.sidebar.config": "Настройки"
 }

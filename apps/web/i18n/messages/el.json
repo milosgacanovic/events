@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Επεξεργασία Εκδήλωσης",
   "eventDetail.import.officialBooking": "Επίσημες λεπτομέρειες και κράτηση:",
   "eventDetail.import.sharedWithCare": "Κοινοποιήθηκε με φροντίδα: το DanceResource παραθέτει δημόσιες εκδηλώσεις για να κάνει τον συνειδητό χορό ευκολότερο να βρεθεί παγκοσμίως.",
-  "eventDetail.import.sourceLine": "Αυτή η καταχώριση εισήχθη αυτόματα από το {source}.",
+  "eventDetail.import.sourceLine": "Αυτή η καταχώριση εισήχθη αυτόματα.",
   "eventDetail.import.officialLink": "Ο σύνδεσμος πηγής είναι ο επίσημος τόπος για κρατήσεις και ενημερώσεις:",
   "eventDetail.import.lastSynced": "Τελευταίος συγχρονισμός: {value}",
   "eventDetail.import.contact": "Θέλετε να αλλάξει/αφαιρεθεί, να το διεκδικήσετε ή να αποκτήσετε επαληθευμένη καταχώριση; Επικοινωνήστε μαζί μας στο hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "εκκρεμεί",
   "profile.comments.statusApproved": "εγκρίθηκε",
   "profile.comments.statusRejected": "απορρίφθηκε",
-  "manage.admin.moderation.byModerator": "από {name}"
+  "manage.admin.moderation.byModerator": "από {name}",
+  "eventSearch.eventDateOption.next_weekend": "Το επόμενο Σαββατοκύριακο",
+  "manage.admin.logs.activityLog": "Αρχείο δραστηριότητας",
+  "manage.admin.logs.errorLog": "Αρχείο σφαλμάτων",
+  "manage.sidebar.config": "Ρυθμίσεις"
 }

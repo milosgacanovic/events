@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "कार्यक्रम संपादित करें",
   "eventDetail.import.officialBooking": "आधिकारिक विवरण और बुकिंग:",
   "eventDetail.import.sharedWithCare": "ध्यान से साझा किया: DanceResource सार्वजनिक कार्यक्रमों को सूचीबद्ध करता है ताकि दुनियाभर में सचेत नृत्य ढूँढना आसान हो।",
-  "eventDetail.import.sourceLine": "यह प्रविष्टि स्वचालित रूप से {source} से आयात की गई थी।",
+  "eventDetail.import.sourceLine": "यह प्रविष्टि स्वचालित रूप से आयात की गई थी।",
   "eventDetail.import.officialLink": "स्रोत लिंक बुकिंग और अपडेट के लिए आधिकारिक स्थान है:",
   "eventDetail.import.lastSynced": "अंतिम सिंक: {value}",
   "eventDetail.import.contact": "बदलाव/हटाना, दावा करना, या सत्यापित सूचीकरण चाहते हैं? हमसे hello@danceresource.org पर संपर्क करें",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "लंबित",
   "profile.comments.statusApproved": "स्वीकृत",
   "profile.comments.statusRejected": "अस्वीकृत",
-  "manage.admin.moderation.byModerator": "{name} द्वारा"
+  "manage.admin.moderation.byModerator": "{name} द्वारा",
+  "eventSearch.eventDateOption.next_weekend": "अगला सप्ताहांत",
+  "manage.admin.logs.activityLog": "गतिविधि लॉग",
+  "manage.admin.logs.errorLog": "त्रुटि लॉग",
+  "manage.sidebar.config": "कॉन्फ़िग"
 }

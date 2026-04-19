@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Redigera evenemang",
   "eventDetail.import.officialBooking": "Officiella detaljer och bokning:",
   "eventDetail.import.sharedWithCare": "Delat med omsorg: DanceResource listar offentliga evenemang för att göra det lättare att hitta medveten dans världen över.",
-  "eventDetail.import.sourceLine": "Denna post importerades automatiskt från {source}.",
+  "eventDetail.import.sourceLine": "Denna post importerades automatiskt.",
   "eventDetail.import.officialLink": "Källlänken är den officiella platsen för bokning och uppdateringar:",
   "eventDetail.import.lastSynced": "Senast synkad: {value}",
   "eventDetail.import.contact": "Vill du ändra/ta bort, ta äganderätt eller ha en verifierad listning? Kontakta oss på hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "väntar",
   "profile.comments.statusApproved": "godkänd",
   "profile.comments.statusRejected": "avvisad",
-  "manage.admin.moderation.byModerator": "av {name}"
+  "manage.admin.moderation.byModerator": "av {name}",
+  "eventSearch.eventDateOption.next_weekend": "Nästa helg",
+  "manage.admin.logs.activityLog": "Aktivitetslogg",
+  "manage.admin.logs.errorLog": "Fellogg",
+  "manage.sidebar.config": "Konfiguration"
 }

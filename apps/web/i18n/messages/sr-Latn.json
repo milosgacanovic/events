@@ -170,7 +170,7 @@
   "eventDetail.editEvent": "Izmeni događaj",
   "eventDetail.import.officialBooking": "Zvanični detalji i prijave:",
   "eventDetail.import.sharedWithCare": "Deljeno pažljivo: DanceResource prikazuje javne događaje da bi svesni ples bio lakše dostupan širom sveta.",
-  "eventDetail.import.sourceLine": "Ovaj unos je automatski importovan iz izvora {source}.",
+  "eventDetail.import.sourceLine": "Ovaj unos je automatski uvezen.",
   "eventDetail.import.officialLink": "Izvorni link je zvanično mesto za prijave i ažuriranja:",
   "eventDetail.import.lastSynced": "Poslednja sinhronizacija: {value}",
   "eventDetail.import.contact": "Želiš izmenu/uklanjanje, da preuzmeš unos ili verifikovan listing? Piši nam na hello@danceresource.org",

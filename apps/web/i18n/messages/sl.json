@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Uredi Dogodek",
   "eventDetail.import.officialBooking": "Uradne podrobnosti in rezervacija:",
   "eventDetail.import.sharedWithCare": "Deljeno s skrbnostjo: DanceResource navaja javne dogodke, da je zavesten ples lažje najti po vsem svetu.",
-  "eventDetail.import.sourceLine": "Ta vnos je bil samodejno uvožen iz {source}.",
+  "eventDetail.import.sourceLine": "Ta vnos je bil samodejno uvožen.",
   "eventDetail.import.officialLink": "Izvorna povezava je uradni kraj za rezervacije in posodobitve:",
   "eventDetail.import.lastSynced": "Zadnja sinhronizacija: {value}",
   "eventDetail.import.contact": "Želite to spremeniti/odstraniti, prevzeti ali pridobiti preverjen vnos? Kontaktirajte nas na hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "v teku",
   "profile.comments.statusApproved": "odobreno",
   "profile.comments.statusRejected": "zavrnjeno",
-  "manage.admin.moderation.byModerator": "od {name}"
+  "manage.admin.moderation.byModerator": "od {name}",
+  "eventSearch.eventDateOption.next_weekend": "Naslednji vikend",
+  "manage.admin.logs.activityLog": "Dnevnik dejavnosti",
+  "manage.admin.logs.errorLog": "Dnevnik napak",
+  "manage.sidebar.config": "Konfiguracija"
 }

@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "이벤트 수정",
   "eventDetail.import.officialBooking": "공식 정보 및 예약:",
   "eventDetail.import.sharedWithCare": "정성껏 공유: DanceResource는 전 세계에서 의식 있는 댄스를 더 쉽게 찾을 수 있도록 공개 이벤트를 게재합니다.",
-  "eventDetail.import.sourceLine": "이 항목은 {source}에서 자동으로 가져왔습니다.",
+  "eventDetail.import.sourceLine": "이 항목은 자동으로 가져왔습니다.",
   "eventDetail.import.officialLink": "예약 및 업데이트를 위한 공식 링크:",
   "eventDetail.import.lastSynced": "마지막 동기화: {value}",
   "eventDetail.import.contact": "변경/삭제를 원하시거나, 소유권을 주장하거나, 인증 등록을 원하시면 hello@danceresource.org로 문의하세요",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "대기 중",
   "profile.comments.statusApproved": "승인됨",
   "profile.comments.statusRejected": "거부됨",
-  "manage.admin.moderation.byModerator": "{name} 작성"
+  "manage.admin.moderation.byModerator": "{name} 작성",
+  "eventSearch.eventDateOption.next_weekend": "다음 주말",
+  "manage.admin.logs.activityLog": "활동 로그",
+  "manage.admin.logs.errorLog": "오류 로그",
+  "manage.sidebar.config": "구성"
 }

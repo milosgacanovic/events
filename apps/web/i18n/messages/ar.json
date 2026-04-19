@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "تعديل الفعالية",
   "eventDetail.import.officialBooking": "التفاصيل الرسمية والحجز:",
   "eventDetail.import.sharedWithCare": "مشارك باهتمام: يُدرج DanceResource الفعاليات العامة لتسهيل العثور على الرقص الواعي في جميع أنحاء العالم.",
-  "eventDetail.import.sourceLine": "تم استيراد هذا الإدخال تلقائياً من {source}.",
+  "eventDetail.import.sourceLine": "تم استيراد هذا الإدخال تلقائياً.",
   "eventDetail.import.officialLink": "رابط المصدر هو المكان الرسمي للحجز والتحديثات:",
   "eventDetail.import.lastSynced": "آخر مزامنة: {value}",
   "eventDetail.import.contact": "هل تريد تغيير/إزالة أو المطالبة به أو الحصول على قائمة موثقة؟ تواصل معنا على hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "قيد الانتظار",
   "profile.comments.statusApproved": "موافق عليه",
   "profile.comments.statusRejected": "مرفوض",
-  "manage.admin.moderation.byModerator": "بواسطة {name}"
+  "manage.admin.moderation.byModerator": "بواسطة {name}",
+  "eventSearch.eventDateOption.next_weekend": "عطلة نهاية الأسبوع القادمة",
+  "manage.admin.logs.activityLog": "سجل النشاط",
+  "manage.admin.logs.errorLog": "سجل الأخطاء",
+  "manage.sidebar.config": "الإعدادات"
 }

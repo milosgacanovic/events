@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "แก้ไขกิจกรรม",
   "eventDetail.import.officialBooking": "รายละเอียดและการจองอย่างเป็นทางการ:",
   "eventDetail.import.sharedWithCare": "แบ่งปันด้วยความใส่ใจ: DanceResource ลงรายการกิจกรรมสาธารณะเพื่อให้การเต้นรำแบบมีสติค้นหาได้ง่ายขึ้นทั่วโลก",
-  "eventDetail.import.sourceLine": "รายการนี้ถูกนำเข้าโดยอัตโนมัติจาก {source}",
+  "eventDetail.import.sourceLine": "รายการนี้ถูกนำเข้าโดยอัตโนมัติ",
   "eventDetail.import.officialLink": "ลิงก์แหล่งที่มาคือสถานที่อย่างเป็นทางการสำหรับการจองและการอัปเดต:",
   "eventDetail.import.lastSynced": "ซิงค์ล่าสุด: {value}",
   "eventDetail.import.contact": "ต้องการเปลี่ยนแปลง/ลบ ต้องการอ้างสิทธิ์ หรือต้องการรายการที่ได้รับการยืนยัน? ติดต่อเราที่ hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "รอดำเนินการ",
   "profile.comments.statusApproved": "อนุมัติแล้ว",
   "profile.comments.statusRejected": "ปฏิเสธแล้ว",
-  "manage.admin.moderation.byModerator": "โดย {name}"
+  "manage.admin.moderation.byModerator": "โดย {name}",
+  "eventSearch.eventDateOption.next_weekend": "สุดสัปดาห์หน้า",
+  "manage.admin.logs.activityLog": "บันทึกกิจกรรม",
+  "manage.admin.logs.errorLog": "บันทึกข้อผิดพลาด",
+  "manage.sidebar.config": "การตั้งค่า"
 }

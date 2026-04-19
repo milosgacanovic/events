@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Rediger begivenhed",
   "eventDetail.import.officialBooking": "Officielle oplysninger og booking:",
   "eventDetail.import.sharedWithCare": "Delt med omhu: DanceResource lister offentlige begivenheder for at gøre bevidst dans lettere at finde verden over.",
-  "eventDetail.import.sourceLine": "Denne post blev automatisk importeret fra {source}.",
+  "eventDetail.import.sourceLine": "Denne post blev automatisk importeret.",
   "eventDetail.import.officialLink": "Kildelinket er det officielle sted for booking og opdateringer:",
   "eventDetail.import.lastSynced": "Sidst synkroniseret: {value}",
   "eventDetail.import.contact": "Vil du have noget ændret/fjernet, vil du kræve det, eller vil du have en verificeret notering? Kontakt os på hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "afventer",
   "profile.comments.statusApproved": "godkendt",
   "profile.comments.statusRejected": "afvist",
-  "manage.admin.moderation.byModerator": "af {name}"
+  "manage.admin.moderation.byModerator": "af {name}",
+  "eventSearch.eventDateOption.next_weekend": "Næste weekend",
+  "manage.admin.logs.activityLog": "Aktivitetslog",
+  "manage.admin.logs.errorLog": "Fejllog",
+  "manage.sidebar.config": "Konfiguration"
 }

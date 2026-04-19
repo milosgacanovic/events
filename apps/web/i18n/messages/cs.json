@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Upravit akci",
   "eventDetail.import.officialBooking": "Oficiální informace a rezervace:",
   "eventDetail.import.sharedWithCare": "Sdíleno s péčí: DanceResource uvádí veřejné akce, aby bylo vědomé tancování snadněji dostupné po celém světě.",
-  "eventDetail.import.sourceLine": "Tento záznam byl automaticky importován z {source}.",
+  "eventDetail.import.sourceLine": "Tento záznam byl automaticky importován.",
   "eventDetail.import.officialLink": "Zdrojový odkaz je oficiálním místem pro rezervace a aktualizace:",
   "eventDetail.import.lastSynced": "Poslední synchronizace: {value}",
   "eventDetail.import.contact": "Chcete změnu/odstranění, chcete si záznam nárokovat nebo chcete ověřený výpis? Kontaktujte nás na hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "čekající",
   "profile.comments.statusApproved": "schváleno",
   "profile.comments.statusRejected": "zamítnuto",
-  "manage.admin.moderation.byModerator": "od {name}"
+  "manage.admin.moderation.byModerator": "od {name}",
+  "eventSearch.eventDateOption.next_weekend": "Příští víkend",
+  "manage.admin.logs.activityLog": "Protokol aktivit",
+  "manage.admin.logs.errorLog": "Protokol chyb",
+  "manage.sidebar.config": "Konfigurace"
 }

@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Modifier l'événement",
   "eventDetail.import.officialBooking": "Détails officiels et réservation :",
   "eventDetail.import.sharedWithCare": "Partagé avec soin : DanceResource répertorie les événements publics pour rendre la danse consciente plus facile à trouver dans le monde entier.",
-  "eventDetail.import.sourceLine": "Cette entrée a été importée automatiquement depuis {source}.",
+  "eventDetail.import.sourceLine": "Cette entrée a été importée automatiquement.",
   "eventDetail.import.officialLink": "Le lien source est l'endroit officiel pour les réservations et les mises à jour :",
   "eventDetail.import.lastSynced": "Dernière synchronisation : {value}",
   "eventDetail.import.contact": "Vous souhaitez une modification/suppression, revendiquer cette fiche ou obtenir une inscription vérifiée ? Contactez-nous à hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "en attente",
   "profile.comments.statusApproved": "approuvé",
   "profile.comments.statusRejected": "rejeté",
-  "manage.admin.moderation.byModerator": "par {name}"
+  "manage.admin.moderation.byModerator": "par {name}",
+  "eventSearch.eventDateOption.next_weekend": "Le week-end prochain",
+  "manage.admin.logs.activityLog": "Journal d'activité",
+  "manage.admin.logs.errorLog": "Journal d'erreurs",
+  "manage.sidebar.config": "Configuration"
 }

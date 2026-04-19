@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Hlela umcimbi",
   "eventDetail.import.officialBooking": "Imininingwane esemthethweni nokubhukha:",
   "eventDetail.import.sharedWithCare": "Yabiwa ngokunakekela: I-DanceResource ibhaliselisa imicimbi yomphakathi ukuze kube lula ukuthola ukudansa okuzwisisayo emhlabeni wonke.",
-  "eventDetail.import.sourceLine": "Le ntombela ingeniswa ngokuzenzakalelayo evela ku-{source}.",
+  "eventDetail.import.sourceLine": "Le ntombela ingeniswa ngokuzenzakalelayo.",
   "eventDetail.import.officialLink": "Ukhiye womthombo yindawo esemthethweni yokubhukha nezibuyekezo:",
   "eventDetail.import.lastSynced": "Usayinikroniseshwe wamuva: {value}",
   "eventDetail.import.contact": "Ufuna ukushintshwa/ukukhishwa, ufuna ukuzitholela, noma ufuna uhlu olufakiwe? Xhumana nathi ku-hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "kulindile",
   "profile.comments.statusApproved": "kuvunyelwe",
   "profile.comments.statusRejected": "kwenqatshiwe",
-  "manage.admin.moderation.byModerator": "ngu-{name}"
+  "manage.admin.moderation.byModerator": "ngu-{name}",
+  "eventSearch.eventDateOption.next_weekend": "Impelasonto elandelayo",
+  "manage.admin.logs.activityLog": "Ilogi Yomsebenzi",
+  "manage.admin.logs.errorLog": "Ilogi Yamaphutha",
+  "manage.sidebar.config": "Ukumisa"
 }

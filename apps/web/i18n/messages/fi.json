@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Muokkaa tapahtumaa",
   "eventDetail.import.officialBooking": "Viralliset tiedot ja varaus:",
   "eventDetail.import.sharedWithCare": "Jaettu harkiten: DanceResource listaa julkisia tapahtumia, jotta tietoisen tanssin löytäminen ympäri maailmaa olisi helpompaa.",
-  "eventDetail.import.sourceLine": "Tämä merkintä tuotiin automaattisesti lähteestä {source}.",
+  "eventDetail.import.sourceLine": "Tämä merkintä tuotiin automaattisesti.",
   "eventDetail.import.officialLink": "Lähdelinkki on virallinen paikka varauksille ja päivityksille:",
   "eventDetail.import.lastSynced": "Viimeksi synkronoitu: {value}",
   "eventDetail.import.contact": "Haluatko muuttaa/poistaa, ottaa omistuksen tai saada vahvistetun listauksen? Ota yhteyttä osoitteeseen hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "odottaa",
   "profile.comments.statusApproved": "hyväksytty",
   "profile.comments.statusRejected": "hylätty",
-  "manage.admin.moderation.byModerator": "käyttäjältä {name}"
+  "manage.admin.moderation.byModerator": "käyttäjältä {name}",
+  "eventSearch.eventDateOption.next_weekend": "Ensi viikonloppu",
+  "manage.admin.logs.activityLog": "Toimintaloki",
+  "manage.admin.logs.errorLog": "Virheloki",
+  "manage.sidebar.config": "Asetukset"
 }

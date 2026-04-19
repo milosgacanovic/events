@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "ღონისძიების რედაქტირება",
   "eventDetail.import.officialBooking": "ოფიციალური დეტალები და დაჯავშვნა:",
   "eventDetail.import.sharedWithCare": "სიყვარულით გაზიარებული: DanceResource ათავსებს საჯარო ღონისძიებებს, რათა ცნობიერი ცეკვის პოვნა მთელ მსოფლიოში გამარტივდეს.",
-  "eventDetail.import.sourceLine": "ეს ჩანაწერი ავტომატურად იქნა შემოტანილი {source}-დან.",
+  "eventDetail.import.sourceLine": "ეს ჩანაწერი ავტომატურად იქნა შემოტანილი.",
   "eventDetail.import.officialLink": "საწყის ბმულს მიეცეთ უპირატესობა დაჯავშვნისა და განახლებებისთვის:",
   "eventDetail.import.lastSynced": "ბოლო სინქრონიზაცია: {value}",
   "eventDetail.import.contact": "გსურთ ცვლილება/წაშლა, ჩანაწერის მოთხოვნა, ან დამოწმებული ჩანაწერი? დაგვიკავშირდით: hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "მოლოდინში",
   "profile.comments.statusApproved": "დამტკიცებული",
   "profile.comments.statusRejected": "უარყოფილი",
-  "manage.admin.moderation.byModerator": "{name}-ისგან"
+  "manage.admin.moderation.byModerator": "{name}-ისგან",
+  "eventSearch.eventDateOption.next_weekend": "მომავალი შაბათ-კვირა",
+  "manage.admin.logs.activityLog": "აქტივობის ჟურნალი",
+  "manage.admin.logs.errorLog": "შეცდომების ჟურნალი",
+  "manage.sidebar.config": "კონფიგურაცია"
 }

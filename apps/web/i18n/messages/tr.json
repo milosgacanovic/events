@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Etkinliği düzenle",
   "eventDetail.import.officialBooking": "Resmi bilgiler ve rezervasyon:",
   "eventDetail.import.sharedWithCare": "Özenle paylaşıldı: DanceResource, bilinçli dansı dünya genelinde daha kolay bulunur kılmak için herkese açık etkinlikleri listeler.",
-  "eventDetail.import.sourceLine": "Bu kayıt {source} kaynağından otomatik olarak içe aktarıldı.",
+  "eventDetail.import.sourceLine": "Bu kayıt otomatik olarak içe aktarıldı.",
   "eventDetail.import.officialLink": "Kaynak bağlantı, rezervasyon ve güncellemeler için resmi yerdir:",
   "eventDetail.import.lastSynced": "Son senkronizasyon: {value}",
   "eventDetail.import.contact": "Değiştirilmesini/kaldırılmasını mı istiyorsunuz, talep etmek ya da doğrulanmış listeleme almak mı istiyorsunuz? hello@danceresource.org adresinden bize ulaşın",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "beklemede",
   "profile.comments.statusApproved": "onaylandı",
   "profile.comments.statusRejected": "reddedildi",
-  "manage.admin.moderation.byModerator": "{name} tarafından"
+  "manage.admin.moderation.byModerator": "{name} tarafından",
+  "eventSearch.eventDateOption.next_weekend": "Gelecek hafta sonu",
+  "manage.admin.logs.activityLog": "Etkinlik Günlüğü",
+  "manage.admin.logs.errorLog": "Hata Günlüğü",
+  "manage.sidebar.config": "Yapılandırma"
 }

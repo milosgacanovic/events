@@ -169,7 +169,7 @@
   "eventDetail.editEvent": "Evenement bewerken",
   "eventDetail.import.officialBooking": "Officiële details en boeking:",
   "eventDetail.import.sharedWithCare": "Gedeeld met zorg: DanceResource vermeldt publieke evenementen om bewust dansen wereldwijd makkelijker vindbaar te maken.",
-  "eventDetail.import.sourceLine": "Dit item is automatisch geïmporteerd uit {source}.",
+  "eventDetail.import.sourceLine": "Dit item is automatisch geïmporteerd.",
   "eventDetail.import.officialLink": "De bronlink is de officiële plek voor boekingen en updates:",
   "eventDetail.import.lastSynced": "Laatst gesynchroniseerd: {value}",
   "eventDetail.import.contact": "Wilt u dit gewijzigd/verwijderd hebben, aanspraak maken of een geverifieerde vermelding? Neem contact op via hello@danceresource.org",
@@ -1331,5 +1331,9 @@
   "profile.comments.statusPending": "in afwachting",
   "profile.comments.statusApproved": "goedgekeurd",
   "profile.comments.statusRejected": "afgewezen",
-  "manage.admin.moderation.byModerator": "door {name}"
+  "manage.admin.moderation.byModerator": "door {name}",
+  "eventSearch.eventDateOption.next_weekend": "Volgend weekend",
+  "manage.admin.logs.activityLog": "Activiteitenlogboek",
+  "manage.admin.logs.errorLog": "Foutenlogboek",
+  "manage.sidebar.config": "Configuratie"
 }
