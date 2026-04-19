@@ -7,6 +7,7 @@ import { useI18n } from "../../../components/i18n/I18nProvider";
 import { CityAutocomplete, type CitySelection } from "../../../components/CityAutocomplete";
 import { supportedLocales, type AppLocale } from "../../../lib/i18n/config";
 import { setLocaleCookie } from "../../../lib/i18n/cookie";
+import { getLocaleAutonym } from "../../../lib/i18n/messages";
 import { apiBase } from "../../../lib/api";
 import { getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../../../lib/timeDisplay";
 
@@ -199,7 +200,7 @@ export default function AccountTab() {
                 style={{ width: "100%" }}
               >
                 {supportedLocales.map((loc) => (
-                  <option key={loc} value={loc}>{t(`locale.${loc}`)}</option>
+                  <option key={loc} value={loc}>{getLocaleAutonym(loc)}</option>
                 ))}
               </select>
             </div>

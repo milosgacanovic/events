@@ -78,3 +78,10 @@ const catalogs: Record<AppLocale, MessageCatalog> = {
 export function getMessages(locale: AppLocale): MessageCatalog {
   return catalogs[locale];
 }
+
+// Language autonym — "Deutsch" for de, "Srpski" for sr, "Norsk" for no, etc.
+// Always rendered in the target language regardless of the current UI locale,
+// so the language picker shows each option in its own script/spelling.
+export function getLocaleAutonym(locale: AppLocale): string {
+  return catalogs[locale][`locale.${locale}`] ?? locale;
+}

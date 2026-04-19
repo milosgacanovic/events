@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { supportedLocales, type AppLocale } from "../../lib/i18n/config";
 import { setLocaleCookie } from "../../lib/i18n/cookie";
+import { getLocaleAutonym } from "../../lib/i18n/messages";
 import { useI18n } from "./I18nProvider";
 
 export function LocaleSwitcher() {
@@ -20,7 +21,7 @@ export function LocaleSwitcher() {
   return (
     <label className="locale-switcher">
       <span ref={sizerRef} className="locale-switcher-sizer" aria-hidden="true">
-        {t(`locale.${locale}`)}
+        {getLocaleAutonym(locale)}
       </span>
       <span className="locale-label">{t("locale.selectLabel")}</span>
       <select
@@ -35,7 +36,7 @@ export function LocaleSwitcher() {
       >
         {supportedLocales.map((value) => (
           <option key={value} value={value}>
-            {t(`locale.${value}`)}
+            {getLocaleAutonym(value)}
           </option>
         ))}
       </select>
