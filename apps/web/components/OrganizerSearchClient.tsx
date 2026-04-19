@@ -1226,7 +1226,6 @@ export function OrganizerSearchClient({
         <div className="card-list">
         {view === "list" && accumulatedItems.map((item) => {
           const primaryCatId = item.practiceCategoryIds?.[0];
-          const primaryCatKey = primaryCatId ? (practiceKeyById.get(primaryCatId) ?? "other") : "other";
           const locationParts = [
             item.city ?? "",
             (item.countryCode ?? item.country_code) ? getCountryLabel((item.countryCode ?? item.country_code) as string) : "",
@@ -1239,7 +1238,7 @@ export function OrganizerSearchClient({
             <Link className="card host-card-h" key={item.id} href={`/hosts/${item.slug}`} onClick={onNavigateAway}>
               <div
                 className="host-card-avatar"
-                style={{ background: imageUrl ? undefined : `var(--category-${primaryCatKey}, var(--surface-skeleton))` }}
+                style={{ background: imageUrl ? undefined : "var(--surface-skeleton)" }}
               >
                 {imageUrl ? (
                   <img
