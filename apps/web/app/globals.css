@@ -1414,6 +1414,15 @@ label.meta {
   text-align: left;
 }
 
+.secondary-btn.icon-btn,
+.ghost-btn.icon-btn {
+  padding: 5px 10px;
+  min-height: 32px;
+}
+.secondary-btn.icon-btn:not(:has(.icon-label)),
+.ghost-btn.icon-btn:not(:has(.icon-label)) {
+  padding: 5px 8px;
+}
 .secondary-btn.icon-btn {
   border-color: var(--accent);
   color: var(--accent);
