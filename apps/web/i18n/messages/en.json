@@ -60,6 +60,7 @@
   "eventSearch.title": "Filters",
   "eventSearch.view.list": "List view",
   "eventSearch.view.map": "Map view",
+  "eventSearch.view.discover": "Discover",
   "eventSearch.placeholder.searchTitle": "Search by title",
   "eventSearch.placeholder.tags": "Tags (e.g. ceremony, cacao)",
   "eventSearch.placeholder.tagsCsv": "Tags csv (e.g. ecstatic,contact-improv)",

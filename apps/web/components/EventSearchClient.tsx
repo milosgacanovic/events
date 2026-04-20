@@ -2078,15 +2078,15 @@ export function EventSearchClient({
               type="button"
               className={view === "discover" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
               onClick={() => setView("discover")}
-              aria-label="Discover"
-              title="Discover"
+              aria-label={t("eventSearch.view.discover")}
+              title={t("eventSearch.view.discover")}
             >
               <span aria-hidden className="icon-glyph">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" />
                 </svg>
               </span>
-              <span className="icon-label">Discover</span>
+              <span className="icon-label">{t("eventSearch.view.discover")}</span>
             </button>
             )}
             </div>
