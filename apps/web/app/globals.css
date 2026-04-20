@@ -331,16 +331,6 @@ main:has(.manage-main--wide) {
   color: var(--ink);
 }
 
-.header-auth-pill--primary {
-  border-color: var(--bs-primary);
-  background: var(--bs-primary);
-  color: #fff;
-}
-.header-auth-pill--primary:hover {
-  border-color: var(--bs-link-hover);
-  background: var(--bs-link-hover);
-  color: #fff;
-}
 
 /* Logged-in: bordered pill with user icon + caret */
 .desktop-user-wrap {
