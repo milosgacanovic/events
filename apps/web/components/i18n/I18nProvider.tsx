@@ -3,6 +3,7 @@
 import { IntlMessageFormat } from "intl-messageformat";
 import React, { createContext, useContext, useMemo, useRef } from "react";
 
+import enFallback from "../../i18n/messages/en.json";
 import type { AppLocale } from "../../lib/i18n/config";
 import type { MessageCatalog } from "../../lib/i18n/messages";
 
@@ -44,7 +45,8 @@ export function I18nProvider({
     return {
       locale,
       t: (key, values) => {
-        const template = messages[key] ?? key;
+        const template =
+          messages[key] ?? (enFallback as MessageCatalog)[key] ?? key;
         const cacheKey = `${locale}:${key}:${template}`;
 
         let formatter = formatterCache.current.get(cacheKey);
