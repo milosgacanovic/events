@@ -1356,26 +1356,26 @@ export function EventDetailClient({
             className={
               isLongDesc
                 ? (descExpanded
-                    ? "event-detail-desc expanded is-clickable"
+                    ? "event-detail-desc expanded"
                     : "event-detail-desc is-clickable")
                 : "event-detail-desc expanded"
             }
             dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }}
-            {...(isLongDesc
+            {...(isLongDesc && !descExpanded
               ? {
                   role: "button",
                   tabIndex: 0,
-                  "aria-expanded": descExpanded,
+                  "aria-expanded": false,
                   onClick: (e: React.MouseEvent<HTMLDivElement>) => {
                     const target = e.target as HTMLElement;
                     if (target.closest("a,button")) return;
                     if (!window.getSelection()?.isCollapsed) return;
-                    setDescExpanded((v) => !v);
+                    setDescExpanded(true);
                   },
                   onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setDescExpanded((v) => !v);
+                      setDescExpanded(true);
                     }
                   },
                 }

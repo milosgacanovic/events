@@ -2629,11 +2629,14 @@ label.meta {
 }
 .event-detail-schedule,
 .event-detail-map-section,
-.event-detail-hosts-section,
-.event-detail-comments-section {
+.event-detail-hosts-section {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--line);
+}
+.event-detail-comments-section {
+  /* Inner .comments-section carries its own separator — no outer border. */
+  margin-top: 24px;
 }
 .event-detail-schedule {
   display: grid;
