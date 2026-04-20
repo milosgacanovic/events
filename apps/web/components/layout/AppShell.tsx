@@ -225,11 +225,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ) : (
             <div className="header-auth-pills">
-              <button className="header-auth-pill" type="button" onClick={handleLogin}>
+              <button className="header-auth-pill header-auth-pill--quiet" type="button" onClick={handleLogin}>
                 {t("nav.login")}
               </button>
               {registerUrl && (
-                <a className="header-auth-pill" href={registerUrl}>
+                <a className="header-auth-pill header-auth-pill--primary" href={registerUrl}>
                   {t("nav.register")}
                 </a>
               )}

@@ -319,6 +319,29 @@ main:has(.manage-main--wide) {
   background: var(--hover-bg);
 }
 
+.header-auth-pill--quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 14px;
+}
+.header-auth-pill--quiet:hover {
+  border-color: transparent;
+  background: var(--hover-bg);
+  color: var(--ink);
+}
+
+.header-auth-pill--primary {
+  border-color: var(--bs-primary);
+  background: var(--bs-primary);
+  color: #fff;
+}
+.header-auth-pill--primary:hover {
+  border-color: var(--bs-link-hover);
+  background: var(--bs-link-hover);
+  color: #fff;
+}
+
 /* Logged-in: bordered pill with user icon + caret */
 .desktop-user-wrap {
   position: relative;
