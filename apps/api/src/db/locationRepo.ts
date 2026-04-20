@@ -15,7 +15,7 @@ function sanitizeCity(city: string | null | undefined, label: string | null | un
   const trimmed = city?.trim();
   if (!trimmed) return null;
   if (UK_POSTCODE_RE.test(trimmed)) return null;
-  if (label && trimmed.toLowerCase() === label.trim().toLowerCase()) return null;
+  if (label && label.trim().includes(" ") && trimmed.toLowerCase() === label.trim().toLowerCase()) return null;
   return trimmed;
 }
 
