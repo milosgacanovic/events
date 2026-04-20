@@ -3679,8 +3679,8 @@ label.meta {
   }
 
   .results-count {
-    order: -1;
-    width: 100%;
+    order: 0;
+    width: auto;
   }
 }
 
