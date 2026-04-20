@@ -1161,7 +1161,10 @@ export function OrganizerSearchClient({
             onClick={toggleSidebar}
             aria-expanded={sidebarOpen}
           >
-            {activeFilterCount > 0 ? `${t("eventSearch.filtersButton")} (${activeFilterCount})` : t("eventSearch.filtersButton")}
+            <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1.5 3h11M3 7h8M5 11h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <span>{activeFilterCount > 0 ? `${t("eventSearch.filtersButton")} (${activeFilterCount})` : t("eventSearch.filtersButton")}</span>
           </button>
           <div className="meta results-count">
             {data
@@ -1188,9 +1191,11 @@ export function OrganizerSearchClient({
               title={t("eventSearch.view.map")}
             >
               <span aria-hidden className="icon-glyph">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="10" r="3" />
-                  <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z" />
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M2 12h20"/>
+                  <path d="M12 2a15 15 0 0 1 0 20"/>
+                  <path d="M12 2a15 15 0 0 0 0 20"/>
                 </svg>
               </span>
               <span className="icon-label">{t("eventSearch.view.map")}</span>

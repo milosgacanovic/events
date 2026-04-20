@@ -1385,15 +1385,17 @@ label.meta {
 }
 
 .icon-btn {
-  min-width: 36px;
-  min-height: 36px;
-  padding: 6px 10px;
+  padding: 5px 10px;
   display: inline-flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 6px;
+  font-size: 0.85rem;
+  border-radius: 10px;
 }
+/* Sort arrow buttons have no label — keep them square-ish */
+.icon-btn:not(:has(.icon-label)) { min-width: 36px; padding: 5px 8px; }
 
 .icon-glyph {
   display: inline-flex;
@@ -1404,9 +1406,9 @@ label.meta {
 }
 
 .icon-label {
-  font-size: 11px;
+  font-size: 0.85rem;
   line-height: 1.1;
-  text-align: center;
+  text-align: left;
 }
 
 .secondary-btn.icon-btn {
@@ -2700,6 +2702,13 @@ label.meta {
   display: none;
 }
 
+.event-detail-desc.is-clickable { cursor: pointer; }
+.event-detail-desc.is-clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .event-detail-expand-btn {
   background: none;
   border: none;
@@ -2831,6 +2840,11 @@ label.meta {
   gap: 10px;
   padding-top: 16px;
   border-top: 1px solid var(--line);
+}
+.event-detail-footer--no-map {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 24px;
 }
 
 .event-detail-disclaimer {

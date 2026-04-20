@@ -879,6 +879,7 @@ export function EventDetailClient({
   const mapLat = data.defaultLocation?.lat ?? data.occurrences.upcoming[0]?.lat ?? null;
   const mapLng = data.defaultLocation?.lng ?? data.occurrences.upcoming[0]?.lng ?? null;
   const hasGeo = mapLat !== null && mapLng !== null;
+  const mapRendered = data.event.attendance_mode !== "online" && hasGeo;
   const isLongDesc = (sanitizedDescriptionHtml?.length ?? 0) > 800;
 
   const calEventTitle = data?.event.title ?? "";
@@ -1294,8 +1295,33 @@ export function EventDetailClient({
         <div className="event-detail-section">
           <h2 className="event-detail-section-title">{t("eventDetail.descriptionLabel")}</h2>
           <div
-            className={isLongDesc && !descExpanded ? "event-detail-desc" : "event-detail-desc expanded"}
+            className={
+              isLongDesc
+                ? (descExpanded
+                    ? "event-detail-desc expanded is-clickable"
+                    : "event-detail-desc is-clickable")
+                : "event-detail-desc expanded"
+            }
             dangerouslySetInnerHTML={{ __html: sanitizedDescriptionHtml }}
+            {...(isLongDesc
+              ? {
+                  role: "button",
+                  tabIndex: 0,
+                  "aria-expanded": descExpanded,
+                  onClick: (e: React.MouseEvent<HTMLDivElement>) => {
+                    const target = e.target as HTMLElement;
+                    if (target.closest("a,button")) return;
+                    if (!window.getSelection()?.isCollapsed) return;
+                    setDescExpanded((v) => !v);
+                  },
+                  onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setDescExpanded((v) => !v);
+                    }
+                  },
+                }
+              : {})}
           />
           <div className="event-detail-desc-footer">
             {isLongDesc && (
@@ -1464,7 +1490,7 @@ export function EventDetailClient({
       )}
 
       {/* Map */}
-      {data.event.attendance_mode !== "online" && hasGeo && (
+      {mapRendered && (
         <div className="event-detail-section event-detail-map-section">
           <h2 className="event-detail-section-title">{t("eventDetail.openMap")}</h2>
           <EventDetailMap lat={mapLat} lng={mapLng} />
@@ -1472,7 +1498,7 @@ export function EventDetailClient({
       )}
 
       {/* Footer */}
-      <footer className="event-detail-footer">
+      <footer className={`event-detail-footer${mapRendered ? "" : " event-detail-footer--no-map"}`}>
         {isImported && externalUrl && (
           <div className="event-detail-disclaimer">
             <div>{t("eventDetail.import.sharedWithCare")}</div>
