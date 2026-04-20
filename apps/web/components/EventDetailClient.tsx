@@ -215,6 +215,7 @@ export type EventDetail = {
     updated_at: string;
     lastSyncedAt?: string;
     schedule_kind: "single" | "recurring";
+    rrule?: string | null;
     cover_image_path: string | null;
     coverImageUrl?: string | null;
     external_url: string | null;
@@ -880,6 +881,36 @@ export function EventDetailClient({
   const mapLng = data.defaultLocation?.lng ?? data.occurrences.upcoming[0]?.lng ?? null;
   const hasGeo = mapLat !== null && mapLng !== null;
   const mapRendered = data.event.attendance_mode !== "online" && hasGeo;
+
+  const recurrenceCadence: "weekly" | "biweekly" | "monthly" | null = (() => {
+    const isSeries = data.event.schedule_kind === "recurring" || (data.series?.siblingCount ?? 1) > 1;
+    if (!isSeries) return null;
+
+    // Prefer rrule-based signal when available
+    const rr = data.event.rrule ?? "";
+    const freq = rr.match(/FREQ=(\w+)/i)?.[1]?.toUpperCase();
+    const interval = Number(rr.match(/INTERVAL=(\d+)/i)?.[1] ?? 1);
+    if (freq === "WEEKLY" && interval === 1) return "weekly";
+    if (freq === "WEEKLY" && interval === 2) return "biweekly";
+    if (freq === "MONTHLY") return "monthly";
+    if (data.series?.cadence?.kind === "weekly") return "weekly";
+
+    // Gap-based detection across upcoming occurrences
+    const dates = data.occurrences.upcoming
+      .map((o) => new Date(o.starts_at_utc).getTime())
+      .filter((t) => Number.isFinite(t))
+      .sort((a, b) => a - b);
+    if (dates.length < 3) return null;
+    const gaps: number[] = [];
+    for (let i = 1; i < dates.length; i += 1) {
+      gaps.push((dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24));
+    }
+    const allWithin = (low: number, high: number) => gaps.every((g) => g >= low && g <= high);
+    if (allWithin(6.5, 7.5)) return "weekly";
+    if (allWithin(13, 15)) return "biweekly";
+    if (allWithin(27, 32)) return "monthly";
+    return null;
+  })();
   const isLongDesc = (sanitizedDescriptionHtml?.length ?? 0) > 800;
 
   const calEventTitle = data?.event.title ?? "";
@@ -1135,7 +1166,9 @@ export function EventDetailClient({
             <span className="event-detail-meta-value">
               {whenLabel}
               {(data.series?.siblingCount ?? 1) > 1 && (
-                <> · {t("eventDetail.recurringChip")}</>
+                <> · {recurrenceCadence
+                  ? t(`eventDetail.recurrence.${recurrenceCadence}`)
+                  : t("eventDetail.recurringChip")}</>
               )}
             </span>
             <label className="toggle-control toggle-control-sm" style={{ marginTop: 6 }}>
@@ -1175,7 +1208,18 @@ export function EventDetailClient({
         <div className="event-detail-meta-item">
           <span className="event-detail-meta-label">{t("eventDetail.where")}</span>
           {data.event.attendance_mode === "online" ? (
-            <span className="event-detail-meta-value">{modalityLabel}</span>
+            <>
+              <span className="event-detail-meta-value" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: "middle" }}>
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M2 12h20"/>
+                  <path d="M12 2a15 15 0 0 1 0 20"/>
+                  <path d="M12 2a15 15 0 0 0 0 20"/>
+                </svg>
+                {modalityLabel}
+              </span>
+              <span className="meta" style={{ color: "var(--muted)" }}>{t("eventDetail.onlineLinkHint")}</span>
+            </>
           ) : (
             <>
               {data.defaultLocation?.formatted_address && data.defaultLocation.formatted_address !== data.defaultLocation.city ? (
@@ -1192,6 +1236,20 @@ export function EventDetailClient({
                 <span className="event-detail-meta-value" style={{ color: "var(--muted)" }}>
                   <Link href={`/events?countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit" }}>{getCountryLabel(data.defaultLocation.country_code)}</Link>
                 </span>
+              )}
+              {data.event.attendance_mode === "hybrid" && (
+                <>
+                  <span className="event-detail-meta-value" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: "middle" }}>
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M2 12h20"/>
+                      <path d="M12 2a15 15 0 0 1 0 20"/>
+                      <path d="M12 2a15 15 0 0 0 0 20"/>
+                    </svg>
+                    {t("attendanceMode.online")}
+                  </span>
+                  <span className="meta" style={{ color: "var(--muted)" }}>{t("eventDetail.onlineLinkHint")}</span>
+                </>
               )}
             </>
           )}
