@@ -85,7 +85,7 @@ export default function ApplyPage() {
         <p style={{ marginBottom: 24, color: "var(--muted)", lineHeight: 1.6 }}>
           {t("manage.apply.loginRequiredMessage")}
         </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
           <button
             className="primary-btn"
             onClick={() => void auth.login()}
@@ -93,10 +93,11 @@ export default function ApplyPage() {
             {t("nav.login")}
           </button>
           <button
-            className="ghost-btn"
+            type="button"
             onClick={() => void auth.register()}
+            style={{ background: "none", border: 0, padding: 0, color: "var(--muted)", textDecoration: "underline", cursor: "pointer", font: "inherit" }}
           >
-            {t("nav.register")}
+            {t("nav.signUpPrompt")}
           </button>
         </div>
       </div>
