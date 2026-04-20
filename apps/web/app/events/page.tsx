@@ -147,7 +147,13 @@ export default async function EventsPage({
       .filter((item): item is NonNullable<EventSearchInitialQuery["eventDates"]>[number] => eventDateAllowed.has(item)),
     dateFrom: getSingle(searchParams, "dateFrom") ?? undefined,
     dateTo: getSingle(searchParams, "dateTo") ?? undefined,
-    sort: sortParam === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc",
+    sort: (() => {
+      const s = (sortParam ?? "").toLowerCase();
+      if (s === "latest" || s === "startsatdesc") return "startsAtDesc";
+      if (s === "recent" || s === "publishedatdesc") return "publishedAtDesc";
+      if (s === "relevance") return "relevance";
+      return "startsAtAsc";
+    })(),
     view: viewParam === "map" ? "map" : viewParam === "discover" ? "discover" : "list",
     page: Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1,
     geoRadius: (() => {

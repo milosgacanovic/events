@@ -118,7 +118,7 @@ export type EventSearchInitialQuery = {
   countryCodes?: string[];
   cities?: string[];
   eventDates?: EventDatePreset[];
-  sort?: "startsAtAsc" | "startsAtDesc";
+  sort?: "startsAtAsc" | "startsAtDesc" | "publishedAtDesc" | "relevance";
   view?: "list" | "map" | "discover";
   page?: number;
   includePast?: boolean;
@@ -185,7 +185,9 @@ export function EventSearchClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [view, setView] = useState<"list" | "map" | "discover">(initialQuery?.view ?? "list");
-  const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc">(initialQuery?.sort ?? "startsAtAsc");
+  const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc" | "publishedAtDesc" | "relevance">(initialQuery?.sort ?? "startsAtAsc");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const [q, setQ] = useState(initialQuery?.q ?? "");
   const [practiceCategoryIds, setPracticeCategoryIds] = useState(initialQuery?.practiceCategoryIds ?? []);
   const [practiceSubcategoryId, setPracticeSubcategoryId] = useState(initialQuery?.practiceSubcategoryId ?? "");
@@ -540,7 +542,14 @@ export function EventSearchClient({
     if (eventDates.length) params.set("eventDate", eventDates.join(","));
     if (customFrom) params.set("dateFrom", customFrom);
     if (customTo) params.set("dateTo", customTo);
-    if (sort !== "startsAtAsc") params.set("sort", sort);
+    {
+      const sortParam =
+        sort === "startsAtDesc" ? "latest"
+          : sort === "publishedAtDesc" ? "recent"
+            : sort === "relevance" ? "relevance"
+              : null;
+      if (sortParam) params.set("sort", sortParam);
+    }
     if (view !== "list") params.set("view", view);
     if (page > 1) params.set("page", String(page));
     if (includePast) params.set("includePast", "true");
@@ -621,7 +630,12 @@ export function EventSearchClient({
     const nextEventDates = readCsv("eventDate")
       .map((item) => item.toLowerCase())
       .filter((item): item is EventDatePreset => EVENT_DATE_PRESETS.includes(item as EventDatePreset));
-    const nextSort = searchParams.get("sort") === "startsAtDesc" ? "startsAtDesc" : "startsAtAsc";
+    const sortRaw = (searchParams.get("sort") ?? "").toLowerCase();
+    const nextSort: "startsAtAsc" | "startsAtDesc" | "publishedAtDesc" | "relevance" =
+      sortRaw === "latest" || sortRaw === "startsatdesc" ? "startsAtDesc"
+        : sortRaw === "recent" || sortRaw === "publishedatdesc" ? "publishedAtDesc"
+          : sortRaw === "relevance" ? "relevance"
+            : "startsAtAsc";
     const nextView = searchParams.get("view") === "map" ? "map" : searchParams.get("view") === "discover" ? "discover" : "list";
     const parsedPage = Number(searchParams.get("page") ?? "1");
     let nextPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
@@ -655,6 +669,26 @@ export function EventSearchClient({
       syncingFromUrlRef.current = false;
     }, 0);
   }, [searchParams, taxonomy]);
+
+  useEffect(() => {
+    if (sort === "relevance" && !q.trim()) setSort("startsAtAsc");
+  }, [q, sort]);
+
+  useEffect(() => {
+    if (!sortMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
+        setSortMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSortMenuOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [sortMenuOpen]);
 
   useEffect(() => {
     if (eventDates.length > 0) setDateOpen(true);
@@ -1953,29 +1987,51 @@ export function EventSearchClient({
               : t("eventSearch.promptRun")}
           </div>
           <div className="results-toolbar-actions">
-            <div className="icon-group">
-            <button
-              type="button"
-              className={sort === "startsAtAsc" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
-              onClick={() => {
-                setSort("startsAtAsc");
-                setPage(1);
-              }}
-              aria-label={t("eventSearch.sort.soonestUpcoming")}
-            >
-              <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 11V3M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </button>
-            <button
-              type="button"
-              className={sort === "startsAtDesc" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
-              onClick={() => {
-                setSort("startsAtDesc");
-                setPage(1);
-              }}
-              aria-label={t("eventSearch.sort.newestPublished")}
-            >
-              <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 3v8M3.5 7.5L7 11l3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </button>
+            <div className="icon-group sort-dropdown-wrap" ref={sortMenuRef}>
+              {(() => {
+                const hasQuery = q.trim().length > 0;
+                const options: Array<{ key: typeof sort; label: string }> = [];
+                if (hasQuery) options.push({ key: "relevance", label: t("eventSearch.sort.relevance") });
+                options.push({ key: "startsAtAsc", label: t("eventSearch.sort.soonest") });
+                options.push({ key: "startsAtDesc", label: t("eventSearch.sort.latest") });
+                options.push({ key: "publishedAtDesc", label: t("eventSearch.sort.recent") });
+                const currentKey: typeof sort = sort === "relevance" && !hasQuery ? "startsAtAsc" : sort;
+                const currentLabel = options.find((o) => o.key === currentKey)?.label ?? options[0].label;
+                return (
+                  <>
+                    <button
+                      type="button"
+                      className="ghost-btn icon-btn sort-trigger"
+                      onClick={() => setSortMenuOpen((v) => !v)}
+                      aria-haspopup="listbox"
+                      aria-expanded={sortMenuOpen}
+                    >
+                      <span className="icon-label">{t("eventSearch.sort.label")}: {currentLabel}</span>
+                      <span aria-hidden className="icon-glyph" style={{ marginLeft: 2 }}>▾</span>
+                    </button>
+                    {sortMenuOpen && (
+                      <div className="cal-dropdown sort-menu" role="listbox">
+                        {options.map((opt) => (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            role="option"
+                            aria-selected={currentKey === opt.key}
+                            onClick={() => {
+                              setSort(opt.key);
+                              setPage(1);
+                              setSortMenuOpen(false);
+                            }}
+                          >
+                            <span style={{ display: "inline-block", width: 16 }}>{currentKey === opt.key ? "✓" : ""}</span>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="icon-group with-separator">
             <button

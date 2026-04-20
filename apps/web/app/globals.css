@@ -1384,6 +1384,14 @@ label.meta {
   margin-left: 4px;
 }
 
+.sort-dropdown-wrap { position: relative; }
+.sort-menu { min-width: 200px; }
+.sort-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 .icon-btn {
   padding: 5px 10px;
   display: inline-flex;

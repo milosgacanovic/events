@@ -44,6 +44,7 @@ export type EventSeriesDocRow = {
   earliest_upcoming_end_ts: string | null; // ISO UTC
   upcoming_count: number;
   sibling_count: number;
+  latest_created_ts: number | null;
   has_geo: boolean;
   visibility: string;
   refreshed_at: string;
@@ -232,6 +233,10 @@ export async function refreshEventSeries(
     sibling_agg as (
       select count(*)::int as sibling_count from siblings
     ),
+    latest_created_agg as (
+      select (extract(epoch from max(created_at)) * 1000)::bigint as latest_created_ts
+      from siblings
+    ),
     loc as (
       select * from canonical_location
     )
@@ -261,6 +266,7 @@ export async function refreshEventSeries(
       earliest_upcoming_end_ts,
       upcoming_count,
       sibling_count,
+      latest_created_ts,
       has_geo,
       visibility,
       refreshed_at
@@ -291,12 +297,14 @@ export async function refreshEventSeries(
       ua.earliest_upcoming_end_ts,
       ua.upcoming_count,
       sa.sibling_count,
+      lca.latest_created_ts,
       loc.geom is not null,
       c.visibility,
       now()
     from canonical c
     cross join upcoming_agg ua
     cross join sibling_agg sa
+    cross join latest_created_agg lca
     left join loc on true
     on conflict (series_id) do update set
       canonical_event_id = excluded.canonical_event_id,
@@ -323,6 +331,7 @@ export async function refreshEventSeries(
       earliest_upcoming_end_ts = excluded.earliest_upcoming_end_ts,
       upcoming_count = excluded.upcoming_count,
       sibling_count = excluded.sibling_count,
+      latest_created_ts = excluded.latest_created_ts,
       has_geo = excluded.has_geo,
       visibility = excluded.visibility,
       refreshed_at = now()
@@ -382,6 +391,7 @@ export async function fetchAllEventSeries(
     earliest_upcoming_end_ts: string | null;
     upcoming_count: number;
     sibling_count: number;
+    latest_created_ts: string | number | null;
     has_geo: boolean;
     visibility: string;
     refreshed_at: string;
@@ -413,6 +423,7 @@ export async function fetchAllEventSeries(
       earliest_upcoming_end_ts,
       upcoming_count,
       sibling_count,
+      latest_created_ts,
       has_geo,
       visibility,
       refreshed_at
@@ -460,6 +471,7 @@ export async function fetchAllEventSeries(
       earliest_upcoming_end_ts: row.earliest_upcoming_end_ts,
       upcoming_count: row.upcoming_count,
       sibling_count: row.sibling_count,
+      latest_created_ts: row.latest_created_ts == null ? null : Number(row.latest_created_ts),
       has_geo: row.has_geo,
       visibility: row.visibility,
       refreshed_at: row.refreshed_at,
@@ -508,6 +520,7 @@ export async function getEventSeriesBySeriesId(
     earliest_upcoming_end_ts: string | null;
     upcoming_count: number;
     sibling_count: number;
+    latest_created_ts: string | number | null;
     has_geo: boolean;
     visibility: string;
     refreshed_at: string;
@@ -539,6 +552,7 @@ export async function getEventSeriesBySeriesId(
       earliest_upcoming_end_ts,
       upcoming_count,
       sibling_count,
+      latest_created_ts,
       has_geo,
       visibility,
       refreshed_at
@@ -586,6 +600,7 @@ export async function getEventSeriesBySeriesId(
     earliest_upcoming_end_ts: row.earliest_upcoming_end_ts,
     upcoming_count: row.upcoming_count,
     sibling_count: row.sibling_count,
+    latest_created_ts: row.latest_created_ts == null ? null : Number(row.latest_created_ts),
     has_geo: row.has_geo,
     visibility: row.visibility,
     refreshed_at: row.refreshed_at,

@@ -52,6 +52,7 @@ export type SeriesDoc = {
   earliest_upcoming_end_ts: number | null;
   upcoming_count: number;
   sibling_count: number;
+  latest_created_ts: number | null;
   visibility: string;
 };
 
@@ -164,7 +165,7 @@ export class MeilisearchService {
       "_geo",
       "visibility",
     ]);
-    await seriesIndex.updateSortableAttributes(["earliest_upcoming_ts"]);
+    await seriesIndex.updateSortableAttributes(["earliest_upcoming_ts", "latest_created_ts"]);
     await seriesIndex.updateSearchableAttributes(["title", "description_text", "tags"]);
     // At 100k docs typo-tolerance on short tokens becomes a latency
     // driver. Raising the minimum word size cuts tail latency without
@@ -443,6 +444,7 @@ export class MeilisearchService {
       earliest_upcoming_end_ts: row.earliest_upcoming_end_ts ? Date.parse(row.earliest_upcoming_end_ts) : null,
       upcoming_count: row.upcoming_count,
       sibling_count: row.sibling_count,
+      latest_created_ts: row.latest_created_ts,
       visibility: row.visibility,
     };
   }

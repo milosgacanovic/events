@@ -65,7 +65,7 @@ const searchQuerySchema = z.object({
   showUnlisted: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),
-  sort: z.enum(["date_asc", "date_desc", "startsAtAsc", "startsAtDesc", "publishedAtDesc"]).default("date_asc"),
+  sort: z.enum(["date_asc", "date_desc", "startsAtAsc", "startsAtDesc", "publishedAtDesc", "relevance"]).default("date_asc"),
 });
 
 function isExternalRefConflict(error: unknown): boolean {
@@ -344,10 +344,14 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       if (!showUnlisted) {
         seriesFilters.push(`visibility = "public"`);
       }
-      const sortExpression =
-        normalizedSort === "startsAtDesc"
-          ? "earliest_upcoming_ts:desc"
-          : "earliest_upcoming_ts:asc"; // publishedAtDesc falls back to starts-asc for now.
+      const sortExpression: string | null =
+        normalizedSort === "relevance"
+          ? null
+          : normalizedSort === "startsAtDesc"
+            ? "earliest_upcoming_ts:desc"
+            : normalizedSort === "publishedAtDesc"
+              ? "latest_created_ts:desc"
+              : "earliest_upcoming_ts:asc";
 
       // Multi-search bundles main query + disjunctive-facet variants +
       // date-preset bucket counts into a single Meili request. See the
@@ -428,7 +432,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           q: parsed.data.q ?? "",
           filter: seriesFilters,
           facets: mainFacets,
-          sort: [sortExpression],
+          sort: sortExpression ? [sortExpression] : undefined,
           hitsPerPage: parsed.data.pageSize,
           page: parsed.data.page,
           attributesToRetrieve: listingAttributes,
@@ -591,7 +595,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         hasGeo,
         page: parsed.data.page,
         pageSize: parsed.data.pageSize,
-        sort: normalizedSort,
+        sort: normalizedSort === "relevance" ? "startsAtAsc" : normalizedSort,
       });
       const payload = {
         ...fallback,
