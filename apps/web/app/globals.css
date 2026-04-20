@@ -1392,10 +1392,13 @@ label.meta {
   justify-content: center;
   gap: 6px;
   font-size: 0.85rem;
+  line-height: 1.5;
   border-radius: 10px;
+  min-height: 32px;
+  box-sizing: border-box;
 }
 /* Sort arrow buttons have no label — keep them square-ish */
-.icon-btn:not(:has(.icon-label)) { min-width: 36px; padding: 5px 8px; }
+.icon-btn:not(:has(.icon-label)) { min-width: 32px; padding: 5px 8px; }
 
 .icon-glyph {
   display: inline-flex;
