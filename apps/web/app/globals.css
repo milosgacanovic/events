@@ -4039,6 +4039,11 @@ button.tag:hover, a.tag:hover {
   border-color: var(--border);
 }
 
+button.tag.filter-chip:hover {
+  background: var(--tag-hover);
+  border-color: var(--muted);
+}
+
 .sidebar-tag-cloud {
   display: flex;
   flex-wrap: wrap;
