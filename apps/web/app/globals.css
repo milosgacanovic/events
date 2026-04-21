@@ -18,6 +18,8 @@
   --border: #d6cfc6;
   --border-warm: #d6cfc6;
   --hover-bg: #E3DCD3;
+  --tag-hover: #D8D2CB;
+  --card-hover-bg: #E8E2DB;
   --accent-bg: #dddfd3;
   --toggle-track: #d1d1d1;
   --toggle-track-border: #c4bdb4;
@@ -92,6 +94,8 @@
   --border: #312e26;
   --border-warm: #312e26;
   --hover-bg: #2c2a23;
+  --tag-hover: #37342b;
+  --card-hover-bg: #23211b;
   --accent-bg: #1a2e21;
   --toggle-track: #333;
   --toggle-track-border: #3a3830;
@@ -1500,7 +1504,7 @@ label.meta {
 .card:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
-  background: var(--hover-bg);
+  background: var(--card-hover-bg);
 }
 
 .card h3 {
@@ -1550,7 +1554,7 @@ label.meta {
 .event-card-h:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
-  background: var(--hover-bg);
+  background: var(--card-hover-bg);
 }
 
 .event-card-body .meta {
@@ -1644,7 +1648,7 @@ label.meta {
 .host-card-h:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
-  background: var(--hover-bg);
+  background: var(--card-hover-bg);
 }
 
 /* Event detail hosts chips */
@@ -3244,7 +3248,7 @@ label.meta {
 
 .filter-chip:hover {
   border-color: var(--muted);
-  background: color-mix(in srgb, var(--ink) 10%, var(--tag-bg));
+  background: var(--tag-hover);
 }
 
 .tag.filter-chip-clear {
