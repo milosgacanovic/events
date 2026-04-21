@@ -16,7 +16,6 @@ import {
   searchEventsFallback,
   setEventOrganizers,
   updateEvent,
-  eventHasOrganizers,
 } from "../db/eventRepo";
 import { createLocation, getEventDefaultLocation, setEventDefaultLocation, updateLocation } from "../db/locationRepo";
 import { findOrCreateUserBySub, isServiceAccount } from "../db/userRepo";
@@ -827,14 +826,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
-    // Publish gate: if status is being set to published, check requirements
-    if (normalizedInput.status === "published" && previousEvent && previousEvent.status !== "published") {
-      const hasHosts = await eventHasOrganizers(app.db, params.data.id);
-      if (!hasHosts && !forceFlag) {
-        reply.code(400);
-        return { error: "publish_requires_host" };
-      }
-    }
+
 
     let event;
     try {
@@ -1037,15 +1029,6 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       await requireEventAccess(app.db, userId, params.data.id, false);
     }
 
-    const body = z.object({ force: z.boolean().default(false) }).safeParse(request.body ?? {});
-    const force = body.data?.force ?? false;
-
-    const hasHosts = await eventHasOrganizers(app.db, params.data.id);
-    if (!hasHosts && !force) {
-      reply.code(400);
-      return { error: "publish_requires_host" };
-    }
-
     try {
       await publishEvent(app.db, app.meiliService, params.data.id, skipSearch);
     } catch (error) {
@@ -1060,7 +1043,7 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
       action: "event.publish",
       targetType: "event",
       targetId: params.data.id,
-      metadata: { force },
+      metadata: {},
     });
     return { ok: true };
   });
