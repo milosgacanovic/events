@@ -1322,7 +1322,8 @@ label.meta {
   background: var(--hover-bg);
 }
 .filters-toggle-btn--open:hover {
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
 }
 .filters-toggle-btn--active:hover {
   background: var(--accent-2);
@@ -3410,7 +3411,8 @@ label.meta {
 }
 
 .secondary-btn.icon-btn:hover {
-  background: color-mix(in srgb, var(--accent) 20%, var(--surface));
+  border-color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent) 25%, var(--surface));
 }
 
 .ghost-btn {
