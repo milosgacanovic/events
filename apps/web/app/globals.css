@@ -501,6 +501,11 @@ main:has(.manage-main--wide) {
   background-repeat: no-repeat;
   background-position: right 0 center;
   background-size: 16px;
+  transition: color var(--transition-fast);
+}
+
+.locale-switcher select:hover {
+  color: var(--ink);
 }
 
 .autocomplete-wrap {
@@ -958,6 +963,13 @@ summary::-webkit-details-marker {
   display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.filters details > summary:hover {
+  background: var(--hover-bg);
 }
 
 .filters details > summary::before {
@@ -1124,6 +1136,10 @@ label.meta {
   color: var(--ink);
   outline: none;
   min-width: 0;
+}
+
+.hero-search-input:hover {
+  border-color: var(--muted);
 }
 
 .hero-search-input:focus {
@@ -1301,6 +1317,17 @@ label.meta {
   color: #fff;
 }
 
+.filters-toggle-btn--default:hover {
+  background: var(--hover-bg);
+}
+.filters-toggle-btn--open:hover {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+.filters-toggle-btn--active:hover {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
 .filters-inline-count {
   display: none;
   color: var(--muted);
@@ -1352,6 +1379,12 @@ label.meta {
   background: var(--surface);
   color: var(--ink);
   box-sizing: border-box;
+  transition: border-color var(--transition-fast);
+}
+
+.filters input:hover,
+.filters select:hover {
+  border-color: var(--muted);
 }
 
 .cards {
@@ -1457,7 +1490,7 @@ label.meta {
   border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow-card);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
   min-width: 0;
   max-width: 100%;
 }
@@ -1465,6 +1498,7 @@ label.meta {
 .card:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
+  background: var(--surface-alt);
 }
 
 .card h3 {
@@ -1508,12 +1542,13 @@ label.meta {
   overflow: hidden;
   min-width: 0;
   animation: card-appear 220ms ease both;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
 .event-card-h:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
+  background: var(--surface-alt);
 }
 
 .event-card-body .meta {
@@ -1601,12 +1636,13 @@ label.meta {
   align-items: flex-start;
   padding: 12px;
   animation: card-appear 220ms ease both;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
 .host-card-h:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
+  background: var(--surface-alt);
 }
 
 /* Event detail hosts chips */
@@ -1623,6 +1659,11 @@ label.meta {
   gap: 12px;
   padding: 8px 16px 8px 8px;
   border-radius: var(--radius-pill);
+  transition: background var(--transition-fast);
+}
+
+.event-host-card:hover {
+  background: var(--hover-bg);
 }
 
 .event-host-card .event-host-avatar {
@@ -2756,6 +2797,10 @@ label.meta {
   text-align: left;
 }
 
+.event-detail-expand-btn:hover {
+  text-decoration: underline;
+}
+
 .event-detail-occurrences {
   display: grid;
   gap: 4px;
@@ -3196,7 +3241,8 @@ label.meta {
 }
 
 .filter-chip:hover {
-  border-color: var(--ink-muted, #888);
+  border-color: var(--muted);
+  background: var(--hover-bg);
 }
 
 .tag.filter-chip-clear {
@@ -3357,10 +3403,21 @@ label.meta {
   color: var(--ink);
 }
 
+.secondary-btn:hover {
+  background: var(--hover-bg);
+}
+
+.secondary-btn.icon-btn:hover {
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface));
+}
 
 .ghost-btn {
   background: transparent;
   color: var(--ink);
+}
+
+.ghost-btn:hover {
+  background: var(--hover-bg);
 }
 
 .admin-grid {
@@ -4004,6 +4061,10 @@ button.tag:hover, a.tag:hover {
   border-color: var(--accent) !important;
   color: var(--accent) !important;
   font-weight: 500;
+}
+
+.sidebar-tag-chip--active:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent) !important;
 }
 
 /* org-past-event-row transition */
