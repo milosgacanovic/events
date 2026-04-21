@@ -1081,8 +1081,6 @@ label.meta {
 /* ── Hero section ─────────────────────────────────────── */
 .hero {
   background: var(--surface-warm);
-  border-top: 1px solid var(--border-warm);
-  border-bottom: 1px solid var(--border-warm);
   width: 100vw;
   margin-inline-start: calc(50% - 50vw);
   margin-bottom: 24px;
