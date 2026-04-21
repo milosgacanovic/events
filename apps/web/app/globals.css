@@ -3244,7 +3244,7 @@ label.meta {
 
 .filter-chip:hover {
   border-color: var(--muted);
-  background: var(--hover-bg);
+  background: color-mix(in srgb, var(--ink) 10%, var(--tag-bg));
 }
 
 .tag.filter-chip-clear {
