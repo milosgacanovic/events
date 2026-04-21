@@ -3195,6 +3195,10 @@ label.meta {
   border-color: var(--line);
 }
 
+.filter-chip:hover {
+  border-color: var(--ink-muted, #888);
+}
+
 .tag.filter-chip-clear {
   background: none;
   border: none;
