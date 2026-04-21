@@ -44,7 +44,7 @@ export default function ApplyPage() {
 
   useEffect(() => {
     if (isEditor) {
-      router.replace("/manage/events/new");
+      router.replace("/manage");
     }
   }, [isEditor, router]);
 
