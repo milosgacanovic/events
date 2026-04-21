@@ -1294,6 +1294,7 @@ label.meta {
   border-radius: 10px;
   border: 1px solid var(--line);
   font: inherit;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
   cursor: pointer;
 }
 
@@ -3401,6 +3402,7 @@ label.meta {
 .secondary-btn {
   background: var(--surface);
   color: var(--ink);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .secondary-btn:hover {
@@ -3414,6 +3416,7 @@ label.meta {
 .ghost-btn {
   background: transparent;
   color: var(--ink);
+  transition: background var(--transition-fast);
 }
 
 .ghost-btn:hover {
