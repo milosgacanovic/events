@@ -4163,7 +4163,7 @@ img[loading="lazy"] {
   gap: 0;
   border-bottom: 1px solid var(--border, #e0e0e0);
   background: var(--surface, #f8f8f8);
-  padding: 0 16px;
+  padding: 0 4px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
