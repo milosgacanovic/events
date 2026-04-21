@@ -1500,7 +1500,7 @@ label.meta {
 .card:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
-  background: var(--surface-alt);
+  background: var(--hover-bg);
 }
 
 .card h3 {
@@ -1550,7 +1550,7 @@ label.meta {
 .event-card-h:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
-  background: var(--surface-alt);
+  background: var(--hover-bg);
 }
 
 .event-card-body .meta {
@@ -1644,7 +1644,7 @@ label.meta {
 .host-card-h:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
-  background: var(--surface-alt);
+  background: var(--hover-bg);
 }
 
 /* Event detail hosts chips */
@@ -3099,7 +3099,7 @@ label.meta {
 }
 
 .filter-row-selected:hover {
-  background: var(--accent-bg);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .filter-row-icon {
