@@ -16,6 +16,7 @@ import { getRoleLabel } from "../../lib/filterHelpers";
 import { authorizedGet, authorizedPatch, authorizedPost, authorizedUpload } from "../../lib/manageApi";
 import { apiBase } from "../../lib/api";
 import { countryOptions } from "../../lib/countries";
+import { toDisplayNamesLocale } from "../../lib/i18n/languageLabels";
 
 // Common language codes (Intl.supportedValuesOf("language") is not a valid key)
 const COMMON_LANGUAGE_CODES = [
@@ -289,7 +290,7 @@ export function HostForm({
 
   const languageOptions: MultiSelectOption[] = useMemo(() => {
     try {
-      const names = new Intl.DisplayNames([locale], { type: "language" });
+      const names = new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" });
       const codeSet = new Set(COMMON_LANGUAGE_CODES);
       for (const code of form.languages) {
         codeSet.add(code);

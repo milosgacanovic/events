@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { stripDangerousHtml } from "../lib/sanitizeForSsr";
-import { labelForLanguageCode } from "../lib/i18n/languageLabels";
+import { labelForLanguageCode, toDisplayNamesLocale} from "../lib/i18n/languageLabels";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 import { FollowHostButton } from "./FollowHostButton";
@@ -345,14 +345,14 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
   const externalUrl = data.organizer.externalUrl ?? data.organizer.external_url ?? null;
   const regionNames = (() => {
     try {
-      return new Intl.DisplayNames([locale], { type: "region" });
+      return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" });
     } catch {
       return null;
     }
   })();
   const languageNames = (() => {
     try {
-      return new Intl.DisplayNames([locale], { type: "language" });
+      return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" });
     } catch {
       return null;
     }

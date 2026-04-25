@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "../lib/api";
 import { useI18n } from "./i18n/I18nProvider";
 import { getLocalizedRegionLabel } from "../lib/i18n/icuFallback";
+import { toDisplayNamesLocale } from "../lib/i18n/languageLabels";
 
 /**
  * Searchable country picker. Returns ISO-2 lowercase ("rs") to match what the
@@ -36,7 +37,7 @@ export function CountryCombobox({ value, onChange, placeholder, disabled, inputI
   // Cache the DisplayNames instance per locale — instantiation is non-trivial.
   const displayNames = useMemo(() => {
     try {
-      return new Intl.DisplayNames([locale], { type: "region" });
+      return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" });
     } catch {
       return null;
     }

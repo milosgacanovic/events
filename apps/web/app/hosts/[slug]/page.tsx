@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 import { OrganizerDetailClient, type OrganizerDetail } from "../../../components/OrganizerDetailClient";
 import { apiBase } from "../../../lib/api";
+import { toDisplayNamesLocale } from "../../../lib/i18n/languageLabels";
 
 async function fetchServerJson<T>(path: string): Promise<T | null> {
   const serverApiBase = process.env.INTERNAL_API_BASE_URL ?? apiBase;
@@ -57,8 +58,8 @@ async function HostDetailPageServer({ slug }: { slug: string }) {
   const locale = cookieStore.get("dr_locale")?.value ?? "en";
   const serverTranslations = (() => {
     try {
-      const regionNames = new Intl.DisplayNames([locale], { type: "region" });
-      const languageNames = new Intl.DisplayNames([locale], { type: "language" });
+      const regionNames = new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" });
+      const languageNames = new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" });
       const countryCode = detail?.organizer.countryCode ?? detail?.organizer.country_code ?? null;
       const countryLabel = countryCode ? (regionNames.of(countryCode.toUpperCase()) ?? null) : null;
       const languageLabels: Record<string, string> = {};

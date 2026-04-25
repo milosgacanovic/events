@@ -6,6 +6,7 @@ import { useI18n } from "../i18n/I18nProvider";
 import { apiBase } from "../../lib/api";
 import { formatDateTimeRange } from "../../lib/datetime";
 import { getLocalizedRegionLabel } from "../../lib/i18n/icuFallback";
+import { toDisplayNamesLocale } from "../../lib/i18n/languageLabels";
 
 type ConfirmAction = { action: () => void; title: string; message: string; variant?: "warning" | "danger" | "info" };
 
@@ -94,7 +95,7 @@ export function ManageEventCard({
   const statusKey = ["published", "draft", "cancelled", "archived", "unlisted"].includes(status) ? status : "draft";
 
   const regionNames = useMemo(() => {
-    try { return new Intl.DisplayNames([locale], { type: "region" }); } catch { return null; }
+    try { return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" }); } catch { return null; }
   }, [locale]);
 
   const locationParts = [

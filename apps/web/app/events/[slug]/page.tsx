@@ -7,6 +7,7 @@ import {
   type TaxonomyResponse,
 } from "../../../components/EventDetailClient";
 import { apiBase } from "../../../lib/api";
+import { toDisplayNamesLocale } from "../../../lib/i18n/languageLabels";
 
 type EventDetailResponse = EventDetail;
 
@@ -205,8 +206,8 @@ async function EventDetailPageServer({ slug, targetDate }: { slug: string; targe
   const locale = cookieStore.get("dr_locale")?.value ?? "en";
   const serverTranslations = (() => {
     try {
-      const regionNames = new Intl.DisplayNames([locale], { type: "region" });
-      const languageNames = new Intl.DisplayNames([locale], { type: "language" });
+      const regionNames = new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" });
+      const languageNames = new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" });
       const regionLabels: Record<string, string> = {};
       const langLabels: Record<string, string> = {};
       const countryCode = detail?.defaultLocation?.country_code;

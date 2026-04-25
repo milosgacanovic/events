@@ -10,7 +10,7 @@ import { fetchJson } from "../lib/api";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
 import { isSeriesGroupingEnabled } from "../lib/features";
 import { pushDataLayer } from "../lib/gtm";
-import { labelForLanguageCode } from "../lib/i18n/languageLabels";
+import { labelForLanguageCode, toDisplayNamesLocale} from "../lib/i18n/languageLabels";
 import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../lib/i18n/icuFallback";
 import { scrollToTopFast } from "../lib/scroll";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
@@ -424,14 +424,14 @@ export function EventSearchClient({
   );
   const languageNames = useMemo(() => {
     try {
-      return new Intl.DisplayNames([locale], { type: "language" });
+      return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" });
     } catch {
       return null;
     }
   }, [locale]);
   const regionNames = useMemo(() => {
     try {
-      return new Intl.DisplayNames([locale], { type: "region" });
+      return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" });
     } catch {
       return null;
     }

@@ -20,6 +20,7 @@ import { csvToArray, datetimeLocalToIso } from "../../lib/formUtils";
 import { authorizedGet, authorizedPatch, authorizedPost, authorizedUpload } from "../../lib/manageApi";
 import { apiBase } from "../../lib/api";
 import { getFormatLabel, getRoleLabel } from "../../lib/filterHelpers";
+import { toDisplayNamesLocale } from "../../lib/i18n/languageLabels";
 
 const AdminLocationPreviewMap = dynamic(
   () => import("../admin/AdminLocationPreviewMap").then((m) => m.AdminLocationPreviewMap),
@@ -258,7 +259,7 @@ export function EventForm({
 
   const commonLanguages = useMemo(() => {
     try {
-      const names = new Intl.DisplayNames([locale], { type: "language" });
+      const names = new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" });
       return COMMON_LANGUAGE_CODES.map((code) => {
         let label: string;
         try { label = names.of(code) ?? code; } catch { label = code; }

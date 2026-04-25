@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRef } from "react";
 
 import { apiBase, fetchJson } from "../../lib/api";
-import { labelForLanguageCode } from "../../lib/i18n/languageLabels";
+import { labelForLanguageCode, toDisplayNamesLocale} from "../../lib/i18n/languageLabels";
 import { useI18n } from "../i18n/I18nProvider";
 import { useKeycloakAuth } from "../auth/KeycloakAuthProvider";
 import { RichTextEditor } from "./RichTextEditor";
@@ -537,14 +537,14 @@ export function AdminConsole() {
     t("admin.field.categories");
   const languageNames = useMemo(() => {
     try {
-      return new Intl.DisplayNames([locale], { type: "language" });
+      return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" });
     } catch {
       return null;
     }
   }, [locale]);
   const regionNames = useMemo(() => {
     try {
-      return new Intl.DisplayNames([locale], { type: "region" });
+      return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" });
     } catch {
       return null;
     }

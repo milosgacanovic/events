@@ -11,7 +11,7 @@ import { ManageResultsToolbar } from "../../../../components/manage/ManageResult
 import { authorizedGet, authorizedPost } from "../../../../lib/manageApi";
 import { apiBase } from "../../../../lib/api";
 import { getFormatLabel, toTitleCase, formatCityLabel } from "../../../../lib/filterHelpers";
-import { labelForLanguageCode } from "../../../../lib/i18n/languageLabels";
+import { labelForLanguageCode, toDisplayNamesLocale} from "../../../../lib/i18n/languageLabels";
 import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../../../../lib/i18n/icuFallback";
 
 type TaxonomyResponse = {
@@ -139,10 +139,10 @@ export default function AdminAllEventsPage() {
 
   /* Intl display names */
   const languageNames = useMemo(() => {
-    try { return new Intl.DisplayNames([locale], { type: "language" }); } catch { return null; }
+    try { return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" }); } catch { return null; }
   }, [locale]);
   const regionNames = useMemo(() => {
-    try { return new Intl.DisplayNames([locale], { type: "region" }); } catch { return null; }
+    try { return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" }); } catch { return null; }
   }, [locale]);
   const getLanguageLabel = useCallback((v: string) => v === "mul" ? t("common.language.multiple") : getLocalizedLanguageLabel(v, locale, languageNames), [languageNames, locale, t]);
   const getCountryLabel = useCallback((v: string) => {

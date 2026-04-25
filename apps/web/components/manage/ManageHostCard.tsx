@@ -6,6 +6,7 @@ import { useI18n } from "../i18n/I18nProvider";
 import { getRoleLabel } from "../../lib/filterHelpers";
 import { apiBase } from "../../lib/api";
 import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../../lib/i18n/icuFallback";
+import { toDisplayNamesLocale } from "../../lib/i18n/languageLabels";
 
 type ConfirmAction = { action: () => void; title: string; message: string; variant?: "warning" | "danger" | "info" };
 
@@ -82,11 +83,11 @@ export function ManageHostCard({
   const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 
   const languageNames = useMemo(() => {
-    try { return new Intl.DisplayNames([locale], { type: "language" }); } catch { return null; }
+    try { return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" }); } catch { return null; }
   }, [locale]);
 
   const regionNames = useMemo(() => {
-    try { return new Intl.DisplayNames([locale], { type: "region" }); } catch { return null; }
+    try { return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" }); } catch { return null; }
   }, [locale]);
 
   const locationParts = [

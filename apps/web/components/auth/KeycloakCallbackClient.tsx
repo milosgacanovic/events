@@ -17,7 +17,7 @@ export function KeycloakCallbackClient() {
       return;
     }
 
-    let returnPath = "/admin";
+    let returnPath = "/";
     try {
       const saved = sessionStorage.getItem("auth_return_path");
       if (saved && saved.startsWith("/") && !saved.startsWith("/auth")) {

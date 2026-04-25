@@ -30,6 +30,7 @@ import { authorizedGet, authorizedPatch, authorizedDelete } from "../../../lib/m
 import { apiBase } from "../../../lib/api";
 import { getRoleLabel, formatCityLabel, toTitleCase } from "../../../lib/filterHelpers";
 import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../../../lib/i18n/icuFallback";
+import { toDisplayNamesLocale } from "../../../lib/i18n/languageLabels";
 
 type TaxonomyResponse = {
   uiLabels?: { categorySingular?: string };
@@ -146,11 +147,11 @@ export default function MyHostsPage() {
 
   /* ── Intl display names ── */
   const languageNames = useMemo(() => {
-    try { return new Intl.DisplayNames([locale], { type: "language" }); } catch { return null; }
+    try { return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" }); } catch { return null; }
   }, [locale]);
 
   const regionNames = useMemo(() => {
-    try { return new Intl.DisplayNames([locale], { type: "region" }); } catch { return null; }
+    try { return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" }); } catch { return null; }
   }, [locale]);
 
   const getLanguageLabel = useCallback(

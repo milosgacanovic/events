@@ -1,3 +1,8 @@
+// Serbian (sr) defaults to Cyrillic; force Latin script for Intl.DisplayNames
+export function toDisplayNamesLocale(locale: string): string {
+  return locale === "sr" ? "sr-Latn" : locale;
+}
+
 const languageLabelOverrides: Record<string, string> = {
   ais: "Nanti",
   ol: "Orukaiva",

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "../lib/api";
 import { stripDangerousHtml } from "../lib/sanitizeForSsr";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
-import { labelForLanguageCode } from "../lib/i18n/languageLabels";
+import { labelForLanguageCode, toDisplayNamesLocale} from "../lib/i18n/languageLabels";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
@@ -656,14 +656,14 @@ export function EventDetailClient({
   }, [taxonomy]);
   const languageNames = useMemo(() => {
     try {
-      return new Intl.DisplayNames([locale], { type: "language" });
+      return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "language" });
     } catch {
       return null;
     }
   }, [locale]);
   const regionNames = useMemo(() => {
     try {
-      return new Intl.DisplayNames([locale], { type: "region" });
+      return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" });
     } catch {
       return null;
     }
