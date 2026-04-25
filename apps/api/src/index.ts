@@ -95,6 +95,13 @@ async function buildServer() {
     if (request.auth.sub) {
       findOrCreateUserBySub(pool, request.auth.sub, request.auth.preferredUsername, request.auth.email, request.auth.roles)
         .catch(() => {});
+      // Throttled last_login_at touch — at most one write per user per hour
+      pool.query(
+        `update users set last_login_at = now()
+         where keycloak_sub = $1
+         and (last_login_at is null or last_login_at < now() - interval '1 hour')`,
+        [request.auth.sub],
+      ).catch(() => {});
     }
   });
 
