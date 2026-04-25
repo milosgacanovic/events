@@ -99,7 +99,7 @@ async function buildServer() {
       pool.query(
         `update users set last_login_at = now()
          where keycloak_sub = $1
-         and (last_login_at is null or last_login_at < now() - interval '1 hour')`,
+         and (last_login_at is null or last_login_at < now() - interval '30 minutes')`,
         [request.auth.sub],
       ).catch(() => {});
     }
