@@ -95,6 +95,12 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const profile = await getUserProfileBySub(app.db, auth.sub);
+    void app.db.query(
+      `update users set last_login_at = now()
+       where keycloak_sub = $1
+       and (last_login_at is null or last_login_at < now() - interval '1 hour')`,
+      [auth.sub],
+    );
     return profileResponse(profile);
   });
 

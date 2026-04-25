@@ -299,7 +299,7 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       search: z.string().optional(),
       page: z.coerce.number().int().positive().default(1),
       pageSize: z.coerce.number().int().positive().max(100).default(20),
-      sort: z.enum(["created", "name", "email", "hosts", "events"]).optional(),
+      sort: z.enum(["created", "name", "email", "hosts", "events", "last_login"]).optional(),
       sortDir: z.enum(["asc", "desc"]).optional(),
       role: z.enum(["admin", "editor"]).optional(),
       hasNotes: z.coerce.boolean().optional(),

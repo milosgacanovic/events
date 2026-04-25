@@ -52,6 +52,7 @@ export async function listUsersWithRoles(
     follows: "follow_count",
     comments: "comment_count",
     alerts: "alert_count",
+    last_login: "u.last_login_at",
   };
   const sortCol = sortColumns[input.sort ?? ""] ?? "u.created_at";
   const sortDirection = input.sortDir === "asc" ? "asc" : "desc";
@@ -65,6 +66,7 @@ export async function listUsersWithRoles(
       email: string | null;
       roles: string[];
       created_at: string;
+      last_login_at: string | null;
       is_service_account: boolean;
       admin_notes: string;
       suspended_at: string | null;
@@ -79,7 +81,7 @@ export async function listUsersWithRoles(
       `
         select
           u.id, u.keycloak_sub, u.display_name, u.email, u.roles, u.created_at,
-          u.is_service_account, u.admin_notes, u.suspended_at,
+          u.last_login_at, u.is_service_account, u.admin_notes, u.suspended_at,
           (select count(*)::text from host_users hu where hu.user_id = u.id) as host_count,
           (
             select count(distinct e.id)::text

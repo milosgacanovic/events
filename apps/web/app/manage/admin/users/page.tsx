@@ -9,6 +9,7 @@ import Link from "next/link";
 
 import { useKeycloakAuth } from "../../../../components/auth/KeycloakAuthProvider";
 import { useI18n } from "../../../../components/i18n/I18nProvider";
+import { ConfirmDialog } from "../../../../components/manage/ConfirmDialog";
 import { authorizedDelete, authorizedGet, authorizedPatch, authorizedPost } from "../../../../lib/manageApi";
 
 type UserItem = {
@@ -17,6 +18,7 @@ type UserItem = {
   display_name: string | null;
   email: string | null;
   created_at: string;
+  last_login_at: string | null;
   host_count: number;
   event_count: number;
   save_count: number;
@@ -38,7 +40,19 @@ type UsersResponse = {
 type LinkedHost = { id: string; organizer_id: string; organizer_name: string };
 type LinkedEvent = { id: string; title: string; status: string };
 
-type SortKey = "created" | "name" | "email" | "hosts" | "events" | "saves" | "rsvps" | "follows" | "comments" | "alerts";
+type SortKey = "created" | "name" | "email" | "hosts" | "events" | "last_login";
+
+function fmtRelative(iso: string | null, never: string): string {
+  if (!iso) return never;
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
 
 export default function AdminUsersPage() {
   const { getToken } = useKeycloakAuth();
@@ -71,16 +85,25 @@ export default function AdminUsersPage() {
     router.replace(url, { scroll: false });
   }, [search, roleFilter, hasNotesFilter, sort, sortDir, page, pathname, router]);
 
-  // Role editing
-  const [editRolesUserId, setEditRolesUserId] = useState<string | null>(null);
-  const [editRoles, setEditRoles] = useState<string[]>([]);
-  const roleDialogRef = useRef<HTMLDialogElement>(null);
+  // Info dialog
+  const [infoUser, setInfoUser] = useState<UserItem | null>(null);
+  const infoDialogRef = useRef<HTMLDialogElement>(null);
 
-  // Access management
-  const [accessUserId, setAccessUserId] = useState<string | null>(null);
+  // Edit dialog (tabbed)
+  const [editUser, setEditUser] = useState<UserItem | null>(null);
+  const [editTab, setEditTab] = useState<"roles" | "access" | "account">("roles");
+  const editDialogRef = useRef<HTMLDialogElement>(null);
+
+  // Edit → Roles tab
+  const [editRoles, setEditRoles] = useState<string[]>([]);
+
+  // Edit → Access tab
   const [linkedHosts, setLinkedHosts] = useState<LinkedHost[]>([]);
   const [linkedEvents, setLinkedEvents] = useState<LinkedEvent[]>([]);
-  const accessDialogRef = useRef<HTMLDialogElement>(null);
+  const [accessHostSearch, setAccessHostSearch] = useState("");
+  const [accessHostResults, setAccessHostResults] = useState<Array<{ id: string; name: string }>>([]);
+  const [accessEventSearch, setAccessEventSearch] = useState("");
+  const [accessEventResults, setAccessEventResults] = useState<Array<{ id: string; title: string }>>([]);
 
   // Notes
   const [noteUserId, setNoteUserId] = useState<string | null>(null);
@@ -88,6 +111,10 @@ export default function AdminUsersPage() {
   const [noteText, setNoteText] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const noteDialogRef = useRef<HTMLDialogElement>(null);
+
+  // Confirm dialogs
+  const [confirmSuspend, setConfirmSuspend] = useState<{ userId: string; currently: boolean } | null>(null);
+  const [confirmService, setConfirmService] = useState<{ userId: string; current: boolean } | null>(null);
 
   const [error, setError] = useState("");
 
@@ -123,58 +150,40 @@ export default function AdminUsersPage() {
 
   function sortArrow(key: SortKey) {
     if (sort !== key) return "";
-    return sortDir === "asc" ? "\u25B2" : "\u25BC";
+    return sortDir === "asc" ? "▲" : "▼";
   }
 
-  // ── Role editing ──
-  function openRoleEdit(user: UserItem) {
-    setEditRolesUserId(user.id);
+  // ── Info dialog ──
+  function openInfo(user: UserItem) {
+    setInfoUser(user);
+    setTimeout(() => infoDialogRef.current?.showModal(), 0);
+  }
+
+  // ── Edit dialog ──
+  function openEdit(user: UserItem, tab: "roles" | "access" | "account" = "roles") {
+    setEditUser(user);
+    setEditTab(tab);
     setEditRoles(user.keycloak_roles ?? []);
-    setTimeout(() => roleDialogRef.current?.showModal(), 0);
-  }
-
-  async function saveRoles() {
-    if (!editRolesUserId) return;
-    const user = users.find((u) => u.id === editRolesUserId);
-    const currentRoles = user?.keycloak_roles ?? [];
-    const toAdd = editRoles.filter((r) => !currentRoles.includes(r));
-    const toRemove = currentRoles.filter((r) => !editRoles.includes(r));
-
-    try {
-      await authorizedPatch(getToken, `/admin/users/${editRolesUserId}/roles`, {
-        add: toAdd.length ? toAdd : undefined,
-        remove: toRemove.length ? toRemove : undefined,
-      });
-      roleDialogRef.current?.close();
-      setEditRolesUserId(null);
-      void load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update roles");
-    }
-  }
-
-  function toggleRole(role: string) {
-    setEditRoles((prev) =>
-      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
-    );
-  }
-
-  // ── Access management ──
-  const [accessHostSearch, setAccessHostSearch] = useState("");
-  const [accessHostResults, setAccessHostResults] = useState<Array<{ id: string; name: string }>>([]);
-  const [accessEventSearch, setAccessEventSearch] = useState("");
-  const [accessEventResults, setAccessEventResults] = useState<Array<{ id: string; title: string }>>([]);
-
-  async function openAccessManage(userId: string) {
-    setAccessUserId(userId);
     setLinkedHosts([]);
     setLinkedEvents([]);
     setAccessHostSearch("");
     setAccessHostResults([]);
     setAccessEventSearch("");
     setAccessEventResults([]);
-    setTimeout(() => accessDialogRef.current?.showModal(), 0);
+    setTimeout(() => editDialogRef.current?.showModal(), 0);
+    if (tab === "access") {
+      void loadAccessData(user.id);
+    }
+  }
 
+  function switchTab(tab: "roles" | "access" | "account") {
+    setEditTab(tab);
+    if (tab === "access" && editUser && linkedHosts.length === 0 && linkedEvents.length === 0) {
+      void loadAccessData(editUser.id);
+    }
+  }
+
+  async function loadAccessData(userId: string) {
     try {
       const [hosts, events] = await Promise.all([
         authorizedGet<LinkedHost[]>(getToken, `/admin/users/${userId}/hosts`),
@@ -182,11 +191,33 @@ export default function AdminUsersPage() {
       ]);
       setLinkedHosts(hosts);
       setLinkedEvents(events);
-    } catch {
-      // ignore
+    } catch { /* ignore */ }
+  }
+
+  function closeEdit() {
+    editDialogRef.current?.close();
+    setEditUser(null);
+  }
+
+  // ── Roles tab ──
+  async function saveRoles() {
+    if (!editUser) return;
+    const currentRoles = editUser.keycloak_roles ?? [];
+    const toAdd = editRoles.filter((r) => !currentRoles.includes(r));
+    const toRemove = currentRoles.filter((r) => !editRoles.includes(r));
+    try {
+      await authorizedPatch(getToken, `/admin/users/${editUser.id}/roles`, {
+        add: toAdd.length ? toAdd : undefined,
+        remove: toRemove.length ? toRemove : undefined,
+      });
+      closeEdit();
+      void load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update roles");
     }
   }
 
+  // ── Access tab ──
   async function searchHostsForAccess(q: string) {
     if (q.length < 2) { setAccessHostResults([]); return; }
     try {
@@ -245,31 +276,25 @@ export default function AdminUsersPage() {
     } catch { /* ignore */ }
   }
 
-  async function toggleServiceAccount(userId: string, current: boolean) {
+  // ── Account tab ──
+  async function doToggleServiceAccount(userId: string, current: boolean) {
     try {
       await authorizedPatch(getToken, `/admin/users/${userId}/service-account`, { is_service_account: !current });
-      void load();
+      setEditUser((u) => u ? { ...u, is_service_account: !current } : u);
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, is_service_account: !current } : u));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update service account flag");
     }
   }
 
-  async function toggleSuspend(userId: string, currentlySuspended: boolean) {
-    if (currentlySuspended) {
-      try {
-        await authorizedPatch(getToken, `/admin/users/${userId}/suspend`, { suspended: false });
-        void load();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to unsuspend user");
-      }
-    } else {
-      if (!confirm(t("manage.admin.users.confirmSuspend"))) return;
-      try {
-        await authorizedPatch(getToken, `/admin/users/${userId}/suspend`, { suspended: true });
-        void load();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to suspend user");
-      }
+  async function doToggleSuspend(userId: string, currentlySuspended: boolean) {
+    try {
+      await authorizedPatch(getToken, `/admin/users/${userId}/suspend`, { suspended: !currentlySuspended });
+      const newSuspendedAt = currentlySuspended ? null : new Date().toISOString();
+      setEditUser((u) => u ? { ...u, suspended_at: newSuspendedAt } : u);
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, suspended_at: newSuspendedAt } : u));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update suspension");
     }
   }
 
@@ -295,6 +320,8 @@ export default function AdminUsersPage() {
       setNoteSaving(false);
     }
   }
+
+  const neverLabel = t("manage.admin.users.neverLoggedIn");
 
   return (
     <div>
@@ -340,7 +367,9 @@ export default function AdminUsersPage() {
             {t("manage.admin.users.hasNotes")}
           </button>
           {totalItems > 0 && (
-            <span className="meta" style={{ marginLeft: "auto" }}>{t("manage.pagination.showing", { start: (page - 1) * 20 + 1, end: (page - 1) * 20 + users.length, total: totalItems })}</span>
+            <span className="meta" style={{ marginLeft: "auto" }}>
+              {t("manage.pagination.showing", { start: (page - 1) * 20 + 1, end: (page - 1) * 20 + users.length, total: totalItems })}
+            </span>
           )}
         </div>
       </div>
@@ -386,41 +415,6 @@ export default function AdminUsersPage() {
                     {t("manage.admin.users.events")}
                     <span className="sort-arrow">{sortArrow("events")}</span>
                   </th>
-                  <th
-                    className={`sortable text-center${sort === "saves" ? " sorted" : ""}`}
-                    onClick={() => handleSort("saves")}
-                  >
-                    {t("manage.admin.users.saves")}
-                    <span className="sort-arrow">{sortArrow("saves")}</span>
-                  </th>
-                  <th
-                    className={`sortable text-center${sort === "rsvps" ? " sorted" : ""}`}
-                    onClick={() => handleSort("rsvps")}
-                  >
-                    {t("manage.admin.users.rsvps")}
-                    <span className="sort-arrow">{sortArrow("rsvps")}</span>
-                  </th>
-                  <th
-                    className={`sortable text-center${sort === "follows" ? " sorted" : ""}`}
-                    onClick={() => handleSort("follows")}
-                  >
-                    {t("manage.admin.users.follows")}
-                    <span className="sort-arrow">{sortArrow("follows")}</span>
-                  </th>
-                  <th
-                    className={`sortable text-center${sort === "comments" ? " sorted" : ""}`}
-                    onClick={() => handleSort("comments")}
-                  >
-                    {t("manage.admin.users.commentsCol")}
-                    <span className="sort-arrow">{sortArrow("comments")}</span>
-                  </th>
-                  <th
-                    className={`sortable text-center${sort === "alerts" ? " sorted" : ""}`}
-                    onClick={() => handleSort("alerts")}
-                  >
-                    {t("manage.admin.users.alerts")}
-                    <span className="sort-arrow">{sortArrow("alerts")}</span>
-                  </th>
                   <th>{t("manage.admin.users.notes")}</th>
                   <th
                     className={`sortable${sort === "created" ? " sorted" : ""}`}
@@ -428,6 +422,13 @@ export default function AdminUsersPage() {
                   >
                     {t("manage.admin.users.joined")}
                     <span className="sort-arrow">{sortArrow("created")}</span>
+                  </th>
+                  <th
+                    className={`sortable${sort === "last_login" ? " sorted" : ""}`}
+                    onClick={() => handleSort("last_login")}
+                  >
+                    {t("manage.admin.users.lastLogin")}
+                    <span className="sort-arrow">{sortArrow("last_login")}</span>
                   </th>
                   <th className="text-right">{t("manage.admin.users.actions")}</th>
                 </tr>
@@ -452,7 +453,7 @@ export default function AdminUsersPage() {
                         )}
                       </div>
                       <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-                        {user.email ?? "\u2014"}
+                        {user.email ?? "—"}
                       </div>
                     </td>
                     <td>
@@ -466,11 +467,6 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="text-center">{user.host_count}</td>
                     <td className="text-center">{user.event_count}</td>
-                    <td className="text-center">{user.save_count || "\u2014"}</td>
-                    <td className="text-center">{user.rsvp_count || "\u2014"}</td>
-                    <td className="text-center">{user.follow_count || "\u2014"}</td>
-                    <td className="text-center">{user.comment_count || "\u2014"}</td>
-                    <td className="text-center">{user.alert_count || "\u2014"}</td>
                     <td className="note-cell">
                       <div className="note-cell-inner" onClick={() => openNoteEdit(user)} title={user.admin_notes || t("manage.admin.users.notePlaceholder")}>
                         {user.admin_notes ? (
@@ -483,27 +479,18 @@ export default function AdminUsersPage() {
                     <td style={{ whiteSpace: "nowrap" }}>
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <span className={user.last_login_at ? undefined : "meta"}>
+                        {fmtRelative(user.last_login_at, neverLabel)}
+                      </span>
+                    </td>
                     <td>
                       <div className="action-btns">
-                        <button type="button" onClick={() => openRoleEdit(user)}>
-                          {t("manage.common.roles")}
+                        <button type="button" className="ghost-btn" onClick={() => openInfo(user)}>
+                          {t("manage.admin.users.info")}
                         </button>
-                        <button type="button" onClick={() => void openAccessManage(user.id)}>
-                          {t("manage.common.access")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void toggleServiceAccount(user.id, !!user.is_service_account)}
-                          title={user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
-                        >
-                          {user.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void toggleSuspend(user.id, !!user.suspended_at)}
-                          style={user.suspended_at ? {} : { color: "var(--danger, #c53030)" }}
-                        >
-                          {user.suspended_at ? t("manage.admin.users.unsuspend") : t("manage.admin.users.suspend")}
+                        <button type="button" className="secondary-btn" onClick={() => openEdit(user)}>
+                          {t("manage.admin.users.edit")}
                         </button>
                       </div>
                     </td>
@@ -521,29 +508,267 @@ export default function AdminUsersPage() {
         </>
       ) : null}
 
-      {/* Role editing dialog */}
-      <dialog ref={roleDialogRef} className="manage-dialog">
-        <h3>{t("manage.admin.users.editRoles")}</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[ROLE_EDITOR, ROLE_ADMIN].map((role) => (
-            <label key={role} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={editRoles.includes(role)}
-                onChange={() => toggleRole(role)}
-              />
-              {role}
-            </label>
-          ))}
-        </div>
-        <div className="manage-dialog-actions">
-          <button type="button" className="ghost-btn" onClick={() => roleDialogRef.current?.close()}>
-            {t("manage.common.cancel")}
-          </button>
-          <button type="button" className="primary-btn" onClick={() => void saveRoles()}>
-            {t("manage.common.save")}
-          </button>
-        </div>
+      {/* ── Info dialog ── */}
+      <dialog ref={infoDialogRef} className="manage-dialog" style={{ maxWidth: 460, width: "100%" }}>
+        {infoUser && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "1rem" }}>
+                  {infoUser.display_name ?? infoUser.keycloak_sub.slice(0, 16)}
+                </div>
+                <div className="meta" style={{ fontSize: "0.8rem" }}>{infoUser.email ?? "—"}</div>
+              </div>
+              <button type="button" className="ghost-btn" style={{ fontSize: "0.8rem", padding: "4px 8px" }} onClick={() => infoDialogRef.current?.close()}>
+                ✕
+              </button>
+            </div>
+
+            {/* Engagement stats */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 16 }}>
+              {([
+                { label: t("manage.admin.users.saves"), value: infoUser.save_count },
+                { label: "RSVPs", value: infoUser.rsvp_count },
+                { label: t("manage.admin.users.follows"), value: infoUser.follow_count },
+                { label: t("manage.admin.users.commentsCol"), value: infoUser.comment_count },
+                { label: t("manage.admin.users.alerts"), value: infoUser.alert_count },
+              ]).map(({ label, value }) => (
+                <div key={label} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 6px", textAlign: "center" }}>
+                  <div style={{ fontSize: "1.3rem", fontWeight: 700 }}>{value}</div>
+                  <div style={{ fontSize: "0.7rem", color: "var(--muted)", marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* User details */}
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 6, fontSize: "0.875rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span className="meta">{t("manage.common.roles")}</span>
+                <span>
+                  {(infoUser.keycloak_roles ?? []).filter((r) => r === "admin" || r === "editor").length > 0
+                    ? (infoUser.keycloak_roles ?? []).filter((r) => r === "admin" || r === "editor").map((r) => (
+                        <span key={r} className={`tag tag--${r}`} style={{ fontSize: "0.7rem", marginLeft: 4 }}>{r}</span>
+                      ))
+                    : <span className="meta">{"—"}</span>
+                  }
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span className="meta">{t("manage.admin.users.joined")}</span>
+                <span>{new Date(infoUser.created_at).toLocaleDateString()}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span className="meta">{t("manage.admin.users.lastLogin")}</span>
+                <span className={infoUser.last_login_at ? undefined : "meta"}>
+                  {fmtRelative(infoUser.last_login_at, neverLabel)}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span className="meta">Status</span>
+                <span>
+                  {infoUser.suspended_at
+                    ? <span style={{ color: "#dc2626" }}>Suspended {new Date(infoUser.suspended_at).toLocaleDateString()}</span>
+                    : <span style={{ color: "var(--success, #16a34a)" }}>Active</span>
+                  }
+                </span>
+              </div>
+              {infoUser.is_service_account && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span className="meta">{t("manage.admin.users.serviceAccount")}</span>
+                  <span className="tag" style={{ fontSize: "0.7rem", background: "var(--accent-bg)", borderColor: "var(--accent)", color: "var(--accent)" }}>Yes</span>
+                </div>
+              )}
+            </div>
+
+            <div className="manage-dialog-actions" style={{ marginTop: 16, justifyContent: "space-between" }}>
+              <Link href={`/manage/admin/users/${infoUser.id}`} className="ghost-btn" style={{ fontSize: "0.85rem" }}>
+                {t("manage.admin.users.viewFullProfile")} →
+              </Link>
+              <button type="button" className="secondary-btn" onClick={() => infoDialogRef.current?.close()}>
+                {t("manage.common.close")}
+              </button>
+            </div>
+          </>
+        )}
+      </dialog>
+
+      {/* ── Edit dialog (tabbed) ── */}
+      <dialog ref={editDialogRef} className="manage-dialog manage-dialog--wide" style={{ maxWidth: 520, width: "100%" }}>
+        {editUser && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{t("manage.admin.users.editUser")}</div>
+                <div className="meta" style={{ fontSize: "0.8rem" }}>{editUser.display_name ?? editUser.email ?? editUser.keycloak_sub.slice(0, 16)}</div>
+              </div>
+              <button type="button" className="ghost-btn" style={{ fontSize: "0.8rem", padding: "4px 8px" }} onClick={closeEdit}>
+                ✕
+              </button>
+            </div>
+
+            {/* Tab bar */}
+            <div className="manage-status-pills" style={{ marginBottom: 16 }}>
+              {(["roles", "access", "account"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  data-active={editTab === tab}
+                  onClick={() => switchTab(tab)}
+                >
+                  {tab === "roles" ? t("manage.admin.users.tabRoles")
+                    : tab === "access" ? t("manage.admin.users.tabAccess")
+                    : t("manage.admin.users.tabAccount")}
+                </button>
+              ))}
+            </div>
+
+            {/* Roles tab */}
+            {editTab === "roles" && (
+              <div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+                  {[ROLE_EDITOR, ROLE_ADMIN].map((role) => (
+                    <label key={role} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, background: editRoles.includes(role) ? "var(--accent-bg)" : "var(--surface)" }}>
+                      <input
+                        type="checkbox"
+                        checked={editRoles.includes(role)}
+                        onChange={() => setEditRoles((prev) => prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role])}
+                      />
+                      <span style={{ fontWeight: 500 }}>{role}</span>
+                    </label>
+                  ))}
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  <button type="button" className="ghost-btn" onClick={closeEdit}>{t("manage.common.cancel")}</button>
+                  <button type="button" className="primary-btn" onClick={() => void saveRoles()}>{t("manage.common.save")}</button>
+                </div>
+              </div>
+            )}
+
+            {/* Access tab */}
+            {editTab === "access" && (
+              <div>
+                <h4 style={{ margin: "0 0 8px", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>{t("manage.admin.users.linkedHosts")}</h4>
+                {linkedHosts.length === 0 ? (
+                  <p className="meta" style={{ fontSize: "0.85rem", marginBottom: 8 }}>{t("manage.admin.users.noLinkedHosts")}</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+                    {linkedHosts.map((h) => (
+                      <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+                        <span style={{ fontSize: "0.9rem" }}>{h.organizer_name}</span>
+                        <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", color: "var(--danger, #c53030)" }} onClick={() => void removeHostFromUser(editUser.id, h.organizer_id)}>
+                          {t("manage.common.remove")}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginBottom: 16 }}>
+                  <input
+                    placeholder={t("manage.admin.users.searchHostsToAdd")}
+                    value={accessHostSearch}
+                    onChange={(e) => { setAccessHostSearch(e.target.value); void searchHostsForAccess(e.target.value); }}
+                    style={{ width: "100%", fontSize: "0.85rem" }}
+                  />
+                  {accessHostResults.length > 0 && (
+                    <div style={{ border: "1px solid var(--border)", borderRadius: 4, maxHeight: 150, overflow: "auto", marginTop: 4 }}>
+                      {accessHostResults.map((h) => (
+                        <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => void addHostToUser(editUser.id, h.id)}>
+                          <span style={{ fontSize: "0.85rem" }}>{h.name}</span>
+                          <span className="meta" style={{ fontSize: "0.75rem" }}>+ {t("manage.common.add")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <h4 style={{ margin: "0 0 8px", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)" }}>{t("manage.admin.users.linkedEvents")}</h4>
+                {linkedEvents.length === 0 ? (
+                  <p className="meta" style={{ fontSize: "0.85rem", marginBottom: 8 }}>{t("manage.admin.users.noLinkedEvents")}</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+                    {linkedEvents.map((ev) => (
+                      <div key={ev.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+                        <span style={{ fontSize: "0.9rem" }}>{ev.title} <span className="meta">({ev.status})</span></span>
+                        <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", color: "var(--danger, #c53030)" }} onClick={() => void removeEventFromUser(editUser.id, ev.id)}>
+                          {t("manage.common.remove")}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginBottom: 8 }}>
+                  <input
+                    placeholder={t("manage.admin.users.searchEventsToAdd")}
+                    value={accessEventSearch}
+                    onChange={(e) => { setAccessEventSearch(e.target.value); void searchEventsForAccess(e.target.value); }}
+                    style={{ width: "100%", fontSize: "0.85rem" }}
+                  />
+                  {accessEventResults.length > 0 && (
+                    <div style={{ border: "1px solid var(--border)", borderRadius: 4, maxHeight: 150, overflow: "auto", marginTop: 4 }}>
+                      {accessEventResults.map((ev) => (
+                        <div key={ev.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => void addEventToUser(editUser.id, ev.id)}>
+                          <span style={{ fontSize: "0.85rem" }}>{ev.title}</span>
+                          <span className="meta" style={{ fontSize: "0.75rem" }}>+ {t("manage.common.add")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="manage-dialog-actions">
+                  <button type="button" className="ghost-btn" onClick={closeEdit}>{t("manage.common.close")}</button>
+                </div>
+              </div>
+            )}
+
+            {/* Account tab */}
+            {editTab === "account" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Service account */}
+                <div style={{ padding: 14, border: "1px solid var(--border)", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: "0.9rem" }}>{t("manage.admin.users.serviceAccount")}</div>
+                    <div className="meta" style={{ fontSize: "0.8rem" }}>
+                      {editUser.is_service_account ? "Enabled" : "Disabled"}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={editUser.is_service_account ? "secondary-btn" : "ghost-btn"}
+                    style={{ fontSize: "0.8rem" }}
+                    onClick={() => setConfirmService({ userId: editUser.id, current: !!editUser.is_service_account })}
+                  >
+                    {editUser.is_service_account ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
+                  </button>
+                </div>
+
+                {/* Suspend */}
+                <div style={{ padding: 14, border: `1px solid ${editUser.suspended_at ? "#dc2626" : "var(--border)"}`, borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: "0.9rem" }}>{t("manage.admin.users.suspend")}</div>
+                    <div className="meta" style={{ fontSize: "0.8rem" }}>
+                      {editUser.suspended_at
+                        ? `Suspended since ${new Date(editUser.suspended_at).toLocaleDateString()}`
+                        : "Account is active"
+                      }
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={editUser.suspended_at ? "secondary-btn" : "danger-btn"}
+                    style={{ fontSize: "0.8rem" }}
+                    onClick={() => setConfirmSuspend({ userId: editUser.id, currently: !!editUser.suspended_at })}
+                  >
+                    {editUser.suspended_at ? t("manage.admin.users.unsuspend") : t("manage.admin.users.suspend")}
+                  </button>
+                </div>
+
+                <div className="manage-dialog-actions">
+                  <button type="button" className="ghost-btn" onClick={closeEdit}>{t("manage.common.close")}</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </dialog>
 
       {/* Notes dialog */}
@@ -567,86 +792,35 @@ export default function AdminUsersPage() {
         </div>
       </dialog>
 
-      {/* Access management dialog */}
-      <dialog ref={accessDialogRef} className="manage-dialog manage-dialog--wide">
-        <h3>{t("manage.admin.users.manageAccess")}</h3>
+      {/* Confirm: suspend */}
+      <ConfirmDialog
+        open={!!confirmSuspend}
+        title={confirmSuspend?.currently ? t("manage.admin.users.unsuspend") : t("manage.admin.users.suspend")}
+        message={confirmSuspend?.currently
+          ? "This will restore access for this user."
+          : t("manage.admin.users.confirmSuspend")}
+        confirmLabel={confirmSuspend?.currently ? t("manage.admin.users.unsuspend") : t("manage.admin.users.suspend")}
+        variant={confirmSuspend?.currently ? "info" : "danger"}
+        onConfirm={() => {
+          if (confirmSuspend) { void doToggleSuspend(confirmSuspend.userId, confirmSuspend.currently); }
+          setConfirmSuspend(null);
+        }}
+        onCancel={() => setConfirmSuspend(null)}
+      />
 
-        {/* Linked Hosts */}
-        <h4 style={{ marginBottom: 8 }}>{t("manage.admin.users.linkedHosts")}</h4>
-        {linkedHosts.length === 0 ? (
-          <p className="meta" style={{ fontSize: "0.85rem" }}>{t("manage.admin.users.noLinkedHosts")}</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-            {linkedHosts.map((h) => (
-              <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
-                <span style={{ fontSize: "0.9rem" }}>{h.organizer_name}</span>
-                <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", color: "var(--danger, #c53030)" }} onClick={() => void removeHostFromUser(accessUserId!, h.organizer_id)}>
-                  {t("manage.common.remove")}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ marginBottom: 16 }}>
-          <input
-            placeholder={t("manage.admin.users.searchHostsToAdd")}
-            value={accessHostSearch}
-            onChange={(e) => { setAccessHostSearch(e.target.value); void searchHostsForAccess(e.target.value); }}
-            style={{ width: "100%", fontSize: "0.85rem" }}
-          />
-          {accessHostResults.length > 0 && (
-            <div style={{ border: "1px solid var(--border)", borderRadius: 4, maxHeight: 150, overflow: "auto", marginTop: 4 }}>
-              {accessHostResults.map((h) => (
-                <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => void addHostToUser(accessUserId!, h.id)}>
-                  <span style={{ fontSize: "0.85rem" }}>{h.name}</span>
-                  <span className="meta" style={{ fontSize: "0.75rem" }}>+ {t("manage.common.add")}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Linked Events */}
-        <h4 style={{ marginBottom: 8 }}>{t("manage.admin.users.linkedEvents")}</h4>
-        {linkedEvents.length === 0 ? (
-          <p className="meta" style={{ fontSize: "0.85rem" }}>{t("manage.admin.users.noLinkedEvents")}</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-            {linkedEvents.map((ev) => (
-              <div key={ev.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
-                <span style={{ fontSize: "0.9rem" }}>{ev.title} <span className="meta">({ev.status})</span></span>
-                <button type="button" className="ghost-btn" style={{ fontSize: "0.75rem", color: "var(--danger, #c53030)" }} onClick={() => void removeEventFromUser(accessUserId!, ev.id)}>
-                  {t("manage.common.remove")}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ marginBottom: 16 }}>
-          <input
-            placeholder={t("manage.admin.users.searchEventsToAdd")}
-            value={accessEventSearch}
-            onChange={(e) => { setAccessEventSearch(e.target.value); void searchEventsForAccess(e.target.value); }}
-            style={{ width: "100%", fontSize: "0.85rem" }}
-          />
-          {accessEventResults.length > 0 && (
-            <div style={{ border: "1px solid var(--border)", borderRadius: 4, maxHeight: 150, overflow: "auto", marginTop: 4 }}>
-              {accessEventResults.map((ev) => (
-                <div key={ev.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", borderBottom: "1px solid var(--border)", cursor: "pointer" }} onClick={() => void addEventToUser(accessUserId!, ev.id)}>
-                  <span style={{ fontSize: "0.85rem" }}>{ev.title}</span>
-                  <span className="meta" style={{ fontSize: "0.75rem" }}>+ {t("manage.common.add")}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="manage-dialog-actions">
-          <button type="button" className="ghost-btn" onClick={() => accessDialogRef.current?.close()}>
-            {t("manage.common.close")}
-          </button>
-        </div>
-      </dialog>
+      {/* Confirm: service account */}
+      <ConfirmDialog
+        open={!!confirmService}
+        title={t("manage.admin.users.serviceAccount")}
+        message={t("manage.admin.users.confirmServiceAccount")}
+        confirmLabel={confirmService?.current ? t("manage.admin.users.removeServiceAccount") : t("manage.admin.users.markServiceAccount")}
+        variant="warning"
+        onConfirm={() => {
+          if (confirmService) { void doToggleServiceAccount(confirmService.userId, confirmService.current); }
+          setConfirmService(null);
+        }}
+        onCancel={() => setConfirmService(null)}
+      />
     </div>
   );
 }
