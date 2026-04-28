@@ -1245,8 +1245,12 @@ label.meta {
 .grid {
   display: flex;
   flex-direction: row;
-  gap: 16px;
+  gap: 0;
   align-items: flex-start;
+}
+
+.grid.sidebar-open {
+  gap: 16px;
 }
 
 .grid > .panel.cards {
