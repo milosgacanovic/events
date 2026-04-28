@@ -44,15 +44,23 @@ export function CommentsSection({ eventId, seriesName, singleEndAt, scheduleKind
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [total, setTotal] = useState(0);
-  const [body, setBody] = useState(() => {
-    try {
-      const draft = sessionStorage.getItem(`dr-comment-draft-${eventId}`);
-      if (draft) { sessionStorage.removeItem(`dr-comment-draft-${eventId}`); return draft; }
-    } catch { /* ignore */ }
-    return "";
-  });
+  const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+
+  // Restore draft after mount. Reads with side effects must not happen in a
+  // useState initializer — React 18 may invoke initializers for renders that
+  // are later discarded, which would clear the draft without populating state.
+  useEffect(() => {
+    try {
+      const key = `dr-comment-draft-${eventId}`;
+      const draft = sessionStorage.getItem(key);
+      if (draft) {
+        sessionStorage.removeItem(key);
+        setBody(draft);
+      }
+    } catch { /* ignore */ }
+  }, [eventId]);
 
   // Fetch approved comments
   useEffect(() => {
