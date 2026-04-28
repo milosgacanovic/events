@@ -45,14 +45,17 @@ export default function GoingTab() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function cancel(eventId: string) {
+  async function cancel(eventId: string, occurrenceId: string | null) {
     const token = await getToken();
     if (!token) return;
-    const res = await fetch(`${apiBase}/profile/rsvps/${eventId}`, {
+    const url = occurrenceId
+      ? `${apiBase}/profile/rsvps/${eventId}?occurrenceId=${occurrenceId}`
+      : `${apiBase}/profile/rsvps/${eventId}`;
+    const res = await fetch(url, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.ok) setItems((cur) => cur.filter((i) => i.eventId !== eventId));
+    if (res.ok) setItems((cur) => cur.filter((i) => !(i.eventId === eventId && i.occurrenceId === occurrenceId)));
   }
 
   if (loading) return <p className="muted">{t("profile.loading")}</p>;
@@ -108,7 +111,7 @@ export default function GoingTab() {
             </a>
           )}
         </div>
-        <button className="primary-btn" type="button" onClick={() => void cancel(item.eventId)}>
+        <button className="primary-btn" type="button" onClick={() => void cancel(item.eventId, item.occurrenceId)}>
           {t("profile.rsvps.cancel")}
         </button>
       </li>

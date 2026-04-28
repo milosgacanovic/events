@@ -67,7 +67,16 @@ export async function deleteComment(
     `DELETE FROM comments WHERE id = $1 AND user_id = $2`,
     [commentId, userId],
   );
-  return (result.rowCount ?? 0) > 0;
+  const deleted = (result.rowCount ?? 0) > 0;
+  if (deleted) {
+    await pool.query(
+      `UPDATE moderation_queue
+       SET status = 'user_deleted', reviewed_at = now()
+       WHERE item_type = 'comment' AND item_id = $1 AND status = 'pending'`,
+      [commentId],
+    );
+  }
+  return deleted;
 }
 
 export async function listUserComments(

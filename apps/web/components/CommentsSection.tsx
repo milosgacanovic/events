@@ -44,7 +44,13 @@ export function CommentsSection({ eventId, seriesName, singleEndAt, scheduleKind
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [total, setTotal] = useState(0);
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(() => {
+    try {
+      const draft = sessionStorage.getItem(`dr-comment-draft-${eventId}`);
+      if (draft) { sessionStorage.removeItem(`dr-comment-draft-${eventId}`); return draft; }
+    } catch { /* ignore */ }
+    return "";
+  });
   const [posting, setPosting] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
 
@@ -70,6 +76,7 @@ export function CommentsSection({ eventId, seriesName, singleEndAt, scheduleKind
   const handlePost = useCallback(async () => {
     if (!body.trim()) return;
     if (!auth.authenticated) {
+      try { sessionStorage.setItem(`dr-comment-draft-${eventId}`, body); } catch { /* ignore */ }
       setShowLogin(true);
       return;
     }

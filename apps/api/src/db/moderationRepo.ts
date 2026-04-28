@@ -121,6 +121,8 @@ export async function listModerationItems(
   if (input.status) {
     values.push(input.status);
     whereParts.push(`mq.status = $${values.length}`);
+  } else {
+    whereParts.push(`mq.status != 'user_deleted'`);
   }
   if (input.search) {
     values.push(`%${input.search}%`);

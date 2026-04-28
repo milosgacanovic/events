@@ -131,7 +131,7 @@ export default function SearchAlertsTab() {
                   <div className="alerts-item-controls-row">
                     <select
                       className="modal-select"
-                      style={{ width: "auto", fontSize: "0.9rem", padding: "4px 24px 4px 8px" }}
+                      style={{ width: "auto", fontSize: "0.9rem", padding: "4px 32px 4px 8px" }}
                       value={search.frequency}
                       onChange={(e) => void updateSearch(search.id, { frequency: e.target.value })}
                     >

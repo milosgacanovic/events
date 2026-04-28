@@ -75,6 +75,9 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  const [expandBody, setExpandBody] = useState<string | null>(null);
+  const expandDialogRef = useRef<HTMLDialogElement>(null);
+
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<ModerationSettings | null>(null);
   const [settingsSaving, setSaving] = useState(false);
@@ -130,7 +133,7 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
     }
   }
 
-  async function handleAction(id: string, status: "approved" | "rejected" | "dismissed") {
+  async function handleAction(id: string, status: "approved" | "rejected" | "actioned") {
     await authorizedPatch(getToken, `/admin/moderation/${id}`, { status });
     void load();
   }
@@ -162,6 +165,7 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
             { value: "pending", label: t("manage.admin.moderation.statusPending") },
             { value: "approved", label: t("manage.admin.moderation.statusApproved") },
             { value: "rejected", label: t("manage.admin.moderation.statusRejected") },
+            { value: "user_deleted", label: t("manage.admin.moderation.statusUserDeleted") },
           ].map((opt) => (
             <button key={opt.value} type="button" data-active={statusFilter === opt.value} onClick={() => { setStatusFilter(opt.value); setPage(1); }}>
               {opt.label}
@@ -260,7 +264,17 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
                           item.comment_event_title ?? item.suggestion_event_title ?? item.report_target_label ?? item.item_id
                         )}
                       </td>
-                      <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <td
+                        style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
+                        title={t("manage.admin.moderation.clickToExpand")}
+                        onClick={() => {
+                          const full = item.item_type === "comment" ? (item.comment_body ?? "")
+                            : item.item_type === "suggestion" ? `[${item.suggestion_category}] ${item.suggestion_value ?? ""}`
+                            : `${item.report_reason}: ${item.report_detail ?? ""}`;
+                          setExpandBody(full);
+                          expandDialogRef.current?.showModal();
+                        }}
+                      >
                         {item.item_type === "comment" ? item.comment_body
                           : item.item_type === "suggestion" ? `[${item.suggestion_category}] ${item.suggestion_value ?? ""}`
                           : `${item.report_reason}: ${item.report_detail ?? ""}`}
@@ -284,9 +298,9 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
                           const rejectLabel = tab === "report"
                             ? t("manage.admin.moderation.dismiss")
                             : t("manage.admin.moderation.reject");
-                          const rejectStatus = tab === "report" ? "dismissed" : "rejected";
+                          const rejectStatus = "rejected";
                           const isApproved = item.status === "approved";
-                          const isRejected = item.status === "rejected" || item.status === "dismissed";
+                          const isRejected = item.status === "rejected";
                           return (
                             <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", flexWrap: "wrap" }}>
                               {!isApproved && (
@@ -410,6 +424,16 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
             </div>
           </div>
         )}
+      </dialog>
+
+      <dialog ref={expandDialogRef} className="manage-dialog" style={{ maxWidth: 560 }} onClick={(e) => { if (e.target === e.currentTarget) { setExpandBody(null); expandDialogRef.current?.close(); } }}>
+        <div className="manage-dialog-header">
+          <h3 className="manage-dialog-title">{t("manage.admin.moderation.fullContent")}</h3>
+          <button type="button" className="modal-close" onClick={() => { setExpandBody(null); expandDialogRef.current?.close(); }}>&times;</button>
+        </div>
+        <div style={{ padding: "16px 20px 20px", whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>
+          {expandBody}
+        </div>
       </dialog>
     </div>
   );

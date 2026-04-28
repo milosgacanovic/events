@@ -428,7 +428,11 @@ export function EventDetailClient({
   const router = useRouter();
   const auth = useKeycloakAuth();
   const [cameFromSearch] = useState(() => {
-    try { return !!sessionStorage.getItem("search-cache-snapshot"); } catch { return false; }
+    try {
+      const flag = sessionStorage.getItem("dr-came-from-search");
+      if (flag) { sessionStorage.removeItem("dr-came-from-search"); return true; }
+      return false;
+    } catch { return false; }
   });
   const [data, setData] = useState<EventDetail | null>(initialData ?? null);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
