@@ -131,7 +131,7 @@ const getAllOrganizerSitemapItemsCached = unstable_cache(async (): Promise<Event
   const itemsBySlug = new Map<string, string | undefined>();
   let page = 1;
   while (true) {
-    const params = new URLSearchParams({ page: String(page), pageSize: "200" });
+    const params = new URLSearchParams({ page: String(page), pageSize: "50" });
     let result: OrganizerSearchResponse | null = null;
     for (const base of getServerApiBaseCandidates()) {
       const response = await fetch(`${base}/organizers/search?${params.toString()}`, {
