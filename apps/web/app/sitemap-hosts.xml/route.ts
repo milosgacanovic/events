@@ -4,7 +4,14 @@ export const revalidate = 600;
 
 export async function GET() {
   const siteBase = getSiteBase();
-  const items = await getOrganizerSitemapItems();
+  let items;
+  try {
+    items = await getOrganizerSitemapItems();
+  } catch {
+    // Upstream API unreachable / returned no results. Return 503 so crawlers
+    // retry and Cloudflare doesn't cache the failure.
+    return new Response("Service Unavailable", { status: 503 });
+  }
   const xml = toUrlSetXml(
     items.map((item) => ({
       loc: `${siteBase}/hosts/${item.slug}`,

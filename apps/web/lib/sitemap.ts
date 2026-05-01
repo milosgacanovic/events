@@ -109,10 +109,14 @@ const getAllEventSitemapItemsCached = unstable_cache(async (): Promise<EventSite
     }
   }
 
+  if (itemsBySlug.size === 0) {
+    // Don't poison the cache with an empty result if the API was unreachable.
+    throw new Error("events sitemap: no items returned from API");
+  }
   return Array.from(itemsBySlug.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([slug, lastmod]) => ({ slug, lastmod }));
-}, ["events-sitemap-items"], { revalidate: 600 });
+}, ["events-sitemap-items-v2"], { revalidate: 600 });
 
 export async function getEventSitemapItems(): Promise<EventSitemapItem[]> {
   return getAllEventSitemapItemsCached();
@@ -145,8 +149,12 @@ const getAllOrganizerSitemapItemsCached = unstable_cache(async (): Promise<Event
     if (page >= (result.pagination?.totalPages ?? 1)) break;
     page++;
   }
+  if (itemsBySlug.size === 0) {
+    // Don't poison the cache with an empty result if the API was unreachable.
+    throw new Error("organizers sitemap: no items returned from API");
+  }
   return Array.from(itemsBySlug.entries()).map(([slug, lastmod]) => ({ slug, lastmod }));
-}, ["organizers-sitemap-items"], { revalidate: 600 });
+}, ["organizers-sitemap-items-v2"], { revalidate: 600 });
 
 export async function getOrganizerSitemapItems(): Promise<EventSitemapItem[]> {
   return getAllOrganizerSitemapItemsCached();

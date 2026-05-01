@@ -226,6 +226,10 @@ export type EventDetail = {
     event_format_id: string | null;
     tags: string[];
     status?: string;
+    visibility?: string;
+    slug?: string;
+    online_url?: string | null;
+    published_at?: string | null;
   };
   organizers: Array<{
     organizer_id: string;

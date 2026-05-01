@@ -30,6 +30,109 @@ function stripHtml(input: string): string {
     .replace(/^DESCRIPTION\s+/i, "");
 }
 
+const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://events.danceresource.org";
+
+function buildEventJsonLd(detail: EventDetailResponse, slug: string): Record<string, unknown> {
+  const event = detail.event;
+  const loc = detail.defaultLocation;
+  const upcoming = detail.occurrences.upcoming?.[0];
+
+  const descriptionRaw = (event.description_json as { html?: string } | null)?.html ?? "";
+  const description = stripHtml(descriptionRaw).slice(0, 5000);
+
+  const startDate = event.single_start_at ?? upcoming?.starts_at_utc ?? undefined;
+  const endDate = event.single_end_at ?? upcoming?.ends_at_utc ?? undefined;
+
+  const attendanceMode =
+    event.attendance_mode === "online"
+      ? "https://schema.org/OnlineEventAttendanceMode"
+      : event.attendance_mode === "hybrid"
+        ? "https://schema.org/MixedEventAttendanceMode"
+        : "https://schema.org/OfflineEventAttendanceMode";
+
+  const eventStatus =
+    event.status === "cancelled"
+      ? "https://schema.org/EventCancelled"
+      : "https://schema.org/EventScheduled";
+
+  const externalUrl = event.externalUrl ?? event.external_url ?? null;
+  const onlineUrl = event.online_url ?? externalUrl ?? null;
+
+  const physicalPlace = loc
+    ? {
+        "@type": "Place",
+        name: loc.formatted_address || loc.city || event.title,
+        address: {
+          "@type": "PostalAddress",
+          ...(loc.formatted_address ? { streetAddress: loc.formatted_address } : {}),
+          ...(loc.city ? { addressLocality: loc.city } : {}),
+          ...(loc.country_code ? { addressCountry: loc.country_code.toUpperCase() } : {}),
+        },
+        ...(typeof loc.lat === "number" && typeof loc.lng === "number"
+          ? { geo: { "@type": "GeoCoordinates", latitude: loc.lat, longitude: loc.lng } }
+          : {}),
+      }
+    : null;
+
+  const virtualPlace = onlineUrl
+    ? { "@type": "VirtualLocation", url: onlineUrl }
+    : null;
+
+  let location: unknown;
+  if (event.attendance_mode === "online") {
+    location = virtualPlace ?? undefined;
+  } else if (event.attendance_mode === "hybrid" && physicalPlace && virtualPlace) {
+    location = [physicalPlace, virtualPlace];
+  } else {
+    location = physicalPlace ?? virtualPlace ?? undefined;
+  }
+
+  const organizerNodes = detail.organizers.map((o) => ({
+    "@type": "Person",
+    name: o.organizer_name,
+    url: `${SITE_ORIGIN}/hosts/${o.organizer_slug}`,
+    ...(o.organizer_avatar_path ? { image: o.organizer_avatar_path } : {}),
+  }));
+
+  const offers = externalUrl
+    ? {
+        "@type": "Offer",
+        url: externalUrl,
+        availability: "https://schema.org/InStock",
+        ...(event.published_at ? { validFrom: event.published_at } : {}),
+      }
+    : undefined;
+
+  const image = event.coverImageUrl ?? event.cover_image_path ?? null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: event.title,
+    ...(description ? { description } : {}),
+    ...(image ? { image: [image] } : {}),
+    url: `${SITE_ORIGIN}/events/${slug}`,
+    ...(startDate ? { startDate } : {}),
+    ...(endDate ? { endDate } : {}),
+    eventAttendanceMode: attendanceMode,
+    eventStatus,
+    ...(location ? { location } : {}),
+    ...(organizerNodes.length ? { organizer: organizerNodes, performer: organizerNodes } : {}),
+    ...(event.languages?.length ? { inLanguage: event.languages } : {}),
+    ...(offers ? { offers } : {}),
+    ...(externalUrl ? { isBasedOn: externalUrl } : {}),
+  };
+}
+
+function shouldNoIndex(detail: EventDetailResponse | null): boolean {
+  if (!detail) return false;
+  const isPast = (detail.occurrences.upcoming?.length ?? 0) === 0;
+  if (isPast) return true;
+  if (detail.event.status && detail.event.status !== "published") return true;
+  if (detail.event.visibility && detail.event.visibility !== "public") return true;
+  return false;
+}
+
 function formatEventDateRange(startIso: string, endIso: string | null, tz: string): string {
   try {
     const s = new Date(startIso);
@@ -78,8 +181,7 @@ export async function generateMetadata({
   const rawHtml = descriptionJson.html ?? "";
   const text = stripHtml(rawHtml);
   const image = detail.event.coverImageUrl ?? detail.event.cover_image_path ?? undefined;
-  const isPast = (detail.occurrences.upcoming?.length ?? 0) === 0;
-  const sourceUrl = detail.event.externalUrl ?? detail.event.external_url ?? null;
+  const noIndex = shouldNoIndex(detail);
 
   // Structured summary line: "4–6 Sep 2026 · Belgrade, Serbia · 5Rhythms Workshop"
   const tz = detail.event.event_timezone || "UTC";
@@ -119,16 +221,15 @@ export async function generateMetadata({
   return {
     title: `${detail.event.title} | DanceResource`,
     description: titleDescription,
-    robots: isPast ? { index: false, follow: true } : { index: true, follow: true },
+    robots: noIndex ? { index: false, follow: true } : { index: true, follow: true },
     alternates: {
+      // Self-canonical. For multi-sibling series, collapse to the sibling
+      // owning the earliest upcoming occurrence so duplicate sibling URLs
+      // unify under one canonical page.
       canonical:
-        sourceUrl
-        // For multi-sibling series, point at the sibling owning the earliest
-        // upcoming occurrence so duplicate sibling URLs collapse into one
-        // canonical page for search engines.
-        ?? ((detail.series?.siblingCount ?? 1) > 1
+        (detail.series?.siblingCount ?? 1) > 1
           ? `/events/${detail.series?.canonicalSlug ?? params.slug}`
-          : `/events/${params.slug}`),
+          : `/events/${params.slug}`,
     },
     openGraph: {
       title: detail.event.title,
@@ -169,38 +270,7 @@ async function EventDetailPageServer({ slug, targetDate }: { slug: string; targe
     fetchServerJson<TaxonomyResponse>("/meta/taxonomies"),
   ]);
 
-  const startDate = detail?.event.single_start_at ?? undefined;
-  const endDate = detail?.event.single_end_at ?? undefined;
-  const location = detail?.event.attendance_mode === "online"
-    ? { "@type": "VirtualLocation", url: detail.event.external_url ?? undefined }
-    : detail?.defaultLocation
-      ? {
-          "@type": "Place",
-          name: detail.defaultLocation.formatted_address || detail.defaultLocation.city || detail.event.title,
-          address: detail.defaultLocation.formatted_address,
-          addressCountry: detail.defaultLocation.country_code?.toUpperCase(),
-        }
-      : undefined;
-  const jsonLd = detail
-    ? {
-        "@context": "https://schema.org",
-        "@type": "Event",
-        name: detail.event.title,
-        startDate,
-        endDate,
-        eventAttendanceMode:
-          detail.event.attendance_mode === "online"
-            ? "https://schema.org/OnlineEventAttendanceMode"
-            : detail.event.attendance_mode === "hybrid"
-              ? "https://schema.org/MixedEventAttendanceMode"
-              : "https://schema.org/OfflineEventAttendanceMode",
-        location,
-        organizer: detail.organizers.map((host) => ({
-          "@type": "Organization",
-          name: host.organizer_name,
-        })),
-      }
-    : null;
+  const jsonLd = detail && !shouldNoIndex(detail) ? buildEventJsonLd(detail, slug) : null;
 
   const cookieStore = cookies();
   const locale = cookieStore.get("dr_locale")?.value ?? "en";

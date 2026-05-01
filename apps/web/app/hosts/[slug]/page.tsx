@@ -5,6 +5,8 @@ import { OrganizerDetailClient, type OrganizerDetail } from "../../../components
 import { apiBase } from "../../../lib/api";
 import { toDisplayNamesLocale } from "../../../lib/i18n/languageLabels";
 
+const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://events.danceresource.org";
+
 async function fetchServerJson<T>(path: string): Promise<T | null> {
   const serverApiBase = process.env.INTERNAL_API_BASE_URL ?? apiBase;
   const response = await fetch(`${serverApiBase}${path}`, { cache: "no-store" }).catch(() => null);
@@ -14,6 +16,11 @@ async function fetchServerJson<T>(path: string): Promise<T | null> {
 
 function stripHtml(input: string): string {
   return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function isHostPublished(detail: OrganizerDetail): boolean {
+  const status = detail.organizer.status;
+  return !status || status === "published";
 }
 
 function getDescription(detail: OrganizerDetail): string {
@@ -33,10 +40,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
   const description = getDescription(detail);
   const image = detail.organizer.imageUrl ?? detail.organizer.avatar_path ?? undefined;
+  const noIndex = !isHostPublished(detail);
   return {
     title: `${detail.organizer.name} | DanceResource`,
     description,
     alternates: { canonical: `/hosts/${params.slug}` },
+    robots: noIndex ? { index: false, follow: true } : { index: true, follow: true },
     openGraph: {
       title: detail.organizer.name,
       description,
@@ -80,13 +89,16 @@ async function HostDetailPageServer({ slug }: { slug: string }) {
     }
   })();
 
-  const websiteUrl = detail?.organizer.websiteUrl ?? detail?.organizer.website_url ?? undefined;
-  const jsonLd = detail
+  const websiteUrl = detail?.organizer.websiteUrl ?? detail?.organizer.website_url ?? null;
+  const externalUrl = detail?.organizer.externalUrl ?? detail?.organizer.external_url ?? null;
+  const sameAs = [websiteUrl, externalUrl].filter((u): u is string => Boolean(u));
+  const jsonLd = detail && isHostPublished(detail)
     ? {
         "@context": "https://schema.org",
         "@type": "Organization",
         name: detail.organizer.name,
-        url: websiteUrl,
+        url: `${SITE_ORIGIN}/hosts/${slug}`,
+        ...(sameAs.length ? { sameAs } : {}),
         image: detail.organizer.imageUrl ?? detail.organizer.avatar_path ?? undefined,
         description: getDescription(detail),
         address:

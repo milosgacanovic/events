@@ -16,7 +16,12 @@ export async function GET(
     return new Response("Not Found", { status: 404 });
   }
 
-  const items = await getEventSitemapItems();
+  let items;
+  try {
+    items = await getEventSitemapItems();
+  } catch {
+    return new Response("Service Unavailable", { status: 503 });
+  }
   const start = (pageNumber - 1) * EVENT_SITEMAP_CHUNK_SIZE;
   const end = start + EVENT_SITEMAP_CHUNK_SIZE;
   const chunk = items.slice(start, end);
