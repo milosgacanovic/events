@@ -1146,11 +1146,13 @@ export function EventSearchClient({
   }, [disjunctiveFacets.languages, languages]);
   const visibleEventDateFacets = useMemo(() => {
     const counts = disjunctiveFacets.eventDate ?? {};
-    return EVENT_DATE_PRESETS.map((preset) => ({
-      key: preset,
-      count: counts[preset] ?? 0,
-      checked: eventDates.includes(preset),
-    }));
+    return EVENT_DATE_PRESETS
+      .map((preset) => ({
+        key: preset,
+        count: counts[preset] ?? 0,
+        checked: eventDates.includes(preset),
+      }))
+      .filter((item) => item.count > 0 || item.checked);
   }, [disjunctiveFacets.eventDate, eventDates]);
   const toTitleCase = toTitleCaseHelper;
 
