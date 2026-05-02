@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { DateTime } from "luxon";
 import { z } from "zod";
 
+import { fetchEventCard, fetchOrganizerCard } from "../db/mapRepo";
 import { buildClusters, buildOrganizerClusters } from "../services/mapClusterService";
 import { getSearchCache, setSearchCache } from "../services/searchCache";
 import { parseEventDatePresets } from "../utils/eventDatePresets";
@@ -255,6 +256,80 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
     setSearchCache("organizers_map_clusters", cacheKeyPayload, payload);
 
     return payload;
+  });
+
+  const eventCardQuerySchema = z.object({
+    occurrenceId: z.string().uuid(),
+  });
+
+  app.get("/map/event-card", async (request, reply) => {
+    const parsed = eventCardQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return logValidation(request, parsed.error);
+    }
+
+    const row = await fetchEventCard(app.db, parsed.data.occurrenceId);
+    if (!row) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    const tags = (row.tags ?? []).filter((tag) => typeof tag === "string" && tag.length > 0).slice(0, 4);
+
+    reply.header("Cache-Control", "public, max-age=300");
+    return {
+      occurrenceId: row.occurrence_id,
+      eventId: row.event_id,
+      eventSlug: row.event_slug,
+      title: row.title,
+      startsAtUtc: row.starts_at_utc,
+      endsAtUtc: row.ends_at_utc,
+      timezone: row.timezone,
+      coverImageUrl: row.cover_image_path,
+      city: row.city,
+      countryCode: row.country_code,
+      practiceLabel: row.practice_label,
+      tags,
+      organizer: row.organizer_id && row.organizer_slug && row.organizer_name
+        ? {
+          id: row.organizer_id,
+          slug: row.organizer_slug,
+          name: row.organizer_name,
+        }
+        : null,
+    };
+  });
+
+  const organizerCardQuerySchema = z.object({
+    organizerId: z.string().uuid(),
+  });
+
+  app.get("/map/organizer-card", async (request, reply) => {
+    const parsed = organizerCardQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400);
+      return logValidation(request, parsed.error);
+    }
+
+    const row = await fetchOrganizerCard(app.db, parsed.data.organizerId);
+    if (!row) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+
+    reply.header("Cache-Control", "public, max-age=300");
+    return {
+      organizerId: row.organizer_id,
+      organizerSlug: row.organizer_slug,
+      organizerName: row.organizer_name,
+      avatarUrl: row.avatar_path,
+      practiceLabels: row.practice_labels ?? [],
+      city: row.city,
+      upcomingEventCount: Number.parseInt(row.upcoming_event_count, 10) || 0,
+      nextEventStartsAtUtc: row.next_event_starts_at_utc,
+      nextEventTimezone: row.next_event_timezone,
+    };
   });
 };
 

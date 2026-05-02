@@ -16,9 +16,17 @@ import {
   useMapEvents,
 } from "react-leaflet";
 
-import { formatPointDateTime, type TimeDisplayMode } from "../lib/datetime";
+import type { TimeDisplayMode } from "../lib/datetime";
 import { isSeriesGroupingEnabled } from "../lib/features";
 import { useI18n } from "./i18n/I18nProvider";
+import {
+  fetchEventCard,
+  getEventCardCached,
+  HOVER_CLOSE_DELAY_MS,
+  HOVER_OPEN_DELAY_MS,
+  MapHoverCard,
+  type EventCardData,
+} from "./MapHoverCard";
 
 type ClusterFeature = {
   type: "Feature";
@@ -43,13 +51,36 @@ type ClusterResponse = {
   features: ClusterFeature[];
 };
 
-function MapChangeWatcher({ onChange }: { onChange: () => void }) {
+function MapChangeWatcher({ onChange, onDismiss }: { onChange: () => void; onDismiss: () => void }) {
   useMapEvents({
-    moveend: onChange,
-    zoomend: onChange,
+    moveend: () => {
+      onChange();
+      onDismiss();
+    },
+    zoomend: () => {
+      onChange();
+      onDismiss();
+    },
+    click: onDismiss,
   });
 
   return null;
+}
+
+type HoveredEventMarker = {
+  occurrenceId: string;
+  eventSlug: string;
+  title: string;
+  startsAtUtc: string;
+  timezone: string | null;
+  lat: number;
+  lng: number;
+  markerRadius: number;
+};
+
+function isTouchPrimary(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 }
 
 function buildClusterUrl(queryString: string, bbox: string, zoom: number): string {
@@ -150,6 +181,83 @@ export function LeafletClusterMap({
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [currentZoom, setCurrentZoom] = useState(2);
   const [mapReady, setMapReady] = useState(false);
+
+  const [hovered, setHovered] = useState<HoveredEventMarker | null>(null);
+  const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const [cardData, setCardData] = useState<EventCardData | null>(null);
+  const [cardLoading, setCardLoading] = useState(false);
+  const openTimerRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const fetchAbortRef = useRef<AbortController | null>(null);
+
+  const cancelOpenTimer = useCallback(() => {
+    if (openTimerRef.current !== null) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+  }, []);
+  const cancelCloseTimer = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const dismissHoverCard = useCallback(() => {
+    cancelOpenTimer();
+    cancelCloseTimer();
+    if (fetchAbortRef.current) {
+      fetchAbortRef.current.abort();
+      fetchAbortRef.current = null;
+    }
+    setHovered(null);
+    setCardData(null);
+    setCardLoading(false);
+  }, [cancelCloseTimer, cancelOpenTimer]);
+
+  const beginCloseCard = useCallback(() => {
+    cancelOpenTimer();
+    cancelCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      dismissHoverCard();
+    }, HOVER_CLOSE_DELAY_MS);
+  }, [cancelCloseTimer, cancelOpenTimer, dismissHoverCard]);
+
+  const showCardImmediately = useCallback((marker: HoveredEventMarker) => {
+    cancelOpenTimer();
+    cancelCloseTimer();
+    setHovered(marker);
+    const cached = getEventCardCached(marker.occurrenceId);
+    if (cached) {
+      setCardData(cached);
+      setCardLoading(false);
+      return;
+    }
+    setCardData(null);
+    setCardLoading(true);
+    if (fetchAbortRef.current) fetchAbortRef.current.abort();
+    const ctrl = new AbortController();
+    fetchAbortRef.current = ctrl;
+    void fetchEventCard(marker.occurrenceId, ctrl.signal)
+      .then((data) => {
+        if (ctrl.signal.aborted) return;
+        setCardData(data);
+        setCardLoading(false);
+      })
+      .catch(() => {
+        if (ctrl.signal.aborted) return;
+        setCardLoading(false);
+      });
+  }, [cancelCloseTimer, cancelOpenTimer]);
+
+  const beginOpenCard = useCallback((marker: HoveredEventMarker) => {
+    cancelCloseTimer();
+    cancelOpenTimer();
+    openTimerRef.current = window.setTimeout(() => {
+      showCardImmediately(marker);
+    }, HOVER_OPEN_DELAY_MS);
+  }, [cancelCloseTimer, cancelOpenTimer, showCardImmediately]);
 
   const tileUrl =
     process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -260,10 +368,31 @@ export function LeafletClusterMap({
     if (!shell || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
       mapRef.current?.invalidateSize();
+      setContainerSize({ width: shell.clientWidth, height: shell.clientHeight });
     });
     observer.observe(shell);
+    setContainerSize({ width: shell.clientWidth, height: shell.clientHeight });
     return () => observer.disconnect();
   }, [mapReady]);
+
+  useEffect(() => {
+    if (!hovered || !mapRef.current) {
+      setAnchorPos(null);
+      return;
+    }
+    const point = mapRef.current.latLngToContainerPoint([hovered.lat, hovered.lng]);
+    setAnchorPos({ x: point.x, y: point.y });
+  }, [hovered]);
+
+  useEffect(() => {
+    dismissHoverCard();
+  }, [queryString, dismissHoverCard]);
+
+  useEffect(() => () => {
+    cancelOpenTimer();
+    cancelCloseTimer();
+    if (fetchAbortRef.current) fetchAbortRef.current.abort();
+  }, [cancelOpenTimer, cancelCloseTimer]);
 
   const markers = useMemo(
     () =>
@@ -271,18 +400,6 @@ export function LeafletClusterMap({
         const { feature, lat, lng } = marker;
         const pointCount = feature.properties.point_count ?? 1;
         const isCluster = feature.properties.cluster;
-        const title = feature.properties.event_title?.trim() || feature.properties.event_slug || t("common.unknown");
-        const dateLabel = feature.properties.starts_at_utc
-          ? formatPointDateTime(
-            feature.properties.starts_at_utc,
-            feature.properties.event_timezone ?? "UTC",
-            timeDisplayMode,
-          ).primary
-          : "";
-        const tooltipLabel = isCluster
-          ? t("map.tooltip.cluster", { count: pointCount })
-          : t("map.tooltip.eventWithDate", { title, date: dateLabel || t("common.unknown") });
-
         const isEntering = enteringKeys.has(eventFeatureKey(feature));
 
         return (
@@ -296,8 +413,26 @@ export function LeafletClusterMap({
                   if (path) path.classList.add("marker-entering");
                 },
               }),
-              mouseover: (e) => { (e.target as any).setStyle({ fillOpacity: 1 }); },
-              mouseout: (e) => { (e.target as any).setStyle({ fillOpacity: isCluster ? 0.5 : 0.8 }); },
+              mouseover: (e) => {
+                (e.target as any).setStyle({ fillOpacity: 1 });
+                if (isCluster) return;
+                if (!feature.properties.occurrence_id || !feature.properties.event_slug || !feature.properties.starts_at_utc) return;
+                beginOpenCard({
+                  occurrenceId: feature.properties.occurrence_id,
+                  eventSlug: feature.properties.event_slug,
+                  title: feature.properties.event_title ?? "",
+                  startsAtUtc: feature.properties.starts_at_utc,
+                  timezone: feature.properties.event_timezone ?? null,
+                  lat,
+                  lng,
+                  markerRadius: 14,
+                });
+              },
+              mouseout: (e) => {
+                (e.target as any).setStyle({ fillOpacity: isCluster ? 0.5 : 0.8 });
+                if (isCluster) return;
+                beginCloseCard();
+              },
               click: () => {
                 if (isCluster) {
                   if (!mapRef.current) {
@@ -312,20 +447,38 @@ export function LeafletClusterMap({
                   scheduleRefresh();
                   return;
                 }
-                if (feature.properties.event_slug) {
-                  // When series grouping is ON, the pin represents a whole
-                  // series (not one occurrence), so link to the bare event
-                  // page and let the user pick a date from the list. When
-                  // OFF, pass ?date= so the detail page highlights the
-                  // specific occurrence the pin represents.
-                  const dateHint = isSeriesGroupingEnabled()
-                    ? null
-                    : feature.properties.starts_at_utc?.slice(0, 10);
-                  const href = dateHint
-                    ? `/events/${feature.properties.event_slug}?date=${dateHint}`
-                    : `/events/${feature.properties.event_slug}`;
-                  router.push(href);
+                if (!feature.properties.event_slug) return;
+
+                if (isTouchPrimary()) {
+                  // Touch: show card; the card is the link, user taps it to navigate.
+                  if (feature.properties.occurrence_id && feature.properties.starts_at_utc) {
+                    showCardImmediately({
+                      occurrenceId: feature.properties.occurrence_id,
+                      eventSlug: feature.properties.event_slug,
+                      title: feature.properties.event_title ?? "",
+                      startsAtUtc: feature.properties.starts_at_utc,
+                      timezone: feature.properties.event_timezone ?? null,
+                      lat,
+                      lng,
+                      markerRadius: 14,
+                    });
+                  }
+                  return;
                 }
+
+                // When series grouping is ON, the pin represents a whole
+                // series (not one occurrence), so link to the bare event
+                // page and let the user pick a date from the list. When
+                // OFF, pass ?date= so the detail page highlights the
+                // specific occurrence the pin represents.
+                const dateHint = isSeriesGroupingEnabled()
+                  ? null
+                  : feature.properties.starts_at_utc?.slice(0, 10);
+                const href = dateHint
+                  ? `/events/${feature.properties.event_slug}?date=${dateHint}`
+                  : `/events/${feature.properties.event_slug}`;
+                dismissHoverCard();
+                router.push(href);
               },
             }}
             pathOptions={{
@@ -337,11 +490,13 @@ export function LeafletClusterMap({
             }}
             radius={isCluster ? Math.max(15.4, Math.min(22, 9 + Math.log(pointCount) * 4.4)) : 14}
           >
-            <Tooltip>{tooltipLabel}</Tooltip>
+            {isCluster ? (
+              <Tooltip>{t("map.tooltip.cluster", { count: pointCount })}</Tooltip>
+            ) : null}
           </CircleMarker>
         );
       }),
-    [activeMarkers, enteringKeys, router, scheduleRefresh, t, timeDisplayMode],
+    [activeMarkers, beginCloseCard, beginOpenCard, dismissHoverCard, enteringKeys, router, scheduleRefresh, showCardImmediately, t, timeDisplayMode],
   );
 
   const leavingMarkerElements = useMemo(
@@ -401,6 +556,7 @@ export function LeafletClusterMap({
           onChange={() => {
             scheduleRefresh();
           }}
+          onDismiss={dismissHoverCard}
         />
         {markers}
         {leavingMarkerElements}
@@ -432,6 +588,28 @@ export function LeafletClusterMap({
           />
         ))}
       </MapContainer>
+
+      {hovered && anchorPos ? (
+        <MapHoverCard
+          kind="event"
+          instant={{
+            title: hovered.title,
+            startsAtUtc: hovered.startsAtUtc,
+            timezone: hovered.timezone,
+          }}
+          data={cardData}
+          loading={cardLoading}
+          anchor={{ x: anchorPos.x, y: anchorPos.y, markerRadius: hovered.markerRadius }}
+          containerWidth={containerSize.width}
+          containerHeight={containerSize.height}
+          href={(() => {
+            const dateHint = isSeriesGroupingEnabled() ? null : hovered.startsAtUtc.slice(0, 10);
+            return dateHint ? `/events/${hovered.eventSlug}?date=${dateHint}` : `/events/${hovered.eventSlug}`;
+          })()}
+          onMouseEnter={cancelCloseTimer}
+          onMouseLeave={beginCloseCard}
+        />
+      ) : null}
 
       {status === "error" ? <div className="map-status">{t("map.status.error")}</div> : null}
     </div>

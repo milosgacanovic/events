@@ -206,3 +206,142 @@ export async function fetchOrganizerMapPoints(pool: Pool, input: OrganizerMapFil
     truncated: result.rows.length > input.limit,
   };
 }
+
+export type EventCardRow = {
+  occurrence_id: string;
+  event_id: string;
+  event_slug: string;
+  title: string;
+  starts_at_utc: string;
+  ends_at_utc: string | null;
+  timezone: string | null;
+  cover_image_path: string | null;
+  city: string | null;
+  country_code: string | null;
+  practice_label: string | null;
+  tags: string[] | null;
+  organizer_id: string | null;
+  organizer_slug: string | null;
+  organizer_name: string | null;
+};
+
+export async function fetchEventCard(pool: Pool, occurrenceId: string): Promise<EventCardRow | null> {
+  const result = await pool.query<EventCardRow>(
+    `
+      select
+        eo.id as occurrence_id,
+        e.id as event_id,
+        e.slug as event_slug,
+        e.title,
+        eo.starts_at_utc,
+        eo.ends_at_utc,
+        e.event_timezone as timezone,
+        e.cover_image_path,
+        l.city,
+        l.country_code,
+        p.label as practice_label,
+        e.tags,
+        org.id as organizer_id,
+        org.slug as organizer_slug,
+        org.name as organizer_name
+      from event_occurrences eo
+      join events e on e.id = eo.event_id
+      left join locations l on l.id = eo.location_id
+      left join practices p on p.id = e.practice_category_id
+      left join lateral (
+        select o.id, o.slug, o.name
+        from event_organizers eog
+        join organizers o on o.id = eog.organizer_id
+        where eog.event_id = e.id
+        order by eog.display_order asc nulls last, o.name asc
+        limit 1
+      ) org on true
+      where eo.id = $1
+        and e.status = 'published'
+      limit 1
+    `,
+    [occurrenceId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export type OrganizerCardRow = {
+  organizer_id: string;
+  organizer_slug: string;
+  organizer_name: string;
+  avatar_path: string | null;
+  practice_labels: string[];
+  city: string | null;
+  upcoming_event_count: string;
+  next_event_starts_at_utc: string | null;
+  next_event_timezone: string | null;
+};
+
+export async function fetchOrganizerCard(pool: Pool, organizerId: string): Promise<OrganizerCardRow | null> {
+  const result = await pool.query<OrganizerCardRow>(
+    `
+      with practice_meta as (
+        select
+          practices_union.organizer_id,
+          array_agg(distinct practices_union.practice_label order by practices_union.practice_label) as practice_labels
+        from (
+          select op.organizer_id, p.label as practice_label
+          from organizer_practices op
+          join practices p on p.id = op.practice_id
+          where op.organizer_id = $1
+
+          union
+
+          select eo.organizer_id, p.label as practice_label
+          from event_organizers eo
+          join events e on e.id = eo.event_id and e.status = 'published'
+          join practices p on p.id = e.practice_category_id
+          where eo.organizer_id = $1
+        ) practices_union
+        group by practices_union.organizer_id
+      ),
+      latest_location as (
+        select ol.city
+        from organizer_locations ol
+        where ol.organizer_id = $1
+        order by ol.created_at desc, ol.id desc
+        limit 1
+      ),
+      upcoming as (
+        select
+          count(distinct occ.id) as upcoming_event_count,
+          min(occ.starts_at_utc) as next_event_starts_at_utc,
+          (
+            array_agg(e.event_timezone order by occ.starts_at_utc asc)
+            filter (where e.event_timezone is not null)
+          )[1] as next_event_timezone
+        from event_organizers eog
+        join events e on e.id = eog.event_id and e.status = 'published'
+        join event_occurrences occ on occ.event_id = e.id
+        where eog.organizer_id = $1
+          and occ.starts_at_utc >= now()
+      )
+      select
+        o.id as organizer_id,
+        o.slug as organizer_slug,
+        o.name as organizer_name,
+        o.avatar_path,
+        coalesce(pm.practice_labels, '{}'::text[]) as practice_labels,
+        ll.city,
+        coalesce(u.upcoming_event_count, 0)::text as upcoming_event_count,
+        u.next_event_starts_at_utc,
+        u.next_event_timezone
+      from organizers o
+      left join practice_meta pm on pm.organizer_id = o.id
+      left join latest_location ll on true
+      left join upcoming u on true
+      where o.id = $1
+        and o.status = 'published'
+      limit 1
+    `,
+    [organizerId],
+  );
+
+  return result.rows[0] ?? null;
+}

@@ -14,6 +14,14 @@ import {
 } from "react-leaflet";
 
 import { useI18n } from "./i18n/I18nProvider";
+import {
+  fetchOrganizerCard,
+  getOrganizerCardCached,
+  HOVER_CLOSE_DELAY_MS,
+  HOVER_OPEN_DELAY_MS,
+  MapHoverCard,
+  type OrganizerCardData,
+} from "./MapHoverCard";
 
 type ClusterFeature = {
   type: "Feature";
@@ -37,13 +45,35 @@ type ClusterResponse = {
   features: ClusterFeature[];
 };
 
-function MapChangeWatcher({ onChange }: { onChange: () => void }) {
+function MapChangeWatcher({ onChange, onDismiss }: { onChange: () => void; onDismiss: () => void }) {
   useMapEvents({
-    moveend: onChange,
-    zoomend: onChange,
+    moveend: () => {
+      onChange();
+      onDismiss();
+    },
+    zoomend: () => {
+      onChange();
+      onDismiss();
+    },
+    click: onDismiss,
   });
 
   return null;
+}
+
+type HoveredHostMarker = {
+  organizerId: string;
+  organizerSlug: string;
+  organizerName: string;
+  practiceLabels: string[];
+  lat: number;
+  lng: number;
+  markerRadius: number;
+};
+
+function isTouchPrimary(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 }
 
 function buildClusterUrl(queryString: string, bbox: string, zoom: number): string {
@@ -115,6 +145,7 @@ export function HostLeafletClusterMap({
   const { t } = useI18n();
   const router = useRouter();
   const mapRef = useRef<LeafletMap | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const requestRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRequestKeyRef = useRef<string>("");
@@ -125,6 +156,83 @@ export function HostLeafletClusterMap({
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [currentZoom, setCurrentZoom] = useState(2);
   const [mapReady, setMapReady] = useState(false);
+
+  const [hovered, setHovered] = useState<HoveredHostMarker | null>(null);
+  const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const [cardData, setCardData] = useState<OrganizerCardData | null>(null);
+  const [cardLoading, setCardLoading] = useState(false);
+  const openTimerRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const fetchAbortRef = useRef<AbortController | null>(null);
+
+  const cancelOpenTimer = useCallback(() => {
+    if (openTimerRef.current !== null) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+  }, []);
+  const cancelCloseTimer = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const dismissHoverCard = useCallback(() => {
+    cancelOpenTimer();
+    cancelCloseTimer();
+    if (fetchAbortRef.current) {
+      fetchAbortRef.current.abort();
+      fetchAbortRef.current = null;
+    }
+    setHovered(null);
+    setCardData(null);
+    setCardLoading(false);
+  }, [cancelCloseTimer, cancelOpenTimer]);
+
+  const beginCloseCard = useCallback(() => {
+    cancelOpenTimer();
+    cancelCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      dismissHoverCard();
+    }, HOVER_CLOSE_DELAY_MS);
+  }, [cancelCloseTimer, cancelOpenTimer, dismissHoverCard]);
+
+  const showCardImmediately = useCallback((marker: HoveredHostMarker) => {
+    cancelOpenTimer();
+    cancelCloseTimer();
+    setHovered(marker);
+    const cached = getOrganizerCardCached(marker.organizerId);
+    if (cached) {
+      setCardData(cached);
+      setCardLoading(false);
+      return;
+    }
+    setCardData(null);
+    setCardLoading(true);
+    if (fetchAbortRef.current) fetchAbortRef.current.abort();
+    const ctrl = new AbortController();
+    fetchAbortRef.current = ctrl;
+    void fetchOrganizerCard(marker.organizerId, ctrl.signal)
+      .then((data) => {
+        if (ctrl.signal.aborted) return;
+        setCardData(data);
+        setCardLoading(false);
+      })
+      .catch(() => {
+        if (ctrl.signal.aborted) return;
+        setCardLoading(false);
+      });
+  }, [cancelCloseTimer, cancelOpenTimer]);
+
+  const beginOpenCard = useCallback((marker: HoveredHostMarker) => {
+    cancelCloseTimer();
+    cancelOpenTimer();
+    openTimerRef.current = window.setTimeout(() => {
+      showCardImmediately(marker);
+    }, HOVER_OPEN_DELAY_MS);
+  }, [cancelCloseTimer, cancelOpenTimer, showCardImmediately]);
 
   const tileUrl =
     process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -226,6 +334,38 @@ export function HostLeafletClusterMap({
     return () => clearTimeout(timer);
   }, [leavingMarkers]);
 
+  useEffect(() => {
+    if (!mapReady) return;
+    const shell = shellRef.current;
+    if (!shell || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      mapRef.current?.invalidateSize();
+      setContainerSize({ width: shell.clientWidth, height: shell.clientHeight });
+    });
+    observer.observe(shell);
+    setContainerSize({ width: shell.clientWidth, height: shell.clientHeight });
+    return () => observer.disconnect();
+  }, [mapReady]);
+
+  useEffect(() => {
+    if (!hovered || !mapRef.current) {
+      setAnchorPos(null);
+      return;
+    }
+    const point = mapRef.current.latLngToContainerPoint([hovered.lat, hovered.lng]);
+    setAnchorPos({ x: point.x, y: point.y });
+  }, [hovered]);
+
+  useEffect(() => {
+    dismissHoverCard();
+  }, [queryString, dismissHoverCard]);
+
+  useEffect(() => () => {
+    cancelOpenTimer();
+    cancelCloseTimer();
+    if (fetchAbortRef.current) fetchAbortRef.current.abort();
+  }, [cancelOpenTimer, cancelCloseTimer]);
+
   const markers = useMemo(
     () =>
       activeMarkers.map((marker, index) => {
@@ -245,8 +385,25 @@ export function HostLeafletClusterMap({
                     if (path) path.classList.add("marker-entering");
                   }
                 : undefined,
-              mouseover: (e) => { (e.target as any).setStyle({ fillOpacity: 1 }); },
-              mouseout: (e) => { (e.target as any).setStyle({ fillOpacity: isCluster ? 0.5 : 0.8 }); },
+              mouseover: (e) => {
+                (e.target as any).setStyle({ fillOpacity: 1 });
+                if (isCluster) return;
+                if (!feature.properties.organizer_id || !feature.properties.organizer_slug || !feature.properties.organizer_name) return;
+                beginOpenCard({
+                  organizerId: feature.properties.organizer_id,
+                  organizerSlug: feature.properties.organizer_slug,
+                  organizerName: feature.properties.organizer_name,
+                  practiceLabels: feature.properties.practice_labels ?? [],
+                  lat,
+                  lng,
+                  markerRadius: 14,
+                });
+              },
+              mouseout: (e) => {
+                (e.target as any).setStyle({ fillOpacity: isCluster ? 0.5 : 0.8 });
+                if (isCluster) return;
+                beginCloseCard();
+              },
               click: () => {
                 if (isCluster) {
                   if (!mapRef.current) {
@@ -261,9 +418,26 @@ export function HostLeafletClusterMap({
                   scheduleRefresh();
                   return;
                 }
-                if (feature.properties.organizer_slug) {
-                  router.push(`/hosts/${feature.properties.organizer_slug}`);
+                if (!feature.properties.organizer_slug) return;
+
+                if (isTouchPrimary()) {
+                  // Touch: show card; the card is the link, user taps it to navigate.
+                  if (feature.properties.organizer_id && feature.properties.organizer_name) {
+                    showCardImmediately({
+                      organizerId: feature.properties.organizer_id,
+                      organizerSlug: feature.properties.organizer_slug,
+                      organizerName: feature.properties.organizer_name,
+                      practiceLabels: feature.properties.practice_labels ?? [],
+                      lat,
+                      lng,
+                      markerRadius: 14,
+                    });
+                  }
+                  return;
                 }
+
+                dismissHoverCard();
+                router.push(`/hosts/${feature.properties.organizer_slug}`);
               },
             }}
             pathOptions={{
@@ -275,22 +449,13 @@ export function HostLeafletClusterMap({
             }}
             radius={isCluster ? Math.max(15.4, Math.min(22, 9 + Math.log(pointCount) * 4.4)) : 14}
           >
-            <Tooltip>
-              {isCluster
-                ? t("map.tooltip.hostCluster", { count: pointCount })
-                : (() => {
-                    const name = feature.properties.organizer_name?.trim() || t("common.unknown");
-                    const practices = (feature.properties.practice_labels ?? []).filter(Boolean);
-                    if (practices.length === 0) {
-                      return name;
-                    }
-                    return `${name} (${practices.join(", ")})`;
-                  })()}
-            </Tooltip>
+            {isCluster ? (
+              <Tooltip>{t("map.tooltip.hostCluster", { count: pointCount })}</Tooltip>
+            ) : null}
           </CircleMarker>
         );
       }),
-    [activeMarkers, enteringKeys, router, scheduleRefresh, t],
+    [activeMarkers, beginCloseCard, beginOpenCard, dismissHoverCard, enteringKeys, router, scheduleRefresh, showCardImmediately, t],
   );
 
   const leavingMarkerElements = useMemo(
@@ -325,7 +490,7 @@ export function HostLeafletClusterMap({
   );
 
   return (
-    <div className="map-shell">
+    <div className="map-shell" ref={shellRef}>
       <MapContainer
         center={[20, 0]}
         zoom={2}
@@ -350,10 +515,29 @@ export function HostLeafletClusterMap({
           onChange={() => {
             scheduleRefresh();
           }}
+          onDismiss={dismissHoverCard}
         />
         {markers}
         {leavingMarkerElements}
       </MapContainer>
+
+      {hovered && anchorPos ? (
+        <MapHoverCard
+          kind="host"
+          instant={{
+            organizerName: hovered.organizerName,
+            practiceLabels: hovered.practiceLabels,
+          }}
+          data={cardData}
+          loading={cardLoading}
+          anchor={{ x: anchorPos.x, y: anchorPos.y, markerRadius: hovered.markerRadius }}
+          containerWidth={containerSize.width}
+          containerHeight={containerSize.height}
+          href={`/hosts/${hovered.organizerSlug}`}
+          onMouseEnter={cancelCloseTimer}
+          onMouseLeave={beginCloseCard}
+        />
+      ) : null}
 
       {status === "error" ? <div className="map-status">{t("map.status.error")}</div> : null}
     </div>
