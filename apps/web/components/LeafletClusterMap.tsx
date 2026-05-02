@@ -61,7 +61,14 @@ function MapChangeWatcher({ onChange, onDismiss }: { onChange: () => void; onDis
       onChange();
       onDismiss();
     },
-    click: onDismiss,
+    click: (e) => {
+      // On touch, the marker's click can bubble up here; if so, skip dismiss
+      // so the just-opened card isn't immediately wiped. Only dismiss when the
+      // tap is on the map background.
+      const target = e.originalEvent.target as Element | null;
+      if (target?.closest?.(".leaflet-interactive")) return;
+      onDismiss();
+    },
   });
 
   return null;
