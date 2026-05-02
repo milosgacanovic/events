@@ -225,7 +225,10 @@ export type EventCardRow = {
   organizer_name: string | null;
 };
 
-export async function fetchEventCard(pool: Pool, occurrenceId: string): Promise<EventCardRow | null> {
+export async function fetchEventCardBySeries(pool: Pool, seriesId: string): Promise<EventCardRow | null> {
+  // Cluster pins on the map are series-level (one pin per series). Return the
+  // earliest upcoming published occurrence in the series — that's what the card
+  // should preview.
   const result = await pool.query<EventCardRow>(
     `
       select
@@ -256,11 +259,13 @@ export async function fetchEventCard(pool: Pool, occurrenceId: string): Promise<
         order by eog.display_order asc nulls last, o.name asc
         limit 1
       ) org on true
-      where eo.id = $1
+      where eo.series_id = $1
+        and eo.starts_at_utc >= now()
         and e.status = 'published'
+      order by eo.starts_at_utc asc
       limit 1
     `,
-    [occurrenceId],
+    [seriesId],
   );
 
   return result.rows[0] ?? null;

@@ -68,7 +68,10 @@ function MapChangeWatcher({ onChange, onDismiss }: { onChange: () => void; onDis
 }
 
 type HoveredEventMarker = {
-  occurrenceId: string;
+  // The cluster API exposes this id under `properties.occurrence_id` for
+  // legacy frontend compat, but the value is actually the series_id (one pin
+  // per series — see apps/api/src/services/mapClusterService.ts:108).
+  seriesId: string;
   eventSlug: string;
   title: string;
   startsAtUtc: string;
@@ -228,7 +231,7 @@ export function LeafletClusterMap({
     cancelOpenTimer();
     cancelCloseTimer();
     setHovered(marker);
-    const cached = getEventCardCached(marker.occurrenceId);
+    const cached = getEventCardCached(marker.seriesId);
     if (cached) {
       setCardData(cached);
       setCardLoading(false);
@@ -239,7 +242,7 @@ export function LeafletClusterMap({
     if (fetchAbortRef.current) fetchAbortRef.current.abort();
     const ctrl = new AbortController();
     fetchAbortRef.current = ctrl;
-    void fetchEventCard(marker.occurrenceId, ctrl.signal)
+    void fetchEventCard(marker.seriesId, ctrl.signal)
       .then((data) => {
         if (ctrl.signal.aborted) return;
         setCardData(data);
@@ -418,7 +421,7 @@ export function LeafletClusterMap({
                 if (isCluster) return;
                 if (!feature.properties.occurrence_id || !feature.properties.event_slug || !feature.properties.starts_at_utc) return;
                 beginOpenCard({
-                  occurrenceId: feature.properties.occurrence_id,
+                  seriesId: feature.properties.occurrence_id,
                   eventSlug: feature.properties.event_slug,
                   title: feature.properties.event_title ?? "",
                   startsAtUtc: feature.properties.starts_at_utc,
@@ -453,7 +456,7 @@ export function LeafletClusterMap({
                   // Touch: show card; the card is the link, user taps it to navigate.
                   if (feature.properties.occurrence_id && feature.properties.starts_at_utc) {
                     showCardImmediately({
-                      occurrenceId: feature.properties.occurrence_id,
+                      seriesId: feature.properties.occurrence_id,
                       eventSlug: feature.properties.event_slug,
                       title: feature.properties.event_title ?? "",
                       startsAtUtc: feature.properties.starts_at_utc,

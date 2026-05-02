@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { DateTime } from "luxon";
 import { z } from "zod";
 
-import { fetchEventCard, fetchOrganizerCard } from "../db/mapRepo";
+import { fetchEventCardBySeries, fetchOrganizerCard } from "../db/mapRepo";
 import { buildClusters, buildOrganizerClusters } from "../services/mapClusterService";
 import { getSearchCache, setSearchCache } from "../services/searchCache";
 import { parseEventDatePresets } from "../utils/eventDatePresets";
@@ -259,7 +259,7 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
   });
 
   const eventCardQuerySchema = z.object({
-    occurrenceId: z.string().uuid(),
+    seriesId: z.string().uuid(),
   });
 
   app.get("/map/event-card", async (request, reply) => {
@@ -269,7 +269,7 @@ const mapRoutes: FastifyPluginAsync = async (app) => {
       return logValidation(request, parsed.error);
     }
 
-    const row = await fetchEventCard(app.db, parsed.data.occurrenceId);
+    const row = await fetchEventCardBySeries(app.db, parsed.data.seriesId);
     if (!row) {
       reply.code(404);
       return { error: "not_found" };

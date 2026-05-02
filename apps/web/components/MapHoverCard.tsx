@@ -71,21 +71,21 @@ function createLruCache<V>(max: number): LRUCache<V> {
 const eventCardCache = createLruCache<EventCardData>(CACHE_MAX_ENTRIES);
 const organizerCardCache = createLruCache<OrganizerCardData>(CACHE_MAX_ENTRIES);
 
-export function getEventCardCached(occurrenceId: string): EventCardData | undefined {
-  return eventCardCache.get(occurrenceId);
+export function getEventCardCached(seriesId: string): EventCardData | undefined {
+  return eventCardCache.get(seriesId);
 }
 
 export function getOrganizerCardCached(organizerId: string): OrganizerCardData | undefined {
   return organizerCardCache.get(organizerId);
 }
 
-export async function fetchEventCard(occurrenceId: string, signal?: AbortSignal): Promise<EventCardData | null> {
-  const cached = eventCardCache.get(occurrenceId);
+export async function fetchEventCard(seriesId: string, signal?: AbortSignal): Promise<EventCardData | null> {
+  const cached = eventCardCache.get(seriesId);
   if (cached) return cached;
-  const res = await fetch(`/api/map/event-card?occurrenceId=${encodeURIComponent(occurrenceId)}`, { signal });
+  const res = await fetch(`/api/map/event-card?seriesId=${encodeURIComponent(seriesId)}`, { signal });
   if (!res.ok) return null;
   const data = (await res.json()) as EventCardData;
-  eventCardCache.set(occurrenceId, data);
+  eventCardCache.set(seriesId, data);
   return data;
 }
 
