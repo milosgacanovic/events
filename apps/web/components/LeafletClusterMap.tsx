@@ -197,6 +197,11 @@ export function LeafletClusterMap({
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [cardData, setCardData] = useState<EventCardData | null>(null);
   const [cardLoading, setCardLoading] = useState(false);
+  const [isTouch, setIsTouch] = useState(false);
+
+  useEffect(() => {
+    setIsTouch(isTouchPrimary());
+  }, []);
   const openTimerRef = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const fetchAbortRef = useRef<AbortController | null>(null);
@@ -500,13 +505,13 @@ export function LeafletClusterMap({
             }}
             radius={isCluster ? Math.max(15.4, Math.min(22, 9 + Math.log(pointCount) * 4.4)) : 14}
           >
-            {isCluster ? (
+            {isCluster && !isTouch ? (
               <Tooltip>{t("map.tooltip.cluster", { count: pointCount })}</Tooltip>
             ) : null}
           </CircleMarker>
         );
       }),
-    [activeMarkers, beginCloseCard, beginOpenCard, dismissHoverCard, enteringKeys, router, scheduleRefresh, showCardImmediately, t, timeDisplayMode],
+    [activeMarkers, beginCloseCard, beginOpenCard, dismissHoverCard, enteringKeys, isTouch, router, scheduleRefresh, showCardImmediately, t, timeDisplayMode],
   );
 
   const leavingMarkerElements = useMemo(
