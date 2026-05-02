@@ -410,6 +410,7 @@
   "profile.savedSearches.filterKey.format": "Format",
   "profile.savedSearches.filterKey.tags": "Tags",
   "profile.savedSearches.filterKey.languages": "Language",
+  "profile.savedSearches.filterKey.eventDate": "Event date",
   "profile.savedSearches.filterKey.attendanceMode": "Mode",
   "profile.savedSearches.filterKey.organizerId": "Host",
   "profile.savedSearches.filterKey.dateFrom": "From",

@@ -409,6 +409,7 @@
   "profile.savedSearches.filterKey.format": "Format",
   "profile.savedSearches.filterKey.tags": "Tags",
   "profile.savedSearches.filterKey.languages": "Language",
+  "profile.savedSearches.filterKey.eventDate": "이벤트 날짜",
   "profile.savedSearches.filterKey.attendanceMode": "Mode",
   "profile.savedSearches.filterKey.organizerId": "Host",
   "profile.savedSearches.filterKey.dateFrom": "From",

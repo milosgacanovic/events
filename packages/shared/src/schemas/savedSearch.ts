@@ -4,22 +4,33 @@ import { uuidSchema } from "./common";
 
 export const savedSearchFrequencySchema = z.enum(["daily", "weekly"]);
 
+// Multi-value fields can arrive as either a CSV string (the URL param shape
+// the search UI uses, e.g. "5rhythms,ecstatic-dance") or an array of strings
+// (the older saved shape). Accept both — the snapshot is only used to recreate
+// the search query string and to render a human-readable description.
+const stringOrStringArray = z.union([z.string(), z.array(z.string())]);
+
 export const savedSearchFilterSnapshotSchema = z.object({
-  practiceCategoryId: z.string().optional(),
-  practiceSubcategoryIds: z.array(z.string()).optional(),
-  format: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  languages: z.array(z.string()).optional(),
-  countryCode: z.string().optional(),
-  city: z.string().optional(),
-  attendanceMode: z.string().optional(),
+  practiceCategoryId: stringOrStringArray.optional(),
+  practiceSubcategoryIds: stringOrStringArray.optional(),
+  practice: stringOrStringArray.optional(),
+  format: stringOrStringArray.optional(),
+  eventFormatId: stringOrStringArray.optional(),
+  tags: stringOrStringArray.optional(),
+  languages: stringOrStringArray.optional(),
+  countryCode: stringOrStringArray.optional(),
+  city: stringOrStringArray.optional(),
+  attendanceMode: stringOrStringArray.optional(),
+  eventDate: stringOrStringArray.optional(),
   dateRange: z.string().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   lat: z.number().optional(),
   lng: z.number().optional(),
   radiusKm: z.number().optional(),
+  nearMe: z.union([z.string(), z.number()]).optional(),
   query: z.string().optional(),
+  q: z.string().optional(),
 }).passthrough();
 
 export const createSavedSearchSchema = z.object({

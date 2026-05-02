@@ -1955,7 +1955,7 @@ export function EventSearchClient({
         <div className="filters-notify-row">
           <NotifyMeButton
             filterSnapshot={Object.fromEntries(
-              Array.from(searchParams.entries()).filter(([k]) => k !== "page" && k !== "view" && k !== "sort"),
+              Array.from(new URLSearchParams(buildUiQueryString()).entries()).filter(([k]) => k !== "page" && k !== "view" && k !== "sort"),
             )}
             filterSummary={selectedFilterChips.map((c) => c.label).join(", ")}
           />
