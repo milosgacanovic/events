@@ -25,6 +25,13 @@ function stripHtml(input: string): string {
   return input
     .replace(/<[^>]+>/g, " ")
     .replace(/[\r\n]+/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^DESCRIPTION\s+/i, "");
