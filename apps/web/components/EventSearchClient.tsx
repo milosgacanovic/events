@@ -184,7 +184,54 @@ export function EventSearchClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [view, setView] = useState<"list" | "map" | "discover">(initialQuery?.view ?? "list");
+  const [view, setViewState] = useState<"list" | "map" | "discover">(initialQuery?.view ?? "list");
+
+  // Map viewport persisted in URL via mapLat/mapLng/mapZoom params. Read once on
+  // mount; the LeafletClusterMap's MapContainer only respects center/zoom on
+  // initial render. Subsequent pans/zooms write back via writeMapViewToUrl.
+  const initialMapView = useMemo<{ center: [number, number]; zoom: number } | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const lat = parseFloat(params.get("mapLat") ?? "");
+    const lng = parseFloat(params.get("mapLng") ?? "");
+    const zoom = parseInt(params.get("mapZoom") ?? "", 10);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(zoom)) {
+      return { center: [lat, lng], zoom };
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const writeMapViewToUrl = useCallback((lat: number, lng: number, zoom: number) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("mapLat", lat.toFixed(4));
+    params.set("mapLng", lng.toFixed(4));
+    params.set("mapZoom", String(zoom));
+    const url = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
+
+  // Switch view AND immediately persist to URL. The existing buildUiQueryString
+  // sync is debounced 400ms; if the user toggles view and clicks a marker
+  // within that window, the back-nav URL would lack ?view=map. Direct write
+  // here keeps the history entry honest.
+  const setView = useCallback((next: "list" | "map" | "discover") => {
+    setViewState(next);
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (next === "list") params.delete("view");
+    else params.set("view", next);
+    // Drop map-only params when leaving map
+    if (next !== "map") {
+      params.delete("mapLat");
+      params.delete("mapLng");
+      params.delete("mapZoom");
+    }
+    const qs = params.toString();
+    const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
   const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc" | "publishedAtDesc" | "relevance">(initialQuery?.sort ?? "startsAtAsc");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
@@ -896,7 +943,15 @@ export function EventSearchClient({
     }
     const timer = setTimeout(() => {
       const queryString = buildUiQueryString();
-      const url = queryString ? `${pathname}?${queryString}` : pathname;
+      const params = new URLSearchParams(queryString);
+      // Preserve map viewport params (managed via direct replaceState elsewhere)
+      const current = new URLSearchParams(window.location.search);
+      for (const key of ["mapLat", "mapLng", "mapZoom"] as const) {
+        const v = current.get(key);
+        if (v) params.set(key, v);
+      }
+      const merged = params.toString();
+      const url = merged ? `${pathname}?${merged}` : pathname;
       window.history.replaceState(window.history.state, "", url);
       // Track filter changes — fires after 400ms debounce, skipping initial render
       if (filterTrackMountedRef.current) {
@@ -2128,6 +2183,9 @@ export function EventSearchClient({
             timeDisplayMode={timeDisplayMode}
             circleOverlays={mapCircleOverlays}
             countryOverlays={mapCountryOverlays}
+            initialCenter={initialMapView?.center}
+            initialZoom={initialMapView?.zoom}
+            onViewportChange={writeMapViewToUrl}
           />
         ) : null}
 

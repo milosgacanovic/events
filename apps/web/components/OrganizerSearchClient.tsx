@@ -96,7 +96,46 @@ export function OrganizerSearchClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [view, setView] = useState<"list" | "map">(initialQuery?.view ?? "list");
+  const [view, setViewState] = useState<"list" | "map">(initialQuery?.view ?? "list");
+
+  const initialMapView = useMemo<{ center: [number, number]; zoom: number } | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const lat = parseFloat(params.get("mapLat") ?? "");
+    const lng = parseFloat(params.get("mapLng") ?? "");
+    const zoom = parseInt(params.get("mapZoom") ?? "", 10);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(zoom)) {
+      return { center: [lat, lng], zoom };
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const writeMapViewToUrl = useCallback((lat: number, lng: number, zoom: number) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("mapLat", lat.toFixed(4));
+    params.set("mapLng", lng.toFixed(4));
+    params.set("mapZoom", String(zoom));
+    const url = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
+
+  const setView = useCallback((next: "list" | "map") => {
+    setViewState(next);
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (next === "list") params.delete("view");
+    else params.set("view", next);
+    if (next !== "map") {
+      params.delete("mapLat");
+      params.delete("mapLng");
+      params.delete("mapZoom");
+    }
+    const qs = params.toString();
+    const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
   const [q, setQ] = useState(initialQuery?.q ?? "");
   const [roleKeys, setRoleKeys] = useState<string[]>(initialQuery?.roleKeys ?? []);
   const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>(initialQuery?.practiceCategoryIds ?? []);
@@ -557,7 +596,14 @@ export function OrganizerSearchClient({
     }
     const timer = setTimeout(() => {
       const queryString = buildUiQueryString();
-      const url = queryString ? `${pathname}?${queryString}` : pathname;
+      const params = new URLSearchParams(queryString);
+      const current = new URLSearchParams(window.location.search);
+      for (const key of ["mapLat", "mapLng", "mapZoom"] as const) {
+        const v = current.get(key);
+        if (v) params.set(key, v);
+      }
+      const merged = params.toString();
+      const url = merged ? `${pathname}?${merged}` : pathname;
       window.history.replaceState(window.history.state, "", url);
     }, 250);
     return () => clearTimeout(timer);
@@ -1224,7 +1270,12 @@ export function OrganizerSearchClient({
         )}
 
         {view === "map" ? (
-          <HostLeafletClusterMap queryString={activeQueryString} />
+          <HostLeafletClusterMap
+            queryString={activeQueryString}
+            initialCenter={initialMapView?.center}
+            initialZoom={initialMapView?.zoom}
+            onViewportChange={writeMapViewToUrl}
+          />
         ) : null}
 
         <div className="cards-content">

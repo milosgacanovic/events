@@ -51,15 +51,27 @@ type ClusterResponse = {
   features: ClusterFeature[];
 };
 
-function MapChangeWatcher({ onChange, onDismiss }: { onChange: () => void; onDismiss: () => void }) {
-  useMapEvents({
+function MapChangeWatcher({
+  onChange,
+  onDismiss,
+  onViewportChange,
+}: {
+  onChange: () => void;
+  onDismiss: () => void;
+  onViewportChange?: (lat: number, lng: number, zoom: number) => void;
+}) {
+  const map = useMapEvents({
     moveend: () => {
       onChange();
       onDismiss();
+      const c = map.getCenter();
+      onViewportChange?.(c.lat, c.lng, map.getZoom());
     },
     zoomend: () => {
       onChange();
       onDismiss();
+      const c = map.getCenter();
+      onViewportChange?.(c.lat, c.lng, map.getZoom());
     },
     click: (e) => {
       // On touch, the marker's click can bubble up here; if so, skip dismiss
@@ -171,12 +183,18 @@ export function LeafletClusterMap({
   timeDisplayMode,
   circleOverlays = [],
   countryOverlays = [],
+  initialCenter,
+  initialZoom,
+  onViewportChange,
 }: {
   queryString: string;
   refreshToken: number;
   timeDisplayMode: TimeDisplayMode;
   circleOverlays?: MapCircleOverlay[];
   countryOverlays?: MapCountryOverlay[];
+  initialCenter?: [number, number];
+  initialZoom?: number;
+  onViewportChange?: (lat: number, lng: number, zoom: number) => void;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -548,8 +566,8 @@ export function LeafletClusterMap({
   return (
     <div className="map-shell" ref={shellRef}>
       <MapContainer
-        center={[20, 0]}
-        zoom={2}
+        center={initialCenter ?? [20, 0]}
+        zoom={initialZoom ?? 2}
         scrollWheelZoom
         className="leaflet-map"
         ref={(instance) => {
@@ -572,6 +590,7 @@ export function LeafletClusterMap({
             scheduleRefresh();
           }}
           onDismiss={dismissHoverCard}
+          onViewportChange={onViewportChange}
         />
         {markers}
         {leavingMarkerElements}
