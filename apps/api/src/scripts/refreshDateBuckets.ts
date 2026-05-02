@@ -6,7 +6,7 @@ import { MeilisearchService } from "../services/meiliService";
 
 /**
  * Hourly cron: handles wall-clock drift on the Meili `event_series` index.
- * Three sweeps:
+ * Four sweeps:
  *
  *  1. DB-stale series: rows whose `event_series.earliest_upcoming_ts` is null
  *     or in the past, but the underlying `event_occurrences` table has at
@@ -14,12 +14,15 @@ import { MeilisearchService } from "../services/meiliService";
  *     simply moved past their first listed occurrence since last write.
  *     Re-project + push to Meili.
  *
- *  2. Meili-stale series: docs in the Meili index whose
+ *  2. Meili past-stale: docs in the Meili index whose
  *     `earliest_upcoming_ts < now()`. Catches the case where DB is already
- *     correct but the Meili sync was missed (e.g., a transient sync
- *     failure during a previous write). Push DB state to Meili.
+ *     correct but the Meili sync was missed for a stale doc.
  *
- *  3. event_date_buckets refresh: recompute the per-row bucket array and
+ *  3. Meili missing/null: DB-fresh series (earliest_upcoming_ts > now,
+ *     visibility=public) whose Meili doc is missing entirely or has a null
+ *     ts. Catches the gap that Sweeps 2 doesn't (it only sees `< now`).
+ *
+ *  4. event_date_buckets refresh: recompute the per-row bucket array and
  *     partial-update Meili for any row whose bucket set changed this hour.
  *
  * Usage (inside the API container):
@@ -113,7 +116,59 @@ async function main() {
     console.log(`[stale-meili] pushed ${meiliPushed}/${meiliStaleIds.length}`);
 
     // ────────────────────────────────────────────────────────────────────
-    // Sweep 3: event_date_buckets refresh (existing logic).
+    // Sweep 3: DB-fresh series missing or null in Meili. Catches series
+    // whose DB row is correct but Meili lacks the doc entirely (e.g., a
+    // past sync failure) or has a null earliest_upcoming_ts. Sweep 2 only
+    // catches docs with `< now` — null and missing slip through.
+    // ────────────────────────────────────────────────────────────────────
+    const dbFreshIds = (await pool.query<{ series_id: string }>(`
+      select series_id
+      from event_series
+      where earliest_upcoming_ts is not null
+        and earliest_upcoming_ts > now()
+        and visibility = 'public'
+    `)).rows.map((r) => r.series_id);
+
+    const meiliFreshIds = new Set<string>();
+    {
+      const limit = 1000;
+      let offset = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { hits } = await meiliService.searchSeries({
+          filter: [`earliest_upcoming_ts > ${nowMs}`, "visibility = public"],
+          limit,
+          offset,
+          attributesToRetrieve: ["series_id"],
+        });
+        for (const hit of hits) {
+          const sid = (hit as unknown as { series_id?: string }).series_id;
+          if (sid) meiliFreshIds.add(sid);
+        }
+        if (hits.length < limit) break;
+        offset += limit;
+        if (offset >= 50000) break;
+      }
+    }
+
+    const missingInMeili = dbFreshIds.filter((sid) => !meiliFreshIds.has(sid));
+    // eslint-disable-next-line no-console
+    console.log(`[missing-meili] ${missingInMeili.length} DB-fresh series missing or null in Meili`);
+    let missingPushed = 0;
+    for (const sid of missingInMeili) {
+      try {
+        await meiliService.upsertSeriesDoc(pool, sid);
+        missingPushed++;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`  upsertSeriesDoc failed for ${sid}:`, err);
+      }
+    }
+    // eslint-disable-next-line no-console
+    console.log(`[missing-meili] pushed ${missingPushed}/${missingInMeili.length}`);
+
+    // ────────────────────────────────────────────────────────────────────
+    // Sweep 4: event_date_buckets refresh (existing logic).
     // ────────────────────────────────────────────────────────────────────
     // Recompute and update buckets in one SQL statement — same bucket logic
     // as refreshEventSeries, scoped to rows with at least one upcoming date.
