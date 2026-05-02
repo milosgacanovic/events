@@ -85,8 +85,6 @@ export default function SearchAlertsTab() {
     if (res.ok) setItems((cur) => cur.filter((i) => i.id !== id));
   }
 
-  if (loading) return <p className="muted">{t("profile.loading")}</p>;
-
   const practiceLabelByKey = useMemo(() => {
     const map = new Map<string, string>();
     for (const cat of taxonomy?.practices.categories ?? []) {
@@ -104,6 +102,8 @@ export default function SearchAlertsTab() {
     }
     return map;
   }, [taxonomy]);
+
+  if (loading) return <p className="muted">{t("profile.loading")}</p>;
 
   function labelKey(k: string): string {
     const translated = t(`profile.savedSearches.filterKey.${k}`);
