@@ -1413,15 +1413,8 @@ label.meta {
 
 .results-count { white-space: nowrap; }
 
-@media (max-width: 480px) {
-  /* Fit filters + count + sort + view buttons on one row on mobile.
-     Don't let count flex-grow (it pushes the actions to a second line);
-     don't force actions to 100% width. */
-  .results-toolbar { gap: 6px; }
-  .results-count { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .results-toolbar-actions { gap: 6px; }
-  .icon-group.with-separator { padding-left: 6px; margin-left: 0; }
-}
+/* Mobile single-row toolbar — actual rules live below the 600px block to win
+   source order over its `gap: 14px` and `flex-wrap: wrap` defaults. */
 
 .results-toolbar-actions {
   display: inline-flex;
@@ -3912,6 +3905,16 @@ label.meta {
     order: 0;
     width: auto;
   }
+}
+
+/* Keep results toolbar on a single row on narrow phones. Must come AFTER the
+   max-width:600px rules above to win source order. */
+@media (max-width: 480px) {
+  .results-toolbar { gap: 6px; flex-wrap: nowrap; }
+  .results-count { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .results-toolbar-actions { gap: 4px; flex-shrink: 0; }
+  .icon-group.with-separator { padding-left: 6px; margin-left: 0; }
+  .filters-toggle-btn { flex-shrink: 0; }
 }
 
 .rich-editor {
