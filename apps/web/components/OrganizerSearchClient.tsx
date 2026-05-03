@@ -594,19 +594,19 @@ export function OrganizerSearchClient({
       isLoadMorePageRef.current = false;
       return;
     }
-    const timer = setTimeout(() => {
-      const queryString = buildUiQueryString();
-      const params = new URLSearchParams(queryString);
-      const current = new URLSearchParams(window.location.search);
-      for (const key of ["mapLat", "mapLng", "mapZoom"] as const) {
-        const v = current.get(key);
-        if (v) params.set(key, v);
-      }
-      const merged = params.toString();
-      const url = merged ? `${pathname}?${merged}` : pathname;
-      window.history.replaceState(window.history.state, "", url);
-    }, 250);
-    return () => clearTimeout(timer);
+    // Sync URL synchronously: a debounce here lets users navigate away with a
+    // stale URL (clear filters → click host → back returns to old filters).
+    const queryString = buildUiQueryString();
+    const params = new URLSearchParams(queryString);
+    const current = new URLSearchParams(window.location.search);
+    for (const key of ["mapLat", "mapLng", "mapZoom"] as const) {
+      const v = current.get(key);
+      if (v) params.set(key, v);
+    }
+    const merged = params.toString();
+    const url = merged ? `${pathname}?${merged}` : pathname;
+    window.history.replaceState(window.history.state, "", url);
+    return () => {};
   }, [buildUiQueryString, pathname]);
 
   useEffect(() => {

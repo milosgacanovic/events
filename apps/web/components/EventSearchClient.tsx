@@ -941,19 +941,22 @@ export function EventSearchClient({
       isLoadMorePageRef.current = false;
       return;
     }
+    // Write URL synchronously: a debounce here lets users navigate away with a
+    // stale URL (clear filters → click event → back returns to old filters).
+    const queryString = buildUiQueryString();
+    const params = new URLSearchParams(queryString);
+    // Preserve map viewport params (managed via direct replaceState elsewhere)
+    const current = new URLSearchParams(window.location.search);
+    for (const key of ["mapLat", "mapLng", "mapZoom"] as const) {
+      const v = current.get(key);
+      if (v) params.set(key, v);
+    }
+    const merged = params.toString();
+    const url = merged ? `${pathname}?${merged}` : pathname;
+    window.history.replaceState(window.history.state, "", url);
+
+    // Analytics stays debounced — coalesces rapid filter changes into one event.
     const timer = setTimeout(() => {
-      const queryString = buildUiQueryString();
-      const params = new URLSearchParams(queryString);
-      // Preserve map viewport params (managed via direct replaceState elsewhere)
-      const current = new URLSearchParams(window.location.search);
-      for (const key of ["mapLat", "mapLng", "mapZoom"] as const) {
-        const v = current.get(key);
-        if (v) params.set(key, v);
-      }
-      const merged = params.toString();
-      const url = merged ? `${pathname}?${merged}` : pathname;
-      window.history.replaceState(window.history.state, "", url);
-      // Track filter changes — fires after 400ms debounce, skipping initial render
       if (filterTrackMountedRef.current) {
         pushDataLayer({
           event: "event_filter",
