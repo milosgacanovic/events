@@ -286,6 +286,11 @@ export function EventSearchClient({
   const [accumulatedHits, setAccumulatedHits] = useState<SearchResponse["hits"]>(initialResults?.hits ?? []);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  // Suppress hero collapse/expand transition on first mount so that returning
+  // from an event detail page doesn't replay the 500ms animation as filters
+  // are restored from URL/snapshot. Re-enabled after a short settle window
+  // so subsequent in-session filter changes still animate.
+  const [heroAnimReady, setHeroAnimReady] = useState(false);
   const isLoadMoreRef = useRef(false);
   const isFirstSearchRef = useRef(true);
   const isLoadMorePageRef = useRef(false);
@@ -1026,6 +1031,13 @@ export function EventSearchClient({
   }, [persistScroll]);
 
   useEffect(() => {
+    // Covers SSR hydration → cache restore → URL sync → first re-render
+    // before allowing the hero transition to fire on filter changes.
+    const id = window.setTimeout(() => setHeroAnimReady(true), 600);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  useEffect(() => {
     setTimeDisplayMode(readTimeDisplayMode());
   }, []);
 
@@ -1429,7 +1441,11 @@ export function EventSearchClient({
 
   return (
     <>
-      <div className={heroCollapsed ? "hero hero-collapsed" : "hero"}>
+      <div className={[
+        "hero",
+        heroCollapsed && "hero-collapsed",
+        !heroAnimReady && "hero-no-anim",
+      ].filter(Boolean).join(" ")}>
         <h1 className="hero-heading">{t("eventSearch.hero.heading")}</h1>
         <form className="hero-search-form" onSubmit={(e) => e.preventDefault()}>
           <input

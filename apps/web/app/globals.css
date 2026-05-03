@@ -1094,6 +1094,15 @@ label.meta {
   padding: 14px 24px;
 }
 
+/* Disable hero collapse/expand transition on first mount so back-nav from a
+   detail page doesn't replay the animation as filters are restored. The class
+   is removed by the search clients ~600ms after mount. */
+.hero-no-anim,
+.hero-no-anim .hero-heading,
+.hero-no-anim .hero-collapsible {
+  transition: none !important;
+}
+
 .hero-collapsed .hero-heading {
   max-height: 0;
   opacity: 0;
@@ -2266,7 +2275,9 @@ label.meta {
   background: rgba(217, 83, 79, 0.08);
 }
 
-/* Compact heart icon for listing cards */
+/* Compact heart icon for listing cards. Background uses rgba alpha so only the
+   circle is translucent; the heart SVG (currentColor-stroked) stays at full
+   opacity. Dark mode override below uses a soft black tint instead of white. */
 .save-icon-btn {
   position: absolute;
   top: 8px;
@@ -2276,7 +2287,7 @@ label.meta {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.3);
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -2286,7 +2297,14 @@ label.meta {
   opacity: 0;
 }
 .save-icon-btn:hover {
-  background: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.6);
+  color: #d9534f;
+}
+[data-theme="dark"] .save-icon-btn {
+  background: rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .save-icon-btn:hover {
+  background: rgba(0, 0, 0, 0.6);
   color: #d9534f;
 }
 .save-icon-btn--saved {

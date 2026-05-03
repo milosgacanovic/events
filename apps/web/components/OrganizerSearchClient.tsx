@@ -209,6 +209,10 @@ export function OrganizerSearchClient({
   const [practiceOpen, setPracticeOpen] = useState(true);
   const [languageOpen, setLanguageOpen] = useState((initialQuery?.languages?.length ?? 0) > 0);
   const [countryOpen, setCountryOpen] = useState((initialQuery?.countryCodes?.length ?? 0) > 0);
+  // Suppress hero collapse/expand transition on first mount (back-nav from
+  // host detail) so the page doesn't replay the 500ms animation as filters
+  // are restored. Re-enabled after a short settle window.
+  const [heroAnimReady, setHeroAnimReady] = useState(false);
   const restoredKeyRef = useRef<string | null>(null);
   const skipSearchAfterRestoreRef = useRef(false);
   const cacheRestoreInProgressRef = useRef(false);
@@ -666,6 +670,12 @@ export function OrganizerSearchClient({
   }, [persistScroll]);
 
   useEffect(() => {
+    // Covers SSR hydration → cache restore → URL sync settle window.
+    const id = window.setTimeout(() => setHeroAnimReady(true), 600);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  useEffect(() => {
     const requestId = facetRequestRef.current + 1;
     facetRequestRef.current = requestId;
     const timer = setTimeout(() => {
@@ -911,7 +921,11 @@ export function OrganizerSearchClient({
 
   return (
     <>
-    <div className={heroCollapsed ? "hero hero-collapsed" : "hero"}>
+    <div className={[
+      "hero",
+      heroCollapsed && "hero-collapsed",
+      !heroAnimReady && "hero-no-anim",
+    ].filter(Boolean).join(" ")}>
       <h1 className="hero-heading">{t("organizerSearch.hero.heading")}</h1>
       <form className="hero-search-form" onSubmit={(e) => e.preventDefault()}>
         <input
