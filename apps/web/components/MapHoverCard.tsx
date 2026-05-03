@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { formatPointDateTime } from "../lib/datetime";
@@ -197,9 +198,14 @@ export function MapHoverCard(
   })();
 
   return (
-    <a
+    <Link
       ref={cardRef}
       href={props.href}
+      // Soft nav via router.push. Plain <a href> on iOS Safari resulted in
+      // an extra history entry showing up between the map and the event/host
+      // detail page (two backs needed to return to the map). Going through
+      // Next.js's Link → router.push matches the desktop marker-click path
+      // and avoids the iOS-specific quirk.
       className={`map-hover-card map-hover-card--${props.kind}${position.flipBelow ? " map-hover-card--below" : ""}`}
       style={{
         position: "absolute",
@@ -271,7 +277,7 @@ export function MapHoverCard(
           </span>
         </>
       )}
-    </a>
+    </Link>
   );
 }
 
