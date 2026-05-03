@@ -3909,19 +3909,24 @@ label.meta {
 
 /* Keep results toolbar on a single row on narrow phones. Must come AFTER the
    max-width:600px rules above to win source order.
-   Layout: [filters]  [count centered, fills middle]  [sort | list map]. */
+   Layout: [filters left] [count visually centered] [sort | list map right].
+   Auto margins on count split the leftover whitespace evenly so the count
+   sits in the optical center of the toolbar even though filters and actions
+   have different widths. */
 @media (max-width: 480px) {
-  .results-toolbar { gap: 6px; flex-wrap: nowrap; }
+  .results-toolbar { gap: 6px; flex-wrap: nowrap; justify-content: flex-start; }
   .results-count {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
+    margin-left: auto;
+    margin-right: auto;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-align: center;
   }
   .results-toolbar-actions { gap: 4px; flex-shrink: 0; }
   .icon-group.with-separator { padding-left: 6px; margin-left: 0; }
   .filters-toggle-btn { flex-shrink: 0; }
+  .hero { margin-bottom: 0; }
 }
 
 .rich-editor {
