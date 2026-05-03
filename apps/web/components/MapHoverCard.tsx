@@ -129,6 +129,7 @@ type CommonProps = {
   href: string;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onNavigate?: () => void;
 };
 
 type EventInstantData = {
@@ -217,6 +218,7 @@ export function MapHoverCard(
       onMouseLeave={props.onMouseLeave}
       onFocus={props.onMouseEnter}
       onBlur={props.onMouseLeave}
+      onClick={props.onNavigate}
     >
       {props.kind === "event" ? (
         <>

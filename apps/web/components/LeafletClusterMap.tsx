@@ -186,6 +186,7 @@ export function LeafletClusterMap({
   initialCenter,
   initialZoom,
   onViewportChange,
+  onNavigateAway,
 }: {
   queryString: string;
   refreshToken: number;
@@ -195,6 +196,7 @@ export function LeafletClusterMap({
   initialCenter?: [number, number];
   initialZoom?: number;
   onViewportChange?: (lat: number, lng: number, zoom: number) => void;
+  onNavigateAway?: () => void;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -511,6 +513,7 @@ export function LeafletClusterMap({
                   ? `/events/${feature.properties.event_slug}?date=${dateHint}`
                   : `/events/${feature.properties.event_slug}`;
                 dismissHoverCard();
+                onNavigateAway?.();
                 router.push(href);
               },
             }}
@@ -529,7 +532,7 @@ export function LeafletClusterMap({
           </CircleMarker>
         );
       }),
-    [activeMarkers, beginCloseCard, beginOpenCard, dismissHoverCard, enteringKeys, isTouch, router, scheduleRefresh, showCardImmediately, t, timeDisplayMode],
+    [activeMarkers, beginCloseCard, beginOpenCard, dismissHoverCard, enteringKeys, isTouch, onNavigateAway, router, scheduleRefresh, showCardImmediately, t, timeDisplayMode],
   );
 
   const leavingMarkerElements = useMemo(
@@ -642,6 +645,7 @@ export function LeafletClusterMap({
           })()}
           onMouseEnter={cancelCloseTimer}
           onMouseLeave={beginCloseCard}
+          onNavigate={onNavigateAway}
         />
       ) : null}
 

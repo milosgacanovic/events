@@ -2189,6 +2189,7 @@ export function EventSearchClient({
             initialCenter={initialMapView?.center}
             initialZoom={initialMapView?.zoom}
             onViewportChange={writeMapViewToUrl}
+            onNavigateAway={onNavigateAway}
           />
         ) : null}
 

@@ -1275,6 +1275,7 @@ export function OrganizerSearchClient({
             initialCenter={initialMapView?.center}
             initialZoom={initialMapView?.zoom}
             onViewportChange={writeMapViewToUrl}
+            onNavigateAway={onNavigateAway}
           />
         ) : null}
 

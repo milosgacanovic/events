@@ -161,11 +161,13 @@ export function HostLeafletClusterMap({
   initialCenter,
   initialZoom,
   onViewportChange,
+  onNavigateAway,
 }: {
   queryString: string;
   initialCenter?: [number, number];
   initialZoom?: number;
   onViewportChange?: (lat: number, lng: number, zoom: number) => void;
+  onNavigateAway?: () => void;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -467,6 +469,7 @@ export function HostLeafletClusterMap({
                 }
 
                 dismissHoverCard();
+                onNavigateAway?.();
                 router.push(`/hosts/${feature.properties.organizer_slug}`);
               },
             }}
@@ -485,7 +488,7 @@ export function HostLeafletClusterMap({
           </CircleMarker>
         );
       }),
-    [activeMarkers, beginCloseCard, beginOpenCard, dismissHoverCard, enteringKeys, isTouch, router, scheduleRefresh, showCardImmediately, t],
+    [activeMarkers, beginCloseCard, beginOpenCard, dismissHoverCard, enteringKeys, isTouch, onNavigateAway, router, scheduleRefresh, showCardImmediately, t],
   );
 
   const leavingMarkerElements = useMemo(
@@ -567,6 +570,7 @@ export function HostLeafletClusterMap({
           href={`/hosts/${hovered.organizerSlug}`}
           onMouseEnter={cancelCloseTimer}
           onMouseLeave={beginCloseCard}
+          onNavigate={onNavigateAway}
         />
       ) : null}
 
