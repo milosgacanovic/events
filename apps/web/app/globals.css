@@ -3908,10 +3908,17 @@ label.meta {
 }
 
 /* Keep results toolbar on a single row on narrow phones. Must come AFTER the
-   max-width:600px rules above to win source order. */
+   max-width:600px rules above to win source order.
+   Layout: [filters]  [count centered, fills middle]  [sort | list map]. */
 @media (max-width: 480px) {
   .results-toolbar { gap: 6px; flex-wrap: nowrap; }
-  .results-count { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .results-count {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
   .results-toolbar-actions { gap: 4px; flex-shrink: 0; }
   .icon-group.with-separator { padding-left: 6px; margin-left: 0; }
   .filters-toggle-btn { flex-shrink: 0; }
