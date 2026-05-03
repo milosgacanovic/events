@@ -643,7 +643,7 @@ export function OrganizerSearchClient({
       cachedScrollYRef.current = null;
       cacheRestoreInProgressRef.current = false;
       if (scrollY > 0) {
-        setTimeout(() => window.scrollTo(0, scrollY), 50);
+        requestAnimationFrame(() => window.scrollTo(0, scrollY));
       }
       return;
     }
@@ -661,7 +661,7 @@ export function OrganizerSearchClient({
       if (Date.now() - parsed.ts > 30 * 60 * 1000) {
         return;
       }
-      window.setTimeout(() => window.scrollTo(0, parsed.y as number), 0);
+      requestAnimationFrame(() => window.scrollTo(0, parsed.y as number));
     } catch {
       // ignore invalid persisted scroll data
     }

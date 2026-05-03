@@ -1020,10 +1020,13 @@ export function EventSearchClient({
     }
 
     if (scrollY != null && scrollY > 0) {
-      // Delay scroll restore to let hero collapse and layout settle after state updates
-      setTimeout(() => {
+      // Hero anim is suppressed on first mount (heroAnimReady), so we no
+      // longer need the 50ms grace window. Scroll on the next paint after
+      // React has committed the cards to DOM, so iOS Safari doesn't briefly
+      // render the page at the top and then jump to the saved Y.
+      requestAnimationFrame(() => {
         window.scrollTo(0, scrollY);
-      }, 50);
+      });
     }
   }, [scrollStorageKey, data]);
 
