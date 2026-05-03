@@ -950,8 +950,11 @@ export function EventSearchClient({
       isLoadMorePageRef.current = false;
       return;
     }
-    // Write URL synchronously: a debounce here lets users navigate away with a
-    // stale URL (clear filters → click event → back returns to old filters).
+    // Use router.replace so Next.js's __PRIVATE_NEXTJS_INTERNALS_TREE in
+    // history.state stays in sync with the URL. Raw replaceState would update
+    // window.location only, leaving the tree pointing at the previous query —
+    // on iOS, back-nav restores entries by that tree and the just-cleared
+    // filters resurrect.
     const queryString = buildUiQueryString();
     const params = new URLSearchParams(queryString);
     // Preserve map viewport params (managed via direct replaceState elsewhere)
@@ -962,7 +965,10 @@ export function EventSearchClient({
     }
     const merged = params.toString();
     const url = merged ? `${pathname}?${merged}` : pathname;
-    window.history.replaceState(window.history.state, "", url);
+    const currentUrl = window.location.pathname + window.location.search;
+    if (currentUrl !== url) {
+      router.replace(url, { scroll: false });
+    }
 
     // Analytics stays debounced — coalesces rapid filter changes into one event.
     const timer = setTimeout(() => {
@@ -982,7 +988,7 @@ export function EventSearchClient({
     }, 400);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buildUiQueryString, pathname]);
+  }, [buildUiQueryString, pathname, router]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

@@ -604,8 +604,10 @@ export function OrganizerSearchClient({
       isLoadMorePageRef.current = false;
       return;
     }
-    // Sync URL synchronously: a debounce here lets users navigate away with a
-    // stale URL (clear filters → click host → back returns to old filters).
+    // router.replace so Next.js's tree in history.state stays in sync with
+    // the URL — raw replaceState left the tree pointing at the previous
+    // query, which on iOS resurrected just-cleared filters after back-nav
+    // (because Next.js routes by tree, not URL string, on popstate).
     const queryString = buildUiQueryString();
     const params = new URLSearchParams(queryString);
     const current = new URLSearchParams(window.location.search);
@@ -615,9 +617,12 @@ export function OrganizerSearchClient({
     }
     const merged = params.toString();
     const url = merged ? `${pathname}?${merged}` : pathname;
-    window.history.replaceState(window.history.state, "", url);
+    const currentUrl = window.location.pathname + window.location.search;
+    if (currentUrl !== url) {
+      router.replace(url, { scroll: false });
+    }
     return () => {};
-  }, [buildUiQueryString, pathname]);
+  }, [buildUiQueryString, pathname, router]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
