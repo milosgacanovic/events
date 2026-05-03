@@ -212,10 +212,12 @@ export function EventSearchClient({
     window.history.replaceState(window.history.state, "", url);
   }, []);
 
-  // Switch view AND immediately persist to URL. The existing buildUiQueryString
-  // sync is debounced 400ms; if the user toggles view and clicks a marker
-  // within that window, the back-nav URL would lack ?view=map. Direct write
-  // here keeps the history entry honest.
+  // Switch view AND keep Next.js's internal route tree in sync. Raw
+  // history.replaceState only updates window.location — Next.js's
+  // __PRIVATE_NEXTJS_INTERNALS_TREE in history.state retains the OLD URL
+  // (e.g. ?view=map). On iOS, navigating back from a detail page restores
+  // history entries by that tree, so users were landing on the map view
+  // they had toggled away from. router.replace updates BOTH URL and tree.
   const setView = useCallback((next: "list" | "map" | "discover") => {
     setViewState(next);
     if (typeof window === "undefined") return;
@@ -229,9 +231,11 @@ export function EventSearchClient({
       params.delete("mapZoom");
     }
     const qs = params.toString();
-    const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
-    window.history.replaceState(window.history.state, "", url);
-  }, []);
+    const target = qs ? `${pathname}?${qs}` : pathname;
+    const currentUrl = window.location.pathname + window.location.search;
+    if (currentUrl === target) return;
+    router.replace(target, { scroll: false });
+  }, [router, pathname]);
   const [sort, setSort] = useState<"startsAtAsc" | "startsAtDesc" | "publishedAtDesc" | "relevance">(initialQuery?.sort ?? "startsAtAsc");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);

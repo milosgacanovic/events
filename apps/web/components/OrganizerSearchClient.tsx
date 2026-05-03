@@ -121,6 +121,10 @@ export function OrganizerSearchClient({
     window.history.replaceState(window.history.state, "", url);
   }, []);
 
+  // router.replace (not raw replaceState) so Next.js's internal route tree
+  // stays in sync with the URL. iOS bfcache restores entries by that tree;
+  // raw replaceState would leave the tree pointing at the previous view
+  // and the user would land on that view after back-navigation.
   const setView = useCallback((next: "list" | "map") => {
     setViewState(next);
     if (typeof window === "undefined") return;
@@ -133,9 +137,11 @@ export function OrganizerSearchClient({
       params.delete("mapZoom");
     }
     const qs = params.toString();
-    const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
-    window.history.replaceState(window.history.state, "", url);
-  }, []);
+    const target = qs ? `${pathname}?${qs}` : pathname;
+    const currentUrl = window.location.pathname + window.location.search;
+    if (currentUrl === target) return;
+    router.replace(target, { scroll: false });
+  }, [router, pathname]);
   const [q, setQ] = useState(initialQuery?.q ?? "");
   const [roleKeys, setRoleKeys] = useState<string[]>(initialQuery?.roleKeys ?? []);
   const [practiceCategoryIds, setPracticeCategoryIds] = useState<string[]>(initialQuery?.practiceCategoryIds ?? []);
