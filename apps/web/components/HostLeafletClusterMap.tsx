@@ -411,12 +411,11 @@ export function HostLeafletClusterMap({
             center={[lat, lng]}
             key={`${lat}-${lng}-${feature.properties.organizer_id ?? "cluster"}-${index}`}
             eventHandlers={{
-              add: isEntering
-                ? (e) => {
-                    const path = (e.target as any)._path as SVGElement | undefined;
-                    if (path) path.classList.add("marker-entering");
-                  }
-                : undefined,
+              add: (e) => {
+                if (!isEntering) return;
+                const path = (e.target as any)._path as SVGElement | undefined;
+                if (path) path.classList.add("marker-entering");
+              },
               mouseover: (e) => {
                 (e.target as any).setStyle({ fillOpacity: 1 });
                 if (isCluster) return;
