@@ -1414,10 +1414,13 @@ label.meta {
 .results-count { white-space: nowrap; }
 
 @media (max-width: 480px) {
-  .results-toolbar-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
+  /* Fit filters + count + sort + view buttons on one row on mobile.
+     Don't let count flex-grow (it pushes the actions to a second line);
+     don't force actions to 100% width. */
+  .results-toolbar { gap: 6px; }
+  .results-count { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .results-toolbar-actions { gap: 6px; }
+  .icon-group.with-separator { padding-left: 6px; margin-left: 0; }
 }
 
 .results-toolbar-actions {
