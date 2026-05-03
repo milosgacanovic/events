@@ -3909,32 +3909,22 @@ label.meta {
 
 /* Keep results toolbar on a single row on narrow phones. Must come AFTER the
    max-width:600px rules above to win source order.
-   Layout: [filters left] [count exact-centered] [sort | list map right].
-   Use a 3-column grid where the outer columns are equal-width (1fr each)
-   so the auto-sized middle column lands at the visual center of the toolbar
-   even though the filter button and the action buttons have different
-   widths. justify-self pins each child to its expected edge. */
+   Layout: [filters left] [count fills middle, text-centered] [actions right].
+   Count grows via flex:1 so its box spans the entire gap between the filter
+   button and the action buttons. text-align:center then puts the text in
+   the middle of that gap — visually centered between the two ends. */
 @media (max-width: 480px) {
-  .results-toolbar {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 6px;
-  }
-  .filters-toggle-btn { justify-self: start; flex-shrink: 0; }
+  .results-toolbar { gap: 6px; flex-wrap: nowrap; justify-content: space-between; }
+  .filters-toggle-btn { flex-shrink: 0; }
   .results-count {
-    justify-self: center;
-    flex: none;
+    flex: 1 1 0;
     min-width: 0;
+    text-align: center;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .results-toolbar-actions {
-    justify-self: end;
-    gap: 4px;
-    flex-shrink: 0;
-  }
+  .results-toolbar-actions { gap: 4px; flex-shrink: 0; }
   .icon-group.with-separator { padding-left: 6px; margin-left: 0; }
   .hero { margin-bottom: 0; }
 }
