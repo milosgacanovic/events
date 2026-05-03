@@ -2137,7 +2137,7 @@ export function EventSearchClient({
             {auth.authenticated && auth.roles.includes("admin") && (
             <button
               type="button"
-              className={view === "discover" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"}
+              className={`${view === "discover" ? "secondary-btn icon-btn" : "ghost-btn icon-btn"} view-toggle-discover`}
               onClick={() => setView("discover")}
               aria-label={t("eventSearch.view.discover")}
               title={t("eventSearch.view.discover")}

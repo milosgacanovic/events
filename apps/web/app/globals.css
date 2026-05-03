@@ -3926,6 +3926,9 @@ label.meta {
   }
   .results-toolbar-actions { gap: 4px; flex-shrink: 0; }
   .icon-group.with-separator { padding-left: 6px; margin-left: 0; }
+  /* Discover is admin-only, rarely used on phones — hide it on mobile to give
+     the results count visual breathing room in the toolbar's middle. */
+  .view-toggle-discover { display: none; }
   .hero { margin-bottom: 0; }
 }
 
