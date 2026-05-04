@@ -568,11 +568,23 @@ export function OrganizerSearchClient({
     // URL→state path so the snapshot is robust to URL writer race conditions.
     if (lastRestoredKeyRef.current !== scrollStorageKey) {
       try {
+        // PerformanceNavigationTiming covers full-document back-nav; for SPA
+        // back-nav (which leaves the entry as "navigate") we use the recent
+        // unmount-marker dropped by OrganizerDetailClient's cleanup.
         const isBackNav = (() => {
           try {
             const navEntries = performance.getEntriesByType("navigation");
             const first = navEntries[0] as PerformanceNavigationTiming | undefined;
             return first?.type === "back_forward";
+          } catch { return false; }
+        })();
+        const justLeftDetail = (() => {
+          try {
+            const v = sessionStorage.getItem("dr-just-left-host-detail");
+            if (!v) return false;
+            sessionStorage.removeItem("dr-just-left-host-detail");
+            const ts = parseInt(v, 10);
+            return Number.isFinite(ts) && Date.now() - ts < 2000;
           } catch { return false; }
         })();
         const raw = sessionStorage.getItem("search-cache-snapshot");
@@ -600,7 +612,7 @@ export function OrganizerSearchClient({
           };
           const age = Date.now() - (cached.ts ?? 0);
           if (
-            isBackNav &&
+            (isBackNav || justLeftDetail) &&
             cached.accumulatedItems?.length &&
             typeof cached.ts === "number" &&
             age < 30 * 60 * 1000

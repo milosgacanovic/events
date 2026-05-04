@@ -438,6 +438,15 @@ export function EventDetailClient({
       return false;
     } catch { return false; }
   });
+  // On unmount, drop a recent timestamp so EventSearchClient knows the user
+  // is arriving via direct back-from-detail navigation. PerformanceNavigationTiming
+  // is only updated on full document loads — SPA back-nav within App Router
+  // leaves it as "navigate", so it can't gate the cache-restore alone.
+  useEffect(() => {
+    return () => {
+      try { sessionStorage.setItem("dr-just-left-event-detail", String(Date.now())); } catch { /* ignore */ }
+    };
+  }, []);
   const [data, setData] = useState<EventDetail | null>(initialData ?? null);
   const [taxonomy, setTaxonomy] = useState<TaxonomyResponse | null>(initialTaxonomy ?? null);
   const [tagDisplayMap, setTagDisplayMap] = useState<Record<string, string>>({});

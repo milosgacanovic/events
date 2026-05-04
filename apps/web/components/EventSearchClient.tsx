@@ -915,11 +915,25 @@ export function EventSearchClient({
     // writer hadn't flushed before the user tapped an event card.
     if (lastRestoredKeyRef.current !== scrollStorageKey) {
       try {
+        // On full-document back-nav (e.g. iOS bfcache miss with reload),
+        // PerformanceNavigationTiming reports "back_forward". For SPA back-nav
+        // within App Router (no document reload), the entry stays as
+        // "navigate" — so we ALSO accept a recent unmount-marker dropped by
+        // EventDetailClient's cleanup as evidence of direct back-from-detail.
         const isBackNav = (() => {
           try {
             const navEntries = performance.getEntriesByType("navigation");
             const first = navEntries[0] as PerformanceNavigationTiming | undefined;
             return first?.type === "back_forward";
+          } catch { return false; }
+        })();
+        const justLeftDetail = (() => {
+          try {
+            const v = sessionStorage.getItem("dr-just-left-event-detail");
+            if (!v) return false;
+            sessionStorage.removeItem("dr-just-left-event-detail");
+            const ts = parseInt(v, 10);
+            return Number.isFinite(ts) && Date.now() - ts < 2000;
           } catch { return false; }
         })();
         const raw = sessionStorage.getItem("search-cache-snapshot");
@@ -957,7 +971,7 @@ export function EventSearchClient({
           };
           const age = Date.now() - (cached.ts ?? 0);
           if (
-            isBackNav &&
+            (isBackNav || justLeftDetail) &&
             cached.accumulatedHits?.length &&
             typeof cached.ts === "number" &&
             age < 30 * 60 * 1000

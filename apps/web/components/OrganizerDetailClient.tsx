@@ -201,6 +201,14 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
   const [cameFromSearch] = useState(() => {
     try { return !!sessionStorage.getItem("search-cache-snapshot"); } catch { return false; }
   });
+  // On unmount, drop a recent timestamp so OrganizerSearchClient knows the
+  // user is arriving via direct back-from-detail navigation. SPA back-nav in
+  // App Router doesn't update PerformanceNavigationTiming.
+  useEffect(() => {
+    return () => {
+      try { sessionStorage.setItem("dr-just-left-host-detail", String(Date.now())); } catch { /* ignore */ }
+    };
+  }, []);
   const [data, setData] = useState<OrganizerDetail | null>(initialData ?? null);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
