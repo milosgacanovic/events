@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Як часто?",
   "notifyMe.dialog.weekly": "Щотижнева підбірка",
   "notifyMe.dialog.daily": "Щоденна підбірка",
-  "notifyMe.dialog.notifyNew": "Нові події за цими фільтрами",
-  "notifyMe.dialog.notifyReminders": "Нагадування перед початком подій",
   "notifyMe.dialog.save": "Зберегти оповіщення",
   "notifyMe.dialog.cancel": "Скасувати",
   "comments.title": "Коментарі",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Відновити",
   "profile.savedSearches.paused": "Призупинено",
   "profile.savedSearches.pauseAll": "Призупинити всі сповіщення",
-  "profile.savedSearches.reminders": "Нагадування",
-  "profile.savedSearches.updates": "Оновлення",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Наступні вихідні",
   "manage.admin.logs.activityLog": "Журнал активності",
   "manage.admin.logs.errorLog": "Журнал помилок",
-  "manage.sidebar.config": "Налаштування"
+  "manage.sidebar.config": "Налаштування",
+  "profile.savedSearches.lastSent": "Останнє надсилання: {when}",
+  "profile.savedSearches.lastSentNever": "Ще не надіслано жодного листа"
 }

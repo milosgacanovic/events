@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Hvor ofte?",
   "notifyMe.dialog.weekly": "Ukentlig oppsummering",
   "notifyMe.dialog.daily": "Daglig oppsummering",
-  "notifyMe.dialog.notifyNew": "Nye arrangementer som matcher disse filtrene",
-  "notifyMe.dialog.notifyReminders": "Påminnelser før arrangementer starter",
   "notifyMe.dialog.save": "Lagre varsel",
   "notifyMe.dialog.cancel": "Avbryt",
   "comments.title": "Kommentarer",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Gjenoppta",
   "profile.savedSearches.paused": "Satt på pause",
   "profile.savedSearches.pauseAll": "Sett alle varsler på pause",
-  "profile.savedSearches.reminders": "Påminnelser",
-  "profile.savedSearches.updates": "Oppdateringer",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Neste helg",
   "manage.admin.logs.activityLog": "Aktivitetslogg",
   "manage.admin.logs.errorLog": "Feillogg",
-  "manage.sidebar.config": "Konfigurasjon"
+  "manage.sidebar.config": "Konfigurasjon",
+  "profile.savedSearches.lastSent": "Sist sendt: {when}",
+  "profile.savedSearches.lastSentNever": "Ingen e-post sendt enda"
 }

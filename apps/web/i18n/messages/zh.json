@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "通知频率？",
   "notifyMe.dialog.weekly": "每周摘要",
   "notifyMe.dialog.daily": "每日摘要",
-  "notifyMe.dialog.notifyNew": "符合筛选条件的新活动",
-  "notifyMe.dialog.notifyReminders": "活动开始前提醒",
   "notifyMe.dialog.save": "保存提醒",
   "notifyMe.dialog.cancel": "取消",
   "comments.title": "评论",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "恢复",
   "profile.savedSearches.paused": "已暂停",
   "profile.savedSearches.pauseAll": "暂停所有通知",
-  "profile.savedSearches.reminders": "提醒",
-  "profile.savedSearches.updates": "更新",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "下个周末",
   "manage.admin.logs.activityLog": "活动日志",
   "manage.admin.logs.errorLog": "错误日志",
-  "manage.sidebar.config": "配置"
+  "manage.sidebar.config": "配置",
+  "profile.savedSearches.lastSent": "最近发送：{when}",
+  "profile.savedSearches.lastSentNever": "尚未发送任何邮件"
 }

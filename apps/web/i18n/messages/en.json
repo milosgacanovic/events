@@ -307,8 +307,6 @@
   "notifyMe.dialog.frequency": "How often?",
   "notifyMe.dialog.weekly": "Weekly digest",
   "notifyMe.dialog.daily": "Daily digest",
-  "notifyMe.dialog.notifyNew": "New events matching these filters",
-  "notifyMe.dialog.notifyReminders": "Reminders before events start",
   "notifyMe.dialog.save": "Save alert",
   "notifyMe.dialog.cancel": "Cancel",
   "comments.title": "Comments",
@@ -397,8 +395,6 @@
   "profile.savedSearches.resume": "Resume",
   "profile.savedSearches.paused": "Paused",
   "profile.savedSearches.pauseAll": "Pause all notifications",
-  "profile.savedSearches.reminders": "Reminders",
-  "profile.savedSearches.updates": "Updates",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1363,5 +1359,7 @@
   "profile.comments.statusPending": "pending",
   "profile.comments.statusApproved": "approved",
   "profile.comments.statusRejected": "rejected",
-  "manage.admin.moderation.byModerator": "by {name}"
+  "manage.admin.moderation.byModerator": "by {name}",
+  "profile.savedSearches.lastSent": "Last sent: {when}",
+  "profile.savedSearches.lastSentNever": "No email sent yet"
 }

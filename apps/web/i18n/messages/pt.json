@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Com que frequência?",
   "notifyMe.dialog.weekly": "Resumo semanal",
   "notifyMe.dialog.daily": "Resumo diário",
-  "notifyMe.dialog.notifyNew": "Novos eventos que correspondam a estes filtros",
-  "notifyMe.dialog.notifyReminders": "Lembretes antes do início dos eventos",
   "notifyMe.dialog.save": "Guardar alerta",
   "notifyMe.dialog.cancel": "Cancelar",
   "comments.title": "Comentários",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Retomar",
   "profile.savedSearches.paused": "Pausado",
   "profile.savedSearches.pauseAll": "Pausar todas as notificações",
-  "profile.savedSearches.reminders": "Lembretes",
-  "profile.savedSearches.updates": "Atualizações",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Próximo fim de semana",
   "manage.admin.logs.activityLog": "Registro de atividades",
   "manage.admin.logs.errorLog": "Registro de erros",
-  "manage.sidebar.config": "Configuração"
+  "manage.sidebar.config": "Configuração",
+  "profile.savedSearches.lastSent": "Último envio: {when}",
+  "profile.savedSearches.lastSentNever": "Nenhum e-mail enviado ainda"
 }

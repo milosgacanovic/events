@@ -13,10 +13,8 @@ type SavedSearchItem = {
   label: string | null;
   filterSnapshot: Record<string, unknown>;
   frequency: string;
-  notifyNew: boolean;
-  notifyReminders: boolean;
-  notifyUpdates: boolean;
   unsubscribedAt: string | null;
+  lastNotifiedAt: string | null;
   createdAt: string;
 };
 
@@ -25,6 +23,20 @@ const KNOWN_EVENT_DATE_PRESETS = new Set([
   "next_weekend", "next_week", "this_month", "next_month",
   "upcoming", "next_7_days", "next_30_days", "past",
 ]);
+
+function formatLastSent(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  try {
+    return new Intl.DateTimeFormat(locale || "en", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  } catch {
+    return date.toLocaleDateString();
+  }
+}
 
 export default function SearchAlertsTab() {
   const { getToken } = useKeycloakAuth();
@@ -237,26 +249,14 @@ export default function SearchAlertsTab() {
                       <option value="weekly">{t("notifyMe.dialog.weekly")}</option>
                       <option value="daily">{t("notifyMe.dialog.daily")}</option>
                     </select>
-                    <label className="toggle-control toggle-control-sm">
-                      <input
-                        className="toggle-control-input"
-                        type="checkbox"
-                        checked={search.notifyReminders}
-                        onChange={(e) => void updateSearch(search.id, { notifyReminders: e.target.checked })}
-                      />
-                      <span className="toggle-control-track" aria-hidden />
-                      <span className="meta">{t("profile.savedSearches.reminders")}</span>
-                    </label>
-                    <label className="toggle-control toggle-control-sm">
-                      <input
-                        className="toggle-control-input"
-                        type="checkbox"
-                        checked={search.notifyUpdates}
-                        onChange={(e) => void updateSearch(search.id, { notifyUpdates: e.target.checked })}
-                      />
-                      <span className="toggle-control-track" aria-hidden />
-                      <span className="meta">{t("profile.savedSearches.updates")}</span>
-                    </label>
+                    <span className="meta" style={{ color: "var(--muted-text-color, #6b7280)" }}>
+                      {search.lastNotifiedAt
+                        ? t("profile.savedSearches.lastSent").replace(
+                            "{when}",
+                            formatLastSent(search.lastNotifiedAt, locale),
+                          )
+                        : t("profile.savedSearches.lastSentNever")}
+                    </span>
                     {search.unsubscribedAt && (
                       <span className="profile-comment-status profile-comment-status--rejected">
                         {t("profile.savedSearches.paused")}

@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "通知の頻度は？",
   "notifyMe.dialog.weekly": "週刊ダイジェスト",
   "notifyMe.dialog.daily": "日刊ダイジェスト",
-  "notifyMe.dialog.notifyNew": "このフィルターに合う新着イベント",
-  "notifyMe.dialog.notifyReminders": "イベント開始前のリマインダー",
   "notifyMe.dialog.save": "アラートを保存",
   "notifyMe.dialog.cancel": "キャンセル",
   "comments.title": "コメント",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "再開",
   "profile.savedSearches.paused": "一時停止中",
   "profile.savedSearches.pauseAll": "すべての通知を一時停止",
-  "profile.savedSearches.reminders": "リマインダー",
-  "profile.savedSearches.updates": "更新情報",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "来週末",
   "manage.admin.logs.activityLog": "アクティビティログ",
   "manage.admin.logs.errorLog": "エラーログ",
-  "manage.sidebar.config": "設定"
+  "manage.sidebar.config": "設定",
+  "profile.savedSearches.lastSent": "最終送信: {when}",
+  "profile.savedSearches.lastSentNever": "まだメールは送信されていません"
 }

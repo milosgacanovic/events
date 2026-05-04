@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Πόσο συχνά;",
   "notifyMe.dialog.weekly": "Εβδομαδιαία σύνοψη",
   "notifyMe.dialog.daily": "Ημερήσια σύνοψη",
-  "notifyMe.dialog.notifyNew": "Νέες εκδηλώσεις που ταιριάζουν με αυτά τα φίλτρα",
-  "notifyMe.dialog.notifyReminders": "Υπενθυμίσεις πριν ξεκινήσουν οι εκδηλώσεις",
   "notifyMe.dialog.save": "Αποθήκευση ειδοποίησης",
   "notifyMe.dialog.cancel": "Ακύρωση",
   "comments.title": "Σχόλια",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Συνέχιση",
   "profile.savedSearches.paused": "Σε παύση",
   "profile.savedSearches.pauseAll": "Παύση όλων των ειδοποιήσεων",
-  "profile.savedSearches.reminders": "Υπενθυμίσεις",
-  "profile.savedSearches.updates": "Ενημερώσεις",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Το επόμενο Σαββατοκύριακο",
   "manage.admin.logs.activityLog": "Αρχείο δραστηριότητας",
   "manage.admin.logs.errorLog": "Αρχείο σφαλμάτων",
-  "manage.sidebar.config": "Ρυθμίσεις"
+  "manage.sidebar.config": "Ρυθμίσεις",
+  "profile.savedSearches.lastSent": "Τελευταία αποστολή: {when}",
+  "profile.savedSearches.lastSentNever": "Δεν έχει σταλεί ακόμα κανένα email"
 }

@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "कितनी बार?",
   "notifyMe.dialog.weekly": "साप्ताहिक सारांश",
   "notifyMe.dialog.daily": "दैनिक सारांश",
-  "notifyMe.dialog.notifyNew": "इन फ़िल्टरों से मेल खाने वाले नए कार्यक्रम",
-  "notifyMe.dialog.notifyReminders": "कार्यक्रम शुरू होने से पहले अनुस्मारक",
   "notifyMe.dialog.save": "अलर्ट सहेजें",
   "notifyMe.dialog.cancel": "रद्द करें",
   "comments.title": "टिप्पणियाँ",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "फिर से शुरू करें",
   "profile.savedSearches.paused": "रुका हुआ",
   "profile.savedSearches.pauseAll": "सभी सूचनाएँ रोकें",
-  "profile.savedSearches.reminders": "अनुस्मारक",
-  "profile.savedSearches.updates": "अपडेट",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "अगला सप्ताहांत",
   "manage.admin.logs.activityLog": "गतिविधि लॉग",
   "manage.admin.logs.errorLog": "त्रुटि लॉग",
-  "manage.sidebar.config": "कॉन्फ़िग"
+  "manage.sidebar.config": "कॉन्फ़िग",
+  "profile.savedSearches.lastSent": "अंतिम बार भेजा गया: {when}",
+  "profile.savedSearches.lastSentNever": "अभी तक कोई ईमेल नहीं भेजा गया"
 }

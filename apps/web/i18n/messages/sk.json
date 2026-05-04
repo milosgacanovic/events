@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Ako casto?",
   "notifyMe.dialog.weekly": "Tyzdenny prehlad",
   "notifyMe.dialog.daily": "Denny prehlad",
-  "notifyMe.dialog.notifyNew": "Nove akcie zodpovedajuce tymto filtrom",
-  "notifyMe.dialog.notifyReminders": "Pripomienky pred akciami",
   "notifyMe.dialog.save": "Ulozit upozornenie",
   "notifyMe.dialog.cancel": "Zrusit",
   "comments.title": "Komentáre",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Obnovit",
   "profile.savedSearches.paused": "Pozastavene",
   "profile.savedSearches.pauseAll": "Pozastavit vsetky upozornenia",
-  "profile.savedSearches.reminders": "Pripomienky",
-  "profile.savedSearches.updates": "Aktualizacie",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Budúci víkend",
   "manage.admin.logs.activityLog": "Protokol aktivít",
   "manage.admin.logs.errorLog": "Protokol chýb",
-  "manage.sidebar.config": "Konfigurácia"
+  "manage.sidebar.config": "Konfigurácia",
+  "profile.savedSearches.lastSent": "Naposledy odoslané: {when}",
+  "profile.savedSearches.lastSentNever": "Zatiaľ neboli odoslané žiadne e-maily"
 }

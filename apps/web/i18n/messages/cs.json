@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Jak casto?",
   "notifyMe.dialog.weekly": "Tydenni prehled",
   "notifyMe.dialog.daily": "Denni prehled",
-  "notifyMe.dialog.notifyNew": "Nove akce odpovidajici temto filtrum",
-  "notifyMe.dialog.notifyReminders": "Pripominky pred akcemi",
   "notifyMe.dialog.save": "Ulozit upozorneni",
   "notifyMe.dialog.cancel": "Zrusit",
   "comments.title": "Komentáře",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Obnovit",
   "profile.savedSearches.paused": "Pozastaveno",
   "profile.savedSearches.pauseAll": "Pozastavit vsechna upozorneni",
-  "profile.savedSearches.reminders": "Pripominky",
-  "profile.savedSearches.updates": "Aktualizace",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Příští víkend",
   "manage.admin.logs.activityLog": "Protokol aktivit",
   "manage.admin.logs.errorLog": "Protokol chyb",
-  "manage.sidebar.config": "Konfigurace"
+  "manage.sidebar.config": "Konfigurace",
+  "profile.savedSearches.lastSent": "Naposledy odesláno: {when}",
+  "profile.savedSearches.lastSentNever": "Zatím nebyl odeslán žádný e-mail"
 }

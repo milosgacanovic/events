@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Cât de des?",
   "notifyMe.dialog.weekly": "Sumar săptămânal",
   "notifyMe.dialog.daily": "Sumar zilnic",
-  "notifyMe.dialog.notifyNew": "Evenimente noi conform acestor filtre",
-  "notifyMe.dialog.notifyReminders": "Remindere înainte de evenimente",
   "notifyMe.dialog.save": "Salvare alertă",
   "notifyMe.dialog.cancel": "Anulare",
   "comments.title": "Comentarii",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Reia",
   "profile.savedSearches.paused": "În pauză",
   "profile.savedSearches.pauseAll": "Pauză la toate notificările",
-  "profile.savedSearches.reminders": "Remindere",
-  "profile.savedSearches.updates": "Actualizări",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Weekendul viitor",
   "manage.admin.logs.activityLog": "Jurnal de activitate",
   "manage.admin.logs.errorLog": "Jurnal de erori",
-  "manage.sidebar.config": "Configurare"
+  "manage.sidebar.config": "Configurare",
+  "profile.savedSearches.lastSent": "Ultima trimitere: {when}",
+  "profile.savedSearches.lastSentNever": "Niciun e-mail trimis încă"
 }

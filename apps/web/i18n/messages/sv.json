@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Hur ofta?",
   "notifyMe.dialog.weekly": "Veckosammanfattning",
   "notifyMe.dialog.daily": "Daglig sammanfattning",
-  "notifyMe.dialog.notifyNew": "Nya evenemang som matchar dessa filter",
-  "notifyMe.dialog.notifyReminders": "Påminnelser innan evenemang börjar",
   "notifyMe.dialog.save": "Spara bevakning",
   "notifyMe.dialog.cancel": "Avbryt",
   "comments.title": "Kommentarer",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Återuppta",
   "profile.savedSearches.paused": "Pausad",
   "profile.savedSearches.pauseAll": "Pausa alla aviseringar",
-  "profile.savedSearches.reminders": "Påminnelser",
-  "profile.savedSearches.updates": "Uppdateringar",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Nästa helg",
   "manage.admin.logs.activityLog": "Aktivitetslogg",
   "manage.admin.logs.errorLog": "Fellogg",
-  "manage.sidebar.config": "Konfiguration"
+  "manage.sidebar.config": "Konfiguration",
+  "profile.savedSearches.lastSent": "Senast skickat: {when}",
+  "profile.savedSearches.lastSentNever": "Inga e-postmeddelanden har skickats än"
 }

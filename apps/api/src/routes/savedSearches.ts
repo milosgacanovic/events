@@ -8,9 +8,11 @@ import {
   deleteSavedSearch,
   listSavedSearches,
   pauseAllSavedSearches,
+  unsubscribeSavedSearchByToken,
 } from "../db/savedSearchRepo";
 import { resolveUserId } from "../middleware/ownership";
 import { logValidation } from "../utils/validationError";
+import { config } from "../config";
 
 function toResponse(row: {
   id: string;
@@ -18,9 +20,6 @@ function toResponse(row: {
   label: string | null;
   filter_snapshot: Record<string, unknown>;
   frequency: string;
-  notify_new: boolean;
-  notify_reminders: boolean;
-  notify_updates: boolean;
   unsubscribed_at: string | null;
   last_notified_at: string | null;
   created_at: string;
@@ -30,9 +29,6 @@ function toResponse(row: {
     label: row.label,
     filterSnapshot: row.filter_snapshot,
     frequency: row.frequency,
-    notifyNew: row.notify_new,
-    notifyReminders: row.notify_reminders,
-    notifyUpdates: row.notify_updates,
     unsubscribedAt: row.unsubscribed_at,
     lastNotifiedAt: row.last_notified_at,
     createdAt: row.created_at,
@@ -130,6 +126,63 @@ const savedSearchRoutes: FastifyPluginAsync = async (app) => {
     const items = await listSavedSearches(app.db, userId);
     return { items: items.map(toResponse) };
   });
+
+  // Public unsubscribe endpoint linked from digest emails. Idempotent — already
+  // unsubscribed tokens still render the success page so users don't get a
+  // confusing "not found" if they click twice. Mirrors /api/alerts/unsubscribe.
+  const querySchema = z.object({ token: z.string().uuid() });
+  app.get("/saved-searches/unsubscribe", async (request, reply) => {
+    const parsed = querySchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.code(400).type("text/html").send(renderUnsubscribePage({
+        title: "Invalid unsubscribe link",
+        body: "This unsubscribe link is malformed. If you reached this page from an email, please contact us so we can help.",
+      }));
+      return;
+    }
+
+    const row = await unsubscribeSavedSearchByToken(app.db, parsed.data.token);
+    reply.type("text/html").send(renderUnsubscribePage({
+      title: "You're unsubscribed",
+      body: row
+        ? `You won't receive any more emails for this saved search.`
+        : `You're already unsubscribed from this saved search. No further action needed.`,
+    }));
+  });
 };
+
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderUnsubscribePage({ title, body }: { title: string; body: string }): string {
+  const safeTitle = escapeHtml(title);
+  const safeBody = escapeHtml(body);
+  const safeHome = escapeHtml(config.PUBLIC_BASE_URL);
+  return `<!doctype html>
+<html><head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${safeTitle} — DanceResource Events</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f9fafb; color: #111827; margin: 0; padding: 48px 16px; }
+  .card { max-width: 480px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 32px; text-align: center; }
+  h1 { margin: 0 0 16px; font-size: 22px; }
+  p { margin: 0 0 24px; line-height: 1.5; color: #374151; }
+  a { color: #0b6e3a; text-decoration: none; font-weight: 600; }
+</style>
+</head><body>
+<div class="card">
+  <h1>${safeTitle}</h1>
+  <p>${safeBody}</p>
+  <p><a href="${safeHome}">Back to DanceResource Events</a></p>
+</div>
+</body></html>`;
+}
 
 export default savedSearchRoutes;

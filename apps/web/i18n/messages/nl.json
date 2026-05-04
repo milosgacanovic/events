@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Hoe vaak?",
   "notifyMe.dialog.weekly": "Wekelijkse samenvatting",
   "notifyMe.dialog.daily": "Dagelijkse samenvatting",
-  "notifyMe.dialog.notifyNew": "Nieuwe evenementen die overeenkomen met deze filters",
-  "notifyMe.dialog.notifyReminders": "Herinneringen voor aanvang van evenementen",
   "notifyMe.dialog.save": "Melding opslaan",
   "notifyMe.dialog.cancel": "Annuleren",
   "comments.title": "Opmerkingen",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Hervatten",
   "profile.savedSearches.paused": "Gepauzeerd",
   "profile.savedSearches.pauseAll": "Alle meldingen pauzeren",
-  "profile.savedSearches.reminders": "Herinneringen",
-  "profile.savedSearches.updates": "Updates",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Volgend weekend",
   "manage.admin.logs.activityLog": "Activiteitenlogboek",
   "manage.admin.logs.errorLog": "Foutenlogboek",
-  "manage.sidebar.config": "Configuratie"
+  "manage.sidebar.config": "Configuratie",
+  "profile.savedSearches.lastSent": "Laatst verzonden: {when}",
+  "profile.savedSearches.lastSentNever": "Nog geen e-mail verzonden"
 }

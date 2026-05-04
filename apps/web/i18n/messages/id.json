@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Seberapa sering?",
   "notifyMe.dialog.weekly": "Ringkasan mingguan",
   "notifyMe.dialog.daily": "Ringkasan harian",
-  "notifyMe.dialog.notifyNew": "Acara baru yang sesuai filter ini",
-  "notifyMe.dialog.notifyReminders": "Pengingat sebelum acara dimulai",
   "notifyMe.dialog.save": "Simpan notifikasi",
   "notifyMe.dialog.cancel": "Batal",
   "comments.title": "Komentar",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Lanjutkan",
   "profile.savedSearches.paused": "Dijeda",
   "profile.savedSearches.pauseAll": "Jeda semua notifikasi",
-  "profile.savedSearches.reminders": "Pengingat",
-  "profile.savedSearches.updates": "Pembaruan",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Akhir pekan depan",
   "manage.admin.logs.activityLog": "Log Aktivitas",
   "manage.admin.logs.errorLog": "Log Kesalahan",
-  "manage.sidebar.config": "Konfigurasi"
+  "manage.sidebar.config": "Konfigurasi",
+  "profile.savedSearches.lastSent": "Terakhir dikirim: {when}",
+  "profile.savedSearches.lastSentNever": "Belum ada email yang dikirim"
 }

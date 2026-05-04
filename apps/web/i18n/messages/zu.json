@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Kangakanani?",
   "notifyMe.dialog.weekly": "Isifinyezo saviki",
   "notifyMe.dialog.daily": "Isifinyezo sosuku",
-  "notifyMe.dialog.notifyNew": "Imicimbi emisha ehambisana nalezi zihlungi",
-  "notifyMe.dialog.notifyReminders": "Izikhumbuzo ngaphambi kokuthi imicimbi iqale",
   "notifyMe.dialog.save": "Londoloza isaziso",
   "notifyMe.dialog.cancel": "Khansela",
   "comments.title": "Amazwana",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Qhubeka",
   "profile.savedSearches.paused": "Kumisiwe",
   "profile.savedSearches.pauseAll": "Misa zonke izaziso",
-  "profile.savedSearches.reminders": "Izikhumbuzo",
-  "profile.savedSearches.updates": "Izibuyekezo",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Impelasonto elandelayo",
   "manage.admin.logs.activityLog": "Ilogi Yomsebenzi",
   "manage.admin.logs.errorLog": "Ilogi Yamaphutha",
-  "manage.sidebar.config": "Ukumisa"
+  "manage.sidebar.config": "Ukumisa",
+  "profile.savedSearches.lastSent": "Kuthunyelwe ngokugcina: {when}",
+  "profile.savedSearches.lastSentNever": "Akukho i-imeyili ethunyelwe okwamanje"
 }

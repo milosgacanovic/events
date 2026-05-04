@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Koliko cesto?",
   "notifyMe.dialog.weekly": "Tjedni pregled",
   "notifyMe.dialog.daily": "Dnevni pregled",
-  "notifyMe.dialog.notifyNew": "Novi dogadaji koji odgovaraju ovim filtrima",
-  "notifyMe.dialog.notifyReminders": "Podsjetnici prije dogadaja",
   "notifyMe.dialog.save": "Spremi obavijest",
   "notifyMe.dialog.cancel": "Odustani",
   "comments.title": "Komentari",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Nastavi",
   "profile.savedSearches.paused": "Pauzirano",
   "profile.savedSearches.pauseAll": "Pauziraj sve obavijesti",
-  "profile.savedSearches.reminders": "Podsjetnici",
-  "profile.savedSearches.updates": "Azuriranja",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Sljedeći vikend",
   "manage.admin.logs.activityLog": "Dnevnik aktivnosti",
   "manage.admin.logs.errorLog": "Dnevnik pogrešaka",
-  "manage.sidebar.config": "Konfiguracija"
+  "manage.sidebar.config": "Konfiguracija",
+  "profile.savedSearches.lastSent": "Posljednji put poslano: {when}",
+  "profile.savedSearches.lastSentNever": "Još nije poslana nijedna e-pošta"
 }

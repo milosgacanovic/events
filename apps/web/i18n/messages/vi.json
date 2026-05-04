@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Tần suất?",
   "notifyMe.dialog.weekly": "Tổng hợp hàng tuần",
   "notifyMe.dialog.daily": "Tổng hợp hàng ngày",
-  "notifyMe.dialog.notifyNew": "Sự kiện mới phù hợp với bộ lọc này",
-  "notifyMe.dialog.notifyReminders": "Nhắc nhở trước khi sự kiện bắt đầu",
   "notifyMe.dialog.save": "Lưu thông báo",
   "notifyMe.dialog.cancel": "Hủy",
   "comments.title": "Bình luận",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Tiếp tục",
   "profile.savedSearches.paused": "Đã tạm dừng",
   "profile.savedSearches.pauseAll": "Tạm dừng tất cả thông báo",
-  "profile.savedSearches.reminders": "Nhắc nhở",
-  "profile.savedSearches.updates": "Cập nhật",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Cuối tuần tới",
   "manage.admin.logs.activityLog": "Nhật ký hoạt động",
   "manage.admin.logs.errorLog": "Nhật ký lỗi",
-  "manage.sidebar.config": "Cấu hình"
+  "manage.sidebar.config": "Cấu hình",
+  "profile.savedSearches.lastSent": "Gửi lần cuối: {when}",
+  "profile.savedSearches.lastSentNever": "Chưa có email nào được gửi"
 }

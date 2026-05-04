@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "알림 빈도는?",
   "notifyMe.dialog.weekly": "주간 다이제스트",
   "notifyMe.dialog.daily": "일간 다이제스트",
-  "notifyMe.dialog.notifyNew": "이 필터에 맞는 새 이벤트",
-  "notifyMe.dialog.notifyReminders": "이벤트 시작 전 리마인더",
   "notifyMe.dialog.save": "알림 저장",
   "notifyMe.dialog.cancel": "취소",
   "comments.title": "댓글",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "재개",
   "profile.savedSearches.paused": "일시정지됨",
   "profile.savedSearches.pauseAll": "모든 알림 일시정지",
-  "profile.savedSearches.reminders": "리마인더",
-  "profile.savedSearches.updates": "업데이트",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "다음 주말",
   "manage.admin.logs.activityLog": "활동 로그",
   "manage.admin.logs.errorLog": "오류 로그",
-  "manage.sidebar.config": "구성"
+  "manage.sidebar.config": "구성",
+  "profile.savedSearches.lastSent": "마지막 발송: {when}",
+  "profile.savedSearches.lastSentNever": "아직 발송된 이메일이 없습니다"
 }

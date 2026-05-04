@@ -21,8 +21,6 @@ export function NotifyMeDialog({ filterSnapshot, filterSummary, onClose, onSaved
   const toast = useToast();
 
   const [frequency, setFrequency] = useState<"weekly" | "daily">("weekly");
-  const [notifyNew, setNotifyNew] = useState(true);
-  const [notifyReminders, setNotifyReminders] = useState(true);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -36,13 +34,7 @@ export function NotifyMeDialog({ filterSnapshot, filterSummary, onClose, onSaved
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          filterSnapshot,
-          frequency,
-          notifyNew,
-          notifyReminders,
-          notifyUpdates: true,
-        }),
+        body: JSON.stringify({ filterSnapshot, frequency }),
       });
       toast.show(t("notifyMe.toast.saved"), "success");
       onSaved();
@@ -80,28 +72,6 @@ export function NotifyMeDialog({ filterSnapshot, filterSummary, onClose, onSaved
             <option value="daily">{t("notifyMe.dialog.daily")}</option>
           </select>
         </div>
-
-        <label className="toggle-control">
-          <input
-            className="toggle-control-input"
-            type="checkbox"
-            checked={notifyNew}
-            onChange={(e) => setNotifyNew(e.target.checked)}
-          />
-          <span className="toggle-control-track" aria-hidden />
-          <span className="meta">{t("notifyMe.dialog.notifyNew")}</span>
-        </label>
-
-        <label className="toggle-control">
-          <input
-            className="toggle-control-input"
-            type="checkbox"
-            checked={notifyReminders}
-            onChange={(e) => setNotifyReminders(e.target.checked)}
-          />
-          <span className="toggle-control-track" aria-hidden />
-          <span className="meta">{t("notifyMe.dialog.notifyReminders")}</span>
-        </label>
 
         <div className="login-prompt-actions">
           <button className="primary-btn" type="button" onClick={() => void handleSave()} disabled={saving}>

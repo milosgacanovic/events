@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Ne sıklıkta?",
   "notifyMe.dialog.weekly": "Haftalık özet",
   "notifyMe.dialog.daily": "Günlük özet",
-  "notifyMe.dialog.notifyNew": "Bu filtrelere uyan yeni etkinlikler",
-  "notifyMe.dialog.notifyReminders": "Etkinlik başlamadan önce hatırlatmalar",
   "notifyMe.dialog.save": "Uyarıyı kaydet",
   "notifyMe.dialog.cancel": "İptal",
   "comments.title": "Yorumlar",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Devam et",
   "profile.savedSearches.paused": "Duraklatıldı",
   "profile.savedSearches.pauseAll": "Tüm bildirimleri duraklat",
-  "profile.savedSearches.reminders": "Hatırlatmalar",
-  "profile.savedSearches.updates": "Güncellemeler",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Gelecek hafta sonu",
   "manage.admin.logs.activityLog": "Etkinlik Günlüğü",
   "manage.admin.logs.errorLog": "Hata Günlüğü",
-  "manage.sidebar.config": "Yapılandırma"
+  "manage.sidebar.config": "Yapılandırma",
+  "profile.savedSearches.lastSent": "Son gönderim: {when}",
+  "profile.savedSearches.lastSentNever": "Henüz e-posta gönderilmedi"
 }

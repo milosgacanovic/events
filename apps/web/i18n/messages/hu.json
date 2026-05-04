@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Milyen gyakran?",
   "notifyMe.dialog.weekly": "Heti összefoglaló",
   "notifyMe.dialog.daily": "Napi összefoglaló",
-  "notifyMe.dialog.notifyNew": "Új események ezeknek a szűrőknek megfelelően",
-  "notifyMe.dialog.notifyReminders": "Emlékeztetők események kezdete előtt",
   "notifyMe.dialog.save": "Értesítés mentése",
   "notifyMe.dialog.cancel": "Mégse",
   "comments.title": "Hozzászólások",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Folytatás",
   "profile.savedSearches.paused": "Szüneteltetve",
   "profile.savedSearches.pauseAll": "Minden értesítés szüneteltetése",
-  "profile.savedSearches.reminders": "Emlékeztetők",
-  "profile.savedSearches.updates": "Frissítések",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Jövő hétvége",
   "manage.admin.logs.activityLog": "Tevékenységnapló",
   "manage.admin.logs.errorLog": "Hibanapló",
-  "manage.sidebar.config": "Konfiguráció"
+  "manage.sidebar.config": "Konfiguráció",
+  "profile.savedSearches.lastSent": "Utoljára elküldve: {when}",
+  "profile.savedSearches.lastSentNever": "Még nem lett email elküldve"
 }

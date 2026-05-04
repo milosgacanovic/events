@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Как часто?",
   "notifyMe.dialog.weekly": "Еженедельная подборка",
   "notifyMe.dialog.daily": "Ежедневная подборка",
-  "notifyMe.dialog.notifyNew": "Новые мероприятия по этим фильтрам",
-  "notifyMe.dialog.notifyReminders": "Напоминания перед началом мероприятий",
   "notifyMe.dialog.save": "Сохранить оповещение",
   "notifyMe.dialog.cancel": "Отмена",
   "comments.title": "Комментарии",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Возобновить",
   "profile.savedSearches.paused": "Приостановлено",
   "profile.savedSearches.pauseAll": "Приостановить все уведомления",
-  "profile.savedSearches.reminders": "Напоминания",
-  "profile.savedSearches.updates": "Обновления",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Следующие выходные",
   "manage.admin.logs.activityLog": "Журнал активности",
   "manage.admin.logs.errorLog": "Журнал ошибок",
-  "manage.sidebar.config": "Настройки"
+  "manage.sidebar.config": "Настройки",
+  "profile.savedSearches.lastSent": "Последнее отправление: {when}",
+  "profile.savedSearches.lastSentNever": "Письма ещё не отправлялись"
 }

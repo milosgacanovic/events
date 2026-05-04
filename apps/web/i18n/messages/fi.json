@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Kuinka usein?",
   "notifyMe.dialog.weekly": "Viikkokooste",
   "notifyMe.dialog.daily": "Päivittäinen kooste",
-  "notifyMe.dialog.notifyNew": "Uudet näitä suodattimia vastaavat tapahtumat",
-  "notifyMe.dialog.notifyReminders": "Muistutukset ennen tapahtumien alkua",
   "notifyMe.dialog.save": "Tallenna hälytys",
   "notifyMe.dialog.cancel": "Peruuta",
   "comments.title": "Kommentit",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Jatka",
   "profile.savedSearches.paused": "Keskeytetty",
   "profile.savedSearches.pauseAll": "Keskeytä kaikki ilmoitukset",
-  "profile.savedSearches.reminders": "Muistutukset",
-  "profile.savedSearches.updates": "Päivitykset",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Ensi viikonloppu",
   "manage.admin.logs.activityLog": "Toimintaloki",
   "manage.admin.logs.errorLog": "Virheloki",
-  "manage.sidebar.config": "Asetukset"
+  "manage.sidebar.config": "Asetukset",
+  "profile.savedSearches.lastSent": "Viimeksi lähetetty: {when}",
+  "profile.savedSearches.lastSentNever": "Ei vielä lähetettyjä sähköposteja"
 }

@@ -34,6 +34,10 @@ const configSchema = z.object({
   // in environments that haven't been verified yet — flip to true after confirming
   // dry-run output looks correct.
   ENABLE_ALERT_NOTIFICATIONS: z.coerce.boolean().default(false),
+  // Feature flag for the saved-search digest worker. Default false so the
+  // worker ships quiet to prod and is enabled by toggling the cron wrapper
+  // env (no redeploy required).
+  ENABLE_SAVED_SEARCH_DIGESTS: z.coerce.boolean().default(false),
   // Feature flag for series grouping in search/map results. Default false so
   // the schema + API changes (series_id column, seriesId input) can ship
   // unconditionally while the importer rolls out stable seriesId emission.

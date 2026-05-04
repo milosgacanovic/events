@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { uuidSchema } from "./common";
-
 export const savedSearchFrequencySchema = z.enum(["daily", "weekly"]);
 
 // Multi-value fields can arrive as either a CSV string (the URL param shape
@@ -37,17 +35,11 @@ export const createSavedSearchSchema = z.object({
   label: z.string().max(200).optional(),
   filterSnapshot: savedSearchFilterSnapshotSchema,
   frequency: savedSearchFrequencySchema.default("weekly"),
-  notifyNew: z.boolean().default(true),
-  notifyReminders: z.boolean().default(true),
-  notifyUpdates: z.boolean().default(true),
 });
 
 export const updateSavedSearchSchema = z.object({
   label: z.string().max(200).optional(),
   frequency: savedSearchFrequencySchema.optional(),
-  notifyNew: z.boolean().optional(),
-  notifyReminders: z.boolean().optional(),
-  notifyUpdates: z.boolean().optional(),
   paused: z.boolean().optional(),
 });
 

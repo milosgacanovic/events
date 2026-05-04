@@ -307,8 +307,6 @@
   "notifyMe.dialog.frequency": "Koliko cesto?",
   "notifyMe.dialog.weekly": "Nedeljni pregled",
   "notifyMe.dialog.daily": "Dnevni pregled",
-  "notifyMe.dialog.notifyNew": "Novi dogadaji koji odgovaraju ovim filtrima",
-  "notifyMe.dialog.notifyReminders": "Podsetnici pre dogadaja",
   "notifyMe.dialog.save": "Sacuvaj obavesstenje",
   "notifyMe.dialog.cancel": "Otkazi",
   "comments.title": "Komentari",
@@ -397,8 +395,6 @@
   "profile.savedSearches.resume": "Nastavi",
   "profile.savedSearches.paused": "Pauzirano",
   "profile.savedSearches.pauseAll": "Pauziraj sva obavesstenja",
-  "profile.savedSearches.reminders": "Podsetnici",
-  "profile.savedSearches.updates": "Azuriranja",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "profile.comments.statusPending": "na čekanju",
   "profile.comments.statusApproved": "odobreno",
   "profile.comments.statusRejected": "odbijeno",
-  "manage.admin.moderation.byModerator": "od {name}"
+  "manage.admin.moderation.byModerator": "od {name}",
+  "profile.savedSearches.lastSent": "Последње послато: {when}",
+  "profile.savedSearches.lastSentNever": "Још није послата ниједна порука"
 }

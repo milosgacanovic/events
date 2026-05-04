@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "באיזו תדירות?",
   "notifyMe.dialog.weekly": "סיכום שבועי",
   "notifyMe.dialog.daily": "סיכום יומי",
-  "notifyMe.dialog.notifyNew": "אירועים חדשים התואמים מסננים אלה",
-  "notifyMe.dialog.notifyReminders": "תזכורות לפני תחילת אירועים",
   "notifyMe.dialog.save": "שמור התראה",
   "notifyMe.dialog.cancel": "ביטול",
   "comments.title": "תגובות",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "חדש",
   "profile.savedSearches.paused": "מושהה",
   "profile.savedSearches.pauseAll": "השהה את כל ההתראות",
-  "profile.savedSearches.reminders": "תזכורות",
-  "profile.savedSearches.updates": "עדכונים",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "סוף השבוע הבא",
   "manage.admin.logs.activityLog": "יומן פעילות",
   "manage.admin.logs.errorLog": "יומן שגיאות",
-  "manage.sidebar.config": "הגדרות"
+  "manage.sidebar.config": "הגדרות",
+  "profile.savedSearches.lastSent": "נשלח לאחרונה: {when}",
+  "profile.savedSearches.lastSentNever": "טרם נשלח אימייל"
 }

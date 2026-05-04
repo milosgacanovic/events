@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "რამდენად ხშირად?",
   "notifyMe.dialog.weekly": "ყოველკვირეული მიმოხილვა",
   "notifyMe.dialog.daily": "ყოველდღიური მიმოხილვა",
-  "notifyMe.dialog.notifyNew": "ახალი ღონისძიებები ამ ფილტრების შესაბამისად",
-  "notifyMe.dialog.notifyReminders": "შეხსენებები ღონისძიების დაწყებამდე",
   "notifyMe.dialog.save": "შეტყობინების შენახვა",
   "notifyMe.dialog.cancel": "გაუქმება",
   "comments.title": "კომენტარები",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "გაგრძელება",
   "profile.savedSearches.paused": "შეჩერებულია",
   "profile.savedSearches.pauseAll": "ყველა შეტყობინების შეჩერება",
-  "profile.savedSearches.reminders": "შეხსენებები",
-  "profile.savedSearches.updates": "განახლებები",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "მომავალი შაბათ-კვირა",
   "manage.admin.logs.activityLog": "აქტივობის ჟურნალი",
   "manage.admin.logs.errorLog": "შეცდომების ჟურნალი",
-  "manage.sidebar.config": "კონფიგურაცია"
+  "manage.sidebar.config": "კონფიგურაცია",
+  "profile.savedSearches.lastSent": "ბოლოს გაიგზავნა: {when}",
+  "profile.savedSearches.lastSentNever": "ჯერ ელფოსტა არ გაგზავნილა"
 }

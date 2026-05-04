@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "كم مرة؟",
   "notifyMe.dialog.weekly": "ملخص أسبوعي",
   "notifyMe.dialog.daily": "ملخص يومي",
-  "notifyMe.dialog.notifyNew": "فعاليات جديدة تطابق هذه الفلاتر",
-  "notifyMe.dialog.notifyReminders": "تذكيرات قبل بدء الفعاليات",
   "notifyMe.dialog.save": "حفظ التنبيه",
   "notifyMe.dialog.cancel": "إلغاء",
   "comments.title": "التعليقات",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "استئناف",
   "profile.savedSearches.paused": "متوقف مؤقتاً",
   "profile.savedSearches.pauseAll": "إيقاف جميع الإشعارات مؤقتاً",
-  "profile.savedSearches.reminders": "تذكيرات",
-  "profile.savedSearches.updates": "تحديثات",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "عطلة نهاية الأسبوع القادمة",
   "manage.admin.logs.activityLog": "سجل النشاط",
   "manage.admin.logs.errorLog": "سجل الأخطاء",
-  "manage.sidebar.config": "الإعدادات"
+  "manage.sidebar.config": "الإعدادات",
+  "profile.savedSearches.lastSent": "آخر إرسال: {when}",
+  "profile.savedSearches.lastSentNever": "لم يُرسَل أي بريد بعد"
 }

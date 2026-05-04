@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "Hversu oft?",
   "notifyMe.dialog.weekly": "Vikuleg samantekt",
   "notifyMe.dialog.daily": "Dagleg samantekt",
-  "notifyMe.dialog.notifyNew": "Nýir viðburðir sem passa við þessar síur",
-  "notifyMe.dialog.notifyReminders": "Áminningar áður en viðburðir hefjast",
   "notifyMe.dialog.save": "Vista tilkynningu",
   "notifyMe.dialog.cancel": "Hætta við",
   "comments.title": "Athugasemdir",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "Halda áfram",
   "profile.savedSearches.paused": "Í hléi",
   "profile.savedSearches.pauseAll": "Gera hlé á öllum tilkynningum",
-  "profile.savedSearches.reminders": "Áminningar",
-  "profile.savedSearches.updates": "Uppfærslur",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "Næsta helgi",
   "manage.admin.logs.activityLog": "Virkniskrá",
   "manage.admin.logs.errorLog": "Villuskrá",
-  "manage.sidebar.config": "Stillingar"
+  "manage.sidebar.config": "Stillingar",
+  "profile.savedSearches.lastSent": "Síðast sent: {when}",
+  "profile.savedSearches.lastSentNever": "Enginn tölvupóstur sendur enn"
 }

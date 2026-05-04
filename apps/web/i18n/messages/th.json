@@ -306,8 +306,6 @@
   "notifyMe.dialog.frequency": "บ่อยแค่ไหน?",
   "notifyMe.dialog.weekly": "สรุปรายสัปดาห์",
   "notifyMe.dialog.daily": "สรุปรายวัน",
-  "notifyMe.dialog.notifyNew": "กิจกรรมใหม่ที่ตรงกับตัวกรองเหล่านี้",
-  "notifyMe.dialog.notifyReminders": "การเตือนก่อนกิจกรรมเริ่ม",
   "notifyMe.dialog.save": "บันทึกการแจ้งเตือน",
   "notifyMe.dialog.cancel": "ยกเลิก",
   "comments.title": "ความคิดเห็น",
@@ -396,8 +394,6 @@
   "profile.savedSearches.resume": "ดำเนินการต่อ",
   "profile.savedSearches.paused": "หยุดชั่วคราว",
   "profile.savedSearches.pauseAll": "หยุดการแจ้งเตือนทั้งหมด",
-  "profile.savedSearches.reminders": "การเตือน",
-  "profile.savedSearches.updates": "อัปเดต",
   "profile.savedSearches.filters": "Filters",
   "profile.savedSearches.allEvents": "All events",
   "profile.savedSearches.openSearch": "Open search",
@@ -1346,5 +1342,7 @@
   "eventSearch.eventDateOption.next_weekend": "สุดสัปดาห์หน้า",
   "manage.admin.logs.activityLog": "บันทึกกิจกรรม",
   "manage.admin.logs.errorLog": "บันทึกข้อผิดพลาด",
-  "manage.sidebar.config": "การตั้งค่า"
+  "manage.sidebar.config": "การตั้งค่า",
+  "profile.savedSearches.lastSent": "ส่งล่าสุด: {when}",
+  "profile.savedSearches.lastSentNever": "ยังไม่มีการส่งอีเมล"
 }
