@@ -483,11 +483,15 @@ export function OrganizerSearchClient({
   const onNavigateAway = useCallback(() => {
     if (typeof window === "undefined") return;
     try {
+      // Capture filter state from React refs (the source of truth) — NOT from
+      // window.location.href, because the URL writer effect runs async after
+      // state changes. On back-nav we read this snapshot and restore state
+      // directly, sidestepping the URL race entirely.
       const url = new URL(window.location.href);
-      const params = new URLSearchParams(url.search);
-      params.delete("page");
-      params.sort();
-      const query = params.toString();
+      const urlParams = new URLSearchParams(url.search);
+      urlParams.delete("page");
+      urlParams.sort();
+      const query = urlParams.toString();
       const key = `search-scroll:${url.pathname}${query ? `?${query}` : ""}`;
       const snapshot = {
         key,
@@ -502,10 +506,28 @@ export function OrganizerSearchClient({
           languages: languageFacetCounts,
           countryCode: countryFacetCounts,
         },
+        filters: {
+          q,
+          roleKeys,
+          practiceCategoryIds,
+          tags,
+          languages,
+          countryCodes,
+          cities,
+          view,
+        },
+        mapLat: new URL(window.location.href).searchParams.get("mapLat"),
+        mapLng: new URL(window.location.href).searchParams.get("mapLng"),
+        mapZoom: new URL(window.location.href).searchParams.get("mapZoom"),
       };
       sessionStorage.setItem("search-cache-snapshot", JSON.stringify(snapshot));
+      sessionStorage.setItem("dr-came-from-search", "1");
     } catch { /* ignore */ }
-  }, [accumulatedItems, page, data?.total, roleFacetCounts, practiceFacetCounts, languageFacetCounts, countryFacetCounts]);
+  }, [
+    accumulatedItems, page, data?.total, roleFacetCounts, practiceFacetCounts,
+    languageFacetCounts, countryFacetCounts,
+    q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities, view,
+  ]);
 
   const runSearch = useCallback(async (nextPage = page) => {
     const appendMode = isLoadMoreRef.current;
@@ -540,9 +562,19 @@ export function OrganizerSearchClient({
   }, [buildQueryString, canSeeDetailedErrors, page, t]);
 
   useEffect(() => {
-    // Try restoring from snapshot saved by onNavigateAway (host card click)
+    // Try restoring from snapshot saved by onNavigateAway (host card click).
+    // We detect back-nav via PerformanceNavigationTiming and restore filter
+    // state DIRECTLY from the snapshot, then sync the URL — bypassing the
+    // URL→state path so the snapshot is robust to URL writer race conditions.
     if (lastRestoredKeyRef.current !== scrollStorageKey) {
       try {
+        const isBackNav = (() => {
+          try {
+            const navEntries = performance.getEntriesByType("navigation");
+            const first = navEntries[0] as PerformanceNavigationTiming | undefined;
+            return first?.type === "back_forward";
+          } catch { return false; }
+        })();
         const raw = sessionStorage.getItem("search-cache-snapshot");
         if (raw) {
           const cached = JSON.parse(raw) as {
@@ -552,19 +584,46 @@ export function OrganizerSearchClient({
             accumulatedItems?: OrganizerSearchResponse["items"];
             page?: number;
             total?: number;
+            filters?: {
+              q?: string;
+              roleKeys?: string[];
+              practiceCategoryIds?: string[];
+              tags?: string[];
+              languages?: string[];
+              countryCodes?: string[];
+              cities?: string[];
+              view?: "list" | "map";
+            };
+            mapLat?: string | null;
+            mapLng?: string | null;
+            mapZoom?: string | null;
           };
           const age = Date.now() - (cached.ts ?? 0);
           if (
-            cached.key === scrollStorageKey &&
+            isBackNav &&
             cached.accumulatedItems?.length &&
             typeof cached.ts === "number" &&
             age < 30 * 60 * 1000
           ) {
             sessionStorage.removeItem("search-cache-snapshot");
-            lastRestoredKeyRef.current = scrollStorageKey;
             cacheRestoredPageRef.current = cached.page ?? 1;
             cacheRestoreInProgressRef.current = true;
             cachedScrollYRef.current = cached.y ?? null;
+
+            // Restore filter state from snapshot.
+            const f = cached.filters ?? {};
+            setQ(f.q ?? "");
+            setRoleKeys(f.roleKeys ?? []);
+            setPracticeCategoryIds(f.practiceCategoryIds ?? []);
+            setTags(f.tags ?? []);
+            setLanguages(f.languages ?? []);
+            setCountryCodes(f.countryCodes ?? []);
+            setCities(f.cities ?? []);
+            // setViewState (raw setter), not setView, to avoid a duplicate
+            // router.replace — the authoritative URL update is below.
+            setViewState(f.view ?? "list");
+
+            // Restore results.
             setAccumulatedItems(cached.accumulatedItems);
             setPage(cached.page ?? 1);
             isLoadMorePageRef.current = true;
@@ -578,6 +637,36 @@ export function OrganizerSearchClient({
                 totalPages: Math.ceil((cached.total ?? 0) / 20),
               },
             });
+
+            // Sync URL to match restored filter state.
+            const newParams = new URLSearchParams();
+            if (f.q?.trim()) newParams.set("q", f.q.trim());
+            if (f.roleKeys?.length) newParams.set("roleKey", f.roleKeys.join(","));
+            if (f.practiceCategoryIds?.length) newParams.set("practiceCategoryId", f.practiceCategoryIds.join(","));
+            if (f.tags?.length) newParams.set("tags", f.tags.join(","));
+            if (f.languages?.length) newParams.set("languages", f.languages.join(","));
+            if (f.countryCodes?.length) newParams.set("countryCode", f.countryCodes.join(","));
+            if (f.cities?.length) newParams.set("city", f.cities.join(","));
+            if (f.view && f.view !== "list") newParams.set("view", f.view);
+            if ((cached.page ?? 1) > 1) newParams.set("page", String(cached.page));
+            if (cached.mapLat) newParams.set("mapLat", cached.mapLat);
+            if (cached.mapLng) newParams.set("mapLng", cached.mapLng);
+            if (cached.mapZoom) newParams.set("mapZoom", cached.mapZoom);
+            const newSearch = newParams.toString();
+            const newUrl = newSearch ? `${pathname}?${newSearch}` : pathname;
+            const currentUrl = window.location.pathname + window.location.search;
+            if (currentUrl !== newUrl) {
+              router.replace(newUrl, { scroll: false });
+            }
+
+            // Pre-set lastRestoredKeyRef to the future scrollStorageKey so the
+            // URL writer's settle doesn't re-trigger the cache check / search.
+            const sortedNewParams = new URLSearchParams(newSearch);
+            sortedNewParams.delete("page");
+            sortedNewParams.sort();
+            const sortedQuery = sortedNewParams.toString();
+            lastRestoredKeyRef.current = `search-scroll:${pathname}${sortedQuery ? `?${sortedQuery}` : ""}`;
+
             return;
           }
         }
@@ -594,7 +683,7 @@ export function OrganizerSearchClient({
       void runSearch(page);
     }, 250);
     return () => clearTimeout(timer);
-  }, [runSearch, page, scrollStorageKey]);
+  }, [runSearch, page, scrollStorageKey, pathname, router]);
 
   useEffect(() => {
     if (syncingFromUrlRef.current) {

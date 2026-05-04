@@ -789,12 +789,16 @@ export function EventSearchClient({
   const onNavigateAway = useCallback(() => {
     if (typeof window === "undefined") return;
     try {
-      // Compute key from current URL (not stale searchParams) to match what back-nav will see
+      // Capture filter state from React refs (the source of truth) — NOT from
+      // window.location.href, because the URL writer effect runs async after
+      // state changes, so the URL may not yet reflect a filter the user just
+      // toggled. On back-nav we read this snapshot and restore state directly,
+      // sidestepping the URL race entirely.
       const url = new URL(window.location.href);
-      const params = new URLSearchParams(url.search);
-      params.delete("page");
-      params.sort();
-      const query = params.toString();
+      const urlParams = new URLSearchParams(url.search);
+      urlParams.delete("page");
+      urlParams.sort();
+      const query = urlParams.toString();
       const key = `search-scroll:${url.pathname}${query ? `?${query}` : ""}`;
 
       const snapshot = {
@@ -805,11 +809,38 @@ export function EventSearchClient({
         page,
         totalHits: data?.totalHits ?? 0,
         disjunctiveFacets,
+        activeQueryString,
+        filters: {
+          q,
+          eventDates,
+          customFrom,
+          customTo,
+          practiceCategoryIds,
+          practiceSubcategoryId,
+          eventFormatIds,
+          tags,
+          languages,
+          attendanceModes,
+          countryCodes,
+          cities,
+          sort,
+          view,
+          includePast,
+          geoRadius,
+        },
+        mapLat: new URL(window.location.href).searchParams.get("mapLat"),
+        mapLng: new URL(window.location.href).searchParams.get("mapLng"),
+        mapZoom: new URL(window.location.href).searchParams.get("mapZoom"),
       };
       sessionStorage.setItem("search-cache-snapshot", JSON.stringify(snapshot));
       sessionStorage.setItem("dr-came-from-search", "1");
     } catch { /* ignore */ }
-  }, [accumulatedHits, page, data?.totalHits, disjunctiveFacets]);
+  }, [
+    accumulatedHits, page, data?.totalHits, disjunctiveFacets, activeQueryString,
+    q, eventDates, customFrom, customTo, practiceCategoryIds, practiceSubcategoryId,
+    eventFormatIds, tags, languages, attendanceModes, countryCodes, cities,
+    sort, view, includePast, geoRadius,
+  ]);
 
   const runSearch = useCallback(async (nextPage = page) => {
     const currentQuery = buildQueryString(nextPage);
@@ -877,9 +908,20 @@ export function EventSearchClient({
   }, [buildQueryString, canSeeDetailedErrors, page, t]);
 
   useEffect(() => {
-    // Try restoring from snapshot saved by onNavigateAway (event card click)
+    // Try restoring from snapshot saved by onNavigateAway (event card click).
+    // We detect back-nav via PerformanceNavigationTiming and restore filter
+    // state DIRECTLY from the snapshot, then sync the URL to match — bypassing
+    // the URL→state path entirely. This is robust to the race where the URL
+    // writer hadn't flushed before the user tapped an event card.
     if (lastRestoredKeyRef.current !== scrollStorageKey) {
       try {
+        const isBackNav = (() => {
+          try {
+            const navEntries = performance.getEntriesByType("navigation");
+            const first = navEntries[0] as PerformanceNavigationTiming | undefined;
+            return first?.type === "back_forward";
+          } catch { return false; }
+        })();
         const raw = sessionStorage.getItem("search-cache-snapshot");
         if (raw) {
           const cached = JSON.parse(raw) as {
@@ -890,19 +932,64 @@ export function EventSearchClient({
             page?: number;
             totalHits?: number;
             disjunctiveFacets?: DisjunctiveFacetState;
+            activeQueryString?: string;
+            filters?: {
+              q?: string;
+              eventDates?: EventDatePreset[];
+              customFrom?: string;
+              customTo?: string;
+              practiceCategoryIds?: string[];
+              practiceSubcategoryId?: string;
+              eventFormatIds?: string[];
+              tags?: string[];
+              languages?: string[];
+              attendanceModes?: string[];
+              countryCodes?: string[];
+              cities?: string[];
+              sort?: "startsAtAsc" | "startsAtDesc" | "publishedAtDesc" | "relevance";
+              view?: "list" | "map" | "discover";
+              includePast?: boolean;
+              geoRadius?: number | null;
+            };
+            mapLat?: string | null;
+            mapLng?: string | null;
+            mapZoom?: string | null;
           };
           const age = Date.now() - (cached.ts ?? 0);
           if (
-            cached.key === scrollStorageKey &&
+            isBackNav &&
             cached.accumulatedHits?.length &&
             typeof cached.ts === "number" &&
             age < 30 * 60 * 1000
           ) {
             sessionStorage.removeItem("search-cache-snapshot");
-            lastRestoredKeyRef.current = scrollStorageKey;
             cacheRestoredPageRef.current = cached.page ?? 1;
             cacheRestoreInProgressRef.current = true;
             cachedScrollYRef.current = cached.y ?? null;
+
+            // Restore filter state from snapshot (source of truth on back-nav).
+            const f = cached.filters ?? {};
+            setQ(f.q ?? "");
+            setEventDates(f.eventDates ?? []);
+            setCustomFrom(f.customFrom ?? "");
+            setCustomTo(f.customTo ?? "");
+            setPracticeCategoryIds(f.practiceCategoryIds ?? []);
+            setPracticeSubcategoryId(f.practiceSubcategoryId ?? "");
+            setEventFormatIds(f.eventFormatIds ?? []);
+            setTags(f.tags ?? []);
+            setLanguages(f.languages ?? []);
+            setAttendanceModes(f.attendanceModes ?? []);
+            setCountryCodes(f.countryCodes ?? []);
+            setCities(f.cities ?? []);
+            setSort(f.sort ?? "startsAtAsc");
+            // Use setViewState (the underlying state setter), not setView, to
+            // avoid a duplicate router.replace — we issue a single,
+            // authoritative router.replace below with the full URL.
+            setViewState(f.view ?? "list");
+            setIncludePast(f.includePast ?? false);
+            setGeoRadius(f.geoRadius ?? null);
+
+            // Restore results.
             setAccumulatedHits(cached.accumulatedHits);
             setPage(cached.page ?? 1);
             isLoadMorePageRef.current = true;
@@ -920,6 +1007,65 @@ export function EventSearchClient({
             if (cached.disjunctiveFacets) {
               setDisjunctiveFacets(cached.disjunctiveFacets);
             }
+            // activeQueryString fixes Bug C: map fetcher uses this directly,
+            // and without it the map renders all events even though the chip
+            // shows the filter as selected.
+            if (cached.activeQueryString) {
+              setActiveQueryString(cached.activeQueryString);
+            }
+
+            // Sync URL to match the restored filter state. We mirror
+            // buildUiQueryString here so the URL is reconstructed from snapshot
+            // filters (which may differ from window.location if the URL writer
+            // hadn't flushed when the user tapped the event card).
+            const newParams = new URLSearchParams();
+            if (f.q?.trim()) newParams.set("q", f.q.trim());
+            if (f.practiceCategoryIds?.length) newParams.set("practiceCategoryId", f.practiceCategoryIds.join(","));
+            if (f.practiceSubcategoryId) newParams.set("practiceSubcategoryId", f.practiceSubcategoryId);
+            if (f.eventFormatIds?.length) newParams.set("eventFormatId", f.eventFormatIds.join(","));
+            if (f.tags?.length) newParams.set("tags", f.tags.join(","));
+            if (f.languages?.length) newParams.set("languages", f.languages.join(","));
+            if (f.attendanceModes?.length) newParams.set("attendanceMode", f.attendanceModes.join(","));
+            if (f.geoRadius) {
+              newParams.set("nearMe", String(f.geoRadius / 1000));
+            } else {
+              if (f.countryCodes?.length) newParams.set("countryCode", f.countryCodes.join(","));
+              if (f.cities?.length) newParams.set("city", f.cities.join(","));
+            }
+            if (f.eventDates?.length) newParams.set("eventDate", f.eventDates.join(","));
+            if (f.customFrom) newParams.set("dateFrom", f.customFrom);
+            if (f.customTo) newParams.set("dateTo", f.customTo);
+            const sortParam = f.sort === "startsAtDesc" ? "latest"
+              : f.sort === "publishedAtDesc" ? "recent"
+                : f.sort === "relevance" ? "relevance"
+                  : null;
+            if (sortParam) newParams.set("sort", sortParam);
+            if (f.view && f.view !== "list") newParams.set("view", f.view);
+            if ((cached.page ?? 1) > 1) newParams.set("page", String(cached.page));
+            if (f.includePast) newParams.set("includePast", "true");
+            if (cached.mapLat) newParams.set("mapLat", cached.mapLat);
+            if (cached.mapLng) newParams.set("mapLng", cached.mapLng);
+            if (cached.mapZoom) newParams.set("mapZoom", cached.mapZoom);
+            const newSearch = newParams.toString();
+            const newUrl = newSearch ? `${pathname}?${newSearch}` : pathname;
+            const currentUrl = window.location.pathname + window.location.search;
+            if (currentUrl !== newUrl) {
+              router.replace(newUrl, { scroll: false });
+            }
+
+            // Set lastRestoredKeyRef to the FUTURE scrollStorageKey (computed
+            // the same way the memo does) so that the post-restore re-runs of
+            // this effect (triggered by URL writer settling and runSearch ref
+            // changes) all see "already restored" and skip the cache check
+            // path. Without this, the URL writer's URL update would change
+            // scrollStorageKey, mismatch lastRestoredKeyRef, fall through to
+            // setLoading + runSearch, and the user would see a needless flash.
+            const sortedNewParams = new URLSearchParams(newSearch);
+            sortedNewParams.delete("page");
+            sortedNewParams.sort();
+            const sortedQuery = sortedNewParams.toString();
+            lastRestoredKeyRef.current = `search-scroll:${pathname}${sortedQuery ? `?${sortedQuery}` : ""}`;
+
             return;
           }
         }
@@ -939,7 +1085,7 @@ export function EventSearchClient({
     return () => {
       clearTimeout(timer);
     };
-  }, [runSearch, page, scrollStorageKey]);
+  }, [runSearch, page, scrollStorageKey, pathname, router]);
 
 
   useEffect(() => {
