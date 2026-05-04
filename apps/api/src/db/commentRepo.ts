@@ -63,20 +63,62 @@ export async function deleteComment(
   userId: string,
   commentId: string,
 ): Promise<boolean> {
-  const result = await pool.query(
-    `DELETE FROM comments WHERE id = $1 AND user_id = $2`,
-    [commentId, userId],
-  );
-  const deleted = (result.rowCount ?? 0) > 0;
-  if (deleted) {
-    await pool.query(
-      `UPDATE moderation_queue
-       SET status = 'user_deleted', reviewed_at = now()
-       WHERE item_type = 'comment' AND item_id = $1 AND status = 'pending'`,
-      [commentId],
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+
+    // Snapshot context before delete so the moderation queue keeps usable info
+    // even after the comment row is gone.
+    const snapshotResult = await client.query<{
+      body: string;
+      display_name: string | null;
+      event_id: string;
+      event_title: string | null;
+    }>(
+      `SELECT c.body, u.display_name, c.event_id::text AS event_id, e.title AS event_title
+       FROM comments c
+       LEFT JOIN users u ON u.id = c.user_id
+       LEFT JOIN events e ON e.id = c.event_id
+       WHERE c.id = $1 AND c.user_id = $2`,
+      [commentId, userId],
     );
+
+    const snap = snapshotResult.rows[0];
+    if (!snap) {
+      await client.query("rollback");
+      return false;
+    }
+
+    await client.query(
+      `DELETE FROM comments WHERE id = $1 AND user_id = $2`,
+      [commentId, userId],
+    );
+
+    // Transition every moderation_queue row for this comment (regardless of
+    // prior status) to user_deleted so it disappears from pending/approved/
+    // rejected views and lands only in the "Deleted by User" archive.
+    await client.query(
+      `UPDATE moderation_queue
+       SET status = 'user_deleted',
+           reviewed_at = now(),
+           snapshot_user_id = $2,
+           snapshot_user_name = $3,
+           snapshot_content = $4,
+           snapshot_target_type = 'event',
+           snapshot_target_id = $5::uuid,
+           snapshot_target_label = $6
+       WHERE item_type = 'comment' AND item_id = $1`,
+      [commentId, userId, snap.display_name, snap.body, snap.event_id, snap.event_title],
+    );
+
+    await client.query("commit");
+    return true;
+  } catch (err) {
+    await client.query("rollback");
+    throw err;
+  } finally {
+    client.release();
   }
-  return deleted;
 }
 
 export async function listUserComments(

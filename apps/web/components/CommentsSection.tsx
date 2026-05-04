@@ -147,20 +147,18 @@ export function CommentsSection({ eventId, seriesName, singleEndAt, scheduleKind
         <p className="muted">{t("comments.readOnly")}</p>
       ) : (
         <div className="comments-post">
-          <div className="comments-textarea-wrap">
-            <textarea
-              className="comments-textarea"
-              value={body}
-              onChange={(e) => setBody(e.target.value.slice(0, MAX_CHARS))}
-              placeholder={auth.authenticated ? t("comments.placeholder") : t("comments.loginToComment")}
-              rows={3}
-              maxLength={MAX_CHARS}
-            />
-            <span className="comments-char-count-inside">
+          <textarea
+            className="comments-textarea"
+            value={body}
+            onChange={(e) => setBody(e.target.value.slice(0, MAX_CHARS))}
+            placeholder={auth.authenticated ? t("comments.placeholder") : t("comments.loginToComment")}
+            rows={3}
+            maxLength={MAX_CHARS}
+          />
+          <div className="comments-post-footer">
+            <span className="comments-char-count">
               {body.length}/{MAX_CHARS}
             </span>
-          </div>
-          <div className="comments-post-footer">
             <button
               className="primary-btn"
               type="button"

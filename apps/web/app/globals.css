@@ -597,7 +597,7 @@ main:has(.manage-main--wide) {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 2000;
   padding: 16px;
 }
 
@@ -2474,25 +2474,13 @@ label.meta {
 .comments-post-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 8px;
 }
 .comments-char-count {
-  font-size: 0.82rem;
-}
-.comments-textarea-wrap {
-  position: relative;
-}
-.comments-textarea-wrap .comments-textarea {
-  padding-bottom: 24px;
-}
-.comments-char-count-inside {
-  position: absolute;
-  bottom: 6px;
-  right: 10px;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   color: var(--muted);
-  pointer-events: none;
 }
 .comments-list {
   list-style: none;

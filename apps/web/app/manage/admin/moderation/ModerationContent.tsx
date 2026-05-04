@@ -301,9 +301,10 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
                           const rejectStatus = "rejected";
                           const isApproved = item.status === "approved";
                           const isRejected = item.status === "rejected";
+                          const isTerminal = item.status === "user_deleted" || item.status === "actioned";
                           return (
                             <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                              {!isApproved && (
+                              {!isApproved && !isTerminal && (
                                 <button
                                   type="button"
                                   className="secondary-btn"
@@ -314,7 +315,7 @@ export function ModerationContent({ tab }: { tab: NativeModerationTab }) {
                                   {approveLabel}
                                 </button>
                               )}
-                              {!isRejected && (
+                              {!isRejected && !isTerminal && (
                                 <button
                                   type="button"
                                   className="secondary-btn"

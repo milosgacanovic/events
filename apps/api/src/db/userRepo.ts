@@ -7,12 +7,14 @@ export async function findOrCreateUserBySub(
   email?: string,
   roles?: string[],
 ): Promise<string> {
+  // display_name is seeded from the Keycloak claim on initial create only.
+  // After that the user's edits in /profile/account are authoritative; we must
+  // not clobber them on subsequent authenticated requests.
   const inserted = await pool.query<{ id: string }>(
     `
       insert into users (keycloak_sub, display_name, email, roles)
       values ($1, $2, $3, $4)
       on conflict (keycloak_sub) do update set
-        display_name = coalesce(nullif(excluded.display_name, ''), users.display_name),
         email = coalesce(nullif(excluded.email, ''), users.email),
         roles = case when cardinality(excluded.roles) = 0 then users.roles else excluded.roles end
       returning id

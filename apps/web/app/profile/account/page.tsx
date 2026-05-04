@@ -79,6 +79,18 @@ export default function AccountTab() {
 
   useEffect(() => { void load(); }, [load]);
 
+  function buildProfileBody() {
+    return {
+      displayName: displayName.trim() || undefined,
+      homeCity: homeCity?.city ?? null,
+      homeCountryCode: homeCity?.countryCode ?? null,
+      homeLat: homeCity?.lat ?? null,
+      homeLng: homeCity?.lng ?? null,
+      homeLocationLabel: homeCity?.label ?? null,
+      defaultRadiusKm,
+    };
+  }
+
   async function saveProfile() {
     setSaving(true);
     setError(null);
@@ -89,7 +101,7 @@ export default function AccountTab() {
       const res = await fetch(`${apiBase}/profile`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ displayName: displayName.trim() || undefined }),
+        body: JSON.stringify(buildProfileBody()),
       });
       if (!res.ok) throw new Error(`profile_save_failed_${res.status}`);
       const p = (await res.json()) as ProfilePayload;
@@ -119,18 +131,10 @@ export default function AccountTab() {
     try {
       const token = await auth.getToken();
       if (!token) throw new Error("missing_token");
-      const body = {
-        homeCity: homeCity?.city ?? null,
-        homeCountryCode: homeCity?.countryCode ?? null,
-        homeLat: homeCity?.lat ?? null,
-        homeLng: homeCity?.lng ?? null,
-        homeLocationLabel: homeCity?.label ?? null,
-        defaultRadiusKm,
-      };
       const res = await fetch(`${apiBase}/profile`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
+        body: JSON.stringify(buildProfileBody()),
       });
       if (!res.ok) throw new Error(`profile_save_failed_${res.status}`);
       const p = (await res.json()) as ProfilePayload;

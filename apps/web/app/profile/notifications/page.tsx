@@ -116,7 +116,7 @@ export default function NotificationsTab() {
 
       <div style={{ marginBottom: 20, opacity: disabled ? 0.5 : 1 }}>
         <div className="meta" style={{ fontWeight: 600, marginBottom: 12 }}>{t("profile.emailPrefs.categories")}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
           {([
             { key: "notifyFollowedHosts" as const, label: t("profile.emailPrefs.followedHosts") },
             { key: "notifySavedReminders" as const, label: t("profile.emailPrefs.savedReminders") },

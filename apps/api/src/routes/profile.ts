@@ -364,7 +364,7 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
       notify_event_updates: boolean;
       notify_search_alerts: boolean;
     }>(
-      `select email_enabled, digest_frequency, pause_until,
+      `select email_enabled, digest_frequency, to_char(pause_until, 'YYYY-MM-DD') as pause_until,
               notify_followed_hosts, notify_saved_reminders,
               notify_rsvp_reminders, notify_event_updates, notify_search_alerts
        from notification_preferences where user_id = $1`,
@@ -435,7 +435,7 @@ const profileRoutes: FastifyPluginAsync = async (app) => {
         notify_event_updates = coalesce($8, notification_preferences.notify_event_updates),
         notify_search_alerts = coalesce($9, notification_preferences.notify_search_alerts),
         updated_at = now()
-      returning email_enabled, digest_frequency, pause_until,
+      returning email_enabled, digest_frequency, to_char(pause_until, 'YYYY-MM-DD') as pause_until,
         notify_followed_hosts, notify_saved_reminders, notify_rsvp_reminders,
         notify_event_updates, notify_search_alerts`,
       [

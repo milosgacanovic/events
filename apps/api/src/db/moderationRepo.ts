@@ -135,6 +135,9 @@ export async function listModerationItems(
       or ese.title ilike $${idx}
       or re.title ilike $${idx}
       or ro.name ilike $${idx}
+      or mq.snapshot_content ilike $${idx}
+      or mq.snapshot_user_name ilike $${idx}
+      or mq.snapshot_target_label ilike $${idx}
     )`);
   }
   if (input.targetType) {
@@ -162,10 +165,10 @@ export async function listModerationItems(
          mq.id, mq.item_type, mq.item_id, mq.status,
          mq.moderator_id, mq.moderator_note, mq.reviewed_at, mq.created_at,
          mod.display_name as moderator_name,
-         c.body as comment_body,
-         cu.display_name as comment_user_name,
-         c.event_id::text as comment_event_id,
-         ce.title as comment_event_title,
+         coalesce(c.body, mq.snapshot_content) as comment_body,
+         coalesce(cu.display_name, mq.snapshot_user_name) as comment_user_name,
+         coalesce(c.event_id::text, mq.snapshot_target_id::text) as comment_event_id,
+         coalesce(ce.title, mq.snapshot_target_label) as comment_event_title,
          es.category as suggestion_category,
          es.body as suggestion_value,
          esu.display_name as suggestion_user_name,
@@ -259,10 +262,10 @@ export async function getModerationDetail(
        mq.id, mq.item_type, mq.item_id, mq.status,
        mq.moderator_id, mq.moderator_note, mq.reviewed_at, mq.created_at,
        mod.display_name as moderator_name,
-       c.body as comment_body,
-       cu.display_name as comment_user_name,
-       c.event_id::text as comment_event_id,
-       ce.title as comment_event_title,
+       coalesce(c.body, mq.snapshot_content) as comment_body,
+       coalesce(cu.display_name, mq.snapshot_user_name) as comment_user_name,
+       coalesce(c.event_id::text, mq.snapshot_target_id::text) as comment_event_id,
+       coalesce(ce.title, mq.snapshot_target_label) as comment_event_title,
        es.category as suggestion_category,
        es.body as suggestion_value,
        esu.display_name as suggestion_user_name,
