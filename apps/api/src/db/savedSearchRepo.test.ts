@@ -61,13 +61,14 @@ describe("updateSavedSearch", () => {
 });
 
 describe("listDueSavedSearches", () => {
-  it("filters out unsubscribed searches and ones with notify_new=false", async () => {
+  it("filters out unsubscribed searches and emailless users (single opt-out gate)", async () => {
     const { pool, query } = mockPool([]);
     await listDueSavedSearches(pool);
     const sql = query.mock.calls[0][0] as string;
     expect(sql).toContain("ss.unsubscribed_at IS NULL");
-    expect(sql).toContain("ss.notify_new = true");
     expect(sql).toContain("u.email IS NOT NULL");
+    // We deliberately do NOT filter on notify_new — see repo comment for why.
+    expect(sql).not.toContain("ss.notify_new = true");
   });
 
   it("respects per-frequency intervals (23h grace for daily, 6d23h for weekly)", async () => {

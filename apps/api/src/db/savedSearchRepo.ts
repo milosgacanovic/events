@@ -133,6 +133,11 @@ export type DueSavedSearchRow = SavedSearchRow & {
  * `last_evaluated_at` is the throttle: empty checks (no new matches) move it
  * forward but leave `last_notified_at` alone, so the UI's "Last sent" label
  * only reflects actual deliveries.
+ *
+ * NOTE: we deliberately don't filter on `notify_new = true`. The column was
+ * a user-facing toggle in the legacy UI (now removed); some pre-deploy rows
+ * have it set to false from when users tried to opt out of "new matches"
+ * specifically. Pause / unsubscribed_at is the single opt-out gate now.
  */
 export async function listDueSavedSearches(pool: Pool, limit = 500): Promise<DueSavedSearchRow[]> {
   const result = await pool.query<DueSavedSearchRow>(
@@ -147,7 +152,6 @@ export async function listDueSavedSearches(pool: Pool, limit = 500): Promise<Due
       FROM saved_searches ss
       JOIN users u ON u.id = ss.user_id
       WHERE ss.unsubscribed_at IS NULL
-        AND ss.notify_new = true
         AND u.email IS NOT NULL
         AND (
           ss.last_evaluated_at IS NULL
