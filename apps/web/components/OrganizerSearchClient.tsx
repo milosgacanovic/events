@@ -1413,13 +1413,14 @@ export function OrganizerSearchClient({
           )}
         <div className="card-list">
         {view === "list" && accumulatedItems.map((item) => {
-          const primaryCatId = item.practiceCategoryIds?.[0];
           const locationParts = [
             item.city ?? "",
             (item.countryCode ?? item.country_code) ? getCountryLabel((item.countryCode ?? item.country_code) as string) : "",
           ].filter(Boolean).join(", ");
           const primaryRole = item.roleKeys?.[0] ?? item.roleKey ?? null;
-          const primaryPractice = primaryCatId ? practiceLabelById.get(primaryCatId) : null;
+          const practiceLabels = (item.practiceCategoryIds ?? [])
+            .map((id) => practiceLabelById.get(id))
+            .filter((label): label is string => Boolean(label));
           const pills = item.languages.map((l) => getLanguageLabel(l));
           const imageUrl = item.imageUrl || item.avatar_path || null;
           return (
@@ -1447,9 +1448,9 @@ export function OrganizerSearchClient({
                   {item.name}
                 </h3>
                 {locationParts && <div className="meta">{locationParts}</div>}
-                {(primaryPractice || primaryRole) && (
+                {(practiceLabels.length > 0 || primaryRole) && (
                   <div className="meta">
-                    {[primaryPractice, primaryRole ? getRoleLabel(primaryRole, t) : null].filter(Boolean).join(" · ")}
+                    {[...practiceLabels, primaryRole ? getRoleLabel(primaryRole, t) : null].filter(Boolean).join(" · ")}
                   </div>
                 )}
                 {pills.length > 0 && (
