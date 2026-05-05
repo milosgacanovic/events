@@ -7,8 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
-import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
-import { isSeriesGroupingEnabled } from "../lib/features";
+import { type TimeDisplayMode } from "../lib/datetime";
 import { pushDataLayer } from "../lib/gtm";
 import { labelForLanguageCode, toDisplayNamesLocale} from "../lib/i18n/languageLabels";
 import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../lib/i18n/icuFallback";
@@ -19,7 +18,7 @@ import { alpha2ToAlpha3 } from "../lib/countryAlpha3";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import type { ResolvedFilters } from "./discover/discoverTypes";
 import { NotifyMeButton } from "./NotifyMeButton";
-import { SaveEventButton } from "./SaveEventButton";
+import { EventCard } from "./EventCard";
 import { useI18n } from "./i18n/I18nProvider";
 import type { MapCircleOverlay, MapCountryOverlay } from "./LeafletClusterMap";
 
@@ -2390,129 +2389,23 @@ export function EventSearchClient({
           )}
         <div className="card-list">
         {view === "list" ? (
-          accumulatedHits.map((hit) => {
-            const formatted = formatDateTimeRange(
-              hit.startsAtUtc,
-              hit.endsAtUtc,
-              hit.event.eventTimezone ?? "UTC",
-              timeDisplayMode,
-            );
-
-            const catKey = categoryKeyById.get(hit.event.practiceCategoryId) ?? "other";
-            const catLabel = categoryLabelById.get(hit.event.practiceCategoryId);
-            const locationParts = (() => {
-              if (hit.location?.city || hit.location?.country_code) {
-                return [
-                  hit.location?.city ?? "",
-                  hit.location?.country_code ? getCountryLabel(hit.location.country_code) : "",
-                ].filter(Boolean).join(", ");
-              }
-              if (hit.event.attendanceMode === "online") return t("eventSearch.locationOnline");
-              return t("eventSearch.locationTbd");
-            })();
-            const organizerNames = hit.organizers?.map((o) => o.name).join(", ");
-            const extraPills = [
-              ...hit.event.languages.map((l) => getLanguageLabel(l)),
-              ...hit.event.tags.map((t) => tagDisplay(t)),
-            ];
-            const visiblePills = extraPills;
-            const overflowCount = 0;
-
-            // Pass the occurrence's date as a ?date= hint so the detail
-            // page can scroll to and highlight this specific date. Otherwise
-            // users clicking a July result in April see "Next: tomorrow" and
-            // wonder if they clicked the wrong thing.
-            //
-            // When series grouping is ON, each hit represents the whole
-            // series (Meili returned one distinct-by-series_id row), so the
-            // card links to the bare event page and the user picks a date
-            // from the full upcoming list.
-            const occurrenceDate = isSeriesGroupingEnabled()
-              ? null
-              : hit.startsAtUtc?.slice(0, 10) ?? null;
-
-            // "Recurring" chip: native recurring events, or grouped-series
-            // cards backed by multiple sibling events. sibling_count is set by
-            // the API from a SQL subquery — fall back to 1 if stale Meili docs
-            // are missing the field.
-            const isRecurring =
-              hit.event.scheduleKind === "recurring" || (hit.event.siblingCount ?? 1) > 1;
-
-            return (
-              <Link
-                className="card event-card-h"
-                key={hit.occurrenceId}
-                href={occurrenceDate && !isRecurring ? `/events/${hit.event.slug}?date=${occurrenceDate}` : `/events/${hit.event.slug}`}
-                onClick={() => {
-                  const idx = accumulatedHits.findIndex((h) => h.event.slug === hit.event.slug);
-                  pushDataLayer({ event: "event_card_click", event_title: hit.event.title, position: idx + 1 });
-                  onNavigateAway();
-                }}
-              >
-                <div className="event-card-main">
-                  <div
-                    className="event-card-thumb-h"
-                    style={{ background: hit.event.coverImageUrl ? undefined : `var(--category-${catKey}, var(--surface-skeleton))` }}
-                  >
-                    <SaveEventButton eventId={hit.event.id} compact />
-                    {hit.event.coverImageUrl ? (
-                      <img
-                        className="event-card-thumb"
-                        src={hit.event.coverImageUrl}
-                        alt={hit.event.title}
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => {
-                          const img = e.currentTarget;
-                          img.onerror = null;
-                          img.src = "/logo.jpg";
-                          img.className = "event-card-fallback-logo";
-                        }}
-                      />
-                    ) : (
-                      <img className="event-card-fallback-logo" src="/logo.jpg" alt="" aria-hidden />
-                    )}
-                  </div>
-                  <div className="event-card-body">
-                    <h3>{hit.event.title}</h3>
-                    <div
-                      className="meta"
-                      title={formatted.suffixLabel === "event" ? t("common.eventTimezone") : t("common.yourTimezone")}
-                      suppressHydrationWarning
-                    >
-                      {formatted.primary}
-                      {isRecurring && ` · ${t("eventDetail.recurringChip")}`}
-                      {" · "}
-                      {t(`attendanceMode.${hit.event.attendanceMode}`)}
-                    </div>
-                    {locationParts && (
-                      <div className="meta">{locationParts}</div>
-                    )}
-                    {organizerNames && (
-                      <div className="meta">{organizerNames}</div>
-                    )}
-                  </div>
-                </div>
-                {(catLabel || visiblePills.length > 0) && (
-                  <div className="kv event-card-pills">
-                    {catLabel && (
-                      <span
-                        className="tag tag-practice"
-                      >
-                        {catLabel}
-                      </span>
-                    )}
-                    {visiblePills.map((pill, i) => (
-                      <span className="tag" key={i}>{pill}</span>
-                    ))}
-                    {overflowCount > 0 && (
-                      <span className="tag muted">+{overflowCount}</span>
-                    )}
-                  </div>
-                )}
-              </Link>
-            );
-          })
+          accumulatedHits.map((hit) => (
+            <EventCard
+              key={hit.occurrenceId}
+              hit={hit}
+              categoryKeyById={categoryKeyById}
+              categoryLabelById={categoryLabelById}
+              getLanguageLabel={getLanguageLabel}
+              getCountryLabel={getCountryLabel}
+              tagDisplay={tagDisplay}
+              timeDisplayMode={timeDisplayMode}
+              onClick={() => {
+                const idx = accumulatedHits.findIndex((h) => h.event.slug === hit.event.slug);
+                pushDataLayer({ event: "event_card_click", event_title: hit.event.title, position: idx + 1 });
+                onNavigateAway();
+              }}
+            />
+          ))
         ) : null}
         </div>
         </div>

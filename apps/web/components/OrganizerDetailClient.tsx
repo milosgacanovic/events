@@ -8,11 +8,20 @@ import { useEffect, useState } from "react";
 import { fetchJson } from "../lib/api";
 import { stripDangerousHtml } from "../lib/sanitizeForSsr";
 import { labelForLanguageCode, toDisplayNamesLocale} from "../lib/i18n/languageLabels";
+import { toTitleCase } from "../lib/filterHelpers";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 import { FollowHostButton } from "./FollowHostButton";
 import { SuggestEditButton } from "./SuggestEditButton";
 import { ReportButton } from "./ReportButton";
+import { EventCard, type EventCardHit } from "./EventCard";
+
+type EventSearchResponse = {
+  hits: EventCardHit[];
+  totalHits: number;
+};
+
+const HOST_EVENTS_PAGE_SIZE = 10;
 
 export type OrganizerServerTranslations = {
   locale: string;
@@ -270,6 +279,89 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
       });
   }, []);
 
+  const organizerId = data?.organizer.id;
+
+  const [upcomingHits, setUpcomingHits] = useState<EventCardHit[]>([]);
+  const [upcomingTotal, setUpcomingTotal] = useState(0);
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [upcomingLoading, setUpcomingLoading] = useState(false);
+  const [upcomingLoaded, setUpcomingLoaded] = useState(false);
+
+  const [pastHits, setPastHits] = useState<EventCardHit[]>([]);
+  const [pastTotal, setPastTotal] = useState(0);
+  const [pastPage, setPastPage] = useState(1);
+  const [pastLoading, setPastLoading] = useState(false);
+  const [pastLoaded, setPastLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!organizerId) return;
+    setUpcomingHits([]);
+    setUpcomingTotal(0);
+    setUpcomingPage(1);
+    setUpcomingLoaded(false);
+    setPastHits([]);
+    setPastTotal(0);
+    setPastPage(1);
+    setPastLoaded(false);
+  }, [organizerId]);
+
+  useEffect(() => {
+    if (!organizerId) return;
+    let active = true;
+    setUpcomingLoading(true);
+    const params = new URLSearchParams({
+      organizerId,
+      page: String(upcomingPage),
+      pageSize: String(HOST_EVENTS_PAGE_SIZE),
+      sort: "date_asc",
+    });
+    fetchJson<EventSearchResponse>(`/events/search?${params.toString()}`)
+      .then((res) => {
+        if (!active) return;
+        setUpcomingHits((prev) => (upcomingPage === 1 ? res.hits : [...prev, ...res.hits]));
+        setUpcomingTotal(res.totalHits);
+        setUpcomingLoaded(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        setUpcomingLoaded(true);
+      })
+      .finally(() => {
+        if (active) setUpcomingLoading(false);
+      });
+    return () => { active = false; };
+  }, [organizerId, upcomingPage]);
+
+  useEffect(() => {
+    if (!organizerId) return;
+    let active = true;
+    setPastLoading(true);
+    const nowIso = new Date().toISOString();
+    const params = new URLSearchParams({
+      organizerId,
+      page: String(pastPage),
+      pageSize: String(HOST_EVENTS_PAGE_SIZE),
+      sort: "date_desc",
+      includePast: "true",
+      to: nowIso,
+    });
+    fetchJson<EventSearchResponse>(`/events/search?${params.toString()}`)
+      .then((res) => {
+        if (!active) return;
+        setPastHits((prev) => (pastPage === 1 ? res.hits : [...prev, ...res.hits]));
+        setPastTotal(res.totalHits);
+        setPastLoaded(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        setPastLoaded(true);
+      })
+      .finally(() => {
+        if (active) setPastLoading(false);
+      });
+    return () => { active = false; };
+  }, [organizerId, pastPage]);
+
   const descriptionSections = extractDescriptionSections(
     data?.organizer.descriptionJson ?? data?.organizer.description_json ?? {},
   );
@@ -410,6 +502,13 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
   const roleLabels = Array.from(new Set(data.organizer.roleKeys ?? []));
   const displayedLocations = data.locations;
 
+  const tagDisplay = (tag: string): string => {
+    const i18nKey = `tag.${tag.replace(/ /g, "-")}`;
+    const translated = t(i18nKey);
+    if (translated !== i18nKey) return translated;
+    return toTitleCase(tag);
+  };
+
   return (
     <section className="panel cards" style={{ maxWidth: 760, margin: "0 auto" }}>
       {breadcrumb}
@@ -544,41 +643,72 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
       />
 
       <h3>{t("organizerDetail.upcomingEvents")}</h3>
-      {data.upcomingOccurrences.length === 0 && <div className="meta">{t("organizerDetail.noUpcoming")}</div>}
+      {upcomingLoaded && upcomingHits.length === 0 && (
+        <div className="meta">{t("organizerDetail.noUpcoming")}</div>
+      )}
       <div className="card-list">
-        {data.upcomingOccurrences.map((item) => (
-          <Link className="panel event-card-h" key={item.occurrence_id} href={`/events/${item.event_slug}`}>
-            <div className="event-card-main">
-              <div className="event-card-thumb-h" style={{ background: "var(--surface-skeleton)" }}>
-                {item.coverImageUrl && (
-                  <img
-                    src={item.coverImageUrl}
-                    alt={item.event_title}
-                    loading="lazy"
-                    decoding="async"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                  />
-                )}
-              </div>
-              <div className="event-card-body">
-                <h3 style={{ margin: "0 0 4px", fontSize: "1rem", fontWeight: 600 }}>{item.event_title}</h3>
-                <div className="meta">{new Date(item.starts_at_utc).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</div>
-              </div>
-            </div>
-          </Link>
+        {upcomingHits.map((hit) => (
+          <EventCard
+            key={hit.occurrenceId}
+            hit={hit}
+            categoryKeyById={practiceKeyById}
+            categoryLabelById={practiceLabelById}
+            getLanguageLabel={getLangLabel}
+            getCountryLabel={getRegionLabel}
+            tagDisplay={tagDisplay}
+            hideOrganizers
+          />
         ))}
       </div>
+      {upcomingHits.length < upcomingTotal && (
+        <div className="load-more-section">
+          <button
+            className="secondary-btn load-more-btn"
+            type="button"
+            onClick={() => setUpcomingPage((p) => p + 1)}
+            disabled={upcomingLoading}
+          >
+            {upcomingLoading ? t("eventSearch.searching") : t("common.pagination.loadMore")}
+          </button>
+          <div className="meta">
+            {t("common.pagination.showingOf", { shown: upcomingHits.length, total: upcomingTotal })}
+          </div>
+        </div>
+      )}
 
       <h3>{t("organizerDetail.pastEvents")}</h3>
-      {data.pastOccurrences.length === 0 && <div className="meta">{t("organizerDetail.noPast")}</div>}
-      <div className="org-past-events">
-        {data.pastOccurrences.map((item) => (
-          <Link className="org-past-event-row" key={item.occurrence_id} href={`/events/${item.event_slug}`}>
-            <span>{item.event_title}</span>
-            <span className="meta">{new Date(item.starts_at_utc).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}</span>
-          </Link>
+      {pastLoaded && pastHits.length === 0 && (
+        <div className="meta">{t("organizerDetail.noPast")}</div>
+      )}
+      <div className="card-list">
+        {pastHits.map((hit) => (
+          <EventCard
+            key={hit.occurrenceId}
+            hit={hit}
+            categoryKeyById={practiceKeyById}
+            categoryLabelById={practiceLabelById}
+            getLanguageLabel={getLangLabel}
+            getCountryLabel={getRegionLabel}
+            tagDisplay={tagDisplay}
+            hideOrganizers
+          />
         ))}
       </div>
+      {pastHits.length < pastTotal && (
+        <div className="load-more-section">
+          <button
+            className="secondary-btn load-more-btn"
+            type="button"
+            onClick={() => setPastPage((p) => p + 1)}
+            disabled={pastLoading}
+          >
+            {pastLoading ? t("eventSearch.searching") : t("common.pagination.loadMore")}
+          </button>
+          <div className="meta">
+            {t("common.pagination.showingOf", { shown: pastHits.length, total: pastTotal })}
+          </div>
+        </div>
+      )}
       <div className="event-detail-footer-actions">
         <ReportButton targetType="organizer" targetId={data.organizer.id} />
       </div>
