@@ -675,18 +675,22 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
       {pastLoaded && pastHits.length === 0 && (
         <div className="meta">{t("organizerDetail.noPast")}</div>
       )}
-      <div className="card-list">
+      <div className="org-past-events">
         {pastHits.map((hit) => (
-          <EventCard
+          <Link
             key={hit.occurrenceId}
-            hit={hit}
-            categoryKeyById={practiceKeyById}
-            categoryLabelById={practiceLabelById}
-            getLanguageLabel={getLangLabel}
-            getCountryLabel={getRegionLabel}
-            tagDisplay={tagDisplay}
-            hideOrganizers
-          />
+            className="org-past-event-row"
+            href={`/events/${hit.event.slug}`}
+          >
+            <span>{hit.event.title}</span>
+            <span className="meta">
+              {new Date(hit.startsAtUtc).toLocaleDateString(locale, {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
+          </Link>
         ))}
       </div>
       {pastHits.length < pastTotal && (
