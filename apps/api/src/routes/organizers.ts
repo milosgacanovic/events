@@ -7,6 +7,7 @@ import {
   deleteOrganizer,
   getOrganizerById,
   getOrganizerBySlug,
+  listOrganizerPastOccurrences,
   markOrganizerDetached,
   searchOrganizers,
   updateOrganizer,
@@ -252,6 +253,66 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     }
 
     return { ...mapOrganizerDetail(result as unknown as Record<string, unknown>), canEdit };
+  });
+
+  app.get("/organizers/:slug/past-events", async (request, reply) => {
+    const paramsParsed = z.object({ slug: z.string().min(1) }).safeParse(request.params);
+    if (!paramsParsed.success) {
+      reply.code(400);
+      return logValidation(request, paramsParsed.error);
+    }
+    const queryParsed = z
+      .object({
+        page: z.coerce.number().int().positive().default(1),
+        pageSize: z.coerce.number().int().positive().max(50).default(10),
+      })
+      .safeParse(request.query);
+    if (!queryParsed.success) {
+      reply.code(400);
+      return logValidation(request, queryParsed.error);
+    }
+
+    const detail = await getOrganizerBySlug(app.db, paramsParsed.data.slug, {
+      includeNonPublic: false,
+    });
+    if (!detail) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+    const organizerId = (detail as { organizer: { id: string } }).organizer.id;
+
+    const { rows, totalCount } = await listOrganizerPastOccurrences(
+      app.db,
+      organizerId,
+      queryParsed.data.page,
+      queryParsed.data.pageSize,
+    );
+
+    const hits = rows.map((row) => ({
+      occurrenceId: row.occurrence_id,
+      startsAtUtc: row.starts_at_utc,
+      endsAtUtc: row.ends_at_utc,
+      event: {
+        id: row.event_id,
+        slug: row.event_slug,
+        title: row.event_title,
+        coverImageUrl: row.cover_image_url,
+        attendanceMode: row.attendance_mode,
+        eventTimezone: row.event_timezone,
+        languages: Array.isArray(row.languages) ? row.languages : [],
+        tags: Array.isArray(row.tags) ? row.tags : [],
+        practiceCategoryId: row.practice_category_id,
+        scheduleKind: row.schedule_kind,
+        siblingCount: row.sibling_count,
+      },
+      location: {
+        city: row.city,
+        country_code: row.country_code,
+      },
+    }));
+
+    reply.header("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=120");
+    return { hits, totalHits: totalCount };
   });
 
   app.post("/organizers", async (request, reply) => {

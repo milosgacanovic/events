@@ -455,6 +455,77 @@ export async function getOrganizerBySlug(
   };
 }
 
+export type OrganizerEventOccurrenceRow = {
+  occurrence_id: string;
+  starts_at_utc: string;
+  ends_at_utc: string;
+  event_id: string;
+  event_slug: string;
+  event_title: string;
+  cover_image_url: string | null;
+  attendance_mode: string;
+  event_timezone: string | null;
+  languages: string[];
+  tags: string[];
+  practice_category_id: string | null;
+  schedule_kind: string | null;
+  sibling_count: number | null;
+  city: string | null;
+  country_code: string | null;
+  total_count: string;
+};
+
+export async function listOrganizerPastOccurrences(
+  pool: Pool,
+  organizerId: string,
+  page: number,
+  pageSize: number,
+): Promise<{ rows: OrganizerEventOccurrenceRow[]; totalCount: number }> {
+  const safePage = Math.max(page, 1);
+  const safeSize = Math.min(Math.max(pageSize, 1), 50);
+  const offset = (safePage - 1) * safeSize;
+
+  const result = await pool.query<OrganizerEventOccurrenceRow>(
+    `
+      select
+        eo.id as occurrence_id,
+        eo.starts_at_utc,
+        eo.ends_at_utc,
+        e.id as event_id,
+        e.slug as event_slug,
+        e.title as event_title,
+        e.cover_image_path as cover_image_url,
+        e.attendance_mode,
+        e.event_timezone,
+        e.languages,
+        e.tags,
+        e.practice_category_id::text as practice_category_id,
+        e.schedule_kind,
+        (
+          select count(*)::int
+          from events e2
+          where e2.series_id = eo.series_id
+            and e2.status = 'published'
+        ) as sibling_count,
+        eo.city,
+        eo.country_code,
+        count(*) over() as total_count
+      from event_organizers rel
+      join events e on e.id = rel.event_id
+      join event_occurrences eo on eo.event_id = e.id
+      where rel.organizer_id = $1
+        and e.status in ('published', 'cancelled')
+        and eo.starts_at_utc < now()
+      order by eo.starts_at_utc desc
+      limit $2 offset $3
+    `,
+    [organizerId, safeSize, offset],
+  );
+
+  const totalCount = Number(result.rows[0]?.total_count ?? "0");
+  return { rows: result.rows, totalCount };
+}
+
 export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
   const slug = input.slug || await generateUniqueSlug(pool, "organizers", input.name);
   const imageUrl = input.imageUrl ?? input.avatarPath ?? null;

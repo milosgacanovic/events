@@ -336,16 +336,11 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
     if (!organizerId) return;
     let active = true;
     setPastLoading(true);
-    const nowIso = new Date().toISOString();
     const params = new URLSearchParams({
-      organizerId,
       page: String(pastPage),
       pageSize: String(HOST_EVENTS_PAGE_SIZE),
-      sort: "date_desc",
-      includePast: "true",
-      to: nowIso,
     });
-    fetchJson<EventSearchResponse>(`/events/search?${params.toString()}`)
+    fetchJson<EventSearchResponse>(`/organizers/${slug}/past-events?${params.toString()}`)
       .then((res) => {
         if (!active) return;
         setPastHits((prev) => (pastPage === 1 ? res.hits : [...prev, ...res.hits]));
@@ -360,7 +355,7 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
         if (active) setPastLoading(false);
       });
     return () => { active = false; };
-  }, [organizerId, pastPage]);
+  }, [organizerId, pastPage, slug]);
 
   const descriptionSections = extractDescriptionSections(
     data?.organizer.descriptionJson ?? data?.organizer.description_json ?? {},
