@@ -8,7 +8,7 @@ import { listRecommendations, getRecommendationStats } from "../db/recommendatio
 import { recordActivity } from "../services/activityLogger";
 import { runAlertsDry } from "../db/alertRepo";
 import { getSetting, updateSetting } from "../db/settingsRepo";
-import { OCCURRENCES_INDEX } from "../services/meiliService";
+import { OCCURRENCES_INDEX, SERIES_INDEX } from "../services/meiliService";
 import {
   createEventFormat,
   createOrganizerRole,
@@ -514,14 +514,29 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     await app.requireAdmin(request);
     // Fire-and-forget — returns immediately; reindex runs in background
     setImmediate(async () => {
+      const BATCH = 500;
       try {
-        const docs = await app.meiliService.fetchOccurrenceDocs(app.db);
-        const index = app.meiliService.client.index(OCCURRENCES_INDEX);
-        const deleteTask = await index.deleteAllDocuments();
-        await app.meiliService.client.waitForTask(deleteTask.taskUid, { timeOutMs: 120000 });
-        const BATCH = 500;
-        for (let i = 0; i < docs.length; i += BATCH) {
-          await index.addDocuments(docs.slice(i, i + BATCH));
+        // Occurrence index (map, alerts, calendar)
+        const occDocs = await app.meiliService.fetchOccurrenceDocs(app.db);
+        const occIndex = app.meiliService.client.index(OCCURRENCES_INDEX);
+        const occDeleteTask = await occIndex.deleteAllDocuments();
+        await app.meiliService.client.waitForTask(occDeleteTask.taskUid, { timeOutMs: 120000 });
+        for (let i = 0; i < occDocs.length; i += BATCH) {
+          await occIndex.addDocuments(occDocs.slice(i, i + BATCH));
+        }
+
+        // Series index (search list). Without this rebuild, deleting an event
+        // in the DB without going through the API lifecycle leaves an orphan
+        // series doc that surfaces in search but 404s on click-through.
+        const seriesIndex = app.meiliService.client.index(SERIES_INDEX);
+        const seriesDeleteTask = await seriesIndex.deleteAllDocuments();
+        await app.meiliService.client.waitForTask(seriesDeleteTask.taskUid, { timeOutMs: 120000 });
+        let seriesOffset = 0;
+        while (true) {
+          const batch = await app.meiliService.fetchSeriesDocs(app.db, BATCH, seriesOffset);
+          if (batch.length === 0) break;
+          await seriesIndex.addDocuments(batch);
+          seriesOffset += BATCH;
         }
       } catch { /* logged by Fastify */ }
     });
