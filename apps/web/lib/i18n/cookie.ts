@@ -8,10 +8,16 @@ export function setLocaleCookie(locale: AppLocale) {
   // same name simultaneously; both get sent in the Cookie header and the
   // server reads only one (browser-defined order). If they disagree, the
   // language flips back to whichever variant the server happens to pick.
-  // Pre-emptively delete BOTH variants before writing the fresh value so only
-  // one entry survives.
+  // Pre-emptively delete every variant before writing the fresh value so
+  // only one entry survives.
+  //
+  // Important: setting `document.cookie = "name=; ...; Path=/"` without a
+  // Domain attribute does NOT actually clear an existing host-only cookie
+  // in Chromium-based browsers — the explicit hostname must be supplied
+  // via Domain=<host>. We therefore delete via three permutations.
   const expire = "Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/";
   document.cookie = `${localeCookieName}=; ${expire}`;
+  document.cookie = `${localeCookieName}=; ${expire}; Domain=${host}`;
   if (isProdDomain) {
     document.cookie = `${localeCookieName}=; ${expire}; Domain=.danceresource.org`;
   }
