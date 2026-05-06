@@ -294,6 +294,14 @@ export function EventSearchClient({
   // are restored from URL/snapshot. Re-enabled after a short settle window
   // so subsequent in-session filter changes still animate.
   const [heroAnimReady, setHeroAnimReady] = useState(false);
+  // Server (Node) and browser (Chromium) ship slightly different ICU bundles,
+  // so `Intl.DisplayNames.of(code)` can return different strings for the same
+  // country code (e.g. "HK" → "Hong Kong SAR China" on Node, "Hong Kong" on
+  // Chromium). The country/language filter facet lists render those labels
+  // verbatim, which is enough to fail React hydration. Render raw codes for
+  // the SSR pass and the very first hydration tick (matching byte-for-byte),
+  // then localise after mount.
+  const [hydrated, setHydrated] = useState(false);
   const isLoadMoreRef = useRef(false);
   const isFirstSearchRef = useRef(true);
   const isLoadMorePageRef = useRef(false);
@@ -493,12 +501,19 @@ export function EventSearchClient({
     }
   }, [locale]);
   const getLanguageLabel = useCallback(
-    (value: string) => getLocalizedLanguageLabel(value, locale, languageNames),
-    [languageNames, locale],
+    (value: string) =>
+      hydrated
+        ? getLocalizedLanguageLabel(value, locale, languageNames)
+        : value,
+    [hydrated, languageNames, locale],
   );
-  const getCountryLabel = useCallback((value: string) => {
-    return getLocalizedRegionLabel(value, locale, regionNames);
-  }, [regionNames, locale]);
+  const getCountryLabel = useCallback(
+    (value: string) =>
+      hydrated
+        ? getLocalizedRegionLabel(value, locale, regionNames)
+        : value.trim().toUpperCase(),
+    [hydrated, regionNames, locale],
+  );
   const visibleCountryFacets = useMemo(() => {
     const selectedSet = new Set(countryCodes.map((value) => value.trim().toLowerCase()));
     const merged = new Map<string, number>();
@@ -1213,6 +1228,8 @@ export function EventSearchClient({
   useEffect(() => {
     setTimeDisplayMode(readTimeDisplayMode());
   }, []);
+
+  useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
     const onScroll = () => setShowBackToTop(window.scrollY > 800);

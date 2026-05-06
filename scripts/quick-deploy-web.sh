@@ -19,7 +19,20 @@ CONTAINER="dr_events_web_${COLOR}"
 
 echo "==> Quick-deploy web to $CONTAINER"
 
-# Build env vars (must match docker-compose build args)
+# Build env vars (must match docker-compose build args).
+#
+# Next.js inlines `NEXT_PUBLIC_*` into the CLIENT bundle at build time but
+# leaves them as runtime `process.env.*` lookups in the SERVER bundle. If a
+# var is set in Docker's runtime env but missing from the local build env,
+# server and client disagree on its value at runtime — which produces silent
+# hydration mismatches (e.g. an `<a href>` rendered with `?date=` on the
+# client but without it on the server).
+#
+# Source EVENTS_SERIES_GROUPING_ENABLED from .env so the locally-built
+# bundle matches what the Docker container has at runtime.
+if [ -f "$PROJECT_DIR/.env" ]; then
+  EVENTS_SERIES_GROUPING_ENABLED=$(grep -E '^EVENTS_SERIES_GROUPING_ENABLED=' "$PROJECT_DIR/.env" | tail -1 | cut -d= -f2-)
+fi
 export NEXT_PUBLIC_API_BASE_URL=/api
 export NEXT_PUBLIC_KEYCLOAK_URL=https://sso.danceresource.org
 export NEXT_PUBLIC_KEYCLOAK_REALM=danceresource
@@ -27,6 +40,7 @@ export NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=events
 export NEXT_PUBLIC_KEYCLOAK_LOGIN_REDIRECT_PATH=/auth/keycloak/callback
 export NEXT_PUBLIC_KEYCLOAK_LOGOUT_REDIRECT_PATH=/admin
 export NEXT_PUBLIC_MAP_TILE_URL="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+export NEXT_PUBLIC_EVENTS_SERIES_GROUPING_ENABLED="${EVENTS_SERIES_GROUPING_ENABLED:-false}"
 
 START=$(date +%s)
 

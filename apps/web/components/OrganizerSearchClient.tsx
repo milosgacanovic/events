@@ -219,6 +219,11 @@ export function OrganizerSearchClient({
   // host detail) so the page doesn't replay the 500ms animation as filters
   // are restored. Re-enabled after a short settle window.
   const [heroAnimReady, setHeroAnimReady] = useState(false);
+  // See note in EventSearchClient: ICU drift between Node and the browser
+  // makes Intl.DisplayNames-based labels unsafe to render during hydration.
+  // Render raw codes for SSR + first hydration tick, localise after mount.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const restoredKeyRef = useRef<string | null>(null);
   const skipSearchAfterRestoreRef = useRef(false);
   const cacheRestoreInProgressRef = useRef(false);
@@ -858,12 +863,20 @@ export function OrganizerSearchClient({
       return null;
     }
   }, [locale]);
-  const getLanguageLabel = useCallback((value: string) => {
-    return getLocalizedLanguageLabel(value, locale, languageNames);
-  }, [languageNames, locale]);
-  const getCountryLabel = useCallback((value: string) => {
-    return getLocalizedRegionLabel(value, locale, regionNames);
-  }, [regionNames, locale]);
+  const getLanguageLabel = useCallback(
+    (value: string) =>
+      hydrated
+        ? getLocalizedLanguageLabel(value, locale, languageNames)
+        : value,
+    [hydrated, languageNames, locale],
+  );
+  const getCountryLabel = useCallback(
+    (value: string) =>
+      hydrated
+        ? getLocalizedRegionLabel(value, locale, regionNames)
+        : value.trim().toUpperCase(),
+    [hydrated, regionNames, locale],
+  );
   const formatCityLabel = formatCityLabelHelper;
   const categorySingularLabel = t("admin.placeholder.categorySingular");
   const visibleRoleFacets = useMemo(() => {
