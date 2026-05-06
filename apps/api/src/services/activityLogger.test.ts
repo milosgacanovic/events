@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { sanitizeBody } from "./activityLogger";
+import { recordActivity, sanitizeBody } from "./activityLogger";
+import * as repo from "../db/activityLogRepo";
+
+vi.mock("../db/activityLogRepo", () => ({
+  logActivity: vi.fn(() => Promise.resolve()),
+}));
 
 describe("sanitizeBody", () => {
   it("returns null for non-object input", () => {
@@ -70,5 +75,81 @@ describe("sanitizeBody", () => {
     const snapshot = { ...input };
     sanitizeBody(input);
     expect(input).toEqual(snapshot);
+  });
+});
+
+describe("recordActivity snapshot gate", () => {
+  const logActivityMock = vi.mocked(repo.logActivity);
+
+  // Minimal pool stub: actor lookup returns no row so we don't hit any DB.
+  const pool = {
+    query: vi.fn(() => Promise.resolve({ rows: [] })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+
+  function makeRequest(preferredUsername: string | null) {
+    return {
+      auth: preferredUsername
+        ? { sub: "kc-sub", preferredUsername, email: null }
+        : null,
+      ip: "127.0.0.1",
+      headers: { "user-agent": "vitest" },
+      log: { error: vi.fn() },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+  }
+
+  beforeEach(() => {
+    logActivityMock.mockClear();
+    logActivityMock.mockResolvedValue(undefined);
+  });
+
+  it("replaces snapshot with placeholder for service-account edits", async () => {
+    const fullSnapshot = { id: "evt-1", title: "Original", description: "x".repeat(1000) };
+    await recordActivity(pool, makeRequest("service-account-dr-events-importer"), {
+      action: "event.edit",
+      targetType: "event",
+      targetId: "evt-1",
+      snapshot: fullSnapshot,
+    });
+
+    // logActivity is fire-and-forget; await microtask flush.
+    await new Promise((r) => setImmediate(r));
+
+    expect(logActivityMock).toHaveBeenCalledTimes(1);
+    const passed = logActivityMock.mock.calls[0]?.[1];
+    expect(passed?.snapshot).toEqual({
+      _omitted: "Snapshot omitted for service account — see source table for current state",
+    });
+  });
+
+  it("passes snapshot through unchanged for human actors", async () => {
+    const fullSnapshot = { id: "evt-2", title: "Edited by user" };
+    await recordActivity(pool, makeRequest("milos_makonda"), {
+      action: "event.edit",
+      targetType: "event",
+      targetId: "evt-2",
+      snapshot: fullSnapshot,
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    const passed = logActivityMock.mock.calls[0]?.[1];
+    expect(passed?.snapshot).toEqual(fullSnapshot);
+  });
+
+  it("passes snapshot through for service-account deletes (forensic record)", async () => {
+    const fullSnapshot = { id: "evt-3", title: "About to be deleted" };
+    await recordActivity(pool, makeRequest("service-account-dr-events-importer"), {
+      action: "event.delete",
+      targetType: "event",
+      targetId: "evt-3",
+      snapshot: fullSnapshot,
+    });
+
+    await new Promise((r) => setImmediate(r));
+
+    const passed = logActivityMock.mock.calls[0]?.[1];
+    expect(passed?.snapshot).toEqual(fullSnapshot);
   });
 });

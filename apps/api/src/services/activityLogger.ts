@@ -3,6 +3,11 @@ import type { Pool } from "pg";
 
 import { logActivity, type ActivityLogEntry } from "../db/activityLogRepo";
 
+const SERVICE_ACCOUNT_PREFIX = "service-account-";
+const OMITTED_SNAPSHOT: Record<string, unknown> = {
+  _omitted: "Snapshot omitted for service account — see source table for current state",
+};
+
 /**
  * Record an activity log entry from a route handler.
  * Resolves actor from request.auth, extracts IP/user-agent.
@@ -34,15 +39,28 @@ export async function recordActivity(
     }
   }
 
+  const actorName = auth?.preferredUsername ?? auth?.email ?? null;
+  // Importer-style service accounts dump full row snapshots on every upsert,
+  // which dwarfs the rest of the audit log. The live source table holds the
+  // current state and the feed is replayable, so we collapse the snapshot to
+  // a placeholder. Deletes still get the full snapshot — once the source row
+  // is gone, the snapshot is the only forensic record.
+  const isServiceAccount = actorName?.startsWith(SERVICE_ACCOUNT_PREFIX) ?? false;
+  const isDeleteAction = entry.action.endsWith(".delete");
+  const snapshot =
+    entry.snapshot && isServiceAccount && !isDeleteAction
+      ? OMITTED_SNAPSHOT
+      : entry.snapshot;
+
   const logEntry: ActivityLogEntry = {
     actorId,
-    actorName: auth?.preferredUsername ?? auth?.email ?? null,
+    actorName,
     action: entry.action,
     targetType: entry.targetType,
     targetId: entry.targetId,
     targetLabel: entry.targetLabel ?? null,
     metadata: entry.metadata,
-    snapshot: entry.snapshot,
+    snapshot,
     ipAddress: request.ip ?? null,
     userAgent: request.headers["user-agent"] ?? null,
   };
