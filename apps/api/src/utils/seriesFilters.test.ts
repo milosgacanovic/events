@@ -11,15 +11,27 @@ const base: SeriesFilterInput = {
 };
 
 describe("buildSeriesMeiliFilters", () => {
-  it("always emits earliest_upcoming_ts bounds as epoch ms", () => {
+  it("emits an upcoming_dates IN list spanning every UTC day in [from, to]", () => {
     const filters = buildSeriesMeiliFilters(base);
-    expect(filters[0]).toBe(`earliest_upcoming_ts >= ${Date.parse(base.fromUtc)}`);
-    expect(filters[1]).toBe(`earliest_upcoming_ts <= ${Date.parse(base.toUtc)}`);
+    expect(filters[0]).toMatch(/^upcoming_dates IN \["2026-04-01",.*,"2026-04-30"\]$/);
+    // April has 30 days; one entry per day.
+    const inList = filters[0]!.match(/"\d{4}-\d{2}-\d{2}"/g) ?? [];
+    expect(inList).toHaveLength(30);
   });
 
   it("emits no extra filters when no inputs are set", () => {
     const filters = buildSeriesMeiliFilters(base);
-    expect(filters).toHaveLength(2);
+    expect(filters).toHaveLength(1);
+  });
+
+  it("falls back to earliest_upcoming_ts when range exceeds 400 days", () => {
+    const filters = buildSeriesMeiliFilters({
+      ...base,
+      fromUtc: "1970-01-01T00:00:00.000Z",
+      toUtc: "2027-01-01T00:00:00.000Z",
+    });
+    expect(filters[0]).toBe(`earliest_upcoming_ts <= ${Date.parse("2027-01-01T00:00:00.000Z")}`);
+    expect(filters.some((f) => f.startsWith("upcoming_dates IN"))).toBe(false);
   });
 
   it("joins date-preset chips with OR", () => {

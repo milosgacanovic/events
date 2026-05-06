@@ -25,7 +25,10 @@ export type SeriesFilterInput = {
  * and /map/clusters so both paths produce identical totals for the same
  * user-facing filter state.
  *
- *   - Inequalities and sort use `earliest_upcoming_ts`.
+ *   - Date-range filtering uses the `upcoming_dates` array (one YYYY-MM-DD
+ *     per upcoming occurrence). A series is included if any of its dates
+ *     falls within [fromUtc, toUtc]. Falls back to `earliest_upcoming_ts`
+ *     bounds when the requested range exceeds 400 days (e.g. includePast).
  *   - Date-range presets filter on the precomputed `event_date_buckets`
  *     attribute — the exact same attribute whose facet distribution drives
  *     the preset-chip counts, so chip count === filter count by construction.
@@ -34,8 +37,18 @@ export type SeriesFilterInput = {
 export function buildSeriesMeiliFilters(input: SeriesFilterInput): string[] {
   const filters: string[] = [];
 
-  filters.push(`earliest_upcoming_ts >= ${Date.parse(input.fromUtc)}`);
-  filters.push(`earliest_upcoming_ts <= ${Date.parse(input.toUtc)}`);
+  const dateList = enumerateUtcDates(input.fromUtc, input.toUtc);
+  if (dateList && dateList.length > 0) {
+    // Meili applies array filters with implicit OR across elements, so
+    // `upcoming_dates IN [...]` matches any series whose upcoming_dates
+    // array contains at least one of the listed YYYY-MM-DD strings.
+    filters.push(`upcoming_dates IN [${dateList.map((d) => JSON.stringify(d)).join(",")}]`);
+  } else {
+    // Range too wide (> 400 days, e.g. includePast=1970-…). Fall back to
+    // the earliest-upcoming bound so we still drop series with no upcoming
+    // dates without exploding the filter expression length.
+    filters.push(`earliest_upcoming_ts <= ${Date.parse(input.toUtc)}`);
+  }
 
   if (input.selectedEventDatePresets.length > 0) {
     const presetClauses = input.selectedEventDatePresets
@@ -110,4 +123,32 @@ export function buildSeriesMeiliFilters(input: SeriesFilterInput): string[] {
   }
 
   return filters;
+}
+
+/**
+ * Build the inclusive list of YYYY-MM-DD UTC date strings between fromUtc
+ * and toUtc. Returns null when the span exceeds 400 days so the caller can
+ * fall back to a bounded filter expression.
+ */
+function enumerateUtcDates(fromUtc: string, toUtc: string): string[] | null {
+  const fromMs = Date.parse(fromUtc);
+  const toMs = Date.parse(toUtc);
+  if (Number.isNaN(fromMs) || Number.isNaN(toMs) || toMs < fromMs) return [];
+  const fromDay = Date.UTC(
+    new Date(fromMs).getUTCFullYear(),
+    new Date(fromMs).getUTCMonth(),
+    new Date(fromMs).getUTCDate(),
+  );
+  const toDay = Date.UTC(
+    new Date(toMs).getUTCFullYear(),
+    new Date(toMs).getUTCMonth(),
+    new Date(toMs).getUTCDate(),
+  );
+  const dayCount = Math.floor((toDay - fromDay) / 86400000) + 1;
+  if (dayCount > 400) return null;
+  const out: string[] = [];
+  for (let i = 0; i < dayCount; i++) {
+    out.push(new Date(fromDay + i * 86400000).toISOString().slice(0, 10));
+  }
+  return out;
 }

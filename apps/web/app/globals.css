@@ -1137,9 +1137,16 @@ label.meta {
   margin: 0 auto;
 }
 
+.hero-search-input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
 .hero-search-input {
   flex: 1;
-  padding: 10px 16px;
+  padding: 10px 36px 10px 16px;
   font-size: 1rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
@@ -1158,6 +1165,33 @@ label.meta {
   box-shadow: 0 0 0 3px var(--focus-ring);
   transform: scaleX(1.008);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.hero-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--muted-bg, var(--line));
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.hero-search-clear:hover,
+.hero-search-clear:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+.hero-search-clear:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .hero-collapsible {

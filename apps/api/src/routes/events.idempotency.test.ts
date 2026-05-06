@@ -372,7 +372,15 @@ describe("events idempotency conflict handling", () => {
     );
     expect(response.headers.vary).toContain("Authorization");
     const firstQuery = multiSearchSpy.mock.calls[0]?.[0]?.[0] as { filter?: string[] } | undefined;
-    expect(firstQuery?.filter?.some((item) => item === "earliest_upcoming_ts >= 0")).toBe(true);
+    // includePast widens fromUtc to 1970-01-01, which exceeds the 400-day cap
+    // for the upcoming_dates IN list, so the filter falls back to a bare
+    // earliest_upcoming_ts upper bound (no lower bound).
+    expect(
+      firstQuery?.filter?.some((item) => /^earliest_upcoming_ts <= \d+$/.test(item)),
+    ).toBe(true);
+    expect(
+      firstQuery?.filter?.some((item) => item.startsWith("upcoming_dates IN")),
+    ).toBe(false);
     await app.close();
   });
 
@@ -399,17 +407,18 @@ describe("events idempotency conflict handling", () => {
 
     expect(response.statusCode).toBe(200);
     const firstQuery = multiSearchSpy.mock.calls[0]?.[0]?.[0] as { filter?: string[] } | undefined;
-    const upperBound = firstQuery?.filter?.find((item) => item.startsWith("earliest_upcoming_ts <= "));
-    expect(upperBound).toBeDefined();
+    // Default range is now…now+365d (≤ 400 days), so it expands into an
+    // explicit list of YYYY-MM-DD strings on `upcoming_dates`.
+    const dateInClause = firstQuery?.filter?.find((item) => item.startsWith("upcoming_dates IN "));
+    expect(dateInClause).toBeDefined();
 
-    const raw = upperBound?.replace("earliest_upcoming_ts <= ", "");
-    const toTs = raw ? Number(raw) : null;
-    expect(Number.isFinite(toTs)).toBe(true);
-
-    const diffMs = toTs! - Date.now();
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-    expect(diffDays).toBeGreaterThan(364);
-    expect(diffDays).toBeLessThan(366.5);
+    const dates = (dateInClause?.match(/\d{4}-\d{2}-\d{2}/g) ?? []).sort();
+    expect(dates.length).toBeGreaterThan(364);
+    expect(dates.length).toBeLessThan(368);
+    const lastDayMs = Date.parse(`${dates[dates.length - 1]}T00:00:00.000Z`);
+    const diffDays = (lastDayMs - Date.now()) / 86400000;
+    expect(diffDays).toBeGreaterThan(363);
+    expect(diffDays).toBeLessThan(367);
 
     await app.close();
   });

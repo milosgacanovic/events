@@ -310,6 +310,7 @@ export function EventSearchClient({
   const isTypingQRef = useRef(false);
   const cityInputRef = useRef<HTMLInputElement>(null);
   const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const userTimeZone = useMemo(() => getUserTimeZone(), []);
   const geo = useGeolocation();
   const [geoRadius, setGeoRadius] = useState<number | null>(initialQuery?.geoRadius ?? null);
@@ -1620,20 +1621,40 @@ export function EventSearchClient({
       ].filter(Boolean).join(" ")}>
         <h1 className="hero-heading">{t("eventSearch.hero.heading")}</h1>
         <form className="hero-search-form" onSubmit={(e) => e.preventDefault()}>
-          <input
-            className="hero-search-input"
-            value={q}
-            onChange={(e) => {
-              isTypingQRef.current = true;
-              if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
-              typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
-              setQ(e.target.value);
-              setPage(1);
-              clearSearchCache();
-            }}
-            placeholder={t("eventSearch.hero.placeholder")}
-            autoComplete="off"
-          />
+          <div className="hero-search-input-wrap">
+            <input
+              ref={searchInputRef}
+              className="hero-search-input"
+              value={q}
+              onChange={(e) => {
+                isTypingQRef.current = true;
+                if (typingQClearRef.current) clearTimeout(typingQClearRef.current);
+                typingQClearRef.current = setTimeout(() => { isTypingQRef.current = false; }, 800);
+                setQ(e.target.value);
+                setPage(1);
+                clearSearchCache();
+              }}
+              placeholder={t("eventSearch.hero.placeholder")}
+              autoComplete="off"
+            />
+            {q.length > 0 && (
+              <button
+                type="button"
+                className="hero-search-clear"
+                aria-label={t("eventSearch.clearQuery")}
+                onClick={() => {
+                  setQ("");
+                  setPage(1);
+                  clearSearchCache();
+                  searchInputRef.current?.focus();
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                  <path d="M2 2 L12 12 M12 2 L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+          </div>
           <button type="submit" className="primary-btn">
             {t("eventSearch.search")}
           </button>

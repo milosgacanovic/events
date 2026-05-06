@@ -396,11 +396,27 @@ export function RruleBuilder({
   const [untilDate, setUntilDate] = useState<string>(parsed.until);
   const [countValue, setCountValue] = useState<number>(parsed.count ?? 10);
 
+  // Draft strings for numeric inputs so users can clear the field (transient
+  // empty state) before typing a new value. Synced to/from the canonical
+  // numeric state; clamped on blur.
+  const [intervalDraft, setIntervalDraft] = useState<string>(String(parsed.interval));
+  const [countDraft, setCountDraft] = useState<string>(String(parsed.count ?? 10));
+  useEffect(() => { setIntervalDraft(String(interval)); }, [interval]);
+  useEffect(() => { setCountDraft(String(countValue)); }, [countValue]);
+
   // Exclusions
   const [exclusions, setExclusions] = useState<Exclusion[]>(() => {
     if (!parsed.exdatesISO.length) return [];
     // Preserve as individual date entries on load — user can regroup visually if they want.
-    return parsed.exdatesISO.map((iso) => ({ kind: "date" as const, date: iso.slice(0, 10) }));
+    // EXDATE values are UTC instants; we want the calendar date in the event's
+    // own timezone (e.g. a Monday 7pm NY exclusion is stored as Mon 23:00 UTC,
+    // which is still Mon 7pm in NY — but in a UTC+5 browser would otherwise be
+    // sliced as Tue 04:00). Convert via Intl in the event timezone.
+    const zone = eventTimezone || "UTC";
+    return parsed.exdatesISO.map((iso) => ({
+      kind: "date" as const,
+      date: utcIsoToZonedDate(iso, zone),
+    }));
   });
   const [showExclusions, setShowExclusions] = useState<boolean>(parsed.exdatesISO.length > 0);
   const [newExDate, setNewExDate] = useState<string>("");
@@ -513,7 +529,15 @@ export function RruleBuilder({
       const zone = eventTimezone || "UTC";
       const dtstart = zonedLocalToUtc(`${startDate}T${startTime}:00`, zone);
       const ruleStr = buildRrule();
-      const rule = rrulestr(ruleStr, { dtstart, forceset: false });
+      // rrulestr ignores the dtstart option once the input is a multi-line iCal
+      // body (e.g. RRULE+EXDATE). Without an inline DTSTART, the parser fabricates
+      // its own start time, so generated occurrences don't align with the EXDATE
+      // timestamps and exclusions silently fail. Prepend DTSTART so EXDATE
+      // timestamps align with the actual occurrences.
+      const fullStr = ruleStr.includes("\n")
+        ? `DTSTART:${toIcsUtc(dtstart)}\n${ruleStr}`
+        : `DTSTART:${toIcsUtc(dtstart)}\nRRULE:${ruleStr}`;
+      const rule = rrulestr(fullStr, { forceset: false });
       const now = new Date();
       return rule.between(now, new Date(now.getTime() + 365 * 24 * 3600 * 1000), true).slice(0, 3);
     } catch {
@@ -619,8 +643,28 @@ export function RruleBuilder({
   }
 
   // ---- Render ----
-  const dateFmt = useMemo(
-    () => new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", weekday: "short" }),
+  // Two formatters: `dateFmtZoned` displays an absolute instant (Date object)
+  // in the event's timezone — used for the "Next" preview occurrences, which
+  // are real datetimes. `dateFmtCal` displays a bare YYYY-MM-DD calendar day
+  // anchored to UTC noon so the weekday/month/day match the stored date
+  // regardless of the browser's timezone — used for exclusion chips, which
+  // represent a calendar day, not an instant.
+  const dateFmtZoned = useMemo(
+    () => new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      weekday: "short",
+      timeZone: eventTimezone || undefined,
+    }),
+    [locale, eventTimezone],
+  );
+  const dateFmtCal = useMemo(
+    () => new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      weekday: "short",
+      timeZone: "UTC",
+    }),
     [locale],
   );
 
@@ -656,8 +700,19 @@ export function RruleBuilder({
           type="number"
           min={1}
           max={52}
-          value={interval}
-          onChange={(e) => setIntervalValue(Math.max(1, parseInt(e.target.value, 10) || 1))}
+          value={intervalDraft}
+          onChange={(e) => {
+            const raw = e.target.value;
+            setIntervalDraft(raw);
+            const n = parseInt(raw, 10);
+            if (!Number.isNaN(n) && n >= 1 && n <= 52) setIntervalValue(n);
+          }}
+          onBlur={() => {
+            const n = parseInt(intervalDraft, 10);
+            const clamped = Number.isNaN(n) ? 1 : Math.min(52, Math.max(1, n));
+            setIntervalValue(clamped);
+            setIntervalDraft(String(clamped));
+          }}
           className="rrule-interval"
           aria-label={tt("manage.eventForm.rrule.interval", "Interval")}
         />
@@ -826,10 +881,19 @@ export function RruleBuilder({
             type="number"
             min={1}
             max={999}
-            value={countValue}
+            value={countDraft}
             onChange={(e) => {
-              setCountValue(Math.max(1, parseInt(e.target.value, 10) || 1));
+              const raw = e.target.value;
+              setCountDraft(raw);
+              const n = parseInt(raw, 10);
+              if (!Number.isNaN(n) && n >= 1 && n <= 999) setCountValue(n);
               setEndsMode("afterN");
+            }}
+            onBlur={() => {
+              const n = parseInt(countDraft, 10);
+              const clamped = Number.isNaN(n) ? 1 : Math.min(999, Math.max(1, n));
+              setCountValue(clamped);
+              setCountDraft(String(clamped));
             }}
             className="rrule-interval"
             disabled={endsMode !== "afterN"}
@@ -852,8 +916,8 @@ export function RruleBuilder({
                 {exclusions.map((ex, idx) => (
                   <span key={idx} className="rrule-exclusion-chip">
                     {ex.kind === "date"
-                      ? dateFmt.format(new Date(ex.date + "T00:00:00"))
-                      : `${dateFmt.format(new Date(ex.from + "T00:00:00"))} → ${dateFmt.format(new Date(ex.to + "T00:00:00"))}`}
+                      ? dateFmtCal.format(new Date(ex.date + "T12:00:00Z"))
+                      : `${dateFmtCal.format(new Date(ex.from + "T12:00:00Z"))} → ${dateFmtCal.format(new Date(ex.to + "T12:00:00Z"))}`}
                     <button
                       type="button"
                       className="rrule-exclusion-remove"
@@ -965,7 +1029,7 @@ export function RruleBuilder({
         <div className="rrule-preview-text">{previewText}</div>
         {nextOccurrences.length > 0 && !ambiguous && (
           <div className="rrule-preview-next">
-            {tt("manage.eventForm.rrule.nextOccurrences", "Next")}: {nextOccurrences.map((d) => dateFmt.format(d)).join(" · ")}
+            {tt("manage.eventForm.rrule.nextOccurrences", "Next")}: {nextOccurrences.map((d) => dateFmtZoned.format(d)).join(" · ")}
           </div>
         )}
       </div>
@@ -976,6 +1040,27 @@ export function RruleBuilder({
 // ---------------------------------------------------------------------------
 // Timezone helper
 // ---------------------------------------------------------------------------
+
+/**
+ * Render a UTC ISO instant ("2026-07-06T23:00:00Z") as a YYYY-MM-DD calendar
+ * date in the given IANA timezone. The reverse of zonedLocalToUtc for the
+ * date portion only.
+ */
+function utcIsoToZonedDate(utcIso: string, timeZone: string): string {
+  try {
+    const d = new Date(utcIso);
+    if (Number.isNaN(d.getTime())) return utcIso.slice(0, 10);
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    return fmt.format(d); // en-CA produces YYYY-MM-DD
+  } catch {
+    return utcIso.slice(0, 10);
+  }
+}
 
 /**
  * Interpret a local date-time string ("2026-04-15T19:00:00") as being in the given IANA timezone

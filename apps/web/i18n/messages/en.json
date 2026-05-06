@@ -117,6 +117,7 @@
   "eventSearch.tags": "Tags",
   "eventSearch.attendance.anyEventType": "Attendance",
   "eventSearch.search": "Search",
+  "eventSearch.clearQuery": "Clear search",
   "eventSearch.searching": "Searching...",
   "eventSearch.clearFilters": "Clear filters",
   "eventSearch.filtersButton": "Filters",
