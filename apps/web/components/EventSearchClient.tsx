@@ -2471,7 +2471,7 @@ export function EventSearchClient({
         className={showBackToTop ? "back-to-top visible" : "back-to-top"}
         type="button"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        aria-label="Back to top"
+        aria-label={t("eventSearch.backToTop")}
       >
         <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M4 8l4-4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
