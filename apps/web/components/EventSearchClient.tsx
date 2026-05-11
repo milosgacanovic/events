@@ -877,17 +877,26 @@ export function EventSearchClient({
     const appendMode = isLoadMoreRef.current;
     isLoadMoreRef.current = false;
 
-    // Skip the hydration-driven first fetch when SSR already populated the
-    // hits and facets AND the user/URL hasn't diverged from the initial
-    // query. Subsequent calls fall through normally.
+    // Skip the hydration-driven fetch as long as the current query still
+    // matches what SSR fetched. runSearch can fire multiple times before any
+    // user divergence (e.g. Keycloak silent SSO flipping `canSeeDetailedErrors`
+    // rebuilds the callback identity and re-triggers the effect) — keep
+    // skipping until either (a) the query diverges or (b) a real fetch lands.
+    // After the first real fetch the flag stays false so a coincidental match
+    // doesn't reuse stale SSR data.
+    //
+    // Critical: the calling effect may have set loading=true before scheduling
+    // us (it only suppresses the spinner on the very first call via
+    // isFirstSearchRef). When we skip the fetch we must clear loading too,
+    // otherwise the spinner stays up forever.
     if (
       !appendMode &&
       ssrSkipFirstSearchRef.current &&
       currentQuery === initialQueryStringRef.current
     ) {
-      ssrSkipFirstSearchRef.current = false;
       isFirstSearchRef.current = false;
       setActiveQueryString(currentQuery);
+      setLoading(false);
       return;
     }
     ssrSkipFirstSearchRef.current = false;
