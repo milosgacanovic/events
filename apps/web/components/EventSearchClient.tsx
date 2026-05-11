@@ -309,14 +309,19 @@ export function EventSearchClient({
   // sidebar, so a refetch with the same query is pure waste.
   const ssrSkipFirstSearchRef = useRef(Boolean(initialResults));
   const isFirstSearchRef = useRef(true);
-  // Last query string we *scheduled* (or completed) a fetch for. Used to
-  // collapse the double-fire that happens when clicking a filter chip:
-  // setState triggers the runSearch effect, then router.replace → URL-sync
-  // effect re-sets the same state with a fresh array reference, which causes
-  // buildQueryString to recompute and the effect to re-schedule. We compare
-  // the upcoming query against this ref and bail if it matches — the timer
-  // already in flight will handle the fetch.
-  const lastScheduledQueryRef = useRef<string | null>(null);
+  // Last query string we successfully fetched for, plus the wall-clock time
+  // we fetched. Used to collapse the chip-click double-fire: after the user
+  // clicks a chip, two timers can end up firing ~500ms apart with the same
+  // query string (effect schedules timer A → router.replace → URL-sync
+  // re-renders with a fresh array reference → effect schedules timer B; if
+  // timer A already fired before cleanup, both timers' fetches go out). We
+  // can't safely dedupe at scheduling time (the cleanup function clears
+  // the in-flight timer, so skipping the re-schedule strands us with zero
+  // timers). Instead we dedupe at fetch time: if the same query just
+  // completed within the dedupe window, the second fire is a no-op.
+  const lastFetchedQueryRef = useRef<string | null>(null);
+  const lastFetchedAtRef = useRef<number>(0);
+  const FETCH_DEDUPE_WINDOW_MS = 1500;
   const isLoadMorePageRef = useRef(false);
   const skipSearchAfterRestoreRef = useRef(false);
   const cacheRestoreInProgressRef = useRef(false);
@@ -909,6 +914,21 @@ export function EventSearchClient({
     }
     ssrSkipFirstSearchRef.current = false;
 
+    // Dedupe at the fetch boundary: if we just completed a fetch for this
+    // exact query in the last ~1.5s, skip — it's a double-fire from React
+    // effect re-runs after the URL writer's router.replace. We deliberately
+    // dedupe HERE rather than before scheduling the setTimeout, because the
+    // trigger effect's cleanup clears the in-flight timer on every re-run;
+    // bailing at schedule time strands us with zero timers and zero fetches.
+    if (
+      !appendMode &&
+      lastFetchedQueryRef.current === currentQuery &&
+      Date.now() - lastFetchedAtRef.current < FETCH_DEDUPE_WINDOW_MS
+    ) {
+      setLoading(false);
+      return;
+    }
+
     if (appendMode) {
       setLoadingMore(true);
     } else if (isFirstSearchRef.current) {
@@ -920,6 +940,10 @@ export function EventSearchClient({
 
     try {
       const result = await fetchJson<SearchResponse>(`/events/search?${currentQuery}`);
+      // Mark this query as freshly fetched so the dedupe window can collapse
+      // a double-fire triggered by URL-sync effect re-runs.
+      lastFetchedQueryRef.current = currentQuery;
+      lastFetchedAtRef.current = Date.now();
       setData(result);
       pushDataLayer({ event: "event_listing_view", page_type: "event_listing", total_results: result.totalHits, current_page: page });
       if (appendMode) {
@@ -966,10 +990,6 @@ export function EventSearchClient({
     } finally {
       setLoading(false);
       setLoadingMore(false);
-      // Clear the dedupe ref so that a future re-fire of the same query
-      // (e.g. user clears the filter and re-applies it) actually fetches
-      // again — otherwise we'd reuse stale data forever.
-      lastScheduledQueryRef.current = null;
     }
   }, [buildQueryString, canSeeDetailedErrors, page, t]);
 
@@ -1157,15 +1177,6 @@ export function EventSearchClient({
       return;
     }
 
-    // Collapse the chip-click double-fire: if we've already scheduled (or
-    // run) this exact query, the previous timer is still in flight — let it
-    // do the work and skip rescheduling.
-    const nextQuery = buildQueryString(page);
-    if (lastScheduledQueryRef.current === nextQuery) {
-      return;
-    }
-    lastScheduledQueryRef.current = nextQuery;
-
     if (!isFirstSearchRef.current && !isLoadMoreRef.current) setLoading(true);
     const timer = setTimeout(() => {
       void runSearch(page);
@@ -1174,7 +1185,7 @@ export function EventSearchClient({
     return () => {
       clearTimeout(timer);
     };
-  }, [runSearch, page, scrollStorageKey, pathname, router, buildQueryString]);
+  }, [runSearch, page, scrollStorageKey, pathname, router]);
 
 
   useEffect(() => {
