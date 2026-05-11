@@ -107,12 +107,47 @@ export class MeilisearchService {
   }
 
   /**
+   * Create the index if it doesn't exist and guarantee its primaryKey is set.
+   *
+   * Two failure modes the naïve `createIndex(...).catch(()=>{})` doesn't cover:
+   *   1. A previous concurrent reindex left the index existing but with a
+   *      null primaryKey (observed 2026-05-11: two `/admin/events/reindex`
+   *      calls 18s apart raced through the swap flow and the live
+   *      `event_series` ended up with primaryKey=null, breaking every
+   *      subsequent document add with "primary key inference failed").
+   *   2. Meili auto-creates an index when you addDocuments to a name that
+   *      doesn't exist — and the auto-created index has primaryKey=null.
+   *
+   * This helper waits for any createIndex task to settle, then explicitly
+   * patches primaryKey via `updateIndex` if it's missing.
+   */
+  private async ensureIndexExistsWithPrimaryKey(uid: string, primaryKey: string): Promise<void> {
+    try {
+      const task = await this.client.createIndex(uid, { primaryKey });
+      // waitForTask so a subsequent getIndex sees the post-create state.
+      await this.client.waitForTask(task.taskUid, { timeOutMs: 30000 });
+    } catch {
+      // Already exists. Fall through to verify primaryKey.
+    }
+    try {
+      const current = await this.client.getIndex(uid);
+      if (current.primaryKey !== primaryKey) {
+        const fix = await this.client.updateIndex(uid, { primaryKey });
+        await this.client.waitForTask(fix.taskUid, { timeOutMs: 30000 });
+      }
+    } catch {
+      // Last-resort: if even getIndex fails, the subsequent setting calls
+      // will surface a clearer error. Don't mask it here.
+    }
+  }
+
+  /**
    * Apply the canonical settings to the occurrence index identified by `uid`.
    * Used by both {@link ensureIndex} (live index at boot) and the no-disruption
    * reindex flow (shadow index built before atomic swap).
    */
   async applyOccurrenceIndexSettings(uid: string = OCCURRENCES_INDEX): Promise<void> {
-    await this.client.createIndex(uid, { primaryKey: "occurrence_id" }).catch(() => {});
+    await this.ensureIndexExistsWithPrimaryKey(uid, "occurrence_id");
     const index = this.client.index(uid);
     await index.updateFilterableAttributes([
       "starts_at_utc",
@@ -152,7 +187,7 @@ export class MeilisearchService {
     // Series index: one doc per series_id. No distinctAttribute needed —
     // every doc is already a unique series, so native totalHits and
     // facetDistribution are exact by construction.
-    await this.client.createIndex(uid, { primaryKey: "series_id" }).catch(() => {});
+    await this.ensureIndexExistsWithPrimaryKey(uid, "series_id");
     const seriesIndex = this.client.index(uid);
     // Filterable attributes: only the fields the route actually uses as
     // filters. `schedule_kind` and `canonical_event_id` were previously

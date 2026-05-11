@@ -42,6 +42,18 @@ import { resolveUserId } from "../middleware/ownership";
 import { fetchManagedEventMapPoints, fetchManagedOrganizerMapPoints } from "../db/manageRepo";
 import { logValidation } from "../utils/validationError";
 
+// Module-level mutex so two concurrent /admin/events/reindex calls don't race
+// each other through the shadow-build → swap flow. Observed on 2026-05-11:
+// two clicks ~18s apart left the live event_series with primaryKey=null and
+// zero filterable attributes; every subsequent document add failed and the
+// listing fell back to the SQL path returning 15k undeduplicated rows. The
+// guard is per-process; it doesn't protect against the host's
+// `node dist/scripts/reindexMeili.js` running at the same time as the admin
+// endpoint, but in practice those don't overlap (cron at 03:30 UTC, admin
+// triggered ad-hoc), and the `ensureIndexExistsWithPrimaryKey` self-heal in
+// meiliService is the belt to this suspenders.
+let reindexInFlight = false;
+
 const createPracticeSchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
   level: z.union([z.literal(1), z.literal(2)]),
@@ -511,8 +523,13 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
     reply.code(204);
   });
 
-  app.post("/admin/events/reindex", async (request) => {
+  app.post("/admin/events/reindex", async (request, reply) => {
     await app.requireAdmin(request);
+    if (reindexInFlight) {
+      reply.code(409);
+      return { error: "reindex_already_running", message: "A reindex is already in progress; try again once it finishes." };
+    }
+    reindexInFlight = true;
     // Fire-and-forget — returns immediately; reindex runs in background.
     //
     // Strategy: build into shadow indexes, then atomically swap. Search
@@ -578,7 +595,11 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
         // Drop the now-stale-named shadow indexes.
         await deleteIndexIfExists(OCC_SHADOW);
         await deleteIndexIfExists(SERIES_SHADOW_UID);
-      } catch { /* logged by Fastify */ }
+      } catch (err) {
+        request.log.error({ err }, "admin.events.reindex.failed");
+      } finally {
+        reindexInFlight = false;
+      }
     });
     return { ok: true, message: "Reindex started in background" };
   });
