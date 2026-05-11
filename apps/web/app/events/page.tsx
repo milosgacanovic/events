@@ -202,6 +202,11 @@ export default async function EventsPage({
   params.set("to", oneYear);
   params.set("page", String(initialQuery.page ?? 1));
   params.set("pageSize", "20");
+  // Include disjunctive facets in the SSR query so the filter sidebar has
+  // counts from the very first paint. Without this the client had to refetch
+  // on hydration just to populate the sidebar, even though the hit list was
+  // already correct — the visible "reload" the user observed.
+  params.set("disjunctiveFacets", "practice,eventFormat,languages,attendance,country");
 
   const initialResults = await fetchServerJson<SearchResponse>(`/events/search?${params.toString()}`);
 

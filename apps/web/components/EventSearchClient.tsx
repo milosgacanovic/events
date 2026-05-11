@@ -303,6 +303,11 @@ export function EventSearchClient({
   // then localise after mount.
   const [hydrated, setHydrated] = useState(false);
   const isLoadMoreRef = useRef(false);
+  // True from mount until either the first runSearch fires or any filter
+  // diverges from the SSR query. While true, we can short-circuit the
+  // hydration-driven runSearch — SSR already populated `data` and the facet
+  // sidebar, so a refetch with the same query is pure waste.
+  const ssrSkipFirstSearchRef = useRef(Boolean(initialResults));
   const isFirstSearchRef = useRef(true);
   const isLoadMorePageRef = useRef(false);
   const skipSearchAfterRestoreRef = useRef(false);
@@ -589,6 +594,16 @@ export function EventSearchClient({
     geo.lng,
   ]);
 
+  // Snapshot the query string at first render. If runSearch is later invoked
+  // with the same query (i.e. nothing diverged after hydration), we skip the
+  // fetch — SSR's `initialResults` already answers it. Any state change
+  // (user toggling a filter, URL sync resolving differently) produces a
+  // different query string and falls through to a real fetch.
+  const initialQueryStringRef = useRef<string | null>(null);
+  if (initialQueryStringRef.current === null) {
+    initialQueryStringRef.current = buildQueryString(initialQuery?.page ?? 1);
+  }
+
   const buildUiQueryString = useCallback(() => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
@@ -861,6 +876,21 @@ export function EventSearchClient({
     const currentQuery = buildQueryString(nextPage);
     const appendMode = isLoadMoreRef.current;
     isLoadMoreRef.current = false;
+
+    // Skip the hydration-driven first fetch when SSR already populated the
+    // hits and facets AND the user/URL hasn't diverged from the initial
+    // query. Subsequent calls fall through normally.
+    if (
+      !appendMode &&
+      ssrSkipFirstSearchRef.current &&
+      currentQuery === initialQueryStringRef.current
+    ) {
+      ssrSkipFirstSearchRef.current = false;
+      isFirstSearchRef.current = false;
+      setActiveQueryString(currentQuery);
+      return;
+    }
+    ssrSkipFirstSearchRef.current = false;
 
     if (appendMode) {
       setLoadingMore(true);
