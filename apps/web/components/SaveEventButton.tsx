@@ -66,13 +66,14 @@ export function SaveEventButton({
     };
   }, [showScopeMenu]);
 
-  // Fetch initial save status — skipped when the SavedEventsProvider has
-  // already answered for this eventId (knownSaved.has check), which is the
-  // common case on the /events listing where 16+ buttons would otherwise each
-  // fire their own request.
+  // Fetch initial save status — but only on pages WITHOUT the
+  // SavedEventsProvider in scope. When the provider IS in scope (the /events
+  // listing) it batches the lookup for us. Per-id fetches here would race
+  // the batch and fire 16+ redundant requests before knownSaved is
+  // populated; explicit `savedCtx !== null` gate ensures we don't.
   useEffect(() => {
+    if (savedCtx !== null) return; // batched by provider
     if (!auth.ready || !auth.authenticated) return;
-    if (savedCtx?.knownSaved.has(eventId)) return;
     let active = true;
     (async () => {
       try {
@@ -88,7 +89,7 @@ export function SaveEventButton({
       }
     })();
     return () => { active = false; };
-  }, [auth.ready, auth.authenticated, auth.getToken, eventId, savedCtx?.knownSaved]);
+  }, [auth.ready, auth.authenticated, auth.getToken, eventId, savedCtx]);
 
   const doSave = useCallback(async (scope: string = "all") => {
     setLoading(true);
