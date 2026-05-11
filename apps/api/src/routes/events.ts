@@ -823,6 +823,13 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
           `update events set detached_from_import = true, detached_at = now(), detached_by_user_id = $2 where id = $1`,
           [params.data.id, detachUserId],
         );
+        // Detach bumps events.updated_at via the trigger; sync the series cache
+        // here so the listing page doesn't render stale fields if updateEvent
+        // below later throws (e.g. external_ref_conflict 409). The metadata
+        // branch further down also calls sync, but only on the happy path.
+        void syncSeriesForEvent(app.db, app.meiliService, params.data.id, "detach", null).catch((err) => {
+          console.error(`[patch.event] detach sync failed for ${params.data.id}:`, err);
+        });
       }
     }
 

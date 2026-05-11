@@ -8,6 +8,7 @@ import { listRecommendations, getRecommendationStats } from "../db/recommendatio
 import { recordActivity } from "../services/activityLogger";
 import { runAlertsDry } from "../db/alertRepo";
 import { getSetting, updateSetting } from "../db/settingsRepo";
+import { syncSeriesForEvent } from "../services/eventLifecycleService";
 import { OCCURRENCES_INDEX, SERIES_INDEX } from "../services/meiliService";
 import {
   createEventFormat,
@@ -649,6 +650,12 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       targetType: "event",
       targetId: params.data.id,
     });
+    // Re-attach bumps events.updated_at via the trigger but does no other write
+    // — without this sync the series cache stays at its pre-reattach refreshed_at
+    // until the nightly backfill catches up.
+    void syncSeriesForEvent(app.db, app.meiliService, params.data.id, "event.reattach", null).catch((err) => {
+      console.error(`[admin.event.reattach] sync failed for ${params.data.id}:`, err);
+    });
     return { ok: true };
   });
 
@@ -669,6 +676,19 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
       targetType: "host",
       targetId: params.data.id,
     });
+    // Host name/slug/avatar are denormalized into each series doc's organizers
+    // array — the importer may overwrite them on its next run, so refresh
+    // every series the host is linked to. Mirrors the host PATCH fan-out at
+    // routes/organizers.ts:469-477.
+    const linkedEventIds = await app.db.query<{ event_id: string }>(
+      `SELECT DISTINCT event_id FROM event_organizers WHERE organizer_id = $1`,
+      [params.data.id],
+    );
+    for (const row of linkedEventIds.rows) {
+      void syncSeriesForEvent(app.db, app.meiliService, row.event_id, "host.reattach", null).catch((err) => {
+        console.error(`[admin.host.reattach] sync failed for event ${row.event_id}:`, err);
+      });
+    }
     return { ok: true };
   });
 
