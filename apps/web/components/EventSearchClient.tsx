@@ -19,6 +19,7 @@ import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import type { ResolvedFilters } from "./discover/discoverTypes";
 import { NotifyMeButton } from "./NotifyMeButton";
 import { EventCard } from "./EventCard";
+import { SavedEventsProvider } from "./SavedEventsContext";
 import { useI18n } from "./i18n/I18nProvider";
 import type { MapCircleOverlay, MapCountryOverlay } from "./LeafletClusterMap";
 
@@ -1700,7 +1701,16 @@ export function EventSearchClient({
 
   const thisWeekendCount = disjunctiveFacets.eventDate["this_weekend"] ?? 0;
 
+  // Visible event IDs for the saved-events batch provider. Memoized on
+  // accumulatedHits identity so the provider's diff doesn't re-issue
+  // requests on every unrelated re-render.
+  const visibleEventIds = useMemo(
+    () => accumulatedHits.map((hit) => hit.event.id),
+    [accumulatedHits],
+  );
+
   return (
+    <SavedEventsProvider visibleEventIds={visibleEventIds}>
     <>
       <div className={[
         "hero",
@@ -2548,5 +2558,6 @@ export function EventSearchClient({
       </button>
     </section>
     </>
+    </SavedEventsProvider>
   );
 }

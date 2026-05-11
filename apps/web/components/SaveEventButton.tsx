@@ -6,6 +6,7 @@ import { fetchJson } from "../lib/api";
 import { setPendingAction } from "../lib/pendingAction";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
+import { useSavedEventsContext } from "./SavedEventsContext";
 import { useToast } from "./ToastProvider";
 import { LoginPromptDialog } from "./LoginPromptDialog";
 
@@ -28,12 +29,23 @@ export function SaveEventButton({
   const { t } = useI18n();
   const auth = useKeycloakAuth();
   const toast = useToast();
+  // When rendered inside SavedEventsProvider (i.e. on /events listing) the
+  // provider has already batched the lookups. Otherwise (detail page, profile
+  // pages) this is null and we fall back to the per-id fetch below.
+  const savedCtx = useSavedEventsContext();
+  const ctxSaved = savedCtx?.knownSaved.get(eventId);
 
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(ctxSaved ?? false);
   const [loading, setLoading] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showScopeMenu, setShowScopeMenu] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Keep local `saved` in lock-step with the context value while the provider
+  // is feeding answers. This handles the batch arriving AFTER mount.
+  useEffect(() => {
+    if (ctxSaved !== undefined) setSaved(ctxSaved);
+  }, [ctxSaved]);
 
   useEffect(() => {
     if (!showScopeMenu) return;
@@ -54,9 +66,13 @@ export function SaveEventButton({
     };
   }, [showScopeMenu]);
 
-  // Fetch initial save status
+  // Fetch initial save status — skipped when the SavedEventsProvider has
+  // already answered for this eventId (knownSaved.has check), which is the
+  // common case on the /events listing where 16+ buttons would otherwise each
+  // fire their own request.
   useEffect(() => {
     if (!auth.ready || !auth.authenticated) return;
+    if (savedCtx?.knownSaved.has(eventId)) return;
     let active = true;
     (async () => {
       try {
@@ -72,7 +88,7 @@ export function SaveEventButton({
       }
     })();
     return () => { active = false; };
-  }, [auth.ready, auth.authenticated, auth.getToken, eventId]);
+  }, [auth.ready, auth.authenticated, auth.getToken, eventId, savedCtx?.knownSaved]);
 
   const doSave = useCallback(async (scope: string = "all") => {
     setLoading(true);
@@ -92,6 +108,7 @@ export function SaveEventButton({
         }),
       });
       setSaved(true);
+      savedCtx?.setLocal(eventId, true);
       toast.show(t("save.toast.saved"), "success");
     } catch {
       toast.show(t("common.actionFailed"), "error");
@@ -111,6 +128,7 @@ export function SaveEventButton({
         headers: { Authorization: `Bearer ${token}` },
       });
       setSaved(false);
+      savedCtx?.setLocal(eventId, false);
       toast.show(t("save.toast.unsaved"), "success");
     } catch {
       toast.show(t("common.actionFailed"), "error");
