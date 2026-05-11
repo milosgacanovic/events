@@ -106,10 +106,14 @@ export class MeilisearchService {
     });
   }
 
-  async ensureIndex(): Promise<void> {
-    await this.client.createIndex(OCCURRENCES_INDEX, { primaryKey: "occurrence_id" }).catch(() => {});
-
-    const index = this.client.index(OCCURRENCES_INDEX);
+  /**
+   * Apply the canonical settings to the occurrence index identified by `uid`.
+   * Used by both {@link ensureIndex} (live index at boot) and the no-disruption
+   * reindex flow (shadow index built before atomic swap).
+   */
+  async applyOccurrenceIndexSettings(uid: string = OCCURRENCES_INDEX): Promise<void> {
+    await this.client.createIndex(uid, { primaryKey: "occurrence_id" }).catch(() => {});
+    const index = this.client.index(uid);
     await index.updateFilterableAttributes([
       "starts_at_utc",
       "starts_at_ts",
@@ -138,12 +142,18 @@ export class MeilisearchService {
     } else {
       await index.updateDistinctAttribute(null);
     }
+  }
 
+  /**
+   * Apply the canonical settings to the series index identified by `uid`.
+   * Mirror of {@link applyOccurrenceIndexSettings} for the series index.
+   */
+  async applySeriesIndexSettings(uid: string = SERIES_INDEX): Promise<void> {
     // Series index: one doc per series_id. No distinctAttribute needed —
     // every doc is already a unique series, so native totalHits and
     // facetDistribution are exact by construction.
-    await this.client.createIndex(SERIES_INDEX, { primaryKey: "series_id" }).catch(() => {});
-    const seriesIndex = this.client.index(SERIES_INDEX);
+    await this.client.createIndex(uid, { primaryKey: "series_id" }).catch(() => {});
+    const seriesIndex = this.client.index(uid);
     // Filterable attributes: only the fields the route actually uses as
     // filters. `schedule_kind` and `canonical_event_id` were previously
     // indexed here but never filtered on — Meili's inverted-index memory
@@ -177,6 +187,11 @@ export class MeilisearchService {
     // series index stays proportional to "events with upcoming dates",
     // but 50k was already within an order of magnitude of our 100k target.
     await seriesIndex.updatePagination({ maxTotalHits: 500000 });
+  }
+
+  async ensureIndex(): Promise<void> {
+    await this.applyOccurrenceIndexSettings();
+    await this.applySeriesIndexSettings();
   }
 
   async healthcheck(): Promise<boolean> {

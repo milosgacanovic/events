@@ -512,32 +512,71 @@ const adminRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/admin/events/reindex", async (request) => {
     await app.requireAdmin(request);
-    // Fire-and-forget — returns immediately; reindex runs in background
+    // Fire-and-forget — returns immediately; reindex runs in background.
+    //
+    // Strategy: build into shadow indexes, then atomically swap. Search
+    // queries hit the fully populated live index right up to the swap, and
+    // the fully populated new index immediately after — no partial-state
+    // window like the old delete-then-readd approach.
+    const OCC_SHADOW = `${OCCURRENCES_INDEX}_shadow`;
+    const SERIES_SHADOW_UID = `${SERIES_INDEX}_shadow`;
+    const client = app.meiliService.client;
+
+    const deleteIndexIfExists = async (uid: string) => {
+      try {
+        const task = await client.deleteIndex(uid);
+        await client.waitForTask(task.taskUid, { timeOutMs: 60000 });
+      } catch {
+        // index didn't exist — nothing to do
+      }
+    };
+
     setImmediate(async () => {
       const BATCH = 500;
       try {
-        // Occurrence index (map, alerts, calendar)
+        // Clean up any leftover shadow indexes from an interrupted run.
+        await deleteIndexIfExists(OCC_SHADOW);
+        await deleteIndexIfExists(SERIES_SHADOW_UID);
+
+        // Occurrence shadow.
+        await app.meiliService.applyOccurrenceIndexSettings(OCC_SHADOW);
+        const occShadow = client.index(OCC_SHADOW);
         const occDocs = await app.meiliService.fetchOccurrenceDocs(app.db);
-        const occIndex = app.meiliService.client.index(OCCURRENCES_INDEX);
-        const occDeleteTask = await occIndex.deleteAllDocuments();
-        await app.meiliService.client.waitForTask(occDeleteTask.taskUid, { timeOutMs: 120000 });
+        let lastOccTask: number | null = null;
         for (let i = 0; i < occDocs.length; i += BATCH) {
-          await occIndex.addDocuments(occDocs.slice(i, i + BATCH));
+          const task = await occShadow.addDocuments(occDocs.slice(i, i + BATCH));
+          lastOccTask = task.taskUid;
+        }
+        if (lastOccTask !== null) {
+          await client.waitForTask(lastOccTask, { timeOutMs: 600000 });
         }
 
-        // Series index (search list). Without this rebuild, deleting an event
-        // in the DB without going through the API lifecycle leaves an orphan
-        // series doc that surfaces in search but 404s on click-through.
-        const seriesIndex = app.meiliService.client.index(SERIES_INDEX);
-        const seriesDeleteTask = await seriesIndex.deleteAllDocuments();
-        await app.meiliService.client.waitForTask(seriesDeleteTask.taskUid, { timeOutMs: 120000 });
+        // Series shadow.
+        await app.meiliService.applySeriesIndexSettings(SERIES_SHADOW_UID);
+        const seriesShadow = client.index(SERIES_SHADOW_UID);
         let seriesOffset = 0;
+        let lastSeriesTask: number | null = null;
         while (true) {
           const batch = await app.meiliService.fetchSeriesDocs(app.db, BATCH, seriesOffset);
           if (batch.length === 0) break;
-          await seriesIndex.addDocuments(batch);
+          const task = await seriesShadow.addDocuments(batch);
+          lastSeriesTask = task.taskUid;
           seriesOffset += BATCH;
         }
+        if (lastSeriesTask !== null) {
+          await client.waitForTask(lastSeriesTask, { timeOutMs: 600000 });
+        }
+
+        // Atomic swap (single task — both flip together or neither does).
+        const swapTask = await client.swapIndexes([
+          { indexes: [OCCURRENCES_INDEX, OCC_SHADOW] },
+          { indexes: [SERIES_INDEX, SERIES_SHADOW_UID] },
+        ]);
+        await client.waitForTask(swapTask.taskUid, { timeOutMs: 60000 });
+
+        // Drop the now-stale-named shadow indexes.
+        await deleteIndexIfExists(OCC_SHADOW);
+        await deleteIndexIfExists(SERIES_SHADOW_UID);
       } catch { /* logged by Fastify */ }
     });
     return { ok: true, message: "Reindex started in background" };
