@@ -7,15 +7,10 @@ import { inferCountryCode } from "../utils/countryCode";
 // importers have occasionally mis-routed into the city column.
 const UK_POSTCODE_RE = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/i;
 
-// Drop city values that are obviously not a city name — e.g. the venue label
-// itself, or a string containing a UK postcode. Prevents "Acland Burghley School
-// Sports Centre" or "London N6 6BA" from ending up in locations.city, which
-// breaks /events?city=london filtering.
-function sanitizeCity(city: string | null | undefined, label: string | null | undefined): string | null {
+function sanitizeCity(city: string | null | undefined): string | null {
   const trimmed = city?.trim();
   if (!trimmed) return null;
   if (UK_POSTCODE_RE.test(trimmed)) return null;
-  if (label && label.trim().includes(" ") && trimmed.toLowerCase() === label.trim().toLowerCase()) return null;
   return trimmed;
 }
 
@@ -73,7 +68,7 @@ export async function createLocation(
   },
 ): Promise<LocationRow> {
   const resolvedCountryCode = inferCountryCode(input.countryCode ?? null, input.formattedAddress);
-  const sanitizedCity = sanitizeCity(input.city, input.label);
+  const sanitizedCity = sanitizeCity(input.city);
 
   const result = await pool.query<LocationRow>(
     `
@@ -114,7 +109,7 @@ export async function updateLocation(
   },
 ): Promise<void> {
   const resolvedCountryCode = inferCountryCode(input.countryCode ?? null, input.formattedAddress ?? "");
-  const sanitizedCity = sanitizeCity(input.city, input.label);
+  const sanitizedCity = sanitizeCity(input.city);
   await pool.query(
     `
       update locations set
