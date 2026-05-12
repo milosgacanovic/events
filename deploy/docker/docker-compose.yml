@@ -19,10 +19,15 @@ services:
   meilisearch:
     image: getmeili/meilisearch:v1.12
     container_name: dr_events_meili
+    # Memory caps prevent the indexer's default ⅔-of-host-RAM grab from
+    # paging the box into swap during reindex bursts (host OOMed 2026-05-11).
+    mem_limit: 2g
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change_me}
       MEILI_NO_ANALYTICS: "true"
       RAYON_NUM_THREADS: "2"
+      MEILI_MAX_TASK_DB_SIZE: "1073741824"
+      MEILI_MAX_INDEXING_MEMORY: "268435456"
     # Intentionally no public port: API reaches Meili via Compose network
     # (`http://meilisearch:7700`). If you need to poke it from the host during
     # dev, use `docker exec -it dr_events_meili curl …` instead.
