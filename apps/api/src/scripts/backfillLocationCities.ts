@@ -14,14 +14,35 @@ import { config } from "../config";
  *      country names, UK postcodes, or are over 120 chars.
  *
  * Usage (inside the API container):
- *   node /app/apps/api/dist/scripts/backfillLocationCities.js              # dry-run
- *   node /app/apps/api/dist/scripts/backfillLocationCities.js --apply      # write
+ *   node /app/apps/api/dist/scripts/backfillLocationCities.js                         # dry-run, known only
+ *   node /app/apps/api/dist/scripts/backfillLocationCities.js --apply                 # apply known mappings
+ *   node /app/apps/api/dist/scripts/backfillLocationCities.js --include-heuristic     # dry-run + heuristic
+ *   node /app/apps/api/dist/scripts/backfillLocationCities.js --apply --include-heuristic
+ *
+ * The heuristic pass is OFF by default because most older NULL-city rows
+ * are pre-existing importer junk (street addresses, venue names) that the
+ * old sanitizeCity correctly rejected — re-promoting them via a naive
+ * first-segment grab would pollute the city facet.
  */
 
+// Precise, known-good mappings for the rows from the bug report
+// (dr-api-location-city-bug.md). Each was confirmed by hand against the
+// importer's dr_location_cache + the formatted_address on the DR side. Used
+// in both passes: pass 1 applies these directly; pass 2's heuristic skips
+// IDs already covered here.
 const KNOWN_MAPPINGS: Array<{ id: string; city: string }> = [
-  { id: "5259eadf-a33a-4772-a4f6-220141fd68e6", city: "Los Angeles" },
-  { id: "587598f4-cea3-495b-9709-ee88543e5e66", city: "São Teotónio" },
+  { id: "5e7d87c0-f931-43b1-83aa-5df0dd403b2b", city: "Bad Belzig" },
+  { id: "24081434-0593-40c4-b2ee-251ff1bcbd87", city: "Los Angeles" },
+  { id: "3163aca6-2642-406d-ba6b-6f936557c563", city: "Český Krumlov" },
+  { id: "a8b74ded-cb52-44fb-b2c7-5d509e2d7535", city: "Chiang Mai" },
+  { id: "1931db03-02d9-4e77-9c71-b9fc91fb25cf", city: "Chiang Mai" },
   { id: "f5a5e133-c95b-4c03-a7a6-2a82e0997404", city: "Skalka U Doks" },
+  { id: "e9f295b6-c9f2-40ac-a7c7-7181505b2208", city: "Los Angeles" },
+  { id: "10cb761b-568f-4554-bd2c-63632ddfe820", city: "Glenelg North" },
+  { id: "5e537e4c-8d2b-458a-a9c2-0f69be8b228b", city: "Hebden Bridge" },
+  { id: "5259eadf-a33a-4772-a4f6-220141fd68e6", city: "Los Angeles" },
+  { id: "16498139-6dc9-4327-a35b-873f4ac0edf7", city: "Royal Park" },
+  { id: "587598f4-cea3-495b-9709-ee88543e5e66", city: "São Teotónio" },
 ];
 
 const UK_POSTCODE_RE = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/i;
@@ -79,6 +100,7 @@ function pickCity(formattedAddress: string | null): { ok: true; city: string } |
 
 async function main() {
   const apply = process.argv.includes("--apply");
+  const includeHeuristic = process.argv.includes("--include-heuristic");
   const pool = new Pool({ connectionString: config.DATABASE_URL });
 
   const candidates: Candidate[] = [];
@@ -109,25 +131,27 @@ async function main() {
       });
     }
 
-    // Pass 2: first-comma-segment heuristic
-    const knownIds = new Set(KNOWN_MAPPINGS.map((m) => m.id));
-    const res = await pool.query<{ id: string; formatted_address: string | null }>(
-      "select id, formatted_address from locations where city is null and formatted_address is not null order by id",
-    );
-    for (const row of res.rows) {
-      if (knownIds.has(row.id)) continue; // already in pass 1
-      const pick = pickCity(row.formatted_address);
-      if (!pick.ok) {
-        skipped.push({ id: row.id, formattedAddress: row.formatted_address, reason: pick.reason });
-        continue;
+    // Pass 2: first-comma-segment heuristic (opt-in via --include-heuristic)
+    if (includeHeuristic) {
+      const knownIds = new Set(KNOWN_MAPPINGS.map((m) => m.id));
+      const res = await pool.query<{ id: string; formatted_address: string | null }>(
+        "select id, formatted_address from locations where city is null and formatted_address is not null order by id",
+      );
+      for (const row of res.rows) {
+        if (knownIds.has(row.id)) continue; // already in pass 1
+        const pick = pickCity(row.formatted_address);
+        if (!pick.ok) {
+          skipped.push({ id: row.id, formattedAddress: row.formatted_address, reason: pick.reason });
+          continue;
+        }
+        candidates.push({
+          id: row.id,
+          oldCity: null,
+          newCity: pick.city,
+          source: "first-segment",
+          formattedAddress: row.formatted_address,
+        });
       }
-      candidates.push({
-        id: row.id,
-        oldCity: null,
-        newCity: pick.city,
-        source: "first-segment",
-        formattedAddress: row.formatted_address,
-      });
     }
 
     console.log(`\n=== Backfill plan ===`);
