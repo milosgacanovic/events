@@ -21,10 +21,10 @@ services:
     container_name: dr_events_meili
     # Memory caps prevent the indexer's default ⅔-of-host-RAM grab from
     # paging the box into swap during reindex bursts (host OOMed 2026-05-11,
-    # killed a Claude Code session). Budget: ~500M index mmap + 256M indexing
-    # + 100M task DB + 150M overhead ≈ 1G steady-state; 1400m gives 400M
-    # headroom. Reindex peak measured at 918M, well below cap.
-    mem_limit: 1400m
+    # killed a Claude Code session). Index on disk grew to 1.3G; the prior
+    # 1400m cap caused 574k memory.max events and multi-second filter stalls
+    # as mmap'd bitmap pages were evicted. 2g fits index + RSS + headroom.
+    mem_limit: 2g
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-change_me}
       MEILI_NO_ANALYTICS: "true"
