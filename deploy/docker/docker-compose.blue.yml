@@ -35,7 +35,7 @@ services:
       meilisearch:
         condition: service_started
     ports:
-      - "13001:3001"
+      - "127.0.0.1:13001:3001"
     volumes:
       - ../../data/uploads:/app/uploads
 
@@ -68,7 +68,7 @@ services:
     depends_on:
       - api_blue
     ports:
-      - "13000:3000"
+      - "127.0.0.1:13000:3000"
 
 networks:
   mail-relay:

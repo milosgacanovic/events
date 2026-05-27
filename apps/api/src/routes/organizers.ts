@@ -20,15 +20,20 @@ import { syncSeriesForEvent } from "../services/eventLifecycleService";
 import { recordActivity } from "../services/activityLogger";
 import { logValidation } from "../utils/validationError";
 
+// Strip null bytes from free-text params: Postgres rejects 0x00 in text/
+// text[] params, which would otherwise surface as a 500. Mirrors the tolerant
+// behaviour of /events/search (which goes to Meilisearch).
+const cleanText = z.string().transform((value) => value.replace(/\u0000/g, ""));
+
 const querySchema = z.object({
-  q: z.string().optional(),
-  practice: z.string().optional(),
-  practiceCategoryId: z.string().optional(),
-  tags: z.string().optional(),
-  languages: z.string().optional(),
-  roleKey: z.string().optional(),
-  countryCode: z.string().optional(),
-  city: z.string().optional(),
+  q: cleanText.optional(),
+  practice: cleanText.optional(),
+  practiceCategoryId: cleanText.optional(),
+  tags: cleanText.optional(),
+  languages: cleanText.optional(),
+  roleKey: cleanText.optional(),
+  countryCode: cleanText.optional(),
+  city: cleanText.optional(),
   showArchived: z.enum(["true", "false"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),

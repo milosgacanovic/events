@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: dr_events
       POSTGRES_PASSWORD: dr_events_password
     ports:
-      - "15432:5432"
+      - "127.0.0.1:15432:5432"
     volumes:
       - ../../data/postgres:/var/lib/postgresql/data
     healthcheck:
@@ -61,7 +61,7 @@ services:
       meilisearch:
         condition: service_started
     ports:
-      - "13001:3001"
+      - "127.0.0.1:13001:3001"
     volumes:
       - ../../data/uploads:/app/uploads
 
@@ -92,4 +92,4 @@ services:
     depends_on:
       - api
     ports:
-      - "13000:3000"
+      - "127.0.0.1:13000:3000"

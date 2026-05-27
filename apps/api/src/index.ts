@@ -38,6 +38,7 @@ import { KeycloakAdminService } from "./services/keycloakAdminService";
 import { MeilisearchService } from "./services/meiliService";
 import { findOrCreateUserBySub } from "./db/userRepo";
 import { loggerConfig } from "./utils/logger";
+import { safeErrorBody } from "./utils/errorResponse";
 
 async function buildServer() {
   const app = Fastify({
@@ -198,7 +199,9 @@ async function buildServer() {
       }).catch(() => {});
     }
 
-    reply.code(code).send({ error: err.message || "internal_error" });
+    // 5xx messages are masked (they can leak DB/driver detail); the real
+    // message is already captured above via request.log.error + logError.
+    reply.code(code).send(safeErrorBody(code, err.message));
   });
 
   app.addHook("onRequest", async (request, reply) => {
