@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: dr_events
       POSTGRES_USER: dr_events
-      POSTGRES_PASSWORD: dr_events_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in /opt/events/.env}
     ports:
       - "127.0.0.1:15432:5432"
     volumes:
