@@ -231,7 +231,6 @@ export function OrganizerSearchClient({
   const lastRestoredKeyRef = useRef<string | null>(null);
   const cacheRestoredPageRef = useRef<number | null>(null);
   const syncingFromUrlRef = useRef(false);
-  const facetRequestRef = useRef(0);
   const isTypingQRef = useRef(false);
   const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cityInputRef = useRef<HTMLInputElement | null>(null);
@@ -314,20 +313,6 @@ export function OrganizerSearchClient({
     if (cities.length) params.set("city", cities.join(","));
     params.set("page", String(nextPage));
     params.set("pageSize", "20");
-    return params.toString();
-  }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
-
-  const buildFacetQueryString = useCallback((exclude: "roleKey" | "practiceCategoryId" | "languages" | "countryCode") => {
-    const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
-    if (exclude !== "roleKey" && roleKeys.length) params.set("roleKey", roleKeys.join(","));
-    if (exclude !== "practiceCategoryId" && practiceCategoryIds.length) params.set("practiceCategoryId", practiceCategoryIds.join(","));
-    if (tags.length) params.set("tags", tags.join(","));
-    if (exclude !== "languages" && languages.length) params.set("languages", languages.join(","));
-    if (exclude !== "countryCode" && countryCodes.length) params.set("countryCode", countryCodes.join(","));
-    if (cities.length) params.set("city", cities.join(","));
-    params.set("page", "1");
-    params.set("pageSize", "1");
     return params.toString();
   }, [q, roleKeys, practiceCategoryIds, tags, languages, countryCodes, cities]);
 
@@ -556,6 +541,16 @@ export function OrganizerSearchClient({
         setAccumulatedItems((prev) => [...prev, ...result.items]);
       } else {
         setAccumulatedItems(result.items);
+        // Facet counts are disjunctive (server computes exclude-self counts for
+        // active dimensions) and arrive with the main search — no separate
+        // warmer requests. Page-to-page (append) results carry identical facets,
+        // so only refresh on a fresh search.
+        if (result.facets) {
+          setRoleFacetCounts(result.facets.roleKey ?? {});
+          setPracticeFacetCounts(result.facets.practiceCategoryId ?? {});
+          setLanguageFacetCounts(result.facets.languages ?? {});
+          setCountryFacetCounts(result.facets.countryCode ?? {});
+        }
       }
       setPage(nextPage);
     } catch (err) {
@@ -791,26 +786,6 @@ export function OrganizerSearchClient({
     const id = window.setTimeout(() => setHeroAnimReady(true), 600);
     return () => window.clearTimeout(id);
   }, []);
-
-  useEffect(() => {
-    const requestId = facetRequestRef.current + 1;
-    facetRequestRef.current = requestId;
-    const timer = setTimeout(() => {
-      void Promise.all([
-        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("roleKey")}`),
-        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("practiceCategoryId")}`),
-        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("languages")}`),
-        fetchJson<OrganizerSearchResponse>(`/organizers/search?${buildFacetQueryString("countryCode")}`),
-      ]).then(([roleResult, practiceResult, languageResult, countryResult]) => {
-        if (requestId !== facetRequestRef.current) return;
-        setRoleFacetCounts(roleResult?.facets?.roleKey ?? {});
-        setPracticeFacetCounts(practiceResult?.facets?.practiceCategoryId ?? {});
-        setLanguageFacetCounts(languageResult?.facets?.languages ?? {});
-        setCountryFacetCounts(countryResult?.facets?.countryCode ?? {});
-      }).catch(() => { /* keep existing counts on error */ });
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [buildFacetQueryString]);
 
   useEffect(() => {
     const params = new URLSearchParams();

@@ -211,6 +211,71 @@ type FacetsRow = {
   tag_facets: Record<string, number> | null;
 };
 
+// Disjunctive facet dimensions: each renders selectable options whose counts
+// must reflect "what you'd get if you toggled this value" — i.e. computed with
+// every OTHER active filter applied but NOT this dimension's own filter. The
+// base (conjunctive) facets are wrong for an active dimension because selecting
+// one value collapses that group to itself.
+type DisjunctiveDim = "roleKey" | "practiceCategoryId" | "languages" | "countryCode";
+
+function dimIsActive(input: OrganizerSearchInput, dim: DisjunctiveDim): boolean {
+  switch (dim) {
+    case "roleKey":
+      return Boolean(input.roleKeys?.length);
+    case "practiceCategoryId":
+      return Boolean(input.practiceCategoryIds?.length);
+    case "languages":
+      return Boolean(input.languages?.length);
+    case "countryCode":
+      return Boolean(input.countryCodes?.length || input.countryCode);
+  }
+}
+
+function inputWithoutDim(input: OrganizerSearchInput, dim: DisjunctiveDim): OrganizerSearchInput {
+  switch (dim) {
+    case "roleKey":
+      return { ...input, roleKeys: [] };
+    case "practiceCategoryId":
+      return { ...input, practiceCategoryIds: [] };
+    case "languages":
+      return { ...input, languages: [] };
+    case "countryCode":
+      return { ...input, countryCodes: [], countryCode: undefined };
+  }
+}
+
+async function runOrganizerFacets(pool: Pool, whereSql: string, values: unknown[]): Promise<FacetsRow> {
+  const result = await pool.query<FacetsRow>(
+    `
+      with filtered as (
+        select o.id, o.languages, o.tags, o.country_code, o.city
+        from organizers o
+        where ${whereSql}
+      ),
+      profile_role_data as (
+        select opr.organizer_id, r.key as role_key
+        from filtered f
+        join organizer_profile_roles opr on opr.organizer_id = f.id
+        join organizer_roles r on r.id = opr.role_id
+      ),
+      profile_practice_data as (
+        select op.organizer_id, op.practice_id::text as practice_id
+        from filtered f
+        join organizer_practices op on op.organizer_id = f.id
+      )
+      select
+        (select coalesce(json_object_agg(role_key, cnt), '{}') from (select role_key, count(distinct organizer_id) as cnt from profile_role_data group by role_key) x) as role_facets,
+        (select coalesce(json_object_agg(language, cnt), '{}') from (select language, count(*) as cnt from filtered cross join unnest(languages) as language group by language) x) as language_facets,
+        (select coalesce(json_object_agg(practice_id, cnt), '{}') from (select practice_id, count(distinct organizer_id) as cnt from profile_practice_data where practice_id is not null group by practice_id) x) as practice_facets,
+        (select coalesce(json_object_agg(cc, cnt), '{}') from (select lower(country_code) as cc, count(*) as cnt from filtered where country_code is not null group by lower(country_code)) x) as country_facets,
+        (select coalesce(json_object_agg(city, cnt), '{}') from (select lower(city) as city, count(*) as cnt from filtered where city is not null and city <> '' group by lower(city)) x) as city_facets,
+        (select coalesce(json_object_agg(tag, cnt), '{}') from (select tag, count(*) as cnt from filtered cross join unnest(tags) as tag group by tag) x) as tag_facets
+    `,
+    values,
+  );
+  return result.rows[0] ?? ({} as FacetsRow);
+}
+
 export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) {
   const page = Math.max(input.page, 1);
   const pageSize = Math.min(Math.max(input.pageSize, 1), 50);
@@ -218,8 +283,14 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
 
   const { whereSql, values } = buildOrganizerWhere(input);
 
-  // Two parallel queries: page rows (with total count) + all facets combined
-  const [rows, facetsResult] = await Promise.all([
+  // Disjunctive facets are computed server-side in one round trip: base
+  // (conjunctive) facets for non-active dimensions + one exclude-self facet
+  // query per ACTIVE dimension. This replaces the client firing 4 separate
+  // facet-warmer requests per filter change (1 HTTP call instead of 5).
+  const disjunctiveDims = (["roleKey", "practiceCategoryId", "languages", "countryCode"] as const)
+    .filter((dim) => dimIsActive(input, dim));
+
+  const [rows, baseFacets, disjunctive] = await Promise.all([
     pool.query<OrganizerRow & { total_count: string; role_keys: string[]; practice_category_ids: string[] }>(
       `
         select
@@ -250,50 +321,44 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
       `,
       [...values, pageSize, offset],
     ),
-    pool.query<FacetsRow>(
-      `
-        with filtered as (
-          select o.id, o.languages, o.tags, o.country_code, o.city
-          from organizers o
-          where ${whereSql}
-        ),
-        profile_role_data as (
-          select opr.organizer_id, r.key as role_key
-          from filtered f
-          join organizer_profile_roles opr on opr.organizer_id = f.id
-          join organizer_roles r on r.id = opr.role_id
-        ),
-        profile_practice_data as (
-          select op.organizer_id, op.practice_id::text as practice_id
-          from filtered f
-          join organizer_practices op on op.organizer_id = f.id
-        )
-        select
-          (select coalesce(json_object_agg(role_key, cnt), '{}') from (select role_key, count(distinct organizer_id) as cnt from profile_role_data group by role_key) x) as role_facets,
-          (select coalesce(json_object_agg(language, cnt), '{}') from (select language, count(*) as cnt from filtered cross join unnest(languages) as language group by language) x) as language_facets,
-          (select coalesce(json_object_agg(practice_id, cnt), '{}') from (select practice_id, count(distinct organizer_id) as cnt from profile_practice_data where practice_id is not null group by practice_id) x) as practice_facets,
-          (select coalesce(json_object_agg(cc, cnt), '{}') from (select lower(country_code) as cc, count(*) as cnt from filtered where country_code is not null group by lower(country_code)) x) as country_facets,
-          (select coalesce(json_object_agg(city, cnt), '{}') from (select lower(city) as city, count(*) as cnt from filtered where city is not null and city <> '' group by lower(city)) x) as city_facets,
-          (select coalesce(json_object_agg(tag, cnt), '{}') from (select tag, count(*) as cnt from filtered cross join unnest(tags) as tag group by tag) x) as tag_facets
-      `,
-      values,
+    runOrganizerFacets(pool, whereSql, values),
+    Promise.all(
+      disjunctiveDims.map((dim) => {
+        const w = buildOrganizerWhere(inputWithoutDim(input, dim));
+        return runOrganizerFacets(pool, w.whereSql, w.values).then((facets) => ({ dim, facets }));
+      }),
     ),
   ]);
 
   const totalCount = Number(rows.rows[0]?.total_count ?? "0");
-  const facets = facetsResult.rows[0] ?? {};
+
+  // Seed every dimension from the base facets, then override each active
+  // dimension with its exclude-self (disjunctive) counts.
+  const facets = {
+    roleKey: (baseFacets.role_facets ?? {}) as Record<string, number>,
+    languages: (baseFacets.language_facets ?? {}) as Record<string, number>,
+    practiceCategoryId: (baseFacets.practice_facets ?? {}) as Record<string, number>,
+    tags: (baseFacets.tag_facets ?? {}) as Record<string, number>,
+    countryCode: (baseFacets.country_facets ?? {}) as Record<string, number>,
+    city: (baseFacets.city_facets ?? {}) as Record<string, number>,
+  };
+
+  for (const { dim, facets: f } of disjunctive) {
+    if (dim === "roleKey") {
+      facets.roleKey = (f.role_facets ?? {}) as Record<string, number>;
+    } else if (dim === "practiceCategoryId") {
+      facets.practiceCategoryId = (f.practice_facets ?? {}) as Record<string, number>;
+    } else if (dim === "languages") {
+      facets.languages = (f.language_facets ?? {}) as Record<string, number>;
+    } else if (dim === "countryCode") {
+      facets.countryCode = (f.country_facets ?? {}) as Record<string, number>;
+    }
+  }
 
   return {
     items: rows.rows,
     total: totalCount,
-    facets: {
-      roleKey: (facets.role_facets ?? {}) as Record<string, number>,
-      languages: (facets.language_facets ?? {}) as Record<string, number>,
-      practiceCategoryId: (facets.practice_facets ?? {}) as Record<string, number>,
-      tags: (facets.tag_facets ?? {}) as Record<string, number>,
-      countryCode: (facets.country_facets ?? {}) as Record<string, number>,
-      city: (facets.city_facets ?? {}) as Record<string, number>,
-    },
+    facets,
     pagination: {
       page,
       pageSize,
