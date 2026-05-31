@@ -12,6 +12,7 @@ type KeycloakPayload = JWTPayload & {
   azp?: string;
   realm_access?: { roles?: string[] };
   resource_access?: Record<string, { roles?: string[] }>;
+  name?: string;
   preferred_username?: string;
   email?: string;
 };
@@ -97,6 +98,7 @@ export class AuthService {
       roles,
       isAdmin,
       isEditor,
+      name: payload.name,
       preferredUsername: payload.preferred_username,
       email: payload.email,
     };

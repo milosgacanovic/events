@@ -94,7 +94,7 @@ async function buildServer() {
     request.auth = await authService.authenticate(request.headers.authorization);
     // Fire-and-forget: upsert display_name + email from JWT claims on every auth
     if (request.auth.sub) {
-      findOrCreateUserBySub(pool, request.auth.sub, request.auth.preferredUsername, request.auth.email, request.auth.roles)
+      findOrCreateUserBySub(pool, request.auth.sub, request.auth.name ?? request.auth.preferredUsername, request.auth.email, request.auth.roles)
         .catch(() => {});
       // Throttled last_login_at touch — at most one write per user per hour
       pool.query(

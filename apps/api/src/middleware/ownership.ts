@@ -12,7 +12,7 @@ export async function resolveUserId(
   pool: Pool,
   auth: AuthContext,
 ): Promise<string> {
-  return findOrCreateUserBySub(pool, auth.sub, auth.preferredUsername, auth.email, auth.roles);
+  return findOrCreateUserBySub(pool, auth.sub, auth.name ?? auth.preferredUsername, auth.email, auth.roles);
 }
 
 /**
