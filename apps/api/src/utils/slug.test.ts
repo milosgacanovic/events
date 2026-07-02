@@ -72,4 +72,13 @@ describe("generateUniqueSlug", () => {
     await generateUniqueSlug(pool, "organizers", "My Studio");
     expect(captured[0]).toContain("from organizers");
   });
+
+  it("falls back to a random suffix when the sequential window is exhausted", async () => {
+    // Simulates the real-world "emerging-waves" pathology: base + -2..-10 all taken.
+    const taken = new Set(["waves", "waves-2", "waves-3", "waves-4", "waves-5",
+      "waves-6", "waves-7", "waves-8", "waves-9", "waves-10"]);
+    const { pool } = makePool((slug) => taken.has(slug));
+    const slug = await generateUniqueSlug(pool, "events", "waves");
+    expect(slug).toMatch(/^waves-[0-9a-z]{6}$/);
+  });
 });
