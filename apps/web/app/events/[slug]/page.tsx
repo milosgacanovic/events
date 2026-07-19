@@ -101,15 +101,6 @@ function buildEventJsonLd(detail: EventDetailResponse, slug: string): Record<str
     ...(o.organizer_avatar_path ? { image: o.organizer_avatar_path } : {}),
   }));
 
-  const offers = externalUrl
-    ? {
-        "@type": "Offer",
-        url: externalUrl,
-        availability: "https://schema.org/InStock",
-        ...(event.published_at ? { validFrom: event.published_at } : {}),
-      }
-    : undefined;
-
   const image = event.coverImageUrl ?? event.cover_image_path ?? null;
 
   return {
@@ -126,7 +117,6 @@ function buildEventJsonLd(detail: EventDetailResponse, slug: string): Record<str
     ...(location ? { location } : {}),
     ...(organizerNodes.length ? { organizer: organizerNodes, performer: organizerNodes } : {}),
     ...(event.languages?.length ? { inLanguage: event.languages } : {}),
-    ...(offers ? { offers } : {}),
     ...(externalUrl ? { isBasedOn: externalUrl } : {}),
   };
 }
