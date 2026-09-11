@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Susa",
   "manage.hostForm.roles": "Imikhakha",
   "manage.hostForm.setAsPrimary": "Misa njengenhloko",
+  "manage.hostForm.slugTaken": "Umsingathi one-slug ye-URL ethi “{slug}” usuvele ukhona.",
+  "manage.hostForm.slugTakenOpen": "Vula u-{name}",
   "manage.hostForm.thisHostsEvents": "Imicimbi yalo mqophi",
   "manage.hostForm.unarchive": "Khipha ekugcinweni",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Lo msingathi uxhunywe nemicimbi eshicilelwe. Ukushintsha isimo kuzomfihla kulawo makhasi emicimbi. Uqinisekile?",

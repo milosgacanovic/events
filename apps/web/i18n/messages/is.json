@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Fjarlægja",
   "manage.hostForm.roles": "Hlutverk",
   "manage.hostForm.setAsPrimary": "Stilla sem aðal",
+  "manage.hostForm.slugTaken": "Gestgjafi með vefslóðarheitinu „{slug}“ er þegar til.",
+  "manage.hostForm.slugTakenOpen": "Opna {name}",
   "manage.hostForm.thisHostsEvents": "Viðburðir þessa gestgjafa",
   "manage.hostForm.unarchive": "Taka úr safni",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Þessi gestgjafi er tengdur birtum viðburðum. Breyting á stöðu mun fela hann af þessum viðburðasíðum. Ertu viss?",

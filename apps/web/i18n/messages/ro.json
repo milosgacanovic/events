@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Eliminare",
   "manage.hostForm.roles": "Roluri",
   "manage.hostForm.setAsPrimary": "Setați ca principal",
+  "manage.hostForm.slugTaken": "Există deja o gazdă cu slugul URL „{slug}”.",
+  "manage.hostForm.slugTakenOpen": "Deschide {name}",
   "manage.hostForm.thisHostsEvents": "Evenimentele acestui organizator",
   "manage.hostForm.unarchive": "Dezarhivare",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Acest organizator este legat de evenimente publicate. Schimbarea statutului îl va ascunde de pe paginile acelor evenimente. Sunteți sigur?",

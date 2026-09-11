@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Odstrániť",
   "manage.hostForm.roles": "Roly",
   "manage.hostForm.setAsPrimary": "Nastaviť ako primárne",
+  "manage.hostForm.slugTaken": "Hostiteľ s URL slugom „{slug}“ už existuje.",
+  "manage.hostForm.slugTakenOpen": "Otvoriť {name}",
   "manage.hostForm.thisHostsEvents": "Udalosti tohto organizátora",
   "manage.hostForm.unarchive": "Zrušiť archiváciu",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Tento hostiteľ je prepojený s publikovanými akciami. Zmena stavu ho skryje na stránkach týchto akcií. Ste si istý?",

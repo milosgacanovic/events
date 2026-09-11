@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "ลบ",
   "manage.hostForm.roles": "บทบาท",
   "manage.hostForm.setAsPrimary": "ตั้งเป็นหลัก",
+  "manage.hostForm.slugTaken": "มีผู้จัดที่ใช้ URL slug “{slug}” อยู่แล้ว",
+  "manage.hostForm.slugTakenOpen": "เปิด {name}",
   "manage.hostForm.thisHostsEvents": "กิจกรรมของผู้จัดงานนี้",
   "manage.hostForm.unarchive": "ยกเลิกเก็บถาวร",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "โฮสต์นี้เชื่อมโยงกับกิจกรรมที่เผยแพร่แล้ว การเปลี่ยนสถานะจะซ่อนจากหน้ากิจกรรมเหล่านั้น คุณแน่ใจหรือไม่?",

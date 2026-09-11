@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Ukloni",
   "manage.hostForm.roles": "Uloge",
   "manage.hostForm.setAsPrimary": "Postavi kao primarnu",
+  "manage.hostForm.slugTaken": "Domaćin sa URL slugom „{slug}“ već postoji.",
+  "manage.hostForm.slugTakenOpen": "Otvori {name}",
   "manage.hostForm.thisHostsEvents": "Događaji ovog organizatora",
   "manage.hostForm.unarchive": "Dearhiviraj",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Ovaj organizator je povezan sa objavljenim događajima. Promena statusa će ga sakriti sa tih stranica događaja. Da li ste sigurni?",

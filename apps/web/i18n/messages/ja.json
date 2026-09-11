@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "削除",
   "manage.hostForm.roles": "役割",
   "manage.hostForm.setAsPrimary": "メインに設定",
+  "manage.hostForm.slugTaken": "URL スラグ「{slug}」の主催者はすでに存在します。",
+  "manage.hostForm.slugTakenOpen": "{name} を開く",
   "manage.hostForm.thisHostsEvents": "このホストのイベント",
   "manage.hostForm.unarchive": "アーカイブ解除",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "このホストは公開中のイベントにリンクされています。ステータスを変更すると、それらのイベントページから非表示になります。よろしいですか？",

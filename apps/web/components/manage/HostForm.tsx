@@ -193,6 +193,7 @@ export function HostForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [unpublishActiveConfirm, setUnpublishActiveConfirm] = useState(false);
+  const [slugConflict, setSlugConflict] = useState<{ slug: string | null; existingHost: { id: string; name: string; slug: string; status: string } | null } | null>(null);
   const [navConfirmHref, setNavConfirmHref] = useState<string | null>(null);
   const backHref = typeof window !== "undefined" ? (sessionStorage.getItem("manageHostsUrl") || "/manage/hosts") : "/manage/hosts";
   const pendingForcePayload = useRef<Record<string, unknown> | null>(null);
@@ -235,6 +236,25 @@ export function HostForm({
       if (newStatus === "archived") return t("manage.form.savedAndArchived");
     }
     return t("manage.form.saved");
+  }
+
+  // The API answers a colliding slug with 409 slug_taken plus the host that
+  // already owns it, so the editor can jump to that record instead of retrying
+  // a save that can never succeed.
+  function reportSaveError(err: unknown): void {
+    const body = (err as { body?: Record<string, unknown> })?.body;
+    if (body?.error === "slug_taken") {
+      const conflict = {
+        slug: (body.slug as string | null) ?? null,
+        existingHost: (body.existingHost as { id: string; name: string; slug: string; status: string } | null) ?? null,
+      };
+      setSlugConflict(conflict);
+      setFieldErrors((prev) => ({ ...prev, slug: t("manage.hostForm.slugTaken", { slug: conflict.slug ?? "" }) }));
+      setStatus(t("manage.form.errorPrefix", { message: t("manage.hostForm.slugTaken", { slug: conflict.slug ?? "" }) }));
+      document.getElementById("field-slug")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    setStatus(t("manage.form.errorPrefix", { message: err instanceof Error ? err.message : t("manage.form.unknownError") }));
   }
 
   const savedMessages = [t("manage.form.saved"), t("manage.form.savedAsDraft"), t("manage.form.savedAndPublished"), t("manage.form.savedAndArchived")];
@@ -403,7 +423,7 @@ export function HostForm({
         pendingForcePayload.current = payload;
         setUnpublishActiveConfirm(true);
       } else {
-        setStatus(t("manage.form.errorPrefix", { message: err instanceof Error ? err.message : t("manage.form.unknownError") }));
+        reportSaveError(err);
       }
     } finally {
       setSaving(false);
@@ -426,7 +446,7 @@ export function HostForm({
       setStatus(saveMessage(form.status));
       onStatusChange?.(form.status);
     } catch (retryErr) {
-      setStatus(t("manage.form.errorPrefix", { message: retryErr instanceof Error ? retryErr.message : t("manage.form.unknownError") }));
+      reportSaveError(retryErr);
     } finally {
       setSaving(false);
     }
@@ -491,7 +511,7 @@ export function HostForm({
       setStatus(t("manage.form.savedAndPublished"));
       router.push(`/hosts/${result.slug}`);
     } catch (err) {
-      setStatus(t("manage.form.errorPrefix", { message: err instanceof Error ? err.message : t("manage.form.unknownError") }));
+      reportSaveError(err);
     } finally {
       setSaving(false);
     }
@@ -532,14 +552,33 @@ export function HostForm({
           {fieldErrors.name && <span className="field-error">{fieldErrors.name}</span>}
         </div>
 
-        <div>
+        <div id="field-slug">
           <label>{t("manage.form.urlSlug")}</label>
           <input
             value={form.slug}
-            onChange={(e) => { slugManuallyEdited.current = true; update("slug", e.target.value); }}
+            onChange={(e) => {
+              slugManuallyEdited.current = true;
+              update("slug", e.target.value);
+              if (fieldErrors.slug) setFieldErrors((p) => ({ ...p, slug: "" }));
+              if (slugConflict) setSlugConflict(null);
+            }}
             disabled={mode === "edit"}
             placeholder="auto-generated-from-name"
+            className={fieldErrors.slug ? "field-invalid" : undefined}
           />
+          {fieldErrors.slug && (
+            <span className="field-error">
+              {fieldErrors.slug}
+              {slugConflict?.existingHost && (
+                <>
+                  {" "}
+                  <a href={`/manage/hosts/${slugConflict.existingHost.id}`}>
+                    {t("manage.hostForm.slugTakenOpen", { name: slugConflict.existingHost.name })}
+                  </a>
+                </>
+              )}
+            </span>
+          )}
         </div>
 
         <div>

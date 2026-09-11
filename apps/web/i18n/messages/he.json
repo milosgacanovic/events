@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "הסר",
   "manage.hostForm.roles": "תפקידים",
   "manage.hostForm.setAsPrimary": "הגדר כראשי",
+  "manage.hostForm.slugTaken": "מארגן עם המזהה “{slug}” כבר קיים.",
+  "manage.hostForm.slugTakenOpen": "פתיחת {name}",
   "manage.hostForm.thisHostsEvents": "אירועי מארגן זה",
   "manage.hostForm.unarchive": "בטל ארכיון",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "מארח זה מקושר לאירועים מפורסמים. שינוי הסטטוס יסתיר אותו מדפי האירועים הללו. האם אתה בטוח?",

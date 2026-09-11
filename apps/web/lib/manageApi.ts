@@ -39,6 +39,9 @@ export async function authorizedFetch<T>(
     }
     const error = new Error(message);
     (error as unknown as { status: number }).status = response.status;
+    // Keep the raw payload: structured errors (e.g. slug_taken) carry detail
+    // beyond the message that callers need to render a useful prompt.
+    (error as unknown as { body: Record<string, unknown> }).body = body;
     throw error;
   }
 

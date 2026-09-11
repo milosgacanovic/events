@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Odebrat",
   "manage.hostForm.roles": "Role",
   "manage.hostForm.setAsPrimary": "Nastavit jako primární",
+  "manage.hostForm.slugTaken": "Hostitel s URL slugem „{slug}“ již existuje.",
+  "manage.hostForm.slugTakenOpen": "Otevřít {name}",
   "manage.hostForm.thisHostsEvents": "Akce tohoto hostitele",
   "manage.hostForm.unarchive": "Zrušit archivaci",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Tento hostitel je propojen s publikovanými akcemi. Změna stavu ho skryje na stránkách těchto akcí. Opravdu chcete pokračovat?",

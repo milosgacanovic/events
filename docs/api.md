@@ -118,6 +118,16 @@ See `constitution.md` in this directory for complete behavior and field-level re
 - `DELETE /api/profile/alerts/:id` removes a user-owned alert.
 - `GET /api/admin/alerts/run-dry` returns dry-run matches for the next 30 days (admin-only).
 
+## Host Slug Uniqueness (`POST`/`PATCH /api/organizers`)
+- `organizers.slug` is unique. When `slug` is omitted on create the server
+  generates a free one; when the client supplies it, the value is used verbatim.
+- A supplied slug that is already taken returns `409` with:
+  - `error: "slug_taken"`
+  - `slug` — the rejected value
+  - `existingHost` — `{ id, name, slug, status }` of the host holding it, or
+    `null` if it could not be resolved. Includes draft/archived hosts, so the
+    caller can be pointed at a record that is invisible in public search.
+
 ## Event Import Idempotency (Single/Recurring Event Create/Patch)
 - `POST /api/events` accepts optional `externalSource` and `externalId` (`string|null`, max 255 each).
 - `PATCH /api/events/:id` accepts optional `externalSource` and `externalId` with same constraints.

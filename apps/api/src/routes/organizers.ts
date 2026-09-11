@@ -7,6 +7,7 @@ import {
   deleteOrganizer,
   getOrganizerById,
   getOrganizerBySlug,
+  getOrganizerIdentityBySlug,
   listOrganizerPastOccurrences,
   markOrganizerDetached,
   searchOrganizers,
@@ -18,6 +19,7 @@ import { isServiceAccount } from "../db/userRepo";
 import { clearSearchCache, debouncedClearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
 import { syncSeriesForEvent } from "../services/eventLifecycleService";
 import { recordActivity } from "../services/activityLogger";
+import { isSlugUniqueViolation } from "../utils/slug";
 import { logValidation } from "../utils/validationError";
 
 // Strip null bytes from free-text params: Postgres rejects 0x00 in text/
@@ -38,6 +40,17 @@ const querySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),
 });
+
+// Names the host that already owns the slug so the manage UI can link straight
+// to it instead of leaving the editor guessing which record blocks the save.
+async function slugConflictBody(db: Parameters<typeof getOrganizerIdentityBySlug>[0], slug?: string) {
+  const existing = slug ? await getOrganizerIdentityBySlug(db, slug) : null;
+  return {
+    error: "slug_taken",
+    slug: slug ?? null,
+    existingHost: existing,
+  };
+}
 
 function csvToList(value?: string): string[] {
   if (!value) {
@@ -332,7 +345,16 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     const auth = request.auth!;
     const userId = await resolveUserId(app.db, auth);
 
-    const organizer = await createOrganizer(app.db, parsed.data);
+    let organizer;
+    try {
+      organizer = await createOrganizer(app.db, parsed.data);
+    } catch (error) {
+      if (isSlugUniqueViolation(error, "organizers")) {
+        reply.code(409);
+        return await slugConflictBody(app.db, parsed.data.slug);
+      }
+      throw error;
+    }
 
     // Set creator and create host_users link
     await app.db.query(
@@ -401,7 +423,16 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
     // Pre-fetch for detach-on-edit decision (mirrors events.ts flow).
     const previousOrganizer = await getOrganizerById(app.db, params.data.id);
 
-    const organizer = await updateOrganizer(app.db, params.data.id, parsed.data);
+    let organizer;
+    try {
+      organizer = await updateOrganizer(app.db, params.data.id, parsed.data);
+    } catch (error) {
+      if (isSlugUniqueViolation(error, "organizers")) {
+        reply.code(409);
+        return await slugConflictBody(app.db, parsed.data.slug);
+      }
+      throw error;
+    }
     if (!organizer) {
       reply.code(404);
       return { error: "not_found" };

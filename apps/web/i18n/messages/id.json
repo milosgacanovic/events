@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Hapus",
   "manage.hostForm.roles": "Peran",
   "manage.hostForm.setAsPrimary": "Jadikan utama",
+  "manage.hostForm.slugTaken": "Host dengan slug URL “{slug}” sudah ada.",
+  "manage.hostForm.slugTakenOpen": "Buka {name}",
   "manage.hostForm.thisHostsEvents": "Acara penyelenggara ini",
   "manage.hostForm.unarchive": "Batalkan Arsip",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Host ini terhubung ke acara yang dipublikasikan. Mengubah statusnya akan menyembunyikannya dari halaman acara tersebut. Apakah Anda yakin?",

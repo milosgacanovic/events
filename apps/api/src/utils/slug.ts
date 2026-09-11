@@ -51,3 +51,28 @@ export async function generateUniqueSlug(
 
   throw new Error(`Could not generate unique slug for ${table}`);
 }
+
+const SLUG_UNIQUE_CONSTRAINTS = {
+  events: "events_slug_key",
+  organizers: "organizers_slug_key",
+} as const;
+
+/**
+ * True when a Postgres error is the slug uniqueness violation for `table`.
+ *
+ * Callers that accept a client-supplied slug bypass `generateUniqueSlug`, so
+ * the collision only surfaces at insert/update time as 23505. Detecting it
+ * lets routes answer 409 instead of leaking a bare 500.
+ */
+export function isSlugUniqueViolation(
+  error: unknown,
+  table: keyof typeof SLUG_UNIQUE_CONSTRAINTS,
+): boolean {
+  const value = error as { code?: string; constraint?: string; message?: string } | undefined;
+  if (!value || value.code !== "23505") {
+    return false;
+  }
+
+  const constraint = SLUG_UNIQUE_CONSTRAINTS[table];
+  return value.constraint === constraint || Boolean(value.message?.includes(constraint));
+}

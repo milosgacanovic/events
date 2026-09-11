@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Xóa",
   "manage.hostForm.roles": "Vai trò",
   "manage.hostForm.setAsPrimary": "Đặt làm chính",
+  "manage.hostForm.slugTaken": "Đã tồn tại một chủ trì với slug URL “{slug}”.",
+  "manage.hostForm.slugTakenOpen": "Mở {name}",
   "manage.hostForm.thisHostsEvents": "Các sự kiện của ban tổ chức này",
   "manage.hostForm.unarchive": "Bỏ lưu trữ",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Nhà tổ chức này được liên kết với các sự kiện đã xuất bản. Thay đổi trạng thái sẽ ẩn nó khỏi các trang sự kiện đó. Bạn có chắc không?",

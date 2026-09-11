@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { generateUniqueSlug } from "./slug";
+import { generateUniqueSlug, isSlugUniqueViolation } from "./slug";
 
 type Row = { exists: boolean };
 
@@ -80,5 +80,31 @@ describe("generateUniqueSlug", () => {
     const { pool } = makePool((slug) => taken.has(slug));
     const slug = await generateUniqueSlug(pool, "events", "waves");
     expect(slug).toMatch(/^waves-[0-9a-z]{6}$/);
+  });
+});
+
+describe("isSlugUniqueViolation", () => {
+  it("matches the slug constraint for the given table", () => {
+    const error = { code: "23505", constraint: "organizers_slug_key" };
+    expect(isSlugUniqueViolation(error, "organizers")).toBe(true);
+    expect(isSlugUniqueViolation(error, "events")).toBe(false);
+  });
+
+  it("falls back to the message when the driver omits the constraint name", () => {
+    const error = {
+      code: "23505",
+      message: 'duplicate key value violates unique constraint "organizers_slug_key"',
+    };
+    expect(isSlugUniqueViolation(error, "organizers")).toBe(true);
+  });
+
+  it("ignores other unique violations and non-database errors", () => {
+    expect(isSlugUniqueViolation(
+      { code: "23505", constraint: "organizers_external_source_external_id_unique_idx" },
+      "organizers",
+    )).toBe(false);
+    expect(isSlugUniqueViolation({ code: "23503", constraint: "organizers_slug_key" }, "organizers")).toBe(false);
+    expect(isSlugUniqueViolation(new Error("boom"), "organizers")).toBe(false);
+    expect(isSlugUniqueViolation(undefined, "organizers")).toBe(false);
   });
 });

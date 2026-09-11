@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Αφαίρεση",
   "manage.hostForm.roles": "Ρόλοι",
   "manage.hostForm.setAsPrimary": "Ορισμός ως κύρια",
+  "manage.hostForm.slugTaken": "Υπάρχει ήδη διοργανωτής με το URL slug «{slug}».",
+  "manage.hostForm.slugTakenOpen": "Άνοιγμα {name}",
   "manage.hostForm.thisHostsEvents": "Εκδηλώσεις αυτού του Οργανωτή",
   "manage.hostForm.unarchive": "Αναίρεση αρχειοθέτησης",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Αυτός ο διοργανωτής είναι συνδεδεμένος με δημοσιευμένες εκδηλώσεις. Η αλλαγή κατάστασης θα τον κρύψει από αυτές τις σελίδες εκδηλώσεων. Είστε σίγουροι;",

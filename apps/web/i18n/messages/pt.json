@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Remover",
   "manage.hostForm.roles": "Funções",
   "manage.hostForm.setAsPrimary": "Definir como principal",
+  "manage.hostForm.slugTaken": "Já existe um anfitrião com o slug de URL “{slug}”.",
+  "manage.hostForm.slugTakenOpen": "Abrir {name}",
   "manage.hostForm.thisHostsEvents": "Eventos deste organizador",
   "manage.hostForm.unarchive": "Desarquivar",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Este organizador está vinculado a eventos publicados. Alterar o status irá ocultá-lo dessas páginas de eventos. Tem certeza?",

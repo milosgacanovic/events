@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Eltávolítás",
   "manage.hostForm.roles": "Szerepkörök",
   "manage.hostForm.setAsPrimary": "Beállítás elsődlegesnek",
+  "manage.hostForm.slugTaken": "Már létezik szervező „{slug}” URL-azonosítóval.",
+  "manage.hostForm.slugTakenOpen": "{name} megnyitása",
   "manage.hostForm.thisHostsEvents": "Ezen szervező eseményei",
   "manage.hostForm.unarchive": "Archiválás visszavonása",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Ez a szervező publikált eseményekhez van kapcsolva. A státusz módosítása elrejti az adott eseményoldalakról. Biztos benne?",

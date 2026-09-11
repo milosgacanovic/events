@@ -948,6 +948,22 @@ export async function getOrganizerByExternalRef(
   return result.rows[0] ?? null;
 }
 
+/**
+ * Minimal by-slug lookup for slug-collision reporting. Unlike
+ * `getOrganizerBySlug` this skips the detail joins and ignores status, so a
+ * draft or archived host that already owns the slug is still found.
+ */
+export async function getOrganizerIdentityBySlug(
+  pool: Pool,
+  slug: string,
+): Promise<{ id: string; name: string; slug: string; status: string } | null> {
+  const result = await pool.query<{ id: string; name: string; slug: string; status: string }>(
+    `select id, name, slug, status from organizers where slug = $1 limit 1`,
+    [slug],
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function getOrganizerById(pool: Pool, id: string): Promise<OrganizerRow | null> {
   const result = await pool.query<OrganizerRow>(
     `select ${ORGANIZER_SELECT_COLUMNS} from organizers where id = $1 limit 1`,

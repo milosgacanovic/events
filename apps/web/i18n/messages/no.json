@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Fjern",
   "manage.hostForm.roles": "Roller",
   "manage.hostForm.setAsPrimary": "Sett som primær",
+  "manage.hostForm.slugTaken": "En vert med URL-sluggen «{slug}» finnes allerede.",
+  "manage.hostForm.slugTakenOpen": "Åpne {name}",
   "manage.hostForm.thisHostsEvents": "Denne arrangørens arrangementer",
   "manage.hostForm.unarchive": "Gjenopprett fra arkiv",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Denne verten er knyttet til publiserte arrangementer. Endring av status vil skjule den fra disse arrangementssidene. Er du sikker?",

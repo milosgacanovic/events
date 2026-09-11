@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Kaldır",
   "manage.hostForm.roles": "Roller",
   "manage.hostForm.setAsPrimary": "Birincil olarak ayarla",
+  "manage.hostForm.slugTaken": "“{slug}” URL kısa adına sahip bir ev sahibi zaten var.",
+  "manage.hostForm.slugTakenOpen": "{name} öğesini aç",
   "manage.hostForm.thisHostsEvents": "Bu organizatörün etkinlikleri",
   "manage.hostForm.unarchive": "Arşivden Çıkar",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Bu organizatör yayınlanmış etkinliklerle bağlantılı. Durumu değiştirmek onu bu etkinlik sayfalarından gizleyecektir. Emin misiniz?",

@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Ta bort",
   "manage.hostForm.roles": "Roller",
   "manage.hostForm.setAsPrimary": "Ange som primär",
+  "manage.hostForm.slugTaken": "En värd med URL-sluggen ”{slug}” finns redan.",
+  "manage.hostForm.slugTakenOpen": "Öppna {name}",
   "manage.hostForm.thisHostsEvents": "Den här arrangörens evenemang",
   "manage.hostForm.unarchive": "Avarkivera",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Denna värd är kopplad till publicerade evenemang. Ändring av status döljer den från dessa evenemangssidor. Är du säker?",

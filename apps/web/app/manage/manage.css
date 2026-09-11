@@ -12,6 +12,14 @@
   margin-top: 4px;
 }
 
+/* Links inside a field error (e.g. "open the host that owns this slug")
+   inherit the error colour so they read as part of the message. */
+.field-error a {
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
 .field-required-mark {
   color: #c0392b;
   font-size: 0.85rem;

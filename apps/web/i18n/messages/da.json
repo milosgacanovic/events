@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Fjern",
   "manage.hostForm.roles": "Roller",
   "manage.hostForm.setAsPrimary": "Angiv som primær",
+  "manage.hostForm.slugTaken": "En vært med URL-sluggen „{slug}” findes allerede.",
+  "manage.hostForm.slugTakenOpen": "Åbn {name}",
   "manage.hostForm.thisHostsEvents": "Denne værts begivenheder",
   "manage.hostForm.unarchive": "Gendan fra arkiv",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Denne vært er knyttet til offentliggjorte begivenheder. Ændring af status vil skjule den fra disse begivenhedssider. Er du sikker?",

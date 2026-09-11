@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "删除",
   "manage.hostForm.roles": "角色",
   "manage.hostForm.setAsPrimary": "设为主要",
+  "manage.hostForm.slugTaken": "URL 名称“{slug}”已被其他主办方使用。",
+  "manage.hostForm.slugTakenOpen": "打开 {name}",
   "manage.hostForm.thisHostsEvents": "此主办方的活动",
   "manage.hostForm.unarchive": "取消归档",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "此主办方已关联到已发布的活动。更改状态将使其从这些活动页面中隐藏。您确定吗？",

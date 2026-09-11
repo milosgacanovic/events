@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Verwijderen",
   "manage.hostForm.roles": "Rollen",
   "manage.hostForm.setAsPrimary": "Instellen als primair",
+  "manage.hostForm.slugTaken": "Er bestaat al een host met de URL-slug “{slug}”.",
+  "manage.hostForm.slugTakenOpen": "{name} openen",
   "manage.hostForm.thisHostsEvents": "Evenementen van deze organisator",
   "manage.hostForm.unarchive": "Dearchiveren",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Deze organisator is gekoppeld aan gepubliceerde evenementen. Het wijzigen van de status verbergt deze van die evenementenpagina's. Weet u het zeker?",

@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "제거",
   "manage.hostForm.roles": "역할",
   "manage.hostForm.setAsPrimary": "기본으로 설정",
+  "manage.hostForm.slugTaken": "URL 슬러그 “{slug}”를 사용하는 호스트가 이미 있습니다.",
+  "manage.hostForm.slugTakenOpen": "{name} 열기",
   "manage.hostForm.thisHostsEvents": "이 호스트의 이벤트",
   "manage.hostForm.unarchive": "보관 취소",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "이 호스트는 게시된 이벤트에 연결되어 있습니다. 상태를 변경하면 해당 이벤트 페이지에서 숨겨집니다. 계속하시겠습니까?",

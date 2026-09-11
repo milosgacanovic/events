@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Poista",
   "manage.hostForm.roles": "Roolit",
   "manage.hostForm.setAsPrimary": "Aseta ensisijaiseksi",
+  "manage.hostForm.slugTaken": "Järjestäjä URL-tunnisteella ”{slug}” on jo olemassa.",
+  "manage.hostForm.slugTakenOpen": "Avaa {name}",
   "manage.hostForm.thisHostsEvents": "Tämän järjestäjän tapahtumat",
   "manage.hostForm.unarchive": "Palauta arkistosta",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Tämä isäntä on linkitetty julkaistuihin tapahtumiin. Tilan muuttaminen piilottaa sen näiltä tapahtumisivuilta. Oletko varma?",

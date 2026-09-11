@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "Видалити",
   "manage.hostForm.roles": "Ролі",
   "manage.hostForm.setAsPrimary": "Встановити як основне",
+  "manage.hostForm.slugTaken": "Організатор із URL-слаґом «{slug}» уже існує.",
+  "manage.hostForm.slugTakenOpen": "Відкрити {name}",
   "manage.hostForm.thisHostsEvents": "Заходи цього організатора",
   "manage.hostForm.unarchive": "Розархівувати",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "Цей організатор пов'язаний з опублікованими подіями. Зміна статусу приховає його зі сторінок цих подій. Ви впевнені?",

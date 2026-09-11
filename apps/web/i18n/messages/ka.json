@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "წაშლა",
   "manage.hostForm.roles": "როლები",
   "manage.hostForm.setAsPrimary": "მთავარად დაყენება",
+  "manage.hostForm.slugTaken": "მასპინძელი URL slug-ით „{slug}“ უკვე არსებობს.",
+  "manage.hostForm.slugTakenOpen": "{name}-ის გახსნა",
   "manage.hostForm.thisHostsEvents": "ამ მასპინძლის ღონისძიებები",
   "manage.hostForm.unarchive": "არქივიდან აღდგენა",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "ეს მასპინძელი დაკავშირებულია გამოქვეყნებულ ღონისძიებებთან. სტატუსის შეცვლა დამალავს მას ამ ღონისძიებების გვერდებიდან. დარწმუნებული ხართ?",

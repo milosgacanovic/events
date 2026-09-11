@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "إزالة",
   "manage.hostForm.roles": "الأدوار",
   "manage.hostForm.setAsPrimary": "تعيين كرئيسي",
+  "manage.hostForm.slugTaken": "يوجد مُستضيف بالمُعرّف «{slug}» بالفعل.",
+  "manage.hostForm.slugTakenOpen": "فتح {name}",
   "manage.hostForm.thisHostsEvents": "أحداث هذا المضيف",
   "manage.hostForm.unarchive": "إلغاء الأرشفة",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "هذا المضيف مرتبط بأحداث منشورة. تغيير حالته سيخفيه من صفحات تلك الأحداث. هل أنت متأكد؟",

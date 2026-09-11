@@ -1008,6 +1008,8 @@
   "manage.hostForm.removeLocation": "हटाएँ",
   "manage.hostForm.roles": "भूमिकाएँ",
   "manage.hostForm.setAsPrimary": "प्राथमिक के रूप में सेट करें",
+  "manage.hostForm.slugTaken": "URL स्लग “{slug}” वाला होस्ट पहले से मौजूद है।",
+  "manage.hostForm.slugTakenOpen": "{name} खोलें",
   "manage.hostForm.thisHostsEvents": "इस होस्ट के कार्यक्रम",
   "manage.hostForm.unarchive": "अन-आर्काइव",
   "manage.hostForm.unpublishHasActiveEventsConfirm": "यह होस्ट प्रकाशित इवेंट्स से जुड़ा है। स्थिति बदलने से यह उन इवेंट पृष्ठों से छिप जाएगा। क्या आप सुनिश्चित हैं?",
