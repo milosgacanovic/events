@@ -72,7 +72,15 @@ retry_curl "http://127.0.0.1:${inactive_api_port}/api/health" 40 2
 echo "Running DB migrations (expand/contract-safe only) ..."
 if ! docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" -f "$inactive_compose" exec -T "$inactive_api_service" npm run migrate -w @dr-events/api; then
   echo "Container migration failed (likely slim runtime image). Falling back to host migration ..."
-  npm run migrate -w @dr-events/api
+  # Load prod credentials from .env and reach postgres via its loopback-bound
+  # port (the compose hostname "postgres" only resolves inside the network).
+  (
+    set -a
+    # shellcheck disable=SC1090
+    . "$ENV_FILE"
+    set +a
+    DATABASE_URL="${DATABASE_URL/@postgres:5432\//@127.0.0.1:15432/}" npm run migrate -w @dr-events/api
+  )
 fi
 
 echo "Waiting for inactive web readiness ..."
