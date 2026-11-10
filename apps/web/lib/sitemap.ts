@@ -18,22 +18,7 @@ function getServerApiBaseCandidates(): string[] {
   return Array.from(new Set(values));
 }
 
-const EVENT_QUERY_TO = "2100-01-01T00:00:00.000Z";
-const API_PAGE_SIZE = 50;
 export const EVENT_SITEMAP_CHUNK_SIZE = 1000;
-
-type EventSearchResponse = {
-  hits: Array<{
-    event: {
-      slug: string;
-      lastSyncedAt?: string | null;
-    };
-  }>;
-  pagination?: {
-    page: number;
-    totalPages: number;
-  };
-};
 
 export type EventSitemapItem = {
   slug: string;
@@ -60,63 +45,34 @@ function normalizeIsoDate(value: string | undefined): string | undefined {
   return date.toISOString();
 }
 
-async function fetchEventPage(page: number, from: string): Promise<EventSearchResponse | null> {
-  const params = new URLSearchParams({
-    from,
-    to: EVENT_QUERY_TO,
-    sort: "publishedAtDesc",
-    page: String(page),
-    pageSize: String(API_PAGE_SIZE),
-  });
+type EventSitemapResponse = {
+  items: Array<{ slug: string; lastmod?: string | null }>;
+};
+
+// Source of truth is the API's /seo/sitemap/events, which applies the same
+// isEventIndexable() predicate as the event page's robots meta. Do NOT derive
+// this list from /events/search again: that returns one (possibly stale)
+// canonical slug per series and let archived pages into the sitemap.
+const getAllEventSitemapItemsCached = unstable_cache(async (): Promise<EventSitemapItem[]> => {
   for (const base of getServerApiBaseCandidates()) {
-    const response = await fetch(`${base}/events/search?${params.toString()}`, {
+    const response = await fetch(`${base}/seo/sitemap/events`, {
       next: { revalidate: 600 },
     }).catch(() => null);
     if (!response || !response.ok) {
       continue;
     }
-    return response.json() as Promise<EventSearchResponse>;
-  }
-  return null;
-}
-
-const getAllEventSitemapItemsCached = unstable_cache(async (): Promise<EventSitemapItem[]> => {
-  const itemsBySlug = new Map<string, string | undefined>();
-  const from = new Date().toISOString();
-  const firstPage = await fetchEventPage(1, from);
-  const totalPages = Math.max(firstPage?.pagination?.totalPages ?? 1, 1);
-
-  for (const hit of firstPage?.hits ?? []) {
-    const slug = hit.event.slug?.trim();
-    if (!slug) {
-      continue;
+    const payload = (await response.json()) as EventSitemapResponse;
+    const items = payload.items
+      .filter((item) => item.slug?.trim())
+      .map((item) => ({ slug: item.slug.trim(), lastmod: normalizeIsoDate(item.lastmod ?? undefined) }));
+    if (items.length === 0) {
+      // Don't poison the cache with an empty result.
+      throw new Error("events sitemap: API returned no items");
     }
-    const lastmod = normalizeIsoDate(hit.event.lastSyncedAt ?? undefined);
-    const existing = itemsBySlug.get(slug);
-    itemsBySlug.set(slug, existing && lastmod ? (existing > lastmod ? existing : lastmod) : existing ?? lastmod);
+    return items;
   }
-
-  for (let page = 2; page <= totalPages; page += 1) {
-    const payload = await fetchEventPage(page, from);
-    for (const hit of payload?.hits ?? []) {
-      const slug = hit.event.slug?.trim();
-      if (!slug) {
-        continue;
-      }
-      const lastmod = normalizeIsoDate(hit.event.lastSyncedAt ?? undefined);
-      const existing = itemsBySlug.get(slug);
-      itemsBySlug.set(slug, existing && lastmod ? (existing > lastmod ? existing : lastmod) : existing ?? lastmod);
-    }
-  }
-
-  if (itemsBySlug.size === 0) {
-    // Don't poison the cache with an empty result if the API was unreachable.
-    throw new Error("events sitemap: no items returned from API");
-  }
-  return Array.from(itemsBySlug.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([slug, lastmod]) => ({ slug, lastmod }));
-}, ["events-sitemap-items-v2"], { revalidate: 600 });
+  throw new Error("events sitemap: API unreachable");
+}, ["events-sitemap-items-v3"], { revalidate: 600 });
 
 export async function getEventSitemapItems(): Promise<EventSitemapItem[]> {
   return getAllEventSitemapItemsCached();

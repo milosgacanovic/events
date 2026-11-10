@@ -276,6 +276,11 @@ export type EventDetail = {
       timezone: string;
     } | null;
   };
+  /** Computed by the API with the shared isEventIndexable() predicate. */
+  seo?: {
+    indexable: boolean;
+    nextOccurrence: { starts_at_utc: string; ends_at_utc: string } | null;
+  };
   canEdit?: boolean;
 };
 

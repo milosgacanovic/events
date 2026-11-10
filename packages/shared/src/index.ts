@@ -6,3 +6,4 @@ export * from "./schemas/savedEvent";
 export * from "./schemas/rsvp";
 export * from "./schemas/savedSearch";
 export * from "./types/auth";
+export * from "./seo/indexability";

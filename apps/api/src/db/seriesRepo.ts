@@ -81,6 +81,10 @@ export async function refreshEventSeries(
         eo.event_id,
         min(eo.starts_at_utc) as earliest_upcoming
       from event_occurrences eo
+      -- Only occurrences of published siblings: cancelled siblings' dates
+      -- must not make the series look upcoming (that left ~383 series whose
+      -- canonical slug pointed at an archived page — SEO round 3, Task 1).
+      join siblings s on s.id = eo.event_id
       where eo.series_id = $1
         and eo.starts_at_utc >= now()
       group by eo.event_id
@@ -163,6 +167,7 @@ export async function refreshEventSeries(
     upcoming_all as (
       select eo.starts_at_utc, eo.ends_at_utc
       from event_occurrences eo
+      join siblings s on s.id = eo.event_id
       where eo.series_id = $1
         and eo.starts_at_utc >= now()
     ),

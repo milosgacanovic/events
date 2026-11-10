@@ -16,6 +16,7 @@ import {
   searchEventsFallback,
   setEventOrganizers,
   updateEvent,
+  listIndexableEventsForSitemap,
 } from "../db/eventRepo";
 import { createLocation, getEventDefaultLocation, setEventDefaultLocation, updateLocation } from "../db/locationRepo";
 import { findOrCreateUserBySub, isServiceAccount } from "../db/userRepo";
@@ -618,6 +619,14 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
         "events.search.timing",
       );
     }
+  });
+
+  // Sitemap source: every indexable event page (same isEventIndexable()
+  // predicate as the detail endpoint's seo.indexable). Public data only.
+  app.get("/seo/sitemap/events", async (_request, reply) => {
+    const items = await listIndexableEventsForSitemap(app.db);
+    reply.header("Cache-Control", "public, max-age=600");
+    return { items, generatedAt: new Date().toISOString() };
   });
 
   app.get("/events/:slug", async (request, reply) => {

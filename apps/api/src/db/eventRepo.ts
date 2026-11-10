@@ -1,4 +1,4 @@
-import type { CreateEventInput, UpdateEventInput } from "@dr-events/shared";
+import { isEventIndexable, type CreateEventInput, type UpdateEventInput } from "@dr-events/shared";
 import type { Pool } from "pg";
 
 import type { EventOccurrenceRow, EventSeriesRow, LocationRow } from "../types/domain";
@@ -619,7 +619,30 @@ export async function getEventBySlug(
 
   // Pick the canonical slug: whichever sibling owns the globally-earliest
   // upcoming occurrence. Falls back to the requested event if nothing is upcoming.
+  // NOTE: no longer used as the page's <link rel=canonical> (every live
+  // occurrence page is self-canonical since SEO round 3); kept for clients.
   const canonicalSlug = upcomingOccurrences.rows[0]?.event_slug ?? event.slug;
+
+  // This event's OWN next not-yet-ended occurrence (the upcoming list above
+  // is series-wide and capped at 100 rows, so it can't answer this).
+  const ownNext = await pool.query<{ starts_at_utc: string; ends_at_utc: string }>(
+    `
+      select starts_at_utc, ends_at_utc
+      from event_occurrences
+      where event_id = $1 and ends_at_utc >= now()
+      order by starts_at_utc asc
+      limit 1
+    `,
+    [event.id],
+  );
+  const nextOccurrence = ownNext.rows[0] ?? null;
+  const indexable = isEventIndexable({
+    status: event.status,
+    visibility: event.visibility,
+    nextOccurrenceStartsAt: nextOccurrence?.starts_at_utc ?? null,
+    siblingCount: siblingEvents.rows.length,
+    seriesNextOccurrenceStartsAt: upcomingOccurrences.rows[0]?.starts_at_utc ?? null,
+  });
 
   return {
     event,
@@ -635,7 +658,58 @@ export async function getEventBySlug(
       canonicalSlug,
     },
     siblingEvents: siblingEvents.rows,
+    seo: {
+      indexable,
+      nextOccurrence,
+    },
   };
+}
+
+export type EventSitemapRow = { slug: string; lastmod: string };
+
+/**
+ * Every indexable event page, filtered through the same isEventIndexable()
+ * predicate the detail endpoint uses, so sitemap and page robots can't drift.
+ */
+export async function listIndexableEventsForSitemap(pool: Pool, now = new Date()): Promise<EventSitemapRow[]> {
+  const res = await pool.query<{
+    slug: string;
+    status: string;
+    visibility: string;
+    updated_at: Date;
+    next_start: Date | null;
+    sibling_count: number;
+    series_next_start: Date | null;
+  }>(
+    `
+      with candidates as (
+        select e.id, e.slug, e.status, e.visibility, e.updated_at, e.series_id,
+          (select min(eo.starts_at_utc) from event_occurrences eo
+            where eo.event_id = e.id and eo.ends_at_utc >= now()) as next_start
+        from events e
+        where e.status = 'published' and e.visibility = 'public'
+      )
+      select c.slug, c.status, c.visibility, c.updated_at, c.next_start,
+        count(*) over (partition by coalesce(c.series_id, c.id))::int as sibling_count,
+        min(c.next_start) over (partition by coalesce(c.series_id, c.id)) as series_next_start
+      from candidates c
+    `,
+  );
+  return res.rows
+    .filter((r) =>
+      isEventIndexable(
+        {
+          status: r.status,
+          visibility: r.visibility,
+          nextOccurrenceStartsAt: r.next_start,
+          siblingCount: r.sibling_count,
+          seriesNextOccurrenceStartsAt: r.series_next_start,
+        },
+        now,
+      ),
+    )
+    .map((r) => ({ slug: r.slug, lastmod: new Date(r.updated_at).toISOString() }))
+    .sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
 export async function replaceOccurrencesInWindow(

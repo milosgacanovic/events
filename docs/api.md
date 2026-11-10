@@ -10,7 +10,8 @@ Base path: `/api`
 - `GET /api/meta/organizer-cities` (`q`, optional `countryCode`, optional `limit<=20`)
 - `GET /api/meta/organizer-tags` (`q`, optional `limit<=20`)
 - `GET /api/events/search` (returns `hits`, `facets`, `pagination`)
-- `GET /api/events/:slug`
+- `GET /api/events/:slug` (includes `seo: { indexable, nextOccurrence }`, see below)
+- `GET /api/seo/sitemap/events` (returns `items: [{ slug, lastmod }]` — every indexable event page)
 - `GET /api/organizers/search` (returns `items`, `facets`, `pagination`)
 - `GET /api/organizers/:slug`
 - `GET /api/map/clusters`
@@ -85,6 +86,11 @@ See `constitution.md` in this directory for complete behavior and field-level re
 - Caching:
   - in-memory LRU TTL `30s`
   - key includes normalized filters + rounded bbox + zoom + date window
+
+## Event Indexability (`seo`)
+- `GET /api/events/:slug` returns `seo.indexable` and `seo.nextOccurrence` (`{ starts_at_utc, ends_at_utc }` of this event's own next not-yet-ended occurrence, or `null`).
+- Both `seo.indexable` and `GET /api/seo/sitemap/events` use the shared `isEventIndexable()` predicate (`packages/shared/src/seo/indexability.ts`): published + public + an own occurrence that hasn't ended; for multi-sibling series, only siblings starting within 60 days plus the series' earliest upcoming sibling.
+- The web page uses `seo.indexable` for robots (`noindex, follow` otherwise) and for whether Event JSON-LD is emitted. `lastmod` is `events.updated_at`.
 
 ## Event Search and Detail Payload Additions
 - Public event payloads include importer transparency fields:

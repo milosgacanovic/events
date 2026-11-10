@@ -52,3 +52,17 @@ export function formatPointDateTime(
     suffixLabel: useEventZone ? "event" : "user",
   };
 }
+
+/**
+ * ISO 8601 in the event's local time with its UTC offset, e.g.
+ * "2026-11-11T18:30:00-06:00" (Google's preferred Event JSON-LD form).
+ * Falls back to the UTC ISO string when the zone is unknown/invalid.
+ */
+export function toZonedIsoString(isoUtc: string, timeZone: string | null | undefined): string {
+  const utc = DateTime.fromISO(isoUtc, { zone: "utc" });
+  if (!utc.isValid) return isoUtc;
+  if (!timeZone) return utc.toISO({ suppressMilliseconds: true }) ?? isoUtc;
+  const local = utc.setZone(timeZone);
+  if (!local.isValid) return utc.toISO({ suppressMilliseconds: true }) ?? isoUtc;
+  return local.toISO({ suppressMilliseconds: true, includeOffset: true }) ?? isoUtc;
+}

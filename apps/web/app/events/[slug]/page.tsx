@@ -7,6 +7,7 @@ import {
   type TaxonomyResponse,
 } from "../../../components/EventDetailClient";
 import { apiBase } from "../../../lib/api";
+import { toZonedIsoString } from "../../../lib/datetime";
 import { toDisplayNamesLocale } from "../../../lib/i18n/languageLabels";
 
 type EventDetailResponse = EventDetail;
@@ -42,13 +43,18 @@ const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "htt
 function buildEventJsonLd(detail: EventDetailResponse, slug: string): Record<string, unknown> {
   const event = detail.event;
   const loc = detail.defaultLocation;
-  const upcoming = detail.occurrences.upcoming?.[0];
+  // This page's OWN next occurrence. occurrences.upcoming is series-wide, so
+  // upcoming[0] can be another sibling's date.
+  const own = detail.seo?.nextOccurrence ?? null;
+  const tz = event.event_timezone || null;
 
   const descriptionRaw = (event.description_json as { html?: string } | null)?.html ?? "";
   const description = stripHtml(descriptionRaw).slice(0, 5000);
 
-  const startDate = event.single_start_at ?? upcoming?.starts_at_utc ?? undefined;
-  const endDate = event.single_end_at ?? upcoming?.ends_at_utc ?? undefined;
+  const startUtc = event.single_start_at ?? own?.starts_at_utc ?? undefined;
+  const endUtc = event.single_end_at ?? own?.ends_at_utc ?? undefined;
+  const startDate = startUtc ? toZonedIsoString(startUtc, tz) : undefined;
+  const endDate = endUtc ? toZonedIsoString(endUtc, tz) : undefined;
 
   const attendanceMode =
     event.attendance_mode === "online"
@@ -123,6 +129,9 @@ function buildEventJsonLd(detail: EventDetailResponse, slug: string): Record<str
 
 function shouldNoIndex(detail: EventDetailResponse | null): boolean {
   if (!detail) return false;
+  // Single source of truth: the API's isEventIndexable(), shared with the
+  // sitemap. The legacy checks below only run against an older API.
+  if (detail.seo) return !detail.seo.indexable;
   const isPast = (detail.occurrences.upcoming?.length ?? 0) === 0;
   if (isPast) return true;
   if (detail.event.status && detail.event.status !== "published") return true;
@@ -220,13 +229,10 @@ export async function generateMetadata({
     description: titleDescription,
     robots: noIndex ? { index: false, follow: true } : { index: true, follow: true },
     alternates: {
-      // Self-canonical. For multi-sibling series, collapse to the sibling
-      // owning the earliest upcoming occurrence so duplicate sibling URLs
-      // unify under one canonical page.
-      canonical:
-        (detail.series?.siblingCount ?? 1) > 1
-          ? `/events/${detail.series?.canonicalSlug ?? params.slug}`
-          : `/events/${params.slug}`,
+      // Always self-canonical: each occurrence page is its own Event. (The
+      // old series → earliest-sibling canonical moved every week and told
+      // Google distinct dates were duplicates.)
+      canonical: `/events/${params.slug}`,
     },
     openGraph: {
       title: detail.event.title,
