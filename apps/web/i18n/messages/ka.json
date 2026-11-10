@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "ეტლისთვის ხელმისაწვდომი",
   "tag.women's-circle": "ქალთა წრე",
   "theme.dark": "მუქი",
-  "theme.light": "ღია"
+  "theme.light": "ღია",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, წამყვანი: {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} ონლაინ, წამყვანი: {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} ონლაინ, {date}.",
+  "eventDetail.seo.kindFallback": "საცეკვაო ღონისძიება"
 }

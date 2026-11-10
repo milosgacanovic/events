@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "車椅子対応",
   "tag.women's-circle": "ウィメンズサークル",
   "theme.dark": "ダーク",
-  "theme.light": "ライト"
+  "theme.light": "ライト",
+  "eventDetail.seo.titleWith": "{title}（{host}）",
+  "eventDetail.seo.leadHost": "{date}、{place}で開催される{host}の{kind}。",
+  "eventDetail.seo.leadNoHost": "{date}、{place}で開催される{kind}。",
+  "eventDetail.seo.leadOnlineHost": "{date}開催、{host}のオンライン{kind}。",
+  "eventDetail.seo.leadOnlineNoHost": "{date}開催のオンライン{kind}。",
+  "eventDetail.seo.kindFallback": "ダンスイベント"
 }

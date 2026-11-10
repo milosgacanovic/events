@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "无障碍",
   "tag.women's-circle": "女性圈",
   "theme.dark": "深色",
-  "theme.light": "浅色"
+  "theme.light": "浅色",
+  "eventDetail.seo.titleWith": "{title}（{host}）",
+  "eventDetail.seo.leadHost": "{host}的{kind}，{place}，{date}。",
+  "eventDetail.seo.leadNoHost": "{kind}，{place}，{date}。",
+  "eventDetail.seo.leadOnlineHost": "{host}的线上{kind}，{date}。",
+  "eventDetail.seo.leadOnlineNoHost": "线上{kind}，{date}。",
+  "eventDetail.seo.kindFallback": "舞蹈活动"
 }

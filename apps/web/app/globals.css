@@ -2955,6 +2955,15 @@ label.meta {
   font-size: 0.95rem;
 }
 
+.event-detail-subtitle {
+  margin-top: 4px;
+  font-size: 0.95rem;
+}
+
+.event-detail-subtitle a {
+  color: inherit;
+}
+
 @keyframes event-detail-occurrence-pulse {
   0% { background: color-mix(in srgb, var(--accent) 42%, transparent); }
   100% { background: color-mix(in srgb, var(--accent) 18%, transparent); }

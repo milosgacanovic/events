@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Wheelchair Friendly",
   "tag.women's-circle": "Women's Circle",
   "theme.dark": "Dark",
-  "theme.light": "Light"
+  "theme.light": "Light",
+  "eventDetail.seo.titleWith": "{title} with {host}",
+  "eventDetail.seo.leadHost": "{kind} with {host} in {place} on {date}.",
+  "eventDetail.seo.leadNoHost": "{kind} in {place} on {date}.",
+  "eventDetail.seo.leadOnlineHost": "Online {kind} with {host} on {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "Online {kind} on {date}.",
+  "eventDetail.seo.kindFallback": "Dance event"
 }

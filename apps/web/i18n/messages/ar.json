@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "مناسب للكراسي المتحركة",
   "tag.women's-circle": "حلقة نساء",
   "theme.dark": "داكن",
-  "theme.light": "فاتح"
+  "theme.light": "فاتح",
+  "eventDetail.seo.titleWith": "{title} مع {host}",
+  "eventDetail.seo.leadHost": "{kind} مع {host} في {place}، {date}.",
+  "eventDetail.seo.leadNoHost": "{kind} في {place}، {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} عبر الإنترنت مع {host}، {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} عبر الإنترنت، {date}.",
+  "eventDetail.seo.kindFallback": "فعالية رقص"
 }

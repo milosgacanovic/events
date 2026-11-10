@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Ramah kursi roda",
   "tag.women's-circle": "Lingkaran wanita",
   "theme.dark": "Gelap",
-  "theme.light": "Terang"
+  "theme.light": "Terang",
+  "eventDetail.seo.titleWith": "{title} bersama {host}",
+  "eventDetail.seo.leadHost": "{kind} bersama {host} di {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind} di {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} online bersama {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
+  "eventDetail.seo.kindFallback": "Acara tari"
 }

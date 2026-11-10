@@ -20,7 +20,17 @@ UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 ENTITY_LEFTOVERS = ("&amp;", "&quot;", "&#39;", "&nbsp;", "&lt;", "&gt;")
 
 
+PUBLIC_BASE = BASE
+
+
+def set_base(base):
+    global BASE
+    BASE = base.rstrip("/")
+
+
 def get(url):
+    if BASE != PUBLIC_BASE:
+        url = url.replace(PUBLIC_BASE, BASE)
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=30) as resp:
         return resp.read().decode("utf-8", "ignore")
@@ -61,7 +71,7 @@ def audit(url):
     return {
         "url": url,
         "noindex": bool(robots and "noindex" in robots.group(1)),
-        "self_canonical": bool(canonical and canonical.group(1).rstrip("/") == url.rstrip("/")),
+        "self_canonical": bool(canonical and canonical.group(1).rstrip("/") == url.replace(BASE, PUBLIC_BASE).rstrip("/")),
         "title": title.group(1).strip() if title else "",
         "has_ld": bool(ld),
         "has_source": "isBasedOn" in ld,
@@ -76,7 +86,7 @@ def audit(url):
 def host_links_to(host_slug, event_url):
     slug = event_url.rstrip("/").rsplit("/", 1)[1]
     html = get(f"{BASE}/hosts/{host_slug}")
-    pattern = rf'<a[^>]+href="(?:{re.escape(BASE)})?/events/{re.escape(slug)}"'
+    pattern = rf'<a[^>]+href="(?:{re.escape(PUBLIC_BASE)})?/events/{re.escape(slug)}"'
     return re.search(pattern, html) is not None
 
 
@@ -84,7 +94,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sample", type=int, default=60)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--base", default=BASE, help="site origin (e.g. a local build); sitemap URLs are rewritten to it")
     args = parser.parse_args()
+    set_base(args.base)
     random.seed(args.seed)
 
     urls = sitemap_event_urls()

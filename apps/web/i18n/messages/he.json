@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "נגיש לכיסאות גלגלים",
   "tag.women's-circle": "מעגל נשים",
   "theme.dark": "כהה",
-  "theme.light": "בהיר"
+  "theme.light": "בהיר",
+  "eventDetail.seo.titleWith": "{title} עם {host}",
+  "eventDetail.seo.leadHost": "{kind} עם {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} מקוון עם {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} מקוון, {date}.",
+  "eventDetail.seo.kindFallback": "אירוע ריקוד"
 }

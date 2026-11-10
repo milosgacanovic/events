@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import {
   EventDetailClient,
@@ -8,14 +8,27 @@ import {
 } from "../../../components/EventDetailClient";
 import { apiBase } from "../../../lib/api";
 import { toZonedIsoString } from "../../../lib/datetime";
+import {
+  buildEventLead,
+  buildEventMetaDescription,
+  buildEventSeoTitle,
+  formatSeoDate,
+  seoT,
+} from "../../../lib/eventSeo";
+import { getFormatLabel } from "../../../lib/filterHelpers";
+import { localeCookieName } from "../../../lib/i18n/config";
+import { resolveRequestLocale } from "../../../lib/i18n/locale";
 import { toDisplayNamesLocale } from "../../../lib/i18n/languageLabels";
 
 type EventDetailResponse = EventDetail;
 
 const serverApiBase = process.env.INTERNAL_API_BASE_URL?.replace(/\/$/, "") ?? apiBase;
 
-async function fetchServerJson<T>(path: string): Promise<T | null> {
-  const response = await fetch(`${serverApiBase}${path}`, { cache: "no-store" }).catch(() => null);
+async function fetchServerJson<T>(path: string, revalidateSeconds?: number): Promise<T | null> {
+  const init: RequestInit & { next?: { revalidate: number } } = revalidateSeconds
+    ? { next: { revalidate: revalidateSeconds } }
+    : { cache: "no-store" };
+  const response = await fetch(`${serverApiBase}${path}`, init).catch(() => null);
   if (!response || !response.ok) {
     return null;
   }
@@ -37,6 +50,11 @@ function stripHtml(input: string): string {
     .trim()
     .replace(/^DESCRIPTION\s+/i, "");
 }
+
+// Taxonomies change rarely. Caching them keeps two calls per page render out of
+// the API's per-IP /api/meta/* rate-limit bucket (300/min, shared by the whole
+// web container) — a 429 there silently dropped practice/format from titles.
+const TAXONOMY_REVALIDATE_SECONDS = 300;
 
 const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://events.danceresource.org";
 
@@ -139,31 +157,27 @@ function shouldNoIndex(detail: EventDetailResponse | null): boolean {
   return false;
 }
 
-function formatEventDateRange(startIso: string, endIso: string | null, tz: string): string {
+/** This page's own occurrence: single dates, else own next, else own latest past. */
+function pageOccurrence(detail: EventDetailResponse): { start: string; end: string | null } | null {
+  if (detail.event.single_start_at) {
+    return { start: detail.event.single_start_at, end: detail.event.single_end_at };
+  }
+  const own = detail.seo?.nextOccurrence ?? null;
+  if (own) return { start: own.starts_at_utc, end: own.ends_at_utc };
+  const past = detail.occurrences.past?.[0];
+  return past ? { start: past.starts_at_utc, end: past.ends_at_utc } : null;
+}
+
+function regionName(code: string, locale: string): string {
   try {
-    const s = new Date(startIso);
-    const e = endIso ? new Date(endIso) : null;
-    const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en", { timeZone: tz, ...o });
-    const sDay = fmt({ day: "numeric" }).format(s);
-    const sMon = fmt({ month: "short" }).format(s);
-    const sYr  = fmt({ year: "numeric" }).format(s);
-    if (!e) return `${sDay} ${sMon} ${sYr}`;
-    const eDay = fmt({ day: "numeric" }).format(e);
-    const eMon = fmt({ month: "short" }).format(e);
-    const eYr  = fmt({ year: "numeric" }).format(e);
-    if (sYr === eYr && sMon === eMon) {
-      return sDay === eDay ? `${sDay} ${sMon} ${sYr}` : `${sDay}–${eDay} ${sMon} ${sYr}`;
-    }
-    if (sYr === eYr) return `${sDay} ${sMon} – ${eDay} ${eMon} ${sYr}`;
-    return `${sDay} ${sMon} ${sYr} – ${eDay} ${eMon} ${eYr}`;
+    return new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" }).of(code.toUpperCase()) ?? code;
   } catch {
-    return "";
+    return code;
   }
 }
 
-function countryName(code: string): string {
-  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(code.toUpperCase()) ?? code; }
-  catch { return code; }
+function requestLocale(): string {
+  return resolveRequestLocale(cookies().get(localeCookieName)?.value, headers().get("accept-language"));
 }
 
 export async function generateMetadata({
@@ -173,7 +187,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [detail, taxonomy] = await Promise.all([
     fetchServerJson<EventDetailResponse>(`/events/${params.slug}`),
-    fetchServerJson<TaxonomyResponse>("/meta/taxonomies"),
+    fetchServerJson<TaxonomyResponse>("/meta/taxonomies", TAXONOMY_REVALIDATE_SECONDS),
   ]);
   if (!detail) {
     return {
@@ -183,50 +197,47 @@ export async function generateMetadata({
     };
   }
 
+  const locale = requestLocale();
   const descriptionJson = (detail.event.description_json ?? {}) as { html?: string };
-  const rawHtml = descriptionJson.html ?? "";
-  const text = stripHtml(rawHtml);
+  const text = stripHtml(descriptionJson.html ?? "");
   const image = detail.event.coverImageUrl ?? detail.event.cover_image_path ?? undefined;
   const noIndex = shouldNoIndex(detail);
 
-  // Structured summary line: "4–6 Sep 2026 · Belgrade, Serbia · 5Rhythms Workshop"
+  // Structured, unique title + description (SEO round 3, Task 3):
+  // "Emerging Waves with Ina-Maria Freitas · Den Haag · Thu 12 Nov 2026"
   const tz = detail.event.event_timezone || "UTC";
-  const startIso = detail.event.single_start_at ?? detail.occurrences.upcoming[0]?.starts_at_utc ?? null;
-  const endIso   = detail.event.single_end_at   ?? detail.occurrences.upcoming[0]?.ends_at_utc   ?? null;
-  const datePart = startIso ? formatEventDateRange(startIso, endIso, tz) : "";
-  const locationPart = detail.event.attendance_mode === "online"
-    ? "Online"
-    : [
-        detail.defaultLocation?.city,
-        detail.defaultLocation?.country_code ? countryName(detail.defaultLocation.country_code) : null,
-      ].filter(Boolean).join(", ");
+  const occ = pageOccurrence(detail);
+  const dateWithWeekday = occ ? formatSeoDate(occ.start, occ.end, tz, locale, { weekday: true }) : "";
+  const dateWithoutWeekday = occ ? formatSeoDate(occ.start, occ.end, tz, locale, { weekday: false }) : "";
+  const online = detail.event.attendance_mode === "online";
+  const loc = detail.defaultLocation;
+  const place = online
+    ? seoT(locale, "attendanceMode.online")
+    : loc?.city || (loc?.country_code ? regionName(loc.country_code, locale) : null);
+  const host = detail.organizers[0]?.organizer_name ?? null;
+
   const practiceLabel = taxonomy?.practices.categories.find(
     (c) => c.id === detail.event.practice_category_id,
   )?.label ?? "";
-  const formatLabel = taxonomy?.eventFormats?.find(
-    (f) => f.id === detail.event.event_format_id,
-  )?.label ?? "";
-  const practicePart = [practiceLabel, formatLabel].filter(Boolean).join(" ");
-  const structuredLine = [datePart, locationPart, practicePart].filter(Boolean).join(" · ");
+  const format = taxonomy?.eventFormats?.find((f) => f.id === detail.event.event_format_id);
+  const formatLabel = format ? getFormatLabel(format.key, format.label, (k) => seoT(locale, k)) : "";
+  const kind = [practiceLabel, formatLabel].filter(Boolean).join(" ") || null;
 
-  // Compose OG description: structured line first, then body text if budget allows
-  const budget = 200 - structuredLine.length;
-  let ogDescription: string;
-  if (structuredLine && text && budget > 20) {
-    const snippet = text.length > budget - 1 ? `${text.slice(0, budget - 1)}…` : text;
-    ogDescription = `${structuredLine}\n${snippet}`;
-  } else if (structuredLine) {
-    ogDescription = structuredLine;
-  } else {
-    ogDescription = text || "DanceResource event details";
-  }
-
-  // Short description for <title> fallback (plain text, no structured line)
-  const titleDescription = text ? (text.length > 160 ? `${text.slice(0, 160)}...` : text) : ogDescription;
+  const title = buildEventSeoTitle({
+    locale,
+    title: detail.event.title,
+    host,
+    place,
+    dateWithWeekday,
+    dateWithoutWeekday,
+  });
+  const socialTitle = title.replace(/ \| DanceResource$/, "");
+  const lead = buildEventLead({ locale, kind, host, place, online, date: dateWithWeekday || null });
+  const description = buildEventMetaDescription(lead, text) || "DanceResource event details";
 
   return {
-    title: `${detail.event.title} | DanceResource`,
-    description: titleDescription,
+    title,
+    description,
     robots: noIndex ? { index: false, follow: true } : { index: true, follow: true },
     alternates: {
       // Always self-canonical: each occurrence page is its own Event. (The
@@ -235,8 +246,8 @@ export async function generateMetadata({
       canonical: `/events/${params.slug}`,
     },
     openGraph: {
-      title: detail.event.title,
-      description: ogDescription,
+      title: socialTitle,
+      description,
       url: `/events/${params.slug}`,
       siteName: "DanceResource",
       type: "website",
@@ -244,8 +255,8 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title: detail.event.title,
-      description: ogDescription,
+      title: socialTitle,
+      description,
       images: image ? [image] : undefined,
     },
   };
@@ -270,7 +281,7 @@ export default function EventDetailPage({
 async function EventDetailPageServer({ slug, targetDate }: { slug: string; targetDate: string | null }) {
   const [detail, taxonomy] = await Promise.all([
     fetchServerJson<EventDetailResponse>(`/events/${slug}`),
-    fetchServerJson<TaxonomyResponse>("/meta/taxonomies"),
+    fetchServerJson<TaxonomyResponse>("/meta/taxonomies", TAXONOMY_REVALIDATE_SECONDS),
   ]);
 
   const jsonLd = detail && !shouldNoIndex(detail) ? buildEventJsonLd(detail, slug) : null;

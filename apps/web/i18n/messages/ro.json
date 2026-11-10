@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Accesibil pentru scaune cu rotile",
   "tag.women's-circle": "Cercul femeilor",
   "theme.dark": "Întunecat",
-  "theme.light": "Luminos"
+  "theme.light": "Luminos",
+  "eventDetail.seo.titleWith": "{title} cu {host}",
+  "eventDetail.seo.leadHost": "{kind} cu {host} în {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind} în {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} online cu {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
+  "eventDetail.seo.kindFallback": "Eveniment de dans"
 }

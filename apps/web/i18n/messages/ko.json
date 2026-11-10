@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "휠체어 접근 가능",
   "tag.women's-circle": "여성 서클",
   "theme.dark": "다크",
-  "theme.light": "라이트"
+  "theme.light": "라이트",
+  "eventDetail.seo.titleWith": "{title} – {host}",
+  "eventDetail.seo.leadHost": "{kind} – {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "온라인 {kind} – {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "온라인 {kind}, {date}.",
+  "eventDetail.seo.kindFallback": "댄스 이벤트"
 }

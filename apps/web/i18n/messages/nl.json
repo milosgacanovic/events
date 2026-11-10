@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Rolstoelvriendelijk",
   "tag.women's-circle": "Vrouwencirkel",
   "theme.dark": "Donker",
-  "theme.light": "Licht"
+  "theme.light": "Licht",
+  "eventDetail.seo.titleWith": "{title} met {host}",
+  "eventDetail.seo.leadHost": "{kind} met {host} in {place} op {date}.",
+  "eventDetail.seo.leadNoHost": "{kind} in {place} op {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} (online) met {host} op {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} (online) op {date}.",
+  "eventDetail.seo.kindFallback": "Dansevenement"
 }

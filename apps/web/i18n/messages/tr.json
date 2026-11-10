@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Tekerlekli sandalye dostu",
   "tag.women's-circle": "Kadın çemberi",
   "theme.dark": "Koyu",
-  "theme.light": "Açık"
+  "theme.light": "Açık",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{host} eşliğinde {kind}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{host} eşliğinde çevrimiçi {kind}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "Çevrimiçi {kind}, {date}.",
+  "eventDetail.seo.kindFallback": "Dans etkinliği"
 }

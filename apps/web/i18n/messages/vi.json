@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Thân thiện xe lăn",
   "tag.women's-circle": "Vòng tròn phụ nữ",
   "theme.dark": "Tối",
-  "theme.light": "Sáng"
+  "theme.light": "Sáng",
+  "eventDetail.seo.titleWith": "{title} cùng {host}",
+  "eventDetail.seo.leadHost": "{kind} cùng {host} tại {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind} tại {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} trực tuyến cùng {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} trực tuyến, {date}.",
+  "eventDetail.seo.kindFallback": "Sự kiện khiêu vũ"
 }

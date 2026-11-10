@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Προσβάσιμο σε αναπηρικά αμαξίδια",
   "tag.women's-circle": "Κύκλος γυναικών",
   "theme.dark": "Σκοτεινό",
-  "theme.light": "Φωτεινό"
+  "theme.light": "Φωτεινό",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, με καθοδήγηση: {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} διαδικτυακά, με καθοδήγηση: {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} διαδικτυακά, {date}.",
+  "eventDetail.seo.kindFallback": "Χορευτική εκδήλωση"
 }

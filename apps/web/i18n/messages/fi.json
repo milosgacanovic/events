@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Esteettömyys",
   "tag.women's-circle": "Naistenpiiri",
   "theme.dark": "Tumma",
-  "theme.light": "Vaalea"
+  "theme.light": "Vaalea",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, vetäjänä {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} verkossa, vetäjänä {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} verkossa, {date}.",
+  "eventDetail.seo.kindFallback": "Tanssitapahtuma"
 }

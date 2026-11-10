@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "../lib/api";
 import { stripDangerousHtml } from "../lib/sanitizeForSsr";
 import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
+import { formatSeoDate } from "../lib/seoDate";
 import { labelForLanguageCode, toDisplayNamesLocale} from "../lib/i18n/languageLabels";
 import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
@@ -1041,6 +1042,47 @@ export function EventDetailClient({
       <div className="event-detail-header">
         <h1 className="event-detail-title">{data.event.title}</h1>
         {(() => {
+          // Mirrors the server-built <title> (date · place · host) so the
+          // title Google sees matches visible content (SEO round 3, Task 3).
+          const own = data.event.single_start_at
+            ? { start: data.event.single_start_at, end: data.event.single_end_at }
+            : data.seo?.nextOccurrence
+              ? { start: data.seo.nextOccurrence.starts_at_utc, end: data.seo.nextOccurrence.ends_at_utc }
+              : data.occurrences.past[0]
+                ? { start: data.occurrences.past[0].starts_at_utc, end: data.occurrences.past[0].ends_at_utc }
+                : null;
+          const dateLabel = own
+            ? formatSeoDate(own.start, own.end, data.event.event_timezone || "UTC", locale, { weekday: true })
+            : null;
+          const placeLabel = data.event.attendance_mode === "online"
+            ? t("attendanceMode.online")
+            : data.defaultLocation?.city
+              || (data.defaultLocation?.country_code ? getCountryLabel(data.defaultLocation.country_code) : null);
+          if (!dateLabel && !placeLabel && hosts.length === 0) return null;
+          const parts: React.ReactNode[] = [];
+          if (dateLabel) parts.push(<span key="date">{dateLabel}</span>);
+          if (placeLabel) parts.push(<span key="place">{placeLabel}</span>);
+          if (hosts.length > 0) {
+            parts.push(
+              <span key="hosts">
+                {hosts.map((host, i) => (
+                  <span key={host.id}>
+                    {i > 0 && ", "}
+                    <Link href={`/hosts/${host.slug}`}>{host.name}</Link>
+                  </span>
+                ))}
+              </span>,
+            );
+          }
+          return (
+            <div className="event-detail-subtitle meta">
+              {parts.map((part, i) => (
+                <span key={i}>{i > 0 && " · "}{part}</span>
+              ))}
+            </div>
+          );
+        })()}
+        {(() => {
           const cadence = data.series?.cadence;
           if (cadence) {
             const weekdayKey = WEEKDAY_I18N_KEYS[cadence.weekday];
@@ -1478,7 +1520,7 @@ export function EventDetailClient({
               <div className="meta">{t("eventDetail.noUpcoming")}</div>
             ) : (() => {
               const upcoming = data.occurrences.upcoming;
-              const visible = upcomingExpanded ? upcoming : upcoming.slice(0, 3);
+              const visible = upcomingExpanded ? upcoming : upcoming.slice(0, 5);
               const hiddenCount = upcoming.length - visible.length;
               const canExpand = !upcomingExpanded && hiddenCount > 0;
 
@@ -1505,6 +1547,16 @@ export function EventDetailClient({
                         key={item.id}
                         aria-current={isHighlighted ? "date" : undefined}
                       >
+                        {item.event_slug && item.event_slug !== slug ? (
+                          // Another page of this series: a real link, so
+                          // crawlers discover sibling dates (SEO round 3, Task 4).
+                          <Link
+                            className="meta event-detail-occurrence-date"
+                            href={`/events/${item.event_slug}`}
+                          >
+                            {formatted.primary}
+                          </Link>
+                        ) : (
                         <span
                           className="meta event-detail-occurrence-date"
                           role="button"
@@ -1520,6 +1572,7 @@ export function EventDetailClient({
                         >
                           {formatted.primary}
                         </span>
+                        )}
                         <RowRsvpButton
                           eventId={data.event.id}
                           occurrenceId={item.id}

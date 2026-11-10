@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Przyjazne dla wózków",
   "tag.women's-circle": "Krąg kobiet",
   "theme.dark": "Ciemny",
-  "theme.light": "Jasny"
+  "theme.light": "Jasny",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, prowadzi {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} online, prowadzi {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
+  "eventDetail.seo.kindFallback": "Wydarzenie taneczne"
 }

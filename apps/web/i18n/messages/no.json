@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Rullestolvennlig",
   "tag.women's-circle": "Kvinnesirkel",
   "theme.dark": "Mørkt",
-  "theme.light": "Lyst"
+  "theme.light": "Lyst",
+  "eventDetail.seo.titleWith": "{title} med {host}",
+  "eventDetail.seo.leadHost": "{kind} med {host} i {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind} i {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} på nett med {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} på nett, {date}.",
+  "eventDetail.seo.kindFallback": "Dansearrangement"
 }

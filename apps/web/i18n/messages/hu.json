@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Kerekesszék-barát",
   "tag.women's-circle": "Női kör",
   "theme.dark": "Sötét",
-  "theme.light": "Világos"
+  "theme.light": "Világos",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, vezeti: {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} online, vezeti: {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
+  "eventDetail.seo.kindFallback": "Táncesemény"
 }

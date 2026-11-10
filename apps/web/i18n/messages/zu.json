@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Kulungele izihlalo ezinama-vili",
   "tag.women's-circle": "Isiyingi sabesifazane",
   "theme.dark": "Ubumnyama",
-  "theme.light": "Ukukhanya"
+  "theme.light": "Ukukhanya",
+  "eventDetail.seo.titleWith": "{title} – {host}",
+  "eventDetail.seo.leadHost": "{kind} – {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} ku-inthanethi – {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} ku-inthanethi, {date}.",
+  "eventDetail.seo.kindFallback": "Umcimbi womdanso"
 }

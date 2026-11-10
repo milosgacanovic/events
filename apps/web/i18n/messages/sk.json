@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Bezbariérové",
   "tag.women's-circle": "Ženský kruh",
   "theme.dark": "Tmavý",
-  "theme.light": "Svetlý"
+  "theme.light": "Svetlý",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, vedie {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} online, vedie {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
+  "eventDetail.seo.kindFallback": "Tanečné podujatie"
 }

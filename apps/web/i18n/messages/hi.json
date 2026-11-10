@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "व्हीलचेयर अनुकूल",
   "tag.women's-circle": "महिला सर्कल",
   "theme.dark": "गहरा",
-  "theme.light": "हल्का"
+  "theme.light": "हल्का",
+  "eventDetail.seo.titleWith": "{title} — {host} के साथ",
+  "eventDetail.seo.leadHost": "{host} के साथ {kind}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{host} के साथ ऑनलाइन {kind}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "ऑनलाइन {kind}, {date}.",
+  "eventDetail.seo.kindFallback": "नृत्य कार्यक्रम"
 }

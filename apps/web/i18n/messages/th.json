@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "เข้าถึงได้ด้วยรถเข็น",
   "tag.women's-circle": "วงผู้หญิง",
   "theme.dark": "มืด",
-  "theme.light": "สว่าง"
+  "theme.light": "สว่าง",
+  "eventDetail.seo.titleWith": "{title} กับ {host}",
+  "eventDetail.seo.leadHost": "{kind} กับ {host} ที่ {place}, {date}",
+  "eventDetail.seo.leadNoHost": "{kind} ที่ {place}, {date}",
+  "eventDetail.seo.leadOnlineHost": "{kind} ออนไลน์ กับ {host}, {date}",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} ออนไลน์, {date}",
+  "eventDetail.seo.kindFallback": "งานเต้นรำ"
 }

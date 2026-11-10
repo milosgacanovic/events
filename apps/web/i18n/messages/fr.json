@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Accessible en fauteuil roulant",
   "tag.women's-circle": "Cercle de femmes",
   "theme.dark": "Sombre",
-  "theme.light": "Clair"
+  "theme.light": "Clair",
+  "eventDetail.seo.titleWith": "{title} avec {host}",
+  "eventDetail.seo.leadHost": "{kind} avec {host} à {place}, le {date}.",
+  "eventDetail.seo.leadNoHost": "{kind} à {place}, le {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} en ligne avec {host}, le {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} en ligne, le {date}.",
+  "eventDetail.seo.kindFallback": "Événement de danse"
 }

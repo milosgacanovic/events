@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Prijazno za vozičke",
   "tag.women's-circle": "Ženski krog",
   "theme.dark": "Temno",
-  "theme.light": "Svetlo"
+  "theme.light": "Svetlo",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, vodi {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} na spletu, vodi {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} na spletu, {date}.",
+  "eventDetail.seo.kindFallback": "Plesni dogodek"
 }

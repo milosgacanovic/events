@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Доступно для візків",
   "tag.women's-circle": "Жіноче коло",
   "theme.dark": "Темна",
-  "theme.light": "Світла"
+  "theme.light": "Світла",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, веде {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} онлайн, веде {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} онлайн, {date}.",
+  "eventDetail.seo.kindFallback": "Танцювальна подія"
 }

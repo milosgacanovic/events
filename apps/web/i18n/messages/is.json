@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Hjólastólsvænt",
   "tag.women's-circle": "Kvenna hringur",
   "theme.dark": "Dökkt",
-  "theme.light": "Ljóst"
+  "theme.light": "Ljóst",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, leiðbeinandi: {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} á netinu, leiðbeinandi: {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} á netinu, {date}.",
+  "eventDetail.seo.kindFallback": "Dansviðburður"
 }

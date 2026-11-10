@@ -1365,5 +1365,11 @@
   "tag.wheelchair-friendly": "Доступно для колясок",
   "tag.women's-circle": "Женский круг",
   "theme.dark": "Тёмная",
-  "theme.light": "Светлая"
+  "theme.light": "Светлая",
+  "eventDetail.seo.titleWith": "{title} — {host}",
+  "eventDetail.seo.leadHost": "{kind}, ведёт {host}, {place}, {date}.",
+  "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
+  "eventDetail.seo.leadOnlineHost": "{kind} онлайн, ведёт {host}, {date}.",
+  "eventDetail.seo.leadOnlineNoHost": "{kind} онлайн, {date}.",
+  "eventDetail.seo.kindFallback": "Танцевальное событие"
 }
