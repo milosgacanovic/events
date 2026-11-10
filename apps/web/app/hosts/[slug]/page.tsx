@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 import { OrganizerDetailClient, type OrganizerDetail } from "../../../components/OrganizerDetailClient";
 import { apiBase } from "../../../lib/api";
+import { htmlToPlainText } from "../../../lib/htmlToPlainText";
 import { toDisplayNamesLocale } from "../../../lib/i18n/languageLabels";
 
 const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://events.danceresource.org";
@@ -14,9 +15,6 @@ async function fetchServerJson<T>(path: string): Promise<T | null> {
   return response.json() as Promise<T>;
 }
 
-function stripHtml(input: string): string {
-  return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-}
 
 function isHostPublished(detail: OrganizerDetail): boolean {
   const status = detail.organizer.status;
@@ -26,8 +24,10 @@ function isHostPublished(detail: OrganizerDetail): boolean {
 function getDescription(detail: OrganizerDetail): string {
   const descJson = detail.organizer.description_json as Record<string, unknown> | null;
   const rawHtml = detail.organizer.descriptionHtml ?? (typeof descJson?.html === "string" ? descJson.html : "") ?? "";
-  const text = stripHtml(rawHtml);
-  return text ? text.slice(0, 160) : `${detail.organizer.name} — conscious dance host on DanceResource`;
+  // Decodes entities exactly once; the old tag-only strip left "&amp;" in the
+  // text, which React escaped again → "&amp;amp;" in the meta description.
+  const text = htmlToPlainText(rawHtml, 160);
+  return text || `${detail.organizer.name} — conscious dance host on DanceResource`;
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {

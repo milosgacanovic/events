@@ -9,12 +9,17 @@ import {
 import { apiBase } from "../../../lib/api";
 import { toZonedIsoString } from "../../../lib/datetime";
 import {
+  absoluteImageUrl,
   buildEventLead,
   buildEventMetaDescription,
   buildEventSeoTitle,
+  buildThinDescriptionSummary,
   formatSeoDate,
+  resolveEventImage,
   seoT,
+  THIN_DESCRIPTION_CHARS,
 } from "../../../lib/eventSeo";
+import { htmlToPlainText } from "../../../lib/htmlToPlainText";
 import { getFormatLabel } from "../../../lib/filterHelpers";
 import { localeCookieName } from "../../../lib/i18n/config";
 import { resolveRequestLocale } from "../../../lib/i18n/locale";
@@ -35,20 +40,10 @@ async function fetchServerJson<T>(path: string, revalidateSeconds?: number): Pro
   return response.json() as Promise<T>;
 }
 
-function stripHtml(input: string): string {
-  return input
-    .replace(/<[^>]+>/g, " ")
-    .replace(/[\r\n]+/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/^DESCRIPTION\s+/i, "");
+function descriptionText(detail: EventDetailResponse): string {
+  const html = (detail.event.description_json as { html?: string } | null)?.html ?? "";
+  // 5rhythms.com pages lead with a literal "DESCRIPTION" heading.
+  return htmlToPlainText(html).replace(/^DESCRIPTION\s+/i, "");
 }
 
 // Taxonomies change rarely. Caching them keeps two calls per page render out of
@@ -58,7 +53,7 @@ const TAXONOMY_REVALIDATE_SECONDS = 300;
 
 const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://events.danceresource.org";
 
-function buildEventJsonLd(detail: EventDetailResponse, slug: string): Record<string, unknown> {
+function buildEventJsonLd(detail: EventDetailResponse, slug: string, ctx: EventSeoContext): Record<string, unknown> {
   const event = detail.event;
   const loc = detail.defaultLocation;
   // This page's OWN next occurrence. occurrences.upcoming is series-wide, so
@@ -66,8 +61,7 @@ function buildEventJsonLd(detail: EventDetailResponse, slug: string): Record<str
   const own = detail.seo?.nextOccurrence ?? null;
   const tz = event.event_timezone || null;
 
-  const descriptionRaw = (event.description_json as { html?: string } | null)?.html ?? "";
-  const description = stripHtml(descriptionRaw).slice(0, 5000);
+  const description = ctx.jsonLdDescription.slice(0, 5000);
 
   const startUtc = event.single_start_at ?? own?.starts_at_utc ?? undefined;
   const endUtc = event.single_end_at ?? own?.ends_at_utc ?? undefined;
@@ -122,17 +116,15 @@ function buildEventJsonLd(detail: EventDetailResponse, slug: string): Record<str
     "@type": "Person",
     name: o.organizer_name,
     url: `${SITE_ORIGIN}/hosts/${o.organizer_slug}`,
-    ...(o.organizer_avatar_path ? { image: o.organizer_avatar_path } : {}),
+    ...(absoluteImageUrl(o.organizer_avatar_path, SITE_ORIGIN) ? { image: absoluteImageUrl(o.organizer_avatar_path, SITE_ORIGIN) } : {}),
   }));
-
-  const image = event.coverImageUrl ?? event.cover_image_path ?? null;
 
   return {
     "@context": "https://schema.org",
     "@type": "Event",
     name: event.title,
     ...(description ? { description } : {}),
-    ...(image ? { image: [image] } : {}),
+    image: [ctx.image],
     url: `${SITE_ORIGIN}/events/${slug}`,
     ...(startDate ? { startDate } : {}),
     ...(endDate ? { endDate } : {}),
@@ -180,30 +172,25 @@ function requestLocale(): string {
   return resolveRequestLocale(cookies().get(localeCookieName)?.value, headers().get("accept-language"));
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
-  const [detail, taxonomy] = await Promise.all([
-    fetchServerJson<EventDetailResponse>(`/events/${params.slug}`),
-    fetchServerJson<TaxonomyResponse>("/meta/taxonomies", TAXONOMY_REVALIDATE_SECONDS),
-  ]);
-  if (!detail) {
-    return {
-      title: "Event not found | DanceResource",
-      robots: { index: false, follow: true },
-      alternates: { canonical: `/events/${params.slug}` },
-    };
-  }
+type EventSeoContext = {
+  title: string;
+  socialTitle: string;
+  /** <meta name=description> / og:description. */
+  description: string;
+  /** Factual summary shown on the page when the description is thin, else null. */
+  thinSummary: string | null;
+  jsonLdDescription: string;
+  image: string;
+};
 
-  const locale = requestLocale();
-  const descriptionJson = (detail.event.description_json ?? {}) as { html?: string };
-  const text = stripHtml(descriptionJson.html ?? "");
-  const image = detail.event.coverImageUrl ?? detail.event.cover_image_path ?? undefined;
-  const noIndex = shouldNoIndex(detail);
+/** One place that derives every SEO text/image for an event page. */
+function buildEventSeoContext(
+  detail: EventDetailResponse,
+  taxonomy: TaxonomyResponse | null,
+  locale: string,
+): EventSeoContext {
+  const text = descriptionText(detail);
 
-  // Structured, unique title + description (SEO round 3, Task 3):
   // "Emerging Waves with Ina-Maria Freitas · Den Haag · Thu 12 Nov 2026"
   const tz = detail.event.event_timezone || "UTC";
   const occ = pageOccurrence(detail);
@@ -231,9 +218,62 @@ export async function generateMetadata({
     dateWithWeekday,
     dateWithoutWeekday,
   });
-  const socialTitle = title.replace(/ \| DanceResource$/, "");
   const lead = buildEventLead({ locale, kind, host, place, online, date: dateWithWeekday || null });
-  const description = buildEventMetaDescription(lead, text) || "DanceResource event details";
+
+  // Thin description (< 80 chars after cleaning): add a factual summary from
+  // known fields. It is rendered visibly above the original text.
+  let thinSummary: string | null = null;
+  if (text.length < THIN_DESCRIPTION_CHARS) {
+    const address = !online && loc?.formatted_address && loc.formatted_address !== loc.city
+      ? loc.formatted_address
+      : null;
+    thinSummary = buildThinDescriptionSummary({
+      locale,
+      lead,
+      cadence: detail.series?.cadence ?? null,
+      address,
+    }) || null;
+  }
+  const jsonLdDescription = thinSummary ? [thinSummary, text].filter(Boolean).join(" ") : text;
+
+  const image = resolveEventImage(
+    detail.event.coverImageUrl ?? detail.event.cover_image_path,
+    detail.organizers.map((o) => o.organizer_avatar_path),
+    SITE_ORIGIN,
+  ).url;
+
+  return {
+    title,
+    socialTitle: title.replace(/ \| DanceResource$/, ""),
+    description: buildEventMetaDescription(lead, text) || "DanceResource event details",
+    thinSummary,
+    jsonLdDescription,
+    image,
+  };
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const [detail, taxonomy] = await Promise.all([
+    fetchServerJson<EventDetailResponse>(`/events/${params.slug}`),
+    fetchServerJson<TaxonomyResponse>("/meta/taxonomies", TAXONOMY_REVALIDATE_SECONDS),
+  ]);
+  if (!detail) {
+    return {
+      title: "Event not found | DanceResource",
+      robots: { index: false, follow: true },
+      alternates: { canonical: `/events/${params.slug}` },
+    };
+  }
+
+  const locale = requestLocale();
+  const ctx = buildEventSeoContext(detail, taxonomy, locale);
+  const { title, socialTitle, description } = ctx;
+  const image = ctx.image;
+  const noIndex = shouldNoIndex(detail);
 
   return {
     title,
@@ -251,13 +291,13 @@ export async function generateMetadata({
       url: `/events/${params.slug}`,
       siteName: "DanceResource",
       type: "website",
-      images: image ? [{ url: image, alt: detail.event.title }] : undefined,
+      images: [{ url: image, alt: detail.event.title }],
     },
     twitter: {
       card: "summary_large_image",
       title: socialTitle,
       description,
-      images: image ? [image] : undefined,
+      images: [image],
     },
   };
 }
@@ -284,10 +324,10 @@ async function EventDetailPageServer({ slug, targetDate }: { slug: string; targe
     fetchServerJson<TaxonomyResponse>("/meta/taxonomies", TAXONOMY_REVALIDATE_SECONDS),
   ]);
 
-  const jsonLd = detail && !shouldNoIndex(detail) ? buildEventJsonLd(detail, slug) : null;
-
   const cookieStore = cookies();
   const locale = cookieStore.get("dr_locale")?.value ?? "en";
+  const seoCtx = detail ? buildEventSeoContext(detail, taxonomy, requestLocale()) : null;
+  const jsonLd = detail && seoCtx && !shouldNoIndex(detail) ? buildEventJsonLd(detail, slug, seoCtx) : null;
   const serverTranslations = (() => {
     try {
       const regionNames = new Intl.DisplayNames([toDisplayNamesLocale(locale)], { type: "region" });
@@ -317,7 +357,7 @@ async function EventDetailPageServer({ slug, targetDate }: { slug: string; targe
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <EventDetailClient slug={slug} initialData={detail} initialTaxonomy={taxonomy} serverTranslations={serverTranslations} targetDate={targetDate} />
+      <EventDetailClient slug={slug} initialData={detail} initialTaxonomy={taxonomy} serverTranslations={serverTranslations} targetDate={targetDate} thinSummary={seoCtx?.thinSummary ?? null} />
     </>
   );
 }

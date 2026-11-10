@@ -2964,6 +2964,10 @@ label.meta {
   color: inherit;
 }
 
+.event-detail-summary {
+  margin: 0 0 8px;
+}
+
 @keyframes event-detail-occurrence-pulse {
   0% { background: color-mix(in srgb, var(--accent) 42%, transparent); }
   100% { background: color-mix(in srgb, var(--accent) 18%, transparent); }

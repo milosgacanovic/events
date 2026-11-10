@@ -421,8 +421,15 @@ export function EventDetailClient({
   initialTaxonomy,
   serverTranslations,
   targetDate,
+  thinSummary,
 }: {
   slug: string;
+  /**
+   * Server-built factual summary (date/place/host/schedule/address) shown
+   * when the event's own description is thin, so the JSON-LD description
+   * Google reads is also visible on the page (SEO round 3, Task 5).
+   */
+  thinSummary?: string | null;
   initialData?: EventDetail | null;
   initialTaxonomy?: TaxonomyResponse | null;
   serverTranslations?: EventServerTranslations;
@@ -1413,9 +1420,11 @@ export function EventDetailClient({
       )}
 
       {/* Description */}
-      {sanitizedDescriptionHtml && (
+      {(sanitizedDescriptionHtml || thinSummary) && (
         <div className="event-detail-section">
           <h2 className="event-detail-section-title">{t("eventDetail.descriptionLabel")}</h2>
+          {thinSummary && <p className="event-detail-summary">{thinSummary}</p>}
+          {sanitizedDescriptionHtml && (
           <div
             className={
               isLongDesc
@@ -1445,6 +1454,7 @@ export function EventDetailClient({
                 }
               : {})}
           />
+          )}
           <div className="event-detail-desc-footer">
             {isLongDesc && (
               <button

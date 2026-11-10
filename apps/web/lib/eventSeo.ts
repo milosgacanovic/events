@@ -4,7 +4,10 @@ import { defaultLocale, isSupportedLocale, type AppLocale } from "./i18n/config"
 import { toDisplayNamesLocale } from "./i18n/languageLabels";
 import { getMessages } from "./i18n/messages";
 
+import { truncateOnWord } from "./textTruncate";
+
 export { formatSeoDate } from "./seoDate";
+export { truncateOnWord };
 
 /**
  * Server-side builders for event <title> / meta description (SEO round 3,
@@ -60,15 +63,6 @@ export function buildEventSeoTitle(input: EventSeoTitleInput): string {
   return candidates.find((c) => c.length <= SEO_TITLE_MAX) ?? candidates[candidates.length - 1];
 }
 
-/** Truncate on a word boundary, appending "…" when cut. */
-export function truncateOnWord(text: string, max: number): string {
-  if (text.length <= max) return text;
-  const cut = text.slice(0, max - 1);
-  const lastSpace = cut.lastIndexOf(" ");
-  const base = lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut;
-  return `${base.replace(/[\s,.;:–—-]+$/u, "")}…`;
-}
-
 export type EventLeadInput = {
   locale: string;
   kind: string | null;
@@ -98,4 +92,82 @@ export function buildEventMetaDescription(lead: string, text: string, max = SEO_
   if (!lead) return truncateOnWord(body, max);
   if (!body) return truncateOnWord(lead, max);
   return truncateOnWord(`${lead} ${body}`, max);
+}
+
+/** Below this, a cleaned description counts as thin (handoff Task 5). */
+export const THIN_DESCRIPTION_CHARS = 80;
+
+const WEEKDAY_KEYS: Record<number, string> = {
+  1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday", 7: "sunday",
+};
+
+function formatHHMM(hhmm: string, locale: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
+  try {
+    return new Intl.DateTimeFormat(toDisplayNamesLocale(locale), { hour: "numeric", minute: "2-digit" })
+      .format(new Date(2000, 0, 1, h, m));
+  } catch {
+    return hhmm;
+  }
+}
+
+export type ThinSummaryInput = {
+  locale: string;
+  lead: string;
+  cadence: { weekday: number; startLocalHHMM: string; endLocalHHMM: string } | null;
+  address: string | null;
+};
+
+/**
+ * Factual summary for thin descriptions, built only from known fields and
+ * existing translated labels: lead sentence + "When: Fridays 19:15 – 21:30."
+ * + "Where: <address>." Rendered visibly on the page AND used for JSON-LD.
+ */
+export function buildThinDescriptionSummary(input: ThinSummaryInput): string {
+  const parts: string[] = [];
+  if (input.lead) parts.push(input.lead);
+  const weekdayKey = input.cadence ? WEEKDAY_KEYS[input.cadence.weekday] : undefined;
+  if (input.cadence && weekdayKey) {
+    const line = seoT(input.locale, "eventDetail.cadenceLine", {
+      weekdayPlural: seoT(input.locale, `eventDetail.weekdayPlural.${weekdayKey}`),
+      startTime: formatHHMM(input.cadence.startLocalHHMM, input.locale),
+      endTime: formatHHMM(input.cadence.endLocalHHMM, input.locale),
+    });
+    parts.push(`${seoT(input.locale, "eventDetail.when")}: ${line}.`);
+  }
+  if (input.address) {
+    parts.push(`${seoT(input.locale, "eventDetail.where")}: ${input.address.replace(/[.\s]+$/u, "")}.`);
+  }
+  return parts.join(" ");
+}
+
+export const SITE_DEFAULT_IMAGE = "https://wiki.danceresource.org/images/9/99/Danceresource.org_logo.png";
+
+/** Absolute, crawlable URL for a stored image path (http(s) or /uploads/…). */
+export function absoluteImageUrl(path: string | null | undefined, siteOrigin: string): string | null {
+  if (!path) return null;
+  const trimmed = path.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  if (trimmed.startsWith("/")) return `${siteOrigin}${trimmed}`;
+  return null;
+}
+
+/**
+ * JSON-LD / og:image fallback chain: event cover → primary host's avatar →
+ * site default. (No per-practice/format default images exist in the DB yet.)
+ */
+export function resolveEventImage(
+  cover: string | null | undefined,
+  hostAvatars: Array<string | null | undefined>,
+  siteOrigin: string,
+): { url: string; source: "cover" | "host" | "site" } {
+  const coverUrl = absoluteImageUrl(cover, siteOrigin);
+  if (coverUrl) return { url: coverUrl, source: "cover" };
+  for (const avatar of hostAvatars) {
+    const url = absoluteImageUrl(avatar, siteOrigin);
+    if (url) return { url, source: "host" };
+  }
+  return { url: SITE_DEFAULT_IMAGE, source: "site" };
 }
