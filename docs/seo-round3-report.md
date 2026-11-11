@@ -9,7 +9,7 @@ Audit: `python3 scripts/seo_audit.py --seed N` (now also daily at 04:30 UTC via 
 |---|---|---|---|---|
 | 1 | Sitemaps = indexable pages only; JSON-LD offsets; self-canonicals | `2ed6671`, `1524552`, `2eeb7c1` | — | deployed 2026-11-10 |
 | 2 | Unique titles + meta descriptions; sibling links | `01bcd41` | — | deployed 2026-11-10 |
-| 3 | Text cleaning, importer descriptions, image fallback | `cfc937a` | `b68bbba`, `f3993bf`, `1b82443` | deployed; backfill applied 2026-11-11 |
+| 3 | Text cleaning, importer descriptions, image fallback | `cfc937a` | `b68bbba`, `f3993bf`, `1b82443`, `ed318df` | deployed; backfill applied 2026-11-11 |
 | 4 | Host pages: server-rendered event links, Person/Organization | `e2d5f6d`, `0f22f3c` | `5c0cea8` (bio paragraphs) | deployed 2026-11-11 |
 | 5 | Slugs for new events, transliteration, slug history | `abbe121` | — | deployed 2026-11-11 |
 | — | Proposals A–C design note | `3115a18` (`docs/seo-proposals-round3.md`) | — | awaiting owner decision |
@@ -66,6 +66,16 @@ buttons, sidebar, donate footer.
 - Importer: the `DescriptionCleaner` keeps 5Rhythms registration and refund text as one line each (owner decision) and drops nav menus. The ecstaticdance scraper parses the new "edl" layout.
 - Backfill (`scripts/backfill_published_descriptions.php`, dry run shown to the owner first) re-queued 10,263 events on 2026-11-11.
 
+**Dance Church (empty descriptions, `dance-church-omculture-wallingford-42njke`).** The scraper reads each class's
+description from its Playwright-cached `/performances/<id>` page. The prefetch only cached the homepage's links, and the
+class pages are linked one level deeper, from the city schedules, so 68 of 71 upcoming classes had no description.
+Importer `ed318df` adds an optional detail pass to `playwright_fetch.mjs` (`sources.config.playwright_prefetch.detail_*`,
+migration 0115): 60 class pages per run, refreshed weekly.
+
+**Not changed: 5Rhythms "CLASS LEVEL DETAILS".** The importer drops this block on purpose (DescriptionCleaner rule S1c).
+It is the generic per-level blurb ("In Heartbeat we explore…"), identical on thousands of classes; the class's own text is
+kept, and thin results get the factual summary.
+
 **Evidence (after).** `hosts/chiara-pietroboni` meta: `sharing &amp; offering` (single-escaped; it was `&amp;amp;`).
 `hosts/jup-jansonius` "mystery.Ilife": caused at import. The source has `mystery.<p>Ilife`, and the bio parser
 only broke at closing tags. Fixed in the importer (`5c0cea8`); it reaches DR with the next teacher-profile sync.
@@ -92,9 +102,9 @@ jup-jansonius       event links in HTML: 54  (10 cards + 44 rows) "@type":"Perso
 jan-redsted         event links in HTML: 4   "@type":"Person"
 chiara-pietroboni   event links in HTML: 1   "@type":"Person"
 ```
-**For the owner.** `temporary/host-type-review.csv` lists 61 hosts whose name or role looks like an organization
-(51 suggested organization, 5 person, 5 unsure). Nothing was auto-classified. Approve the list (or edit it) and it
-will be applied with one UPDATE.
+**Owner review.** `temporary/host-type-review.csv` listed 61 hosts whose name or role looks like an organization.
+Nothing was auto-classified. The owner edited and approved it, and it was applied on 2026-11-11: 52 organization, 9 person
+(e.g. `biodanza-au`, `good-medicine-collective` → `Organization`; `chris-camp` stays `Person`).
 
 ## PR 5 — Task 7
 
@@ -119,6 +129,8 @@ seed 7:  all PASS (noindex-in-sitemap 0, non-self canonicals 0, missing JSON-LD 
 seed 1:  all PASS except entity-encoding 1 — ecstatic-dance-temple-andamp-cacao-…: the stored title itself
          holds "&amp;" (double-encoded upstream). Importer fix 367dd8b decodes it; clears on its republish.
 ```
+Re-run 2026-11-11 16:50 UTC, after the republish: seeds 1 and 11 all PASS (5,976 event URLs in the sitemaps;
+entity bugs 0, duplicate titles 0, descriptions ≥ 80 60/60, image 60/60, host links 5/5).
 
 ## Found along the way (fixed)
 - **Rollback.** `bg:rollback` switched Apache to the stopped colour (bg-deploy stops it after every deploy), so it would have taken the site down. It now starts the colour and waits for health first. `bg:cleanup` failed without `--env-file` and now refuses to stop the active colour. The API now exits on SIGTERM instead of being killed after 10 s.
@@ -137,6 +149,9 @@ seed 1:  all PASS except entity-encoding 1 — ecstatic-dance-temple-andamp-caca
 ## Not done, and why
 - **Task 2 `offers`:** intentionally not emitted (no price data). Owner decision.
 - **Proposals A–C:** design note only, as the handoff requires.
-- **Organization classification:** waits for the owner's review of the list.
-- **Timezone republish backfill:** needs the owner's OK after its dry run.
+- **Timezone republish backfill:** waits for the owner. A one-shot reminder (`temporary/tz-backfill-reminder.sh`,
+  root crontab, 2026-11-12 09:43 UTC) runs a fresh dry run and sends its summary to the Telegram alert chat. The 16:35 UTC
+  dry run on 2026-11-11 found 190 events to resend (biodanza_au 55, gaga_people 47, ecstaticdance 29, osho_pune 29, …).
+- **Dance Church cities:** the scraper only reads city schedules linked from the homepage (LA, Seattle, New York). Classes
+  in other cities (e.g. San Francisco, Atlanta) appear only on `/upcoming` and are not imported. That is a coverage gap, not SEO.
 - **Existing slugs (`…-andamp-…`, `item-116`):** unchanged by rule ("no URL changes in this round"). The slug history now makes a future rename safe.
