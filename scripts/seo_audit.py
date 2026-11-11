@@ -36,13 +36,37 @@ def get(url):
         return resp.read().decode("utf-8", "ignore")
 
 
-def sitemap_event_urls():
+def sitemap_urls(sitemap_marker, path_segment):
     index = get(f"{BASE}/sitemap.xml")
     urls = []
     for sitemap in re.findall(r"<loc>([^<]+)</loc>", index):
-        if "sitemap-events" in sitemap:
-            urls += re.findall(r"<loc>([^<]+/events/[^<]+)</loc>", get(sitemap))
+        if sitemap_marker in sitemap:
+            urls += re.findall(rf"<loc>([^<]+/{path_segment}/[^<]+)</loc>", get(sitemap))
     return urls
+
+
+def sitemap_event_urls():
+    return sitemap_urls("sitemap-events", "events")
+
+
+def page_robots_noindex(url):
+    """True/False for a page's robots meta, None when the fetch fails."""
+    try:
+        html = get(url)
+    except Exception:
+        return None
+    robots = re.search(r'<meta name="robots" content="([^"]*)"', html)
+    return bool(robots and "noindex" in robots.group(1))
+
+
+def noindex_in_sitemap(sitemap_marker, path_segment, sample_size):
+    """Sample a non-event sitemap; every listed page must be indexable."""
+    urls = sitemap_urls(sitemap_marker, path_segment)
+    sample = random.sample(urls, min(sample_size, len(urls)))
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        flags = list(pool.map(page_robots_noindex, sample))
+    bad = [u for u, f in zip(sample, flags) if f]
+    return len(urls), len([f for f in flags if f is not None]), bad
 
 
 def event_jsonld(html):
@@ -116,6 +140,8 @@ def main():
     offers_ratio = (sum(r["has_offers"] for r in with_source) / len(with_source)) if with_source else 1.0
     host_checks = [r for r in ok if r["host"] and not r["noindex"]][:5]
     host_fail = [r["url"] for r in host_checks if not host_links_to(r["host"], r["url"])]
+    # Thin-host policy: the hosts sitemap lists only indexable host pages.
+    hosts_total, hosts_checked, hosts_noindex = noindex_in_sitemap("sitemap-hosts", "hosts", 10)
 
     print(f"Event URLs in sitemaps: {len(urls)} | sampled: {len(sample)} | fetch errors: {len(rows) - n}")
     results = [
@@ -131,6 +157,7 @@ def main():
         ("descriptions >= 80 chars", f"{count('desc_ok')}/{n}", count("desc_ok") >= 0.95 * n),
         ("JSON-LD image present", f"{count('has_image')}/{n}", count("has_image") == n),
         ("host pages linking back to event", f"{len(host_checks) - len(host_fail)}/{len(host_checks)}", not host_fail),
+        (f"noindex host pages in hosts sitemap ({hosts_total} listed)", f"{len(hosts_noindex)}/{hosts_checked}", not hosts_noindex),
     ]
     failed = False
     for name, value, passed in results:
@@ -143,6 +170,8 @@ def main():
         print(f"      entity-encoding bug: {r['url']}")
     for url in host_fail:
         print(f"      host page missing link to: {url}")
+    for url in hosts_noindex:
+        print(f"      noindex page in hosts sitemap: {url}")
     sys.exit(1 if failed else 0)
 
 

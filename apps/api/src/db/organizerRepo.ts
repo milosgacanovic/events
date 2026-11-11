@@ -1,4 +1,10 @@
-import { isEventIndexable, type CreateOrganizerInput, type UpdateOrganizerInput } from "@dr-events/shared";
+import {
+  hostBioPlainText,
+  isEventIndexable,
+  isHostIndexable,
+  type CreateOrganizerInput,
+  type UpdateOrganizerInput,
+} from "@dr-events/shared";
 import type { Pool, PoolClient } from "pg";
 
 import { generateUniqueSlug } from "../utils/slug";
@@ -366,6 +372,93 @@ export async function searchOrganizers(pool: Pool, input: OrganizerSearchInput) 
       totalPages: Math.max(Math.ceil(totalCount / pageSize), 1),
     },
   };
+}
+
+type HostIndexabilityRow = {
+  id: string;
+  slug: string;
+  status: string;
+  updated_at: Date;
+  description_html: string | null;
+  description_json: unknown;
+  has_upcoming: boolean;
+  last_start: Date | null;
+};
+
+/**
+ * Inputs of isHostIndexable() for one host or every published host. Activity
+ * counts published + public events only (cancelled ones are not activity);
+ * "last start" takes single_start_at and occurrence starts that are <= now.
+ */
+async function listHostIndexabilityRows(pool: Pool, organizerId?: string): Promise<HostIndexabilityRow[]> {
+  const res = await pool.query<HostIndexabilityRow>(
+    `
+      with ev as (
+        select eo.organizer_id, e.id, e.single_start_at
+        from event_organizers eo
+        join events e on e.id = eo.event_id
+        where e.status = 'published' and e.visibility = 'public'
+          and ($1::uuid is null or eo.organizer_id = $1::uuid)
+      ),
+      up as (
+        select distinct ev.organizer_id
+        from ev
+        join event_occurrences oc on oc.event_id = ev.id
+        where oc.ends_at_utc >= now()
+      ),
+      past as (
+        select organizer_id, max(s) as last_start
+        from (
+          select organizer_id, single_start_at as s from ev where single_start_at <= now()
+          union all
+          select ev.organizer_id, oc.starts_at_utc
+          from ev
+          join event_occurrences oc on oc.event_id = ev.id
+          where oc.starts_at_utc <= now()
+        ) x
+        group by organizer_id
+      )
+      select o.id, o.slug, o.status, o.updated_at, o.description_html, o.description_json,
+        (up.organizer_id is not null) as has_upcoming,
+        past.last_start
+      from organizers o
+      left join up on up.organizer_id = o.id
+      left join past on past.organizer_id = o.id
+      where ($1::uuid is null and o.status = 'published') or o.id = $1::uuid
+    `,
+    [organizerId ?? null],
+  );
+  return res.rows;
+}
+
+function hostRowIsIndexable(row: HostIndexabilityRow, now: Date): boolean {
+  return isHostIndexable(
+    {
+      status: row.status,
+      hasUpcomingEvent: row.has_upcoming,
+      lastEventStartedAt: row.last_start,
+      bioLength: hostBioPlainText(row.description_html, row.description_json).length,
+    },
+    now,
+  );
+}
+
+/** Host detail: whether the page should be indexed (drives its robots meta). */
+export async function isOrganizerIndexable(pool: Pool, organizerId: string, now = new Date()): Promise<boolean> {
+  const [row] = await listHostIndexabilityRows(pool, organizerId);
+  return row ? hostRowIsIndexable(row, now) : false;
+}
+
+/** Hosts sitemap: every indexable host page (same predicate as the detail). */
+export async function listIndexableHostsForSitemap(
+  pool: Pool,
+  now = new Date(),
+): Promise<Array<{ slug: string; lastmod: string }>> {
+  const rows = await listHostIndexabilityRows(pool);
+  return rows
+    .filter((row) => hostRowIsIndexable(row, now))
+    .map((row) => ({ slug: row.slug, lastmod: new Date(row.updated_at).toISOString() }))
+    .sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
 export async function getOrganizerBySlug(

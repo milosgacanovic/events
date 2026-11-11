@@ -8,6 +8,8 @@ import {
   getOrganizerById,
   getOrganizerBySlug,
   getOrganizerIdentityBySlug,
+  isOrganizerIndexable,
+  listIndexableHostsForSitemap,
   listOrganizerPastOccurrences,
   markOrganizerDetached,
   searchOrganizers,
@@ -293,7 +295,19 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
-    return { ...mapOrganizerDetail(result as unknown as Record<string, unknown>), canEdit };
+    // Thin-host policy (SEO round 3, Proposal C): same isHostIndexable()
+    // predicate as /seo/sitemap/hosts. The page renders noindex when false.
+    const indexable = await isOrganizerIndexable(app.db, (result as { organizer: { id: string } }).organizer.id);
+
+    return { ...mapOrganizerDetail(result as unknown as Record<string, unknown>), canEdit, seo: { indexable } };
+  });
+
+  // Sitemap source: every indexable host page (same isHostIndexable()
+  // predicate as the detail endpoint's seo.indexable). Public data only.
+  app.get("/seo/sitemap/hosts", async (_request, reply) => {
+    const items = await listIndexableHostsForSitemap(app.db);
+    reply.header("Cache-Control", "public, max-age=600");
+    return { items, generatedAt: new Date().toISOString() };
   });
 
   app.get("/organizers/:slug/past-events", async (request, reply) => {

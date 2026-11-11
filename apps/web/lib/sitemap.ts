@@ -78,39 +78,33 @@ export async function getEventSitemapItems(): Promise<EventSitemapItem[]> {
   return getAllEventSitemapItemsCached();
 }
 
-type OrganizerSearchResponse = {
-  items: Array<{ slug: string; updatedAt?: string | null }>;
-  pagination?: { page: number; totalPages: number };
+type HostSitemapResponse = {
+  items: Array<{ slug: string; lastmod?: string | null }>;
 };
 
+// Source of truth is the API's /seo/sitemap/hosts, which applies the same
+// isHostIndexable() predicate (thin-host policy) as the host page's robots
+// meta. It replaced ~36 paged /organizers/search requests.
 const getAllOrganizerSitemapItemsCached = unstable_cache(async (): Promise<EventSitemapItem[]> => {
-  const itemsBySlug = new Map<string, string | undefined>();
-  let page = 1;
-  while (true) {
-    const params = new URLSearchParams({ page: String(page), pageSize: "50" });
-    let result: OrganizerSearchResponse | null = null;
-    for (const base of getServerApiBaseCandidates()) {
-      const response = await fetch(`${base}/organizers/search?${params.toString()}`, {
-        next: { revalidate: 600 },
-      }).catch(() => null);
-      if (response?.ok) {
-        result = await response.json();
-        break;
-      }
+  for (const base of getServerApiBaseCandidates()) {
+    const response = await fetch(`${base}/seo/sitemap/hosts`, {
+      next: { revalidate: 600 },
+    }).catch(() => null);
+    if (!response || !response.ok) {
+      continue;
     }
-    if (!result?.items.length) break;
-    for (const item of result.items) {
-      if (item.slug) itemsBySlug.set(item.slug, normalizeIsoDate(item.updatedAt ?? undefined));
+    const payload = (await response.json()) as HostSitemapResponse;
+    const items = payload.items
+      .filter((item) => item.slug?.trim())
+      .map((item) => ({ slug: item.slug.trim(), lastmod: normalizeIsoDate(item.lastmod ?? undefined) }));
+    if (items.length === 0) {
+      // Don't poison the cache with an empty result.
+      throw new Error("hosts sitemap: API returned no items");
     }
-    if (page >= (result.pagination?.totalPages ?? 1)) break;
-    page++;
+    return items;
   }
-  if (itemsBySlug.size === 0) {
-    // Don't poison the cache with an empty result if the API was unreachable.
-    throw new Error("organizers sitemap: no items returned from API");
-  }
-  return Array.from(itemsBySlug.entries()).map(([slug, lastmod]) => ({ slug, lastmod }));
-}, ["organizers-sitemap-items-v2"], { revalidate: 600 });
+  throw new Error("hosts sitemap: API unreachable");
+}, ["organizers-sitemap-items-v3"], { revalidate: 600 });
 
 export async function getOrganizerSitemapItems(): Promise<EventSitemapItem[]> {
   return getAllOrganizerSitemapItemsCached();

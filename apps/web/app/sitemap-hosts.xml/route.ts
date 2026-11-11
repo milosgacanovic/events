@@ -1,6 +1,9 @@
 import { getOrganizerSitemapItems, getSiteBase, toUrlSetXml } from "../../lib/sitemap";
 
-export const revalidate = 600;
+// Rendered per request, not prerendered at build: the build runs against the
+// currently-live API, which may not have /seo/sitemap/hosts yet. Data is
+// still cached for 10 min by unstable_cache in lib/sitemap.ts.
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const siteBase = getSiteBase();
@@ -10,7 +13,7 @@ export async function GET() {
   } catch {
     // Upstream API unreachable / returned no results. Return 503 so crawlers
     // retry and Cloudflare doesn't cache the failure.
-    return new Response("Service Unavailable", { status: 503 });
+    return new Response("Service Unavailable", { status: 503, headers: { "Cache-Control": "no-store" } });
   }
   const xml = toUrlSetXml(
     items.map((item) => ({

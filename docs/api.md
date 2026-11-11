@@ -13,6 +13,7 @@ Base path: `/api`
 - `GET /api/events/:slug` (includes `seo: { indexable, nextOccurrence }`, see below)
 - `GET /api/events/:slug/redirect` (`{ slug }` — current slug of an event that used to live at `:slug`; `404` otherwise. See "Event Slugs")
 - `GET /api/seo/sitemap/events` (returns `items: [{ slug, lastmod }]` — every indexable event page)
+- `GET /api/seo/sitemap/hosts` (returns `items: [{ slug, lastmod }]` — every indexable host page, see Host Indexability)
 - `GET /api/organizers/search` (returns `items`, `facets`, `pagination`)
 - `GET /api/organizers/:slug`
 - `GET /api/map/clusters`
@@ -130,6 +131,12 @@ See `constitution.md` in this directory for complete behavior and field-level re
   host (one per event, at its next occurrence; same `isEventIndexable` predicate and inputs as the sitemap),
   sorted by date, max 500. The host page renders the ones not shown as cards as compact links, so each one is
   linked in the server-rendered HTML.
+
+## Host Indexability (`seo`, thin-host policy)
+
+- `GET /api/organizers/:slug` returns `seo: { indexable: boolean }`; the host page renders `noindex, follow` when it is `false`.
+- Both `seo.indexable` and `GET /api/seo/sitemap/hosts` use the shared `isHostIndexable()` predicate (`packages/shared/src/seo/hostIndexability.ts`). A published host is not indexed when it has no upcoming published + public event, none of its published + public events started in the past 12 months (cancelled events don't count), and its visible bio (`hostBioPlainText()`: `description_html`, else the description JSON) is under 300 characters.
+- The page stays 200 and becomes indexable again by itself when an event is added or a bio is written.
 
 ## Host Entity Type (`entityType`)
 - `organizers.entity_type` is `person` (default) or `organization`.

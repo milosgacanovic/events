@@ -85,6 +85,8 @@ export type OrganizerDetail = {
   }>;
   practiceCategoryIds?: string[];
   canEdit?: boolean;
+  /** Thin-host policy: false → the page renders noindex. */
+  seo?: { indexable: boolean };
 };
 
 // Date in the event's own zone: deterministic on server and client, and the

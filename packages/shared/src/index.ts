@@ -7,3 +7,6 @@ export * from "./schemas/rsvp";
 export * from "./schemas/savedSearch";
 export * from "./types/auth";
 export * from "./seo/indexability";
+export * from "./seo/hostIndexability";
+export * from "./text/htmlToPlainText";
+export * from "./text/truncate";

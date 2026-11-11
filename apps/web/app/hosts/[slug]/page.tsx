@@ -69,7 +69,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
   const description = getDescription(detail);
   const image = detail.organizer.imageUrl ?? detail.organizer.avatar_path ?? undefined;
-  const noIndex = !isHostPublished(detail);
+  // Thin-host policy (SEO round 3, Proposal C): the API applies the same
+  // isHostIndexable() predicate as the hosts sitemap.
+  const noIndex = !isHostPublished(detail) || detail.seo?.indexable === false;
   return {
     title: `${detail.organizer.name} | DanceResource`,
     description,
