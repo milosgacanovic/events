@@ -1,4 +1,4 @@
-import type { CreateOrganizerInput, UpdateOrganizerInput } from "@dr-events/shared";
+import { isEventIndexable, type CreateOrganizerInput, type UpdateOrganizerInput } from "@dr-events/shared";
 import type { Pool, PoolClient } from "pg";
 
 import { generateUniqueSlug } from "../utils/slug";
@@ -425,6 +425,66 @@ export async function getOrganizerBySlug(
     [organizer.rows[0].id],
   );
 
+  // Every indexable upcoming event page of this host (one row per event, at
+  // its next occurrence), so the host page can server-render a link to each:
+  // the card list only shows the first page. Same inputs and predicate as the
+  // sitemap (listIndexableEventsForSitemap): sibling counts span the whole
+  // series, so weekly sibling pages beyond the 60-day window (noindex) are
+  // left out.
+  const upcomingCandidates = await pool.query<{
+    slug: string;
+    title: string;
+    status: string;
+    visibility: string;
+    event_timezone: string | null;
+    next_start: Date | null;
+    sibling_count: number;
+    series_next_start: Date | null;
+    is_host_event: boolean;
+  }>(
+    `
+      -- series_id is always set (createEvent defaults it to the event's own
+      -- id), so join on it directly: that keeps idx_events_series_id usable.
+      with series as (
+        select distinct e.series_id as sid
+        from event_organizers rel
+        join events e on e.id = rel.event_id
+        where rel.organizer_id = $1 and e.series_id is not null
+      ),
+      candidates as (
+        select e.id, e.slug, e.title, e.status, e.visibility, e.event_timezone,
+          e.series_id as sid,
+          (select min(eo.starts_at_utc) from event_occurrences eo
+            where eo.event_id = e.id and eo.ends_at_utc >= now()) as next_start
+        from series s
+        join events e on e.series_id = s.sid
+        where e.status = 'published' and e.visibility = 'public'
+      )
+      select c.slug, c.title, c.status, c.visibility, c.event_timezone, c.next_start,
+        count(*) over (partition by c.sid)::int as sibling_count,
+        min(c.next_start) over (partition by c.sid) as series_next_start,
+        exists (select 1 from event_organizers rel where rel.event_id = c.id and rel.organizer_id = $1) as is_host_event
+      from candidates c
+    `,
+    [organizer.rows[0].id],
+  );
+  const upcomingEvents = upcomingCandidates.rows
+    .filter((r) => r.is_host_event && r.next_start !== null && isEventIndexable({
+      status: r.status,
+      visibility: r.visibility,
+      nextOccurrenceStartsAt: r.next_start,
+      siblingCount: r.sibling_count,
+      seriesNextOccurrenceStartsAt: r.series_next_start,
+    }))
+    .sort((x, y) => new Date(x.next_start!).getTime() - new Date(y.next_start!).getTime() || x.slug.localeCompare(y.slug))
+    .slice(0, 500)
+    .map((r) => ({
+      slug: r.slug,
+      title: r.title,
+      next_starts_at_utc: new Date(r.next_start!).toISOString(),
+      event_timezone: r.event_timezone,
+    }));
+
   const past = await pool.query<{
     occurrence_id: string;
     starts_at_utc: string;
@@ -517,6 +577,7 @@ export async function getOrganizerBySlug(
     locations: locations.rows,
     upcomingOccurrences: upcoming.rows,
     pastOccurrences: past.rows,
+    upcomingEvents,
     practiceCategoryIds: practiceCategories.rows.map((row) => row.practice_category_id),
   };
 }

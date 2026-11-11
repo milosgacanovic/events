@@ -2077,6 +2077,10 @@ label.meta {
   width: 100%;
 }
 
+.org-more-upcoming-label {
+  margin: 16px 0 4px;
+}
+
 .org-past-events {
   display: flex;
   flex-direction: column;

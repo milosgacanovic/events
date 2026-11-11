@@ -1136,6 +1136,7 @@
   "organizerDetail.loading": "Loading host...",
   "organizerDetail.location": "Location",
   "organizerDetail.locations": "Locations",
+  "organizerDetail.moreUpcoming": "More upcoming dates",
   "organizerDetail.noLocations": "No locations available.",
   "organizerDetail.noPast": "No past occurrences.",
   "organizerDetail.noUpcoming": "No upcoming occurrences.",

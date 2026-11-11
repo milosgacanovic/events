@@ -86,7 +86,9 @@ def audit(url):
 def host_links_to(host_slug, event_url):
     slug = event_url.rstrip("/").rsplit("/", 1)[1]
     html = get(f"{BASE}/hosts/{host_slug}")
-    pattern = rf'<a[^>]+href="(?:{re.escape(PUBLIC_BASE)})?/events/{re.escape(slug)}"'
+    # A ?date=… variant is still a link to that event page (it canonicalizes
+    # to /events/<slug>); host cards use it for single-date events.
+    pattern = rf'<a[^>]+href="(?:{re.escape(PUBLIC_BASE)})?/events/{re.escape(slug)}(?:\?[^"]*)?"'
     return re.search(pattern, html) is not None
 
 
@@ -137,6 +139,8 @@ def main():
         failed = failed or passed is False
     for title, c in list(dup_titles.items())[:5]:
         print(f"      duplicate title x{c}: {title}")
+    for r in [r for r in ok if r["entity_bug"]][:5]:
+        print(f"      entity-encoding bug: {r['url']}")
     for url in host_fail:
         print(f"      host page missing link to: {url}")
     sys.exit(1 if failed else 0)

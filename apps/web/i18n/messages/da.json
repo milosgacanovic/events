@@ -1136,6 +1136,7 @@
   "organizerDetail.loading": "Indlæser vært...",
   "organizerDetail.location": "Sted",
   "organizerDetail.locations": "Steder",
+  "organizerDetail.moreUpcoming": "Flere kommende datoer",
   "organizerDetail.noLocations": "Ingen steder tilgængelige.",
   "organizerDetail.noPast": "Ingen tidligere forekomster.",
   "organizerDetail.noUpcoming": "Ingen kommende forekomster.",

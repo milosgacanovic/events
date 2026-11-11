@@ -1136,6 +1136,7 @@
   "organizerDetail.loading": "Organizatör yükleniyor...",
   "organizerDetail.location": "Konum",
   "organizerDetail.locations": "Konumlar",
+  "organizerDetail.moreUpcoming": "Diğer yaklaşan tarihler",
   "organizerDetail.noLocations": "Konum bilgisi yok.",
   "organizerDetail.noPast": "Geçmiş etkinlik yok.",
   "organizerDetail.noUpcoming": "Yaklaşan etkinlik yok.",

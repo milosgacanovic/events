@@ -1136,6 +1136,7 @@
   "organizerDetail.loading": "호스트 불러오는 중...",
   "organizerDetail.location": "위치",
   "organizerDetail.locations": "위치",
+  "organizerDetail.moreUpcoming": "더 많은 예정 일정",
   "organizerDetail.noLocations": "이용 가능한 위치가 없습니다.",
   "organizerDetail.noPast": "지난 일정이 없습니다.",
   "organizerDetail.noUpcoming": "예정된 일정이 없습니다.",

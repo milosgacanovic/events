@@ -1136,6 +1136,7 @@
   "organizerDetail.loading": "Szervező betöltése...",
   "organizerDetail.location": "Helyszín",
   "organizerDetail.locations": "Helyszínek",
+  "organizerDetail.moreUpcoming": "További közelgő időpontok",
   "organizerDetail.noLocations": "Nincs elérhető helyszín.",
   "organizerDetail.noPast": "Nincs múltbeli alkalom.",
   "organizerDetail.noUpcoming": "Nincs közelgő alkalom.",

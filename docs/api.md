@@ -125,6 +125,12 @@ See `constitution.md` in this directory for complete behavior and field-level re
 - `DELETE /api/profile/alerts/:id` removes a user-owned alert.
 - `GET /api/admin/alerts/run-dry` returns dry-run matches for the next 30 days (admin-only).
 
+## Host Upcoming Event Links (`GET /api/organizers/:slug`)
+- `upcomingEvents: [{ slug, title, startsAtUtc, eventTimezone }]` — every indexable upcoming event page of the
+  host (one per event, at its next occurrence; same `isEventIndexable` predicate and inputs as the sitemap),
+  sorted by date, max 500. The host page renders the ones not shown as cards as compact links, so each one is
+  linked in the server-rendered HTML.
+
 ## Host Entity Type (`entityType`)
 - `organizers.entity_type` is `person` (default) or `organization`.
 - `POST`/`PATCH /api/organizers` accept optional `entityType`; omitted on `PATCH` leaves it unchanged.

@@ -1136,6 +1136,7 @@
   "organizerDetail.loading": "Загрузка организатора...",
   "organizerDetail.location": "Местоположение",
   "organizerDetail.locations": "Местоположения",
+  "organizerDetail.moreUpcoming": "Другие ближайшие даты",
   "organizerDetail.noLocations": "Местоположения не указаны.",
   "organizerDetail.noPast": "Прошедших событий нет.",
   "organizerDetail.noUpcoming": "Предстоящих событий нет.",

@@ -153,10 +153,25 @@ function mapOrganizerDetail(result: Record<string, unknown>) {
     })
     : [];
 
+  const upcomingEvents = Array.isArray(result.upcomingEvents)
+    ? result.upcomingEvents.map((item) => {
+      const row = item as Record<string, unknown>;
+      return {
+        slug: String(row.slug ?? ""),
+        title: String(row.title ?? ""),
+        startsAtUtc: row.next_starts_at_utc instanceof Date
+          ? row.next_starts_at_utc.toISOString()
+          : String(row.next_starts_at_utc ?? ""),
+        eventTimezone: typeof row.event_timezone === "string" ? row.event_timezone : null,
+      };
+    })
+    : [];
+
   return {
     ...result,
     upcomingOccurrences,
     pastOccurrences,
+    upcomingEvents,
     organizer: {
       ...organizer,
       imageUrl,

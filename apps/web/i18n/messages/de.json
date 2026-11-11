@@ -1136,6 +1136,7 @@
   "organizerDetail.loading": "Gastgeber wird geladen...",
   "organizerDetail.location": "Standort",
   "organizerDetail.locations": "Standorte",
+  "organizerDetail.moreUpcoming": "Weitere kommende Termine",
   "organizerDetail.noLocations": "Keine Standorte verfügbar.",
   "organizerDetail.noPast": "Keine vergangenen Termine.",
   "organizerDetail.noUpcoming": "Keine bevorstehenden Termine.",

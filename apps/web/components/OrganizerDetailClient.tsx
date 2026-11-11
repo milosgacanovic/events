@@ -76,9 +76,29 @@ export type OrganizerDetail = {
     event_title: string;
     coverImageUrl?: string | null;
   }>;
+  // Every upcoming event page (one per event, at its next occurrence).
+  upcomingEvents?: Array<{
+    slug: string;
+    title: string;
+    startsAtUtc: string;
+    eventTimezone: string | null;
+  }>;
   practiceCategoryIds?: string[];
   canEdit?: boolean;
 };
+
+// Date in the event's own zone: deterministic on server and client, and the
+// day the event actually happens there.
+function formatEventDay(startsAtUtc: string, timeZone: string | null, locale: string): string {
+  const date = new Date(startsAtUtc);
+  if (Number.isNaN(date.getTime())) return "";
+  const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
+  try {
+    return date.toLocaleDateString(locale, { ...options, timeZone: timeZone ?? "UTC" });
+  } catch {
+    return date.toLocaleDateString(locale, { ...options, timeZone: "UTC" });
+  }
+}
 
 type TaxonomyResponse = {
   uiLabels?: {
@@ -680,6 +700,27 @@ export function OrganizerDetailClient({ slug, initialData, initialUpcoming, serv
           </div>
         </div>
       )}
+
+      {(() => {
+        // Upcoming event pages not already shown as cards, as compact rows,
+        // so every upcoming event is linked in the server-rendered HTML.
+        const shown = new Set(upcomingHits.map((hit) => hit.event.slug));
+        const more = (data.upcomingEvents ?? []).filter((ev) => ev.slug && !shown.has(ev.slug));
+        if (!more.length) return null;
+        return (
+          <div className="org-more-upcoming">
+            <div className="meta org-more-upcoming-label">{t("organizerDetail.moreUpcoming")}</div>
+            <div className="org-past-events">
+              {more.map((ev) => (
+                <Link key={ev.slug} className="org-past-event-row" href={`/events/${ev.slug}`}>
+                  <span>{ev.title}</span>
+                  <span className="meta">{formatEventDay(ev.startsAtUtc, ev.eventTimezone, locale)}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       <h3>{t("organizerDetail.pastEvents")}</h3>
       {pastLoaded && pastHits.length === 0 && (

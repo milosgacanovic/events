@@ -1136,6 +1136,7 @@
   "organizerDetail.loading": "Ladataan järjestäjää...",
   "organizerDetail.location": "Sijainti",
   "organizerDetail.locations": "Sijainnit",
+  "organizerDetail.moreUpcoming": "Lisää tulevia päivämääriä",
   "organizerDetail.noLocations": "Ei sijainteja saatavilla.",
   "organizerDetail.noPast": "Ei menneitä kertoja.",
   "organizerDetail.noUpcoming": "Ei tulevia kertoja.",

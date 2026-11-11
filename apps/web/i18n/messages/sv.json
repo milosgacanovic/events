@@ -1136,6 +1136,7 @@
   "organizerDetail.loading": "Laddar arrangör...",
   "organizerDetail.location": "Plats",
   "organizerDetail.locations": "Platser",
+  "organizerDetail.moreUpcoming": "Fler kommande datum",
   "organizerDetail.noLocations": "Inga platser tillgängliga.",
   "organizerDetail.noPast": "Inga tidigare tillfällen.",
   "organizerDetail.noUpcoming": "Inga kommande tillfällen.",
