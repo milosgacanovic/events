@@ -4,6 +4,25 @@ type Bucket = {
 
 const buckets = new Map<string, Bucket>();
 
+// Keys are per client IP + path, so without eviction the map grows with every
+// distinct visitor. Drop buckets idle for longer than any window we use.
+const SWEEP_EVERY_MS = 60_000;
+const BUCKET_IDLE_MS = 60 * 60_000;
+let lastSweepAt = Number.NEGATIVE_INFINITY;
+
+function sweepIdleBuckets(now: number): void {
+  for (const [key, bucket] of buckets) {
+    const newest = bucket.hits[bucket.hits.length - 1];
+    if (newest === undefined || newest <= now - BUCKET_IDLE_MS) {
+      buckets.delete(key);
+    }
+  }
+}
+
+export function rateLimitBucketCount(): number {
+  return buckets.size;
+}
+
 function trimBucket(bucket: Bucket, now: number, windowMs: number): void {
   const threshold = now - windowMs;
   while (bucket.hits.length > 0 && bucket.hits[0] <= threshold) {
@@ -17,6 +36,10 @@ export function checkRateLimit(input: {
   windowMs: number;
   maxRequests: number;
 }): { allowed: boolean; retryAfterSeconds: number } {
+  if (input.now - lastSweepAt >= SWEEP_EVERY_MS) {
+    lastSweepAt = input.now;
+    sweepIdleBuckets(input.now);
+  }
   const existing = buckets.get(input.key) ?? { hits: [] };
   trimBucket(existing, input.now, input.windowMs);
 
@@ -37,6 +60,7 @@ export function checkRateLimit(input: {
 
 export function resetRateLimitBuckets(): void {
   buckets.clear();
+  lastSweepAt = Number.NEGATIVE_INFINITY;
 }
 
 export function resolveAdminRateLimit(path: string): number | null {

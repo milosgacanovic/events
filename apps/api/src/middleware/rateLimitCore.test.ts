@@ -7,6 +7,7 @@ import {
   checkWriteRateLimit,
   resetRateLimitBuckets,
   resolveAdminRateLimit,
+  rateLimitBucketCount,
   resolvePublicRateLimit,
 } from "./rateLimit";
 
@@ -118,5 +119,17 @@ describe("checkWriteRateLimit", () => {
 
   it("exposes the configured window constant", () => {
     expect(WRITE_RATE_LIMIT_WINDOW_MS).toBe(60_000);
+  });
+});
+
+describe("idle bucket eviction", () => {
+  it("drops buckets idle for over an hour but keeps active ones", () => {
+    const args = { windowMs: 60_000, maxRequests: 5 };
+    checkRateLimit({ ...args, key: "old-visitor", now: 0 });
+    checkRateLimit({ ...args, key: "active-visitor", now: 3_500_000 });
+    expect(rateLimitBucketCount()).toBe(2);
+    // > 1h after old-visitor's last hit and > 60s since the last sweep.
+    checkRateLimit({ ...args, key: "active-visitor", now: 3_700_000 });
+    expect(rateLimitBucketCount()).toBe(1);
   });
 });

@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { DEFAULT_TRUST_PROXY } from "./utils/trustProxy";
 import { z } from "zod";
 
 dotenv.config();
@@ -30,6 +31,12 @@ const configSchema = z.object({
   RATE_LIMIT_ENABLED: z.coerce.boolean().default(true),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
+  // Proxies whose X-Forwarded-For is trusted (proxy-addr syntax). Public
+  // traffic reaches the container from the Docker gateway (Apache → published
+  // port), so without this every visitor shared one request.ip and the
+  // per-IP rate limits were effectively global. Apache appends the real
+  // client IP (mod_remoteip resolves Cloudflare). Empty string disables.
+  TRUST_PROXY: z.string().default(DEFAULT_TRUST_PROXY),
   // Feature flag for the Follow/Notify worker. Default false so the worker no-ops
   // in environments that haven't been verified yet — flip to true after confirming
   // dry-run output looks correct.

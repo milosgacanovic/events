@@ -42,6 +42,7 @@ import { safeErrorBody } from "./utils/errorResponse";
 
 async function buildServer() {
   const app = Fastify({
+    trustProxy: config.TRUST_PROXY.trim() ? config.TRUST_PROXY : false,
     logger: loggerConfig,
     requestIdHeader: "x-request-id",
     requestIdLogLabel: "requestId",
