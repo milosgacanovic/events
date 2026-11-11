@@ -1086,7 +1086,7 @@ export function OrganizerSearchClient({
               {t("organizerSearch.hero.hostsIn", {
                 city: geoHostInfo.filterMode === "city" ? (geo.city ?? geo.countryCode) : getCountryLabel(geo.countryCode),
               })}
-              {" "}<span className="hero-pill-count">({geoHostInfo.count.toLocaleString()})</span>
+              {" "}<span className="hero-pill-count">({geoHostInfo.count.toLocaleString(locale)})</span>
             </button>
           )}
           {topPracticePills.map((cat) => (
@@ -1101,7 +1101,7 @@ export function OrganizerSearchClient({
                 setPage(1);
               }}
             >
-              {cat.label} <span className="hero-pill-count">({cat.count.toLocaleString()})</span>
+              {cat.label} <span className="hero-pill-count">({cat.count.toLocaleString(locale)})</span>
             </button>
           ))}
         </div>

@@ -7,12 +7,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
-import { type TimeDisplayMode } from "../lib/datetime";
 import { pushDataLayer } from "../lib/gtm";
 import { labelForLanguageCode, toDisplayNamesLocale} from "../lib/i18n/languageLabels";
 import { getLocalizedRegionLabel, getLocalizedLanguageLabel } from "../lib/i18n/icuFallback";
 import { scrollToTopFast } from "../lib/scroll";
-import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
+import { formatTimeZone } from "../lib/timeDisplay";
+import { useTimeDisplayPreference } from "../lib/useTimeDisplayPreference";
 import { useGeolocation } from "../lib/useGeolocation";
 import { alpha2ToAlpha3 } from "../lib/countryAlpha3";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
@@ -277,7 +277,7 @@ export function EventSearchClient({
   });
   const [activeQueryString, setActiveQueryString] = useState("page=1&pageSize=20");
   const [refreshToken, setRefreshToken] = useState(0);
-  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>("event");
+  const { mode: timeDisplayMode, setMode: setTimeDisplayMode, userTimeZone } = useTimeDisplayPreference();
   const [dateOpen, setDateOpen] = useState(true);
   const [dateRangeOpen, setDateRangeOpen] = useState(!!(initialQuery?.dateFrom) || !!(initialQuery?.dateTo));
   const [practiceOpen, setPracticeOpen] = useState((initialQuery?.practiceCategoryIds?.length ?? 0) > 0);
@@ -338,7 +338,6 @@ export function EventSearchClient({
   const cityInputRef = useRef<HTMLInputElement>(null);
   const typingQClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const userTimeZone = useMemo(() => getUserTimeZone(), []);
   const geo = useGeolocation();
   const [geoRadius, setGeoRadius] = useState<number | null>(initialQuery?.geoRadius ?? null);
   const geoAutoApplyRef = useRef(false);
@@ -1297,10 +1296,6 @@ export function EventSearchClient({
     return () => window.clearTimeout(id);
   }, []);
 
-  useEffect(() => {
-    setTimeDisplayMode(readTimeDisplayMode());
-  }, []);
-
   useEffect(() => { setHydrated(true); }, []);
 
   useEffect(() => {
@@ -1312,10 +1307,6 @@ export function EventSearchClient({
   useEffect(() => {
     if (!loading && !loadingMore) setPendingKey(null);
   }, [loading, loadingMore]);
-
-  useEffect(() => {
-    writeTimeDisplayMode(timeDisplayMode);
-  }, [timeDisplayMode]);
 
   // --- Map overlay data ---
   const [cityCoords, setCityCoords] = useState<Array<{ city: string; lat: number; lng: number }>>([]);
@@ -1796,7 +1787,7 @@ export function EventSearchClient({
                     setPage(1);
                   }}
                 >
-                  {t("eventSearch.hero.eventsIn", { city: geo.city ?? geo.countryCode })} <span className="hero-pill-count">({geo.eventCount.toLocaleString()})</span>
+                  {t("eventSearch.hero.eventsIn", { city: geo.city ?? geo.countryCode })} <span className="hero-pill-count">({geo.eventCount.toLocaleString(locale)})</span>
                 </button>
               )}
               {/* This weekend — right after geo */}
@@ -1815,7 +1806,7 @@ export function EventSearchClient({
                     setPage(1);
                   }}
                 >
-                  {t("eventSearch.hero.thisWeekend")} <span className="hero-pill-count">({thisWeekendCount.toLocaleString()})</span>
+                  {t("eventSearch.hero.thisWeekend")} <span className="hero-pill-count">({thisWeekendCount.toLocaleString(locale)})</span>
                 </button>
               )}
               {/* Practice category pills */}
@@ -1833,7 +1824,7 @@ export function EventSearchClient({
                     setPage(1);
                   }}
                 >
-                  {cat.label} <span className="hero-pill-count">({cat.count.toLocaleString()})</span>
+                  {cat.label} <span className="hero-pill-count">({cat.count.toLocaleString(locale)})</span>
                 </button>
               ))}
             </div>

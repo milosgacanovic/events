@@ -41,8 +41,14 @@ export default function AccountTab() {
   const [homeCity, setHomeCity] = useState<CitySelection | null>(null);
   const [defaultRadiusKm, setDefaultRadiusKm] = useState<number>(100);
   const [pendingLocale, setPendingLocale] = useState<AppLocale>(locale);
-  const [pendingTimeMode, setPendingTimeMode] = useState<"event" | "user">(() => readTimeDisplayMode());
-  const [userTimeZone] = useState(() => (typeof window !== "undefined" ? getUserTimeZone() : "UTC"));
+  // Same values as the server on the first render; the stored preference and
+  // the browser timezone are read after mount (hydration-safe).
+  const [pendingTimeMode, setPendingTimeMode] = useState<"event" | "user">("event");
+  const [userTimeZone, setUserTimeZone] = useState("UTC");
+  useEffect(() => {
+    setPendingTimeMode(readTimeDisplayMode());
+    setUserTimeZone(getUserTimeZone());
+  }, []);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
 

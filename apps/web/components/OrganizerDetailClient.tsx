@@ -391,6 +391,11 @@ export function OrganizerDetailClient({ slug, initialData, initialUpcoming, serv
     return () => { active = false; };
   }, [organizerId, pastPage, slug]);
 
+  const [clientSanitizerReady, setClientSanitizerReady] = useState(false);
+  useEffect(() => {
+    setClientSanitizerReady(true);
+  }, []);
+
   const descriptionSections = extractDescriptionSections(
     data?.organizer.descriptionJson ?? data?.organizer.description_json ?? {},
   );
@@ -399,10 +404,10 @@ export function OrganizerDetailClient({ slug, initialData, initialUpcoming, serv
       ? (data?.organizer.descriptionJson as { html?: string }).html
       : null);
   const sanitizedDescriptionHtml = (() => {
-    if (typeof window === "undefined") {
-      // SSR: API sanitizes on write, but strip dangerous tags/handlers as
-      // defense-in-depth for legacy rows. Client re-sanitizes with DOMPurify
-      // immediately after hydration.
+    if (!clientSanitizerReady) {
+      // Server render AND the first client render (so hydration matches):
+      // API sanitizes on write; strip dangerous tags/handlers as
+      // defense-in-depth for legacy rows. DOMPurify takes over after mount.
       const raw = descriptionHtmlRaw && descriptionHtmlRaw.trim()
         ? stripDangerousHtml(descriptionHtmlRaw)
         : descriptionSections.description

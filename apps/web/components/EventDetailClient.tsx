@@ -8,10 +8,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
 import { stripDangerousHtml } from "../lib/sanitizeForSsr";
-import { formatDateTimeRange, type TimeDisplayMode } from "../lib/datetime";
+import { formatDateTimeRange } from "../lib/datetime";
 import { formatSeoDate } from "../lib/seoDate";
 import { labelForLanguageCode, toDisplayNamesLocale} from "../lib/i18n/languageLabels";
-import { formatTimeZone, getUserTimeZone, readTimeDisplayMode, writeTimeDisplayMode } from "../lib/timeDisplay";
+import { formatTimeZone } from "../lib/timeDisplay";
+import { useTimeDisplayPreference } from "../lib/useTimeDisplayPreference";
 import { useKeycloakAuth } from "./auth/KeycloakAuthProvider";
 import { useI18n } from "./i18n/I18nProvider";
 import { SaveEventButton } from "./SaveEventButton";
@@ -43,6 +44,8 @@ const WEEKDAY_I18N_KEYS: Record<number, string> = {
  * Turn a "21:00" local-time string into a locale-formatted time like "9:00 PM".
  * Uses a dummy date so Intl.DateTimeFormat can handle 12/24-hour conventions.
  */
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://events.danceresource.org").replace(/\/$/, "");
+
 function formatLocalHHMM(hhmm: string, locale: string): string {
   const [h, m] = hhmm.split(":").map(Number);
   if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
@@ -469,7 +472,9 @@ export function EventDetailClient({
   const [tagDisplayMap, setTagDisplayMap] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [timeDisplayMode, setTimeDisplayMode] = useState<TimeDisplayMode>(() => readTimeDisplayMode());
+  // Hydration-safe: "event" on the server and the first client render; the
+  // stored preference and the browser timezone are applied after mount.
+  const { mode: timeDisplayMode, setMode: setTimeDisplayMode, userTimeZone } = useTimeDisplayPreference();
   const [descExpanded, setDescExpanded] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
@@ -479,7 +484,6 @@ export function EventDetailClient({
   const [userSelectedOccurrenceId, setUserSelectedOccurrenceId] = useState<string | null>(null);
   const [goingOccurrenceIds, setGoingOccurrenceIds] = useState<Set<string>>(new Set());
   const calRef = useRef<HTMLDivElement>(null);
-  const userTimeZone = useMemo(() => getUserTimeZone(), []);
 
   // Resolve which occurrence is "the one" for this page view. Decides which
   // row anchors the collapsed list + gets the highlighted styling.
@@ -727,14 +731,19 @@ export function EventDetailClient({
     () => getDescriptionHtml(data?.event.description_json),
     [data?.event.description_json],
   );
+  // The server and the first client render use the same regex strip, so the
+  // description markup matches during hydration; DOMPurify (+ linkify) takes
+  // over right after mount. (Branching on `typeof window` made the first
+  // client render differ from the server HTML.)
+  const [clientSanitizerReady, setClientSanitizerReady] = useState(false);
+  useEffect(() => {
+    setClientSanitizerReady(true);
+  }, []);
   const sanitizedDescriptionHtml = useMemo(() => {
     if (!rawDescriptionHtml) return null;
-    // SSR: API sanitizes on write, but apply a regex-based strip as
-    // defense-in-depth for legacy rows. Client re-sanitizes with DOMPurify
-    // after hydration.
-    if (typeof window === "undefined") return stripDangerousHtml(rawDescriptionHtml);
+    if (!clientSanitizerReady) return stripDangerousHtml(rawDescriptionHtml);
     return linkifyHtml(DOMPurify.sanitize(rawDescriptionHtml));
-  }, [rawDescriptionHtml]);
+  }, [rawDescriptionHtml, clientSanitizerReady]);
   const descriptionSummary = useMemo(() => {
     if (!sanitizedDescriptionHtml) {
       return null;
@@ -779,14 +788,6 @@ export function EventDetailClient({
       meta.setAttribute("content", descriptionSummary);
     }
   }, [data, descriptionSummary]);
-
-  useEffect(() => {
-    setTimeDisplayMode(readTimeDisplayMode());
-  }, []);
-
-  useEffect(() => {
-    writeTimeDisplayMode(timeDisplayMode);
-  }, [timeDisplayMode]);
 
   useEffect(() => {
     setCanNativeShare(typeof navigator !== "undefined" && !!navigator.share);
@@ -898,7 +899,6 @@ export function EventDetailClient({
       ? `${data.defaultLocation.city}${data.defaultLocation.country_code ? `, ${getCountryLabel(data.defaultLocation.country_code)}` : ""}`
       : t("eventDetail.locationTbd");
   const importSource = data.event.external_source || t("common.none");
-  const updatedLabel = data.event.updated_at ? new Date(data.event.updated_at).toLocaleString(locale) : null;
   const coverImageUrl = data.event.coverImageUrl ?? data.event.cover_image_path;
   const externalUrl = data.event.externalUrl ?? data.event.external_url;
   const isImported = data.event.is_imported;
@@ -954,7 +954,9 @@ export function EventDetailClient({
   const calLocation = data?.defaultLocation
     ? [data.defaultLocation.city, data.defaultLocation.country_code ? getCountryLabel(data.defaultLocation.country_code) : null].filter(Boolean).join(", ")
     : "";
-  const calUrl = typeof window !== "undefined" ? window.location.href : `https://events.danceresource.org/events/${data?.event.id ?? ""}`;
+  // Same on the server and in the browser (window.location during render made
+  // the share/calendar hrefs differ between the two renders).
+  const calUrl = `${SITE_URL}/events/${slug}${targetDate ? `?date=${targetDate}` : ""}`;
   const calGoogleDetails = calDescriptionBody ? `${calUrl}\n\n${calDescriptionBody}` : calUrl;
   const calUid = data?.event.id ?? "";
 
@@ -1005,15 +1007,15 @@ export function EventDetailClient({
         <div className="breadcrumb-share">
           {(!canNativeShare && shareExpanded) ? (
             <>
-              <a className="breadcrumb-share-btn" href={`https://x.com/intent/post?url=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}&text=${encodeURIComponent(typeof document !== "undefined" ? document.title : "")}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "twitter" })}>
+              <a className="breadcrumb-share-btn" href={`https://x.com/intent/post?url=${encodeURIComponent(calUrl)}&text=${encodeURIComponent(data.event.title)}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "twitter" })}>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 1l5.2 6.6L1 13h1.6l4.4-5.1L11 13h2.5L8 6.1 13 1h-1.6L7.4 5.7 3.5 1H1Z" fill="currentColor"/></svg>
                 X
               </a>
-              <a className="breadcrumb-share-btn" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "facebook" })}>
+              <a className="breadcrumb-share-btn" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(calUrl)}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "facebook" })}>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9.5 1H8a3 3 0 0 0-3 3v1.5H3.5V8H5v5.5h2.5V8H9l.5-2.5H7.5V4a.5.5 0 0 1 .5-.5H9.5V1Z" fill="currentColor"/></svg>
                 Facebook
               </a>
-              <a className="breadcrumb-share-btn" href={`https://wa.me/?text=${encodeURIComponent(typeof document !== "undefined" ? document.title : "")}%20${encodeURIComponent(typeof window !== "undefined" ? window.location.href : "")}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "whatsapp" })}>
+              <a className="breadcrumb-share-btn" href={`https://wa.me/?text=${encodeURIComponent(data.event.title)}%20${encodeURIComponent(calUrl)}`} target="_blank" rel="noopener noreferrer" onClick={() => pushDataLayer({ event: "event_share", event_title: data?.event.title ?? null, share_method: "whatsapp" })}>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1a6 6 0 0 1 5.196 9L13 13l-3.13-.824A6 6 0 1 1 7 1Z" stroke="currentColor" strokeWidth="1.3"/><path d="M5 5.5c.5 1 1.5 2.5 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
                 WhatsApp
               </a>
@@ -1273,7 +1275,7 @@ export function EventDetailClient({
                 onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
               />
               <span className="toggle-control-track" aria-hidden />
-              <span className="meta" suppressHydrationWarning>
+              <span className="meta">
                 {timeDisplayMode === "event" ? (
                   <>
                     {t("eventDetail.timeMode.event")}{" "}
@@ -1416,7 +1418,7 @@ export function EventDetailClient({
             onChange={(event) => setTimeDisplayMode(event.target.checked ? "event" : "user")}
           />
           <span className="toggle-control-track" aria-hidden />
-          <span className="meta" suppressHydrationWarning>
+          <span className="meta">
             {timeDisplayMode === "event" ? (
               <>
                 {t("eventDetail.timeMode.event")}{" "}
