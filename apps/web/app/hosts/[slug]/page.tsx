@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
 
 import type { EventCardHit } from "../../../components/EventCard";
 import { OrganizerDetailClient, type OrganizerDetail } from "../../../components/OrganizerDetailClient";
@@ -17,6 +18,17 @@ async function fetchServerJson<T>(path: string): Promise<T | null> {
   return response.json() as Promise<T>;
 }
 
+
+// The host detail with its HTTP status: 404 → real 404 page; an API outage
+// renders as before (the client retries). Same URL + init as
+// fetchServerJson, so generateMetadata's request is reused.
+async function fetchHostDetail(slug: string): Promise<{ status: number; data: OrganizerDetail | null }> {
+  const serverApiBase = process.env.INTERNAL_API_BASE_URL ?? apiBase;
+  const response = await fetch(`${serverApiBase}/organizers/${slug}`, { cache: "no-store" }).catch(() => null);
+  if (!response) return { status: 0, data: null };
+  if (!response.ok) return { status: response.status, data: null };
+  return { status: response.status, data: (await response.json()) as OrganizerDetail };
+}
 
 function isHostPublished(detail: OrganizerDetail): boolean {
   const status = detail.organizer.status;
@@ -92,7 +104,10 @@ export default function HostDetailPage({ params }: { params: { slug: string } })
 }
 
 async function HostDetailPageServer({ slug }: { slug: string }) {
-  const detail = await fetchServerJson<OrganizerDetail>(`/organizers/${slug}`);
+  const { status, data: detail } = await fetchHostDetail(slug);
+  // Real HTTP 404 for a host that doesn't exist. not-found.tsx keeps the
+  // friendly page and lets a signed-in editor still open a draft host.
+  if (!detail && status === 404) notFound();
   const initialUpcoming = detail && isHostPublished(detail)
     ? await fetchUpcomingFirstPage(detail.organizer.id)
     : null;

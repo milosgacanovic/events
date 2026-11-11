@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
-import { permanentRedirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { Suspense } from "react";
 
 import {
   EventDetailClient,
@@ -39,6 +40,17 @@ async function fetchServerJson<T>(path: string, revalidateSeconds?: number): Pro
     return null;
   }
   return response.json() as Promise<T>;
+}
+
+// The event detail with its HTTP status, so the page can tell "no such event"
+// (404 → real 404 page) from an API outage (render as before; the client
+// retries). Same URL + init as fetchServerJson, so generateMetadata's
+// request is reused.
+async function fetchEventDetail(slug: string): Promise<{ status: number; data: EventDetailResponse | null }> {
+  const response = await fetch(`${serverApiBase}/events/${slug}`, { cache: "no-store" }).catch(() => null);
+  if (!response) return { status: 0, data: null };
+  if (!response.ok) return { status: response.status, data: null };
+  return { status: response.status, data: (await response.json()) as EventDetailResponse };
 }
 
 // Old slug of a renamed event → its current slug (event_slug_history).
@@ -326,16 +338,22 @@ export default function EventDetailPage({
 }
 
 async function EventDetailPageServer({ slug, targetDate }: { slug: string; targetDate: string | null }) {
-  const [detail, taxonomy] = await Promise.all([
-    fetchServerJson<EventDetailResponse>(`/events/${slug}`),
+  const [{ status, data: detail }, taxonomy] = await Promise.all([
+    fetchEventDetail(slug),
     fetchServerJson<TaxonomyResponse>("/meta/taxonomies", TAXONOMY_REVALIDATE_SECONDS),
   ]);
-  if (!detail) {
+  if (!detail && status === 404) {
+    // A renamed event redirects (slug history) before we call it missing.
     const renamed = await findRenamedSlug(slug);
     if (renamed) {
       permanentRedirect(`/events/${renamed}${targetDate ? `?date=${targetDate}` : ""}`);
     }
+    // Real HTTP 404. not-found.tsx keeps the friendly page and lets a
+    // signed-in editor still open a draft (the public API 404s for drafts).
+    notFound();
   }
+  // Any other failure (API down, 5xx): render the client as before, which
+  // retries — an outage must never turn existing pages into 404s.
 
   const cookieStore = cookies();
   const locale = cookieStore.get("dr_locale")?.value ?? "en";
@@ -370,7 +388,11 @@ async function EventDetailPageServer({ slug, targetDate }: { slug: string; targe
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <EventDetailClient slug={slug} initialData={detail} initialTaxonomy={taxonomy} serverTranslations={serverTranslations} targetDate={targetDate} thinSummary={seoCtx?.thinSummary ?? null} />
+      {/* Own Suspense boundary: a future hydration mismatch inside the event
+          client re-renders only this subtree, not the whole document. */}
+      <Suspense fallback={null}>
+        <EventDetailClient slug={slug} initialData={detail} initialTaxonomy={taxonomy} serverTranslations={serverTranslations} targetDate={targetDate} thinSummary={seoCtx?.thinSummary ?? null} />
+      </Suspense>
     </>
   );
 }

@@ -4596,3 +4596,10 @@ img[loading="lazy"] {
   display: inline-block;
   transform: scaleX(-1);
 }
+
+/* Links on the event/host 404 page. */
+.entity-not-found-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
