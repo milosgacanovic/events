@@ -4,6 +4,8 @@ services:
       context: ../..
       dockerfile: deploy/docker/api.Dockerfile
     container_name: dr_events_api_blue
+    # Come back after a crash; a color stopped by bg-deploy/bg-cleanup stays stopped.
+    restart: unless-stopped
     environment:
       NODE_ENV: development
       PORT: 3001
@@ -53,6 +55,8 @@ services:
         NEXT_PUBLIC_MAP_TILE_URL: ${NEXT_PUBLIC_MAP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
         NEXT_PUBLIC_EVENTS_SERIES_GROUPING_ENABLED: ${EVENTS_SERIES_GROUPING_ENABLED:-false}
     container_name: dr_events_web_blue
+    # Come back after a crash; a color stopped by bg-deploy/bg-cleanup stays stopped.
+    restart: unless-stopped
     environment:
       NODE_ENV: development
       PORT: 3000

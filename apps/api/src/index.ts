@@ -50,6 +50,13 @@ async function buildServer() {
   });
 
   const pool = new Pool({ connectionString: config.DATABASE_URL });
+  // An idle client whose server connection dies (Postgres restart or crash
+  // recovery) emits "error" on the pool. Unhandled, that killed the process
+  // (2026-11-11: the API stayed down after Postgres recovered). Log it; the
+  // pool drops the broken client and reconnects on the next query.
+  pool.on("error", (error) => {
+    app.log.error({ err: error }, "postgres idle client error");
+  });
   const meiliService = new MeilisearchService(config.MEILI_URL, config.MEILI_MASTER_KEY);
   const authService = new AuthService({
     issuer: config.KEYCLOAK_ISSUER,
