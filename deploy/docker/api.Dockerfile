@@ -27,6 +27,10 @@ COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+# Migrations ship with the image so bg-deploy applies exactly the deployed
+# commit's migrations (node apps/api/dist/scripts/migrate.js reads
+# ../../db/migrations relative to apps/api).
+COPY db/migrations ./db/migrations
 
 EXPOSE 3001
 CMD ["node", "apps/api/dist/index.js"]

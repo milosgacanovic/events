@@ -41,6 +41,7 @@ echo "Fetching latest code from $GIT_REMOTE ..."
 git fetch "$GIT_REMOTE"
 git checkout "$REF"
 git pull --ff-only "$GIT_REMOTE" "$REF"
+DEPLOY_SHA="$(git rev-parse HEAD)"
 
 echo "Ensuring shared infra is up (postgres + meili) ..."
 docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" up -d postgres meilisearch
@@ -70,8 +71,19 @@ echo "Waiting for inactive API health ..."
 retry_curl "http://127.0.0.1:${inactive_api_port}/api/health" 40 2
 
 echo "Running DB migrations (expand/contract-safe only) ..."
-if ! docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" -f "$inactive_compose" exec -T "$inactive_api_service" npm run migrate -w @dr-events/api; then
-  echo "Container migration failed (likely slim runtime image). Falling back to host migration ..."
+# Run the compiled migrate script inside the new image: its db/migrations are
+# exactly the deployed commit's (api.Dockerfile copies them). The host
+# fallback reads the live working tree, so it refuses to run when
+# db/migrations differs from the deployed commit (2026-11-11: files written
+# mid-deploy were applied before they were committed).
+if ! docker compose --env-file "$ENV_FILE" -f "$BASE_COMPOSE" -f "$inactive_compose" exec -T --workdir /app/apps/api "$inactive_api_service" node dist/scripts/migrate.js; then
+  echo "Container migration failed. Falling back to host migration ..."
+  if [[ "$(git rev-parse HEAD)" != "$DEPLOY_SHA" ]] \
+    || ! git diff --quiet "$DEPLOY_SHA" -- db/migrations \
+    || [[ -n "$(git ls-files --others --exclude-standard -- db/migrations)" ]]; then
+    echo "Refusing host migration: db/migrations differs from the deployed commit $DEPLOY_SHA." >&2
+    exit 1
+  fi
   # Load prod credentials from .env and reach postgres via its loopback-bound
   # port (the compose hostname "postgres" only resolves inside the network).
   (
