@@ -75,6 +75,21 @@ describe("generateEventSlug (new events)", () => {
     expect(candidates[0]).toBe("ecstatic-dance-london");
   });
 
+  it("ignores an address fragment passed as the city", async () => {
+    expect(
+      await generateEventSlug(
+        { title: "Ecstatic Dance Salt Lake City", city: "East 3370 South Salt Lake City", organizerName: null },
+        freeExcept([]),
+      ),
+    ).toBe("ecstatic-dance-salt-lake-city");
+    expect(
+      await generateEventSlug(
+        { title: "Undersky Dance", city: "Bainbridge Island", organizerName: null },
+        freeExcept([]),
+      ),
+    ).toBe("undersky-dance-bainbridge-island");
+  });
+
   it("decodes HTML entities instead of slugging them (no '-andamp-')", async () => {
     expect(await toSlugPart("Breath &amp; Movement")).toBe("breath-and-movement");
   });

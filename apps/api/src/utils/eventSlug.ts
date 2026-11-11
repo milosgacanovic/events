@@ -95,6 +95,16 @@ export function isUsableTitleSlug(slug: string): boolean {
   return (slug.match(/[a-z]/g) ?? []).length >= 2;
 }
 
+/**
+ * Imported locations sometimes carry an address fragment as the city
+ * ("East 3370 South Salt Lake City"); that is noise in a URL. Only a short,
+ * digit-free value is used.
+ */
+export function usableCitySlug(citySlug: string): string {
+  if (!citySlug || /\d/.test(citySlug)) return "";
+  return citySlug.split("-").length <= 4 ? citySlug : "";
+}
+
 export function surnameSlug(organizerSlug: string): string {
   const tokens = organizerSlug.split("-").filter(Boolean);
   return tokens.length > 1 ? tokens[tokens.length - 1] : (tokens[0] ?? "");
@@ -108,13 +118,14 @@ export type EventSlugContext = {
 
 /** Ordered slug candidates, before any numeric suffix. Never empty. */
 export async function eventSlugCandidates(ctx: EventSlugContext): Promise<string[]> {
-  const [titlePart, cityPart, organizerPart] = await Promise.all([
+  const [titlePart, cityRaw, organizerPart] = await Promise.all([
     toSlugPart(ctx.title),
     toSlugPart(ctx.city),
     toSlugPart(ctx.organizerName),
   ]);
   const title = truncateSlug(titlePart, MAX_TITLE_PART_LENGTH);
   const surname = surnameSlug(organizerPart);
+  const cityPart = usableCitySlug(cityRaw);
 
   const candidates: string[] = [];
   if (isUsableTitleSlug(title)) {
