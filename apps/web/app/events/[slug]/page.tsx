@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
+import { permanentRedirect } from "next/navigation";
 
 import {
   EventDetailClient,
@@ -38,6 +39,12 @@ async function fetchServerJson<T>(path: string, revalidateSeconds?: number): Pro
     return null;
   }
   return response.json() as Promise<T>;
+}
+
+// Old slug of a renamed event → its current slug (event_slug_history).
+async function findRenamedSlug(slug: string): Promise<string | null> {
+  const body = await fetchServerJson<{ slug?: string }>(`/events/${encodeURIComponent(slug)}/redirect`);
+  return typeof body?.slug === "string" && body.slug && body.slug !== slug ? body.slug : null;
 }
 
 function descriptionText(detail: EventDetailResponse): string {
@@ -323,6 +330,12 @@ async function EventDetailPageServer({ slug, targetDate }: { slug: string; targe
     fetchServerJson<EventDetailResponse>(`/events/${slug}`),
     fetchServerJson<TaxonomyResponse>("/meta/taxonomies", TAXONOMY_REVALIDATE_SECONDS),
   ]);
+  if (!detail) {
+    const renamed = await findRenamedSlug(slug);
+    if (renamed) {
+      permanentRedirect(`/events/${renamed}${targetDate ? `?date=${targetDate}` : ""}`);
+    }
+  }
 
   const cookieStore = cookies();
   const locale = cookieStore.get("dr_locale")?.value ?? "en";

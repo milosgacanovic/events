@@ -13,6 +13,7 @@ import {
   getEventById,
   getEventByExternalRef,
   getEventBySlug,
+  getEventSlugRedirect,
   searchEventsFallback,
   setEventOrganizers,
   updateEvent,
@@ -627,6 +628,23 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     const items = await listIndexableEventsForSitemap(app.db);
     reply.header("Cache-Control", "public, max-age=600");
     return { items, generatedAt: new Date().toISOString() };
+  });
+
+  // Where a renamed event lives now (event_slug_history). The web event page
+  // asks this when /events/:slug is not found and answers with a permanent
+  // redirect.
+  app.get("/events/:slug/redirect", async (request, reply) => {
+    const parsed = z.object({ slug: z.string().min(1).max(200) }).safeParse(request.params);
+    if (!parsed.success) {
+      reply.code(400);
+      return logValidation(request, parsed.error);
+    }
+    const slug = await getEventSlugRedirect(app.db, parsed.data.slug);
+    if (!slug) {
+      reply.code(404);
+      return { error: "not_found" };
+    }
+    return { slug };
   });
 
   app.get("/events/:slug", async (request, reply) => {

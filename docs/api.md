@@ -11,6 +11,7 @@ Base path: `/api`
 - `GET /api/meta/organizer-tags` (`q`, optional `limit<=20`)
 - `GET /api/events/search` (returns `hits`, `facets`, `pagination`)
 - `GET /api/events/:slug` (includes `seo: { indexable, nextOccurrence }`, see below)
+- `GET /api/events/:slug/redirect` (`{ slug }` — current slug of an event that used to live at `:slug`; `404` otherwise. See "Event Slugs")
 - `GET /api/seo/sitemap/events` (returns `items: [{ slug, lastmod }]` — every indexable event page)
 - `GET /api/organizers/search` (returns `items`, `facets`, `pagination`)
 - `GET /api/organizers/:slug`
@@ -123,6 +124,25 @@ See `constitution.md` in this directory for complete behavior and field-level re
 - `GET /api/profile/alerts` returns saved alert items for the authenticated user.
 - `DELETE /api/profile/alerts/:id` removes a user-owned alert.
 - `GET /api/admin/alerts/run-dry` returns dry-run matches for the next 30 days (admin-only).
+
+## Host Entity Type (`entityType`)
+- `organizers.entity_type` is `person` (default) or `organization`.
+- `POST`/`PATCH /api/organizers` accept optional `entityType`; omitted on `PATCH` leaves it unchanged.
+  `POST /api/admin/organizers/upsert-external` never sends it, so importer syncs keep an editor's choice.
+- Returned as camelCase `entityType` by `GET /api/organizers/:slug`, `GET /api/organizers/search` items and
+  `GET /api/admin/organizers/:id`.
+- The public host page emits schema.org `Person` or `Organization` JSON-LD from it.
+
+## Event Slugs (new events)
+- Existing slugs never change automatically.
+- `POST /api/events` builds the slug from the title (transliterated with any-ascii) + the city of `locationId`,
+  then adds the first organizer's surname if taken, and a numeric suffix only as a last resort
+  (`emerging-waves-den-haag`, `emerging-waves-den-haag-freitas`, `…-freitas-2`).
+- Placeholder titles (`TBD`, `TBA`, `Untitled`, …) or titles with nothing usable after transliteration use
+  city + organizer instead. No `item-NNN` slugs.
+- Every slug change is recorded in `event_slug_history` by a DB trigger; `GET /api/events/:slug/redirect`
+  resolves an old slug and the web event page answers with a permanent redirect (308).
+  New slugs never reuse a slug that is in the history table.
 
 ## Host Slug Uniqueness (`POST`/`PATCH /api/organizers`)
 - `organizers.slug` is unique. When `slug` is omitted on create the server

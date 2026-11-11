@@ -2,7 +2,7 @@ import { isEventIndexable, type CreateEventInput, type UpdateEventInput } from "
 import type { Pool } from "pg";
 
 import type { EventOccurrenceRow, EventSeriesRow, LocationRow } from "../types/domain";
-import { generateUniqueSlug } from "../utils/slug";
+import { generateEventSlug, type EventSlugContext } from "../utils/eventSlug";
 
 // Explicit column list matching EventSeriesRow. Kept here so downstream callers
 // typed against EventSeriesRow stay in sync with what we actually SELECT.
@@ -154,8 +154,59 @@ function buildEventFilters(input: Omit<EventSearchInput, "page" | "pageSize" | "
   };
 }
 
+async function isEventSlugFree(pool: Pool, candidate: string): Promise<boolean> {
+  const result = await pool.query<{ exists: boolean }>(
+    `
+      select exists (select 1 from events where slug = $1)
+          or exists (select 1 from event_slug_history where old_slug = $1) as exists
+    `,
+    [candidate],
+  );
+  return !result.rows[0]?.exists;
+}
+
+// City of the event's location and name of its first organizer, used to make
+// a new event's slug distinctive (see utils/eventSlug.ts).
+async function loadEventSlugContext(pool: Pool, input: CreateEventInput): Promise<EventSlugContext> {
+  const firstOrganizerId = [...(input.organizerRoles ?? [])]
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))[0]?.organizerId ?? null;
+  const result = await pool.query<{ city: string | null; organizer_name: string | null }>(
+    `
+      select
+        (select l.city from locations l where l.id = $1::uuid) as city,
+        (select o.name from organizers o where o.id = $2::uuid) as organizer_name
+    `,
+    [input.locationId ?? null, firstOrganizerId],
+  );
+  const row = result.rows[0];
+  return {
+    title: input.title,
+    city: input.attendanceMode === "online" ? null : row?.city ?? null,
+    organizerName: row?.organizer_name ?? null,
+  };
+}
+
+export async function getEventSlugRedirect(pool: Pool, oldSlug: string): Promise<string | null> {
+  const result = await pool.query<{ slug: string }>(
+    `
+      select e.slug
+      from event_slug_history h
+      join events e on e.id = h.event_id
+      where h.old_slug = $1
+        and e.slug <> $1
+        and e.status in ('published', 'cancelled')
+      limit 1
+    `,
+    [oldSlug],
+  );
+  return result.rows[0]?.slug ?? null;
+}
+
 export async function createEvent(pool: Pool, createdByUserId: string | null, input: CreateEventInput) {
-  const slug = await generateUniqueSlug(pool, "events", input.title);
+  const slug = await generateEventSlug(
+    await loadEventSlugContext(pool, input),
+    (candidate) => isEventSlugFree(pool, candidate),
+  );
 
   const result = await pool.query<EventSeriesRow>(
     `
