@@ -289,6 +289,27 @@ async function buildServer() {
 async function start() {
   const app = await buildServer();
   await app.listen({ port: config.PORT, host: "0.0.0.0" });
+
+  // The container runs node as PID 1, which ignores SIGTERM unless a handler
+  // exists, so `docker stop` (bg-deploy/bg-cleanup) waited 10s and SIGKILLed
+  // the API. Close Fastify (drains requests, runs onClose -> pool.end()) instead.
+  let shuttingDown = false;
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    process.once(signal, () => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      app.log.info({ signal }, "shutting down");
+      const force = setTimeout(() => process.exit(1), 8000);
+      force.unref();
+      app.close().then(
+        () => process.exit(0),
+        (error) => {
+          app.log.error(error, "error during shutdown");
+          process.exit(1);
+        },
+      );
+    });
+  }
 }
 
 start().catch((error) => {
