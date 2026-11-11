@@ -12,7 +12,9 @@ Audit: `python3 scripts/seo_audit.py --seed N` (now also daily at 04:30 UTC via 
 | 3 | Text cleaning, importer descriptions, image fallback | `cfc937a` | `b68bbba`, `f3993bf`, `1b82443`, `ed318df` | deployed; backfill applied 2026-11-11 |
 | 4 | Host pages: server-rendered event links, Person/Organization | `e2d5f6d`, `0f22f3c` | `5c0cea8` (bio paragraphs) | deployed 2026-11-11 |
 | 5 | Slugs for new events, transliteration, slug history | `abbe121` | — | deployed 2026-11-11 |
-| — | Proposals A–C design note | `3115a18` (`docs/seo-proposals-round3.md`) | — | awaiting owner decision |
+| — | Proposals A–C design note | `3115a18` (`docs/seo-proposals-round3.md`) | — | approved 2026-11-11: C, B, A1 (not A2) |
+| C | Thin-host policy | `be8f14e` | — | deployed 2026-11-11 |
+| B + A1 | City pages, series hubs | `c182573`, `ae1302b` | — | code deployed 2026-11-11; data seed awaits owner review |
 
 ---
 
@@ -122,6 +124,42 @@ placeholders → `tbd`; entities → `-andamp-`.
 
 ---
 
+## Proposals approved 2026-11-11 (C → B → A1; A2 not approved)
+
+**C — thin hosts (deployed).** `isHostIndexable()` (`packages/shared/src/seo/hostIndexability.ts`) drives both the host
+page's robots (`GET /organizers/:slug` → `seo.indexable`) and the new `GET /seo/sitemap/hosts`. A published host with no
+upcoming event, no event started in the past 12 months (cancelled events don't count) and a visible bio under 300
+characters is `noindex, follow`; the page stays 200. Live: 1,195 of 1,757 hosts in the sitemap;
+`hosts/abiola-abrams` → `noindex, follow`, `hosts/jup-jansonius` → `index, follow`.
+
+**B — city pages `/events/in/<country>/<city>` (code deployed, data pending).** Tables `cities` + `city_aliases` (064).
+Raw cities are folded (case, diacritics, punctuation) and mapped through aliases (English exonyms: `wien` → `vienna`;
+`brooklyn` → `new-york-city`). Occurrences > 100 km from the city's median point are dropped (Portland ME vs OR).
+Server-rendered list (one row per series: next date, cadence, hosts, venue, practice, hub link) and hosts; self-canonical,
+no Event markup; `sitemap-cities.xml`. Indexed until 30 days below 3 series. Event pages link the city name to it.
+Dry run (production, read-only): 688 raw pairs → 666 cities; 87 with ≥ 5 series; **71 suggested** (≥ 2 hosts, looks like
+a city). Review file: `temporary/city-review.csv`; apply with `seedCities.ts --apply --csv=…`.
+
+**A1 — series hubs `/series/<slug>` (code deployed, data pending).** Table `series_slugs` (065). Hubs for multi-sibling
+series with ≥ 2 upcoming dates; every date as a link, hosts, cadence, city link; no Event markup; old slugs 308 to the
+current one; `sitemap-series.xml`. "All dates" on occurrence pages, "See upcoming dates" on past dates, "Regular classes"
+on host pages. Dry run: **535 hubs**, 7 need a numeric suffix. Plan: `temporary/series-hub-plan.csv`; apply with
+`backfillSeriesSlugs.ts --apply`. Afterwards the nightly occurrences refresh keeps both up to date.
+
+Tested end to end on a scratch copy of the database (seed + backfill applied there, pages rendered, 308 for an old hub
+slug, RTL and mobile checked) before the code was deployed.
+
+## Incident 2026-11-11 17:52–17:55 UTC (site down ~3 min)
+- **Cause:** the scratch database for the B/A1 tests, plus two deploy image builds, filled the data volume (`/dev/sda`,
+  shared by Docker, containerd, `/opt` and MySQL). Free space had been checked on the root filesystem by mistake. Dropping
+  the scratch database forced a checkpoint, Postgres PANICked ("No space left on device") and ran crash recovery; the
+  Keycloak database did the same. The events API exited on unhandled pool errors and had no restart policy.
+- **Recovery:** pruned Docker build cache (4.2 GB), removed an unused `php:8.2-cli` image and local `.next` build output;
+  Postgres and Keycloak recovered on their own; the API was restarted. No data loss (WAL redo completed). Volume now ~79%.
+- **Fixes:** `0c950b7` (API pool error handler; `restart: unless-stopped` for api/web), `89a7e22` (bg-deploy applies the
+  deployed image's migrations; host fallback refuses a working tree that differs). Found during this: the earlier deploy had
+  applied migrations 064/065 from the working tree before they were committed (empty tables, identical to the committed files).
+
 ## Audit output (production, 2026-11-11, after the last deploy)
 ```
 seed 7:  all PASS (noindex-in-sitemap 0, non-self canonicals 0, missing JSON-LD 0, entity bugs 0,
@@ -148,7 +186,8 @@ entity bugs 0, duplicate titles 0, descriptions ≥ 80 60/60, image 60/60, host 
 
 ## Not done, and why
 - **Task 2 `offers`:** intentionally not emitted (no price data). Owner decision.
-- **Proposals A–C:** design note only, as the handoff requires.
+- **Proposal A2 (redirect past dates to hubs):** not approved; revisit after 6–8 weeks of hub data.
+- **City pages and hubs data:** waits for the owner's review of the two dry runs.
 - **Timezone republish backfill:** waits for the owner. A one-shot reminder (`temporary/tz-backfill-reminder.sh`,
   root crontab, 2026-11-12 09:43 UTC) runs a fresh dry run and sends its summary to the Telegram alert chat. The 16:35 UTC
   dry run on 2026-11-11 found 190 events to resend (biodanza_au 55, gaga_people 47, ecstaticdance 29, osho_pune 29, …).
