@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{host} eşliğinde çevrimiçi {kind}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "Çevrimiçi {kind}, {date}.",
-  "eventDetail.seo.kindFallback": "Dans etkinliği"
+  "eventDetail.seo.kindFallback": "Dans etkinliği",
+  "cityPage.title": "{city} bilinçli dans etkinlikleri",
+  "cityPage.lead": "{city} için yaklaşan bilinçli dans dersleri ve etkinlikleri; tarihler, saatler ve organizatörlerle.",
+  "cityPage.practices": "Pratikler: {practices}.",
+  "cityPage.stats": "Kayıtlar: {series} · Organizatörler: {hosts}",
+  "cityPage.upcomingHeading": "Yaklaşan dersler ve etkinlikler",
+  "cityPage.next": "Sonraki: {date}",
+  "cityPage.hostsHeading": "{city} organizatörleri",
+  "cityPage.allEvents": "Tüm etkinlikler",
+  "cityPage.empty": "Şu anda burada yaklaşan etkinlik yok.",
+  "seriesHub.allDates": "Tüm tarihler",
+  "seriesHub.upcomingHeading": "Yaklaşan tarihler",
+  "seriesHub.upcomingCount": "Yaklaşan tarihler: {count}",
+  "seriesHub.empty": "Şu anda yaklaşan tarih yok.",
+  "seriesHub.moreInCity": "{city} için diğer etkinlikler",
+  "seriesHub.seeUpcoming": "Yaklaşan tarihleri gör",
+  "organizerDetail.seriesHubs": "Düzenli dersler"
 }

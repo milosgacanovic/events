@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} في {place}، {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} عبر الإنترنت مع {host}، {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} عبر الإنترنت، {date}.",
-  "eventDetail.seo.kindFallback": "فعالية رقص"
+  "eventDetail.seo.kindFallback": "فعالية رقص",
+  "cityPage.title": "فعاليات الرقص الواعي في {city}",
+  "cityPage.lead": "دروس وفعاليات الرقص الواعي القادمة في {city}، مع المواعيد والأوقات والمنظمين.",
+  "cityPage.practices": "الممارسات: {practices}.",
+  "cityPage.stats": "القوائم: {series} · المنظمون: {hosts}",
+  "cityPage.upcomingHeading": "الدروس والفعاليات القادمة",
+  "cityPage.next": "التالي: {date}",
+  "cityPage.hostsHeading": "المنظمون في {city}",
+  "cityPage.allEvents": "كل الفعاليات",
+  "cityPage.empty": "لا توجد فعاليات قادمة هنا حاليًا.",
+  "seriesHub.allDates": "كل المواعيد",
+  "seriesHub.upcomingHeading": "المواعيد القادمة",
+  "seriesHub.upcomingCount": "المواعيد القادمة: {count}",
+  "seriesHub.empty": "لا توجد مواعيد قادمة حاليًا.",
+  "seriesHub.moreInCity": "المزيد من الفعاليات في {city}",
+  "seriesHub.seeUpcoming": "عرض المواعيد القادمة",
+  "organizerDetail.seriesHubs": "دروس منتظمة"
 }

@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} online, prowadzi {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
-  "eventDetail.seo.kindFallback": "Wydarzenie taneczne"
+  "eventDetail.seo.kindFallback": "Wydarzenie taneczne",
+  "cityPage.title": "Wydarzenia świadomego tańca: {city}",
+  "cityPage.lead": "Nadchodzące zajęcia i wydarzenia świadomego tańca – {city}: daty, godziny i organizatorzy.",
+  "cityPage.practices": "Praktyki: {practices}.",
+  "cityPage.stats": "Wpisy: {series} · Organizatorzy: {hosts}",
+  "cityPage.upcomingHeading": "Nadchodzące zajęcia i wydarzenia",
+  "cityPage.next": "Następny termin: {date}",
+  "cityPage.hostsHeading": "Organizatorzy: {city}",
+  "cityPage.allEvents": "Wszystkie wydarzenia",
+  "cityPage.empty": "Obecnie nie ma tu nadchodzących wydarzeń.",
+  "seriesHub.allDates": "Wszystkie terminy",
+  "seriesHub.upcomingHeading": "Nadchodzące terminy",
+  "seriesHub.upcomingCount": "Nadchodzące terminy: {count}",
+  "seriesHub.empty": "Obecnie brak nadchodzących terminów.",
+  "seriesHub.moreInCity": "Więcej wydarzeń: {city}",
+  "seriesHub.seeUpcoming": "Zobacz nadchodzące terminy",
+  "organizerDetail.seriesHubs": "Regularne zajęcia"
 }

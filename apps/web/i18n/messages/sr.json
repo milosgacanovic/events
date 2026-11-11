@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} onlajn, vodi {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} onlajn, {date}.",
-  "eventDetail.seo.kindFallback": "Plesni događaj"
+  "eventDetail.seo.kindFallback": "Plesni događaj",
+  "cityPage.title": "Događaji svesnog plesa: {city}",
+  "cityPage.lead": "Predstojeći časovi i događaji svesnog plesa – {city}: datumi, vremena i domaćini.",
+  "cityPage.practices": "Prakse: {practices}.",
+  "cityPage.stats": "Unosi: {series} · Domaćini: {hosts}",
+  "cityPage.upcomingHeading": "Predstojeći časovi i događaji",
+  "cityPage.next": "Sledeći: {date}",
+  "cityPage.hostsHeading": "Domaćini: {city}",
+  "cityPage.allEvents": "Svi događaji",
+  "cityPage.empty": "Trenutno ovde nema predstojećih događaja.",
+  "seriesHub.allDates": "Svi termini",
+  "seriesHub.upcomingHeading": "Predstojeći termini",
+  "seriesHub.upcomingCount": "Predstojeći termini: {count}",
+  "seriesHub.empty": "Trenutno nema predstojećih termina.",
+  "seriesHub.moreInCity": "Još događaja: {city}",
+  "seriesHub.seeUpcoming": "Pogledaj predstojeće termine",
+  "organizerDetail.seriesHubs": "Redovni časovi"
 }

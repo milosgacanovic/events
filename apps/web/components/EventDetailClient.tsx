@@ -276,7 +276,11 @@ export type EventDetail = {
       endLocalHHMM: string;
       timezone: string;
     } | null;
+    /** Series hub page /series/<slug> (SEO round 3, Proposal A1). */
+    hubSlug?: string | null;
   };
+  /** City landing page for the event's city (Proposal B), when one exists. */
+  cityPage?: { path: string; name: string } | null;
   /** Computed by the API with the shared isEventIndexable() predicate. */
   seo?: {
     indexable: boolean;
@@ -1045,6 +1049,13 @@ export function EventDetailClient({
         </div>
       )}
 
+      {/* Past date of a series that has a hub: point to the upcoming dates. */}
+      {data.series?.hubSlug && data.seo && !data.seo.nextOccurrence && (
+        <Link className="event-detail-hub-banner" href={`/series/${data.series.hubSlug}`}>
+          {t("seriesHub.seeUpcoming")} <span className="dir-arrow" aria-hidden="true">→</span>
+        </Link>
+      )}
+
       {/* Header */}
       <div className="event-detail-header">
         <h1 className="event-detail-title">{data.event.title}</h1>
@@ -1101,6 +1112,12 @@ export function EventDetailClient({
                     startTime: formatLocalHHMM(cadence.startLocalHHMM, locale),
                     endTime: formatLocalHHMM(cadence.endLocalHHMM, locale),
                   })}
+                  {data.series?.hubSlug && (
+                    <>
+                      {" · "}
+                      <Link href={`/series/${data.series.hubSlug}`}>{t("seriesHub.allDates")}</Link>
+                    </>
+                  )}
                 </div>
               );
             }
@@ -1122,6 +1139,12 @@ export function EventDetailClient({
                 >
                   {t("eventDetail.nUpcomingDates", { count: upcomingCount })}
                 </a>
+                {data.series?.hubSlug && (
+                  <>
+                    {" · "}
+                    <Link href={`/series/${data.series.hubSlug}`}>{t("seriesHub.allDates")}</Link>
+                  </>
+                )}
               </div>
             );
           }
@@ -1298,7 +1321,7 @@ export function EventDetailClient({
               ) : null}
               <span className="event-detail-meta-value">
                 {data.defaultLocation?.city && !data.defaultLocation.city.includes(',') && data.defaultLocation?.country_code ? (
-                  <Link href={`/events?city=${encodeURIComponent(data.defaultLocation.city.toLowerCase())}&countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit" }}>{data.defaultLocation.city}</Link>
+                  <Link href={data.cityPage?.path ?? `/events?city=${encodeURIComponent(data.defaultLocation.city.toLowerCase())}&countryCode=${data.defaultLocation.country_code}`} style={{ color: "inherit" }}>{data.defaultLocation.city}</Link>
                 ) : !data.defaultLocation?.formatted_address ? (
                   data.defaultLocation?.city ?? t("eventDetail.locationTbd")
                 ) : null}

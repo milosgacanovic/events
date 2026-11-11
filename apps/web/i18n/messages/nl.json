@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} in {place} op {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} (online) met {host} op {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} (online) op {date}.",
-  "eventDetail.seo.kindFallback": "Dansevenement"
+  "eventDetail.seo.kindFallback": "Dansevenement",
+  "cityPage.title": "Bewuste dans-evenementen in {city}",
+  "cityPage.lead": "Aankomende lessen en evenementen voor bewuste dans in {city}, met data, tijden en organisatoren.",
+  "cityPage.practices": "Praktijken: {practices}.",
+  "cityPage.stats": "Vermeldingen: {series} · Organisatoren: {hosts}",
+  "cityPage.upcomingHeading": "Aankomende lessen en evenementen",
+  "cityPage.next": "Volgende: {date}",
+  "cityPage.hostsHeading": "Organisatoren in {city}",
+  "cityPage.allEvents": "Alle evenementen",
+  "cityPage.empty": "Er zijn hier op dit moment geen aankomende evenementen.",
+  "seriesHub.allDates": "Alle data",
+  "seriesHub.upcomingHeading": "Komende data",
+  "seriesHub.upcomingCount": "Komende data: {count}",
+  "seriesHub.empty": "Op dit moment geen komende data.",
+  "seriesHub.moreInCity": "Meer evenementen in {city}",
+  "seriesHub.seeUpcoming": "Bekijk komende data",
+  "organizerDetail.seriesHubs": "Vaste lessen"
 }

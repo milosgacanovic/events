@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} online, vezeti: {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
-  "eventDetail.seo.kindFallback": "Táncesemény"
+  "eventDetail.seo.kindFallback": "Táncesemény",
+  "cityPage.title": "Tudatos tánc események – {city}",
+  "cityPage.lead": "Közelgő tudatos tánc órák és események – {city}: időpontok, kezdési idők és szervezők.",
+  "cityPage.practices": "Gyakorlatok: {practices}.",
+  "cityPage.stats": "Bejegyzések: {series} · Szervezők: {hosts}",
+  "cityPage.upcomingHeading": "Közelgő órák és események",
+  "cityPage.next": "Következő: {date}",
+  "cityPage.hostsHeading": "Szervezők – {city}",
+  "cityPage.allEvents": "Összes esemény",
+  "cityPage.empty": "Jelenleg nincs itt közelgő esemény.",
+  "seriesHub.allDates": "Összes időpont",
+  "seriesHub.upcomingHeading": "Közelgő időpontok",
+  "seriesHub.upcomingCount": "Közelgő időpontok: {count}",
+  "seriesHub.empty": "Jelenleg nincs közelgő időpont.",
+  "seriesHub.moreInCity": "További események – {city}",
+  "seriesHub.seeUpcoming": "Közelgő időpontok megtekintése",
+  "organizerDetail.seriesHubs": "Rendszeres órák"
 }

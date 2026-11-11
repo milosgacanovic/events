@@ -14,6 +14,10 @@ Base path: `/api`
 - `GET /api/events/:slug/redirect` (`{ slug }` — current slug of an event that used to live at `:slug`; `404` otherwise. See "Event Slugs")
 - `GET /api/seo/sitemap/events` (returns `items: [{ slug, lastmod }]` — every indexable event page)
 - `GET /api/seo/sitemap/hosts` (returns `items: [{ slug, lastmod }]` — every indexable host page, see Host Indexability)
+- `GET /api/cities/:country/:slug` (city landing page payload; 404 unless the city is owner-approved — see City Pages)
+- `GET /api/seo/sitemap/cities` (returns `items: [{ countryCode, slug, lastmod }]` — every indexable city page)
+- `GET /api/series/:slug` (series hub payload, or `{ redirectTo }` for an old slug — see Series Hubs)
+- `GET /api/seo/sitemap/series` (returns `items: [{ slug, lastmod }]` — every indexable series hub)
 - `GET /api/organizers/search` (returns `items`, `facets`, `pagination`)
 - `GET /api/organizers/:slug`
 - `GET /api/map/clusters`
@@ -137,6 +141,20 @@ See `constitution.md` in this directory for complete behavior and field-level re
 - `GET /api/organizers/:slug` returns `seo: { indexable: boolean }`; the host page renders `noindex, follow` when it is `false`.
 - Both `seo.indexable` and `GET /api/seo/sitemap/hosts` use the shared `isHostIndexable()` predicate (`packages/shared/src/seo/hostIndexability.ts`). A published host is not indexed when it has no upcoming published + public event, none of its published + public events started in the past 12 months (cancelled events don't count), and its visible bio (`hostBioPlainText()`: `description_html`, else the description JSON) is under 300 characters.
 - The page stays 200 and becomes indexable again by itself when an event is added or a bio is written.
+
+## City Pages (`/events/in/<country>/<city>`, Proposal B)
+
+- `cities(country_code, slug, display_name, approved, below_min_since)` + `city_aliases(country_code, alias_key → city_slug)` (migration 064). Only owner-approved cities exist; seeded with `apps/api/src/scripts/seedCities.ts` (dry run writes a review CSV; `--apply --csv=` inserts the approved rows and every spelling).
+- Events keep their raw city. A page collects every raw `(country, city)` whose `cityKey()` (case/diacritics/punctuation folded) maps to the slug through `city_aliases` (exonyms, merged districts) or directly; occurrences more than 100 km from the city's median point are dropped (same-name cities, wrong countries).
+- Payload: `city { countryCode, slug, name }`, `series[]` (one row per series: `title`, `nextEvent { slug, startsAtUtc, endsAtUtc, eventTimezone }`, `upcomingCount`, `cadence`, `venue`, `practice`, `hosts[]`, `hubSlug`), `hosts[]`, `practices[]`, `stats`, `seo { indexable, lastmod }`. In-person + hybrid, published + public, upcoming only.
+- Indexable while approved, until the city has spent 30 days below 3 distinct upcoming series (`below_min_since`, set by the nightly occurrences refresh). The page stays 200.
+- `GET /api/events/:slug` adds `cityPage: { path, name } | null`; the event page links the city name there.
+
+## Series Hubs (`/series/<slug>`, Proposal A1)
+
+- `series_slugs(slug, series_id, is_current)` (migration 065). Initial slugs from `apps/api/src/scripts/backfillSeriesSlugs.ts` (dry run first); afterwards the nightly occurrences refresh assigns slugs to newly qualifying series. Qualifying: multi-sibling, public, ≥ 2 upcoming dates. Slugs come from the event slug generator (title + city, + surname, number last). A dead series re-keyed upstream (same title + first host + city) hands its slug to the new series.
+- Payload: `hub { slug, title, venue, city, countryCode, practice, cadence, eventTimezone, description }`, `hosts[]`, `upcoming[] { slug, title, startsAtUtc, endsAtUtc, eventTimezone }`, `cityPage`, `seo { indexable (≥ 2 upcoming), lastmod }`. A non-current slug returns `{ redirectTo }` (the page answers 308).
+- No Event JSON-LD on hubs. `GET /api/events/:slug` adds `series.hubSlug`; `GET /api/organizers/:slug` adds `seriesHubs: [{ slug, title }]`. No redirects from past occurrences (that is Proposal A2, not approved).
 
 ## Host Entity Type (`entityType`)
 - `organizers.entity_type` is `person` (default) or `organization`.

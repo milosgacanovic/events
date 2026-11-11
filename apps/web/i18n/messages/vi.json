@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} tại {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} trực tuyến cùng {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} trực tuyến, {date}.",
-  "eventDetail.seo.kindFallback": "Sự kiện khiêu vũ"
+  "eventDetail.seo.kindFallback": "Sự kiện khiêu vũ",
+  "cityPage.title": "Sự kiện nhảy múa tỉnh thức tại {city}",
+  "cityPage.lead": "Các lớp học và sự kiện nhảy múa tỉnh thức sắp tới tại {city}, kèm ngày, giờ và người tổ chức.",
+  "cityPage.practices": "Phương pháp: {practices}.",
+  "cityPage.stats": "Mục: {series} · Người tổ chức: {hosts}",
+  "cityPage.upcomingHeading": "Lớp học và sự kiện sắp tới",
+  "cityPage.next": "Tiếp theo: {date}",
+  "cityPage.hostsHeading": "Người tổ chức tại {city}",
+  "cityPage.allEvents": "Tất cả sự kiện",
+  "cityPage.empty": "Hiện chưa có sự kiện sắp tới tại đây.",
+  "seriesHub.allDates": "Tất cả các ngày",
+  "seriesHub.upcomingHeading": "Các ngày sắp tới",
+  "seriesHub.upcomingCount": "Các ngày sắp tới: {count}",
+  "seriesHub.empty": "Hiện chưa có ngày sắp tới.",
+  "seriesHub.moreInCity": "Thêm sự kiện tại {city}",
+  "seriesHub.seeUpcoming": "Xem các ngày sắp tới",
+  "organizerDetail.seriesHubs": "Lớp học định kỳ"
 }

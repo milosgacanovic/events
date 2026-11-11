@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}，{place}，{date}。",
   "eventDetail.seo.leadOnlineHost": "{host}的线上{kind}，{date}。",
   "eventDetail.seo.leadOnlineNoHost": "线上{kind}，{date}。",
-  "eventDetail.seo.kindFallback": "舞蹈活动"
+  "eventDetail.seo.kindFallback": "舞蹈活动",
+  "cityPage.title": "{city}的有意识舞蹈活动",
+  "cityPage.lead": "{city}即将举行的有意识舞蹈课程和活动，附日期、时间和主办方。",
+  "cityPage.practices": "练习类型：{practices}。",
+  "cityPage.stats": "条目：{series} · 主办方：{hosts}",
+  "cityPage.upcomingHeading": "即将举行的课程和活动",
+  "cityPage.next": "下一次：{date}",
+  "cityPage.hostsHeading": "{city}的主办方",
+  "cityPage.allEvents": "所有活动",
+  "cityPage.empty": "目前这里没有即将举行的活动。",
+  "seriesHub.allDates": "所有日期",
+  "seriesHub.upcomingHeading": "即将到来的日期",
+  "seriesHub.upcomingCount": "即将到来的日期：{count}",
+  "seriesHub.empty": "目前没有即将到来的日期。",
+  "seriesHub.moreInCity": "{city}的更多活动",
+  "seriesHub.seeUpcoming": "查看即将到来的日期",
+  "organizerDetail.seriesHubs": "常规课程"
 }

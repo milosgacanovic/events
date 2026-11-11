@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} онлайн, ведёт {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} онлайн, {date}.",
-  "eventDetail.seo.kindFallback": "Танцевальное событие"
+  "eventDetail.seo.kindFallback": "Танцевальное событие",
+  "cityPage.title": "Мероприятия осознанного танца: {city}",
+  "cityPage.lead": "Предстоящие занятия и мероприятия осознанного танца — {city}: даты, время и организаторы.",
+  "cityPage.practices": "Практики: {practices}.",
+  "cityPage.stats": "Записи: {series} · Организаторы: {hosts}",
+  "cityPage.upcomingHeading": "Предстоящие занятия и мероприятия",
+  "cityPage.next": "Следующее: {date}",
+  "cityPage.hostsHeading": "Организаторы: {city}",
+  "cityPage.allEvents": "Все мероприятия",
+  "cityPage.empty": "Сейчас здесь нет предстоящих мероприятий.",
+  "seriesHub.allDates": "Все даты",
+  "seriesHub.upcomingHeading": "Ближайшие даты",
+  "seriesHub.upcomingCount": "Ближайшие даты: {count}",
+  "seriesHub.empty": "Сейчас нет ближайших дат.",
+  "seriesHub.moreInCity": "Другие мероприятия: {city}",
+  "seriesHub.seeUpcoming": "Смотреть ближайшие даты",
+  "organizerDetail.seriesHubs": "Регулярные занятия"
 }

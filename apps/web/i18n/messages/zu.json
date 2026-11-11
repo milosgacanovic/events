@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} ku-inthanethi – {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} ku-inthanethi, {date}.",
-  "eventDetail.seo.kindFallback": "Umcimbi womdanso"
+  "eventDetail.seo.kindFallback": "Umcimbi womdanso",
+  "cityPage.title": "Imicimbi yokudansa okuzwisisayo e-{city}",
+  "cityPage.lead": "Amakilasi nemicimbi ezayo yokudansa okuzwisisayo e-{city}, kanye nezinsuku, izikhathi nabanzi.",
+  "cityPage.practices": "Izindlela: {practices}.",
+  "cityPage.stats": "Okufakiwe: {series} · Obanzi: {hosts}",
+  "cityPage.upcomingHeading": "Amakilasi nemicimbi ezayo",
+  "cityPage.next": "Okulandelayo: {date}",
+  "cityPage.hostsHeading": "Obanzi e-{city}",
+  "cityPage.allEvents": "Yonke imicimbi",
+  "cityPage.empty": "Ayikho imicimbi ezayo lapha okwamanje.",
+  "seriesHub.allDates": "Zonke izinsuku",
+  "seriesHub.upcomingHeading": "Izinsuku ezizayo",
+  "seriesHub.upcomingCount": "Izinsuku ezizayo: {count}",
+  "seriesHub.empty": "Azikho izinsuku ezizayo okwamanje.",
+  "seriesHub.moreInCity": "Eminye imicimbi e-{city}",
+  "seriesHub.seeUpcoming": "Bona izinsuku ezizayo",
+  "organizerDetail.seriesHubs": "Amakilasi avamile"
 }

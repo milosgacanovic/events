@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{date}、{place}で開催される{kind}。",
   "eventDetail.seo.leadOnlineHost": "{date}開催、{host}のオンライン{kind}。",
   "eventDetail.seo.leadOnlineNoHost": "{date}開催のオンライン{kind}。",
-  "eventDetail.seo.kindFallback": "ダンスイベント"
+  "eventDetail.seo.kindFallback": "ダンスイベント",
+  "cityPage.title": "{city}の意識的なダンスのイベント",
+  "cityPage.lead": "{city}で今後開催される意識的なダンスのクラスとイベント（日程・時間・主催者つき）。",
+  "cityPage.practices": "プラクティス：{practices}。",
+  "cityPage.stats": "掲載数：{series} · 主催者：{hosts}",
+  "cityPage.upcomingHeading": "今後のクラスとイベント",
+  "cityPage.next": "次回：{date}",
+  "cityPage.hostsHeading": "{city}の主催者",
+  "cityPage.allEvents": "すべてのイベント",
+  "cityPage.empty": "現在、ここで予定されているイベントはありません。",
+  "seriesHub.allDates": "すべての日程",
+  "seriesHub.upcomingHeading": "今後の日程",
+  "seriesHub.upcomingCount": "今後の日程：{count}",
+  "seriesHub.empty": "現在、今後の日程はありません。",
+  "seriesHub.moreInCity": "{city}のその他のイベント",
+  "seriesHub.seeUpcoming": "今後の日程を見る",
+  "organizerDetail.seriesHubs": "定期クラス"
 }

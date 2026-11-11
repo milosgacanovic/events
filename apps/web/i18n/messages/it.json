@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} a {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} online con {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
-  "eventDetail.seo.kindFallback": "Evento di danza"
+  "eventDetail.seo.kindFallback": "Evento di danza",
+  "cityPage.title": "Eventi di danza consapevole a {city}",
+  "cityPage.lead": "Prossime lezioni ed eventi di danza consapevole a {city}, con date, orari e organizzatori.",
+  "cityPage.practices": "Pratiche: {practices}.",
+  "cityPage.stats": "Annunci: {series} · Organizzatori: {hosts}",
+  "cityPage.upcomingHeading": "Prossime lezioni ed eventi",
+  "cityPage.next": "Prossima data: {date}",
+  "cityPage.hostsHeading": "Organizzatori a {city}",
+  "cityPage.allEvents": "Tutti gli eventi",
+  "cityPage.empty": "Al momento non ci sono eventi in programma qui.",
+  "seriesHub.allDates": "Tutte le date",
+  "seriesHub.upcomingHeading": "Prossime date",
+  "seriesHub.upcomingCount": "Prossime date: {count}",
+  "seriesHub.empty": "Al momento non ci sono date in programma.",
+  "seriesHub.moreInCity": "Altri eventi a {city}",
+  "seriesHub.seeUpcoming": "Vedi le prossime date",
+  "organizerDetail.seriesHubs": "Lezioni regolari"
 }

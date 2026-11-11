@@ -29,6 +29,8 @@ import { deriveSeriesCadence } from "../services/seriesCadenceService";
 import { recordActivity } from "../services/activityLogger";
 import { logValidation } from "../utils/validationError";
 import { enforceWriteRateLimit } from "../utils/enforceWriteRateLimit";
+import { getCityPagePath } from "../db/cityRepo";
+import { getCurrentHubSlug } from "../db/seriesHubRepo";
 import { WRITE_RATE_LIMIT_BULK_MAX } from "../middleware/rateLimit";
 import { recordPublish, recordSearchDuration } from "../services/metricsStore";
 import { clearSearchCache, getSearchCache, setSearchCache } from "../services/searchCache";
@@ -682,6 +684,12 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const cadence = deriveSeriesCadence(event.event, event.occurrences.upcoming);
+    // SEO round 3: link the city to its landing page (Proposal B) and the
+    // series to its hub (Proposal A1) when they exist.
+    const [cityPage, hubSlug] = await Promise.all([
+      getCityPagePath(app.db, event.defaultLocation?.country_code, event.defaultLocation?.city),
+      getCurrentHubSlug(app.db, (event.event as { series_id?: string | null }).series_id),
+    ]);
 
     // Strip siblingEvents from the outgoing payload — it's an internal helper
     // for cadence derivation, not something clients need.
@@ -689,7 +697,8 @@ const eventRoutes: FastifyPluginAsync = async (app) => {
     return {
       ...eventRest,
       canEdit,
-      series: { ...series, cadence },
+      series: { ...series, cadence, hubSlug },
+      cityPage,
       organizers: event.organizers.map((row) => ({
         ...row,
         id: row.organizer_id,

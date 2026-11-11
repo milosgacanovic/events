@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} διαδικτυακά, με καθοδήγηση: {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} διαδικτυακά, {date}.",
-  "eventDetail.seo.kindFallback": "Χορευτική εκδήλωση"
+  "eventDetail.seo.kindFallback": "Χορευτική εκδήλωση",
+  "cityPage.title": "Εκδηλώσεις συνειδητού χορού στην πόλη {city}",
+  "cityPage.lead": "Επερχόμενα μαθήματα και εκδηλώσεις συνειδητού χορού στην πόλη {city}, με ημερομηνίες, ώρες και οικοδεσπότες.",
+  "cityPage.practices": "Πρακτικές: {practices}.",
+  "cityPage.stats": "Καταχωρίσεις: {series} · Οικοδεσπότες: {hosts}",
+  "cityPage.upcomingHeading": "Επερχόμενα μαθήματα και εκδηλώσεις",
+  "cityPage.next": "Επόμενη: {date}",
+  "cityPage.hostsHeading": "Οικοδεσπότες στην πόλη {city}",
+  "cityPage.allEvents": "Όλες οι εκδηλώσεις",
+  "cityPage.empty": "Δεν υπάρχουν επερχόμενες εκδηλώσεις εδώ αυτή τη στιγμή.",
+  "seriesHub.allDates": "Όλες οι ημερομηνίες",
+  "seriesHub.upcomingHeading": "Επερχόμενες ημερομηνίες",
+  "seriesHub.upcomingCount": "Επερχόμενες ημερομηνίες: {count}",
+  "seriesHub.empty": "Δεν υπάρχουν επερχόμενες ημερομηνίες αυτή τη στιγμή.",
+  "seriesHub.moreInCity": "Περισσότερες εκδηλώσεις στην πόλη {city}",
+  "seriesHub.seeUpcoming": "Δείτε τις επερχόμενες ημερομηνίες",
+  "organizerDetail.seriesHubs": "Τακτικά μαθήματα"
 }

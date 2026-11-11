@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} i {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} på nett med {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} på nett, {date}.",
-  "eventDetail.seo.kindFallback": "Dansearrangement"
+  "eventDetail.seo.kindFallback": "Dansearrangement",
+  "cityPage.title": "Arrangementer med bevisst dans i {city}",
+  "cityPage.lead": "Kommende timer og arrangementer med bevisst dans i {city}, med datoer, tider og arrangører.",
+  "cityPage.practices": "Praksiser: {practices}.",
+  "cityPage.stats": "Oppføringer: {series} · Arrangører: {hosts}",
+  "cityPage.upcomingHeading": "Kommende timer og arrangementer",
+  "cityPage.next": "Neste: {date}",
+  "cityPage.hostsHeading": "Arrangører i {city}",
+  "cityPage.allEvents": "Alle arrangementer",
+  "cityPage.empty": "Det er ingen kommende arrangementer her akkurat nå.",
+  "seriesHub.allDates": "Alle datoer",
+  "seriesHub.upcomingHeading": "Kommende datoer",
+  "seriesHub.upcomingCount": "Kommende datoer: {count}",
+  "seriesHub.empty": "Ingen kommende datoer akkurat nå.",
+  "seriesHub.moreInCity": "Flere arrangementer i {city}",
+  "seriesHub.seeUpcoming": "Se kommende datoer",
+  "organizerDetail.seriesHubs": "Faste timer"
 }

@@ -15,6 +15,7 @@ import {
   searchOrganizers,
   updateOrganizer,
 } from "../db/organizerRepo";
+import { listHubsForOrganizer } from "../db/seriesHubRepo";
 import { resolveUserId, requireOrganizerAccess } from "../middleware/ownership";
 import { canUserEditOrganizer } from "../db/manageRepo";
 import { isServiceAccount } from "../db/userRepo";
@@ -297,9 +298,14 @@ const organizerRoutes: FastifyPluginAsync = async (app) => {
 
     // Thin-host policy (SEO round 3, Proposal C): same isHostIndexable()
     // predicate as /seo/sitemap/hosts. The page renders noindex when false.
-    const indexable = await isOrganizerIndexable(app.db, (result as { organizer: { id: string } }).organizer.id);
+    const organizerId = (result as { organizer: { id: string } }).organizer.id;
+    const [indexable, seriesHubs] = await Promise.all([
+      isOrganizerIndexable(app.db, organizerId),
+      // Hub pages of this host's recurring series (Proposal A1).
+      listHubsForOrganizer(app.db, organizerId),
+    ]);
 
-    return { ...mapOrganizerDetail(result as unknown as Record<string, unknown>), canEdit, seo: { indexable } };
+    return { ...mapOrganizerDetail(result as unknown as Record<string, unknown>), canEdit, seriesHubs, seo: { indexable } };
   });
 
   // Sitemap source: every indexable host page (same isHostIndexable()

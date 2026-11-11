@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} מקוון עם {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} מקוון, {date}.",
-  "eventDetail.seo.kindFallback": "אירוע ריקוד"
+  "eventDetail.seo.kindFallback": "אירוע ריקוד",
+  "cityPage.title": "אירועי ריקוד מודע ב{city}",
+  "cityPage.lead": "שיעורים ואירועי ריקוד מודע קרובים ב{city}, עם תאריכים, שעות ומארגנים.",
+  "cityPage.practices": "סגנונות: {practices}.",
+  "cityPage.stats": "רשומות: {series} · מארגנים: {hosts}",
+  "cityPage.upcomingHeading": "שיעורים ואירועים קרובים",
+  "cityPage.next": "הבא: {date}",
+  "cityPage.hostsHeading": "מארגנים ב{city}",
+  "cityPage.allEvents": "כל האירועים",
+  "cityPage.empty": "אין כרגע אירועים קרובים כאן.",
+  "seriesHub.allDates": "כל המועדים",
+  "seriesHub.upcomingHeading": "מועדים קרובים",
+  "seriesHub.upcomingCount": "מועדים קרובים: {count}",
+  "seriesHub.empty": "אין כרגע מועדים קרובים.",
+  "seriesHub.moreInCity": "עוד אירועים ב{city}",
+  "seriesHub.seeUpcoming": "לצפייה במועדים הקרובים",
+  "organizerDetail.seriesHubs": "שיעורים קבועים"
 }

@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} i {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} online med {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
-  "eventDetail.seo.kindFallback": "Dansevenemang"
+  "eventDetail.seo.kindFallback": "Dansevenemang",
+  "cityPage.title": "Evenemang med medveten dans i {city}",
+  "cityPage.lead": "Kommande klasser och evenemang med medveten dans i {city}, med datum, tider och arrangörer.",
+  "cityPage.practices": "Praktiker: {practices}.",
+  "cityPage.stats": "Poster: {series} · Arrangörer: {hosts}",
+  "cityPage.upcomingHeading": "Kommande klasser och evenemang",
+  "cityPage.next": "Nästa: {date}",
+  "cityPage.hostsHeading": "Arrangörer i {city}",
+  "cityPage.allEvents": "Alla evenemang",
+  "cityPage.empty": "Det finns inga kommande evenemang här just nu.",
+  "seriesHub.allDates": "Alla datum",
+  "seriesHub.upcomingHeading": "Kommande datum",
+  "seriesHub.upcomingCount": "Kommande datum: {count}",
+  "seriesHub.empty": "Inga kommande datum just nu.",
+  "seriesHub.moreInCity": "Fler evenemang i {city}",
+  "seriesHub.seeUpcoming": "Se kommande datum",
+  "organizerDetail.seriesHubs": "Regelbundna klasser"
 }

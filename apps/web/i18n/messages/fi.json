@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} verkossa, vetäjänä {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} verkossa, {date}.",
-  "eventDetail.seo.kindFallback": "Tanssitapahtuma"
+  "eventDetail.seo.kindFallback": "Tanssitapahtuma",
+  "cityPage.title": "Tietoisen tanssin tapahtumat: {city}",
+  "cityPage.lead": "Tulevat tietoisen tanssin tunnit ja tapahtumat kaupungissa {city}: päivämäärät, ajat ja järjestäjät.",
+  "cityPage.practices": "Käytännöt: {practices}.",
+  "cityPage.stats": "Kohteet: {series} · Järjestäjät: {hosts}",
+  "cityPage.upcomingHeading": "Tulevat tunnit ja tapahtumat",
+  "cityPage.next": "Seuraava: {date}",
+  "cityPage.hostsHeading": "Järjestäjät: {city}",
+  "cityPage.allEvents": "Kaikki tapahtumat",
+  "cityPage.empty": "Täällä ei ole juuri nyt tulevia tapahtumia.",
+  "seriesHub.allDates": "Kaikki päivämäärät",
+  "seriesHub.upcomingHeading": "Tulevat päivämäärät",
+  "seriesHub.upcomingCount": "Tulevat päivämäärät: {count}",
+  "seriesHub.empty": "Ei tulevia päivämääriä juuri nyt.",
+  "seriesHub.moreInCity": "Lisää tapahtumia: {city}",
+  "seriesHub.seeUpcoming": "Näytä tulevat päivämäärät",
+  "organizerDetail.seriesHubs": "Säännölliset tunnit"
 }

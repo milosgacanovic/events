@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} á netinu, leiðbeinandi: {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} á netinu, {date}.",
-  "eventDetail.seo.kindFallback": "Dansviðburður"
+  "eventDetail.seo.kindFallback": "Dansviðburður",
+  "cityPage.title": "Viðburðir í meðvituðum dansi: {city}",
+  "cityPage.lead": "Væntanlegir tímar og viðburðir í meðvituðum dansi – {city}: dagsetningar, tímar og gestgjafar.",
+  "cityPage.practices": "Iðkun: {practices}.",
+  "cityPage.stats": "Færslur: {series} · Gestgjafar: {hosts}",
+  "cityPage.upcomingHeading": "Væntanlegir tímar og viðburðir",
+  "cityPage.next": "Næst: {date}",
+  "cityPage.hostsHeading": "Gestgjafar: {city}",
+  "cityPage.allEvents": "Allir viðburðir",
+  "cityPage.empty": "Engir væntanlegir viðburðir hér eins og er.",
+  "seriesHub.allDates": "Allar dagsetningar",
+  "seriesHub.upcomingHeading": "Væntanlegar dagsetningar",
+  "seriesHub.upcomingCount": "Væntanlegar dagsetningar: {count}",
+  "seriesHub.empty": "Engar væntanlegar dagsetningar eins og er.",
+  "seriesHub.moreInCity": "Fleiri viðburðir: {city}",
+  "seriesHub.seeUpcoming": "Sjá væntanlegar dagsetningar",
+  "organizerDetail.seriesHubs": "Reglulegir tímar"
 }

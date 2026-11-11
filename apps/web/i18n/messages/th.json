@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} ที่ {place}, {date}",
   "eventDetail.seo.leadOnlineHost": "{kind} ออนไลน์ กับ {host}, {date}",
   "eventDetail.seo.leadOnlineNoHost": "{kind} ออนไลน์, {date}",
-  "eventDetail.seo.kindFallback": "งานเต้นรำ"
+  "eventDetail.seo.kindFallback": "งานเต้นรำ",
+  "cityPage.title": "กิจกรรมการเต้นอย่างมีสติใน{city}",
+  "cityPage.lead": "คลาสและกิจกรรมการเต้นอย่างมีสติที่กำลังจะมาใน{city} พร้อมวันที่ เวลา และเจ้าภาพ",
+  "cityPage.practices": "แนวปฏิบัติ: {practices}",
+  "cityPage.stats": "รายการ: {series} · เจ้าภาพ: {hosts}",
+  "cityPage.upcomingHeading": "คลาสและกิจกรรมที่กำลังจะมา",
+  "cityPage.next": "ครั้งถัดไป: {date}",
+  "cityPage.hostsHeading": "เจ้าภาพใน{city}",
+  "cityPage.allEvents": "กิจกรรมทั้งหมด",
+  "cityPage.empty": "ขณะนี้ยังไม่มีกิจกรรมที่กำลังจะมาที่นี่",
+  "seriesHub.allDates": "วันที่ทั้งหมด",
+  "seriesHub.upcomingHeading": "วันที่กำลังจะมา",
+  "seriesHub.upcomingCount": "วันที่กำลังจะมา: {count}",
+  "seriesHub.empty": "ขณะนี้ยังไม่มีวันที่กำลังจะมา",
+  "seriesHub.moreInCity": "กิจกรรมอื่นใน{city}",
+  "seriesHub.seeUpcoming": "ดูวันที่กำลังจะมา",
+  "organizerDetail.seriesHubs": "คลาสประจำ"
 }

@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{host} के साथ ऑनलाइन {kind}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "ऑनलाइन {kind}, {date}.",
-  "eventDetail.seo.kindFallback": "नृत्य कार्यक्रम"
+  "eventDetail.seo.kindFallback": "नृत्य कार्यक्रम",
+  "cityPage.title": "{city} में सचेत नृत्य कार्यक्रम",
+  "cityPage.lead": "{city} में आगामी सचेत नृत्य कक्षाएँ और कार्यक्रम, तिथियों, समय और आयोजकों के साथ।",
+  "cityPage.practices": "अभ्यास: {practices}।",
+  "cityPage.stats": "सूचियाँ: {series} · आयोजक: {hosts}",
+  "cityPage.upcomingHeading": "आगामी कक्षाएँ और कार्यक्रम",
+  "cityPage.next": "अगला: {date}",
+  "cityPage.hostsHeading": "{city} में आयोजक",
+  "cityPage.allEvents": "सभी कार्यक्रम",
+  "cityPage.empty": "अभी यहाँ कोई आगामी कार्यक्रम नहीं है।",
+  "seriesHub.allDates": "सभी तिथियाँ",
+  "seriesHub.upcomingHeading": "आगामी तिथियाँ",
+  "seriesHub.upcomingCount": "आगामी तिथियाँ: {count}",
+  "seriesHub.empty": "अभी कोई आगामी तिथि नहीं है।",
+  "seriesHub.moreInCity": "{city} में और कार्यक्रम",
+  "seriesHub.seeUpcoming": "आगामी तिथियाँ देखें",
+  "organizerDetail.seriesHubs": "नियमित कक्षाएँ"
 }

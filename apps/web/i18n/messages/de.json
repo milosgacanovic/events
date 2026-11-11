@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} in {place} am {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} (online) mit {host} am {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} (online) am {date}.",
-  "eventDetail.seo.kindFallback": "Tanzveranstaltung"
+  "eventDetail.seo.kindFallback": "Tanzveranstaltung",
+  "cityPage.title": "Veranstaltungen für bewusstes Tanzen in {city}",
+  "cityPage.lead": "Bevorstehende Kurse und Veranstaltungen für bewusstes Tanzen in {city}, mit Terminen, Uhrzeiten und Veranstaltern.",
+  "cityPage.practices": "Praktiken: {practices}.",
+  "cityPage.stats": "Einträge: {series} · Veranstalter: {hosts}",
+  "cityPage.upcomingHeading": "Bevorstehende Kurse und Veranstaltungen",
+  "cityPage.next": "Nächster Termin: {date}",
+  "cityPage.hostsHeading": "Veranstalter in {city}",
+  "cityPage.allEvents": "Alle Veranstaltungen",
+  "cityPage.empty": "Hier gibt es gerade keine bevorstehenden Veranstaltungen.",
+  "seriesHub.allDates": "Alle Termine",
+  "seriesHub.upcomingHeading": "Kommende Termine",
+  "seriesHub.upcomingCount": "Kommende Termine: {count}",
+  "seriesHub.empty": "Derzeit keine kommenden Termine.",
+  "seriesHub.moreInCity": "Weitere Veranstaltungen in {city}",
+  "seriesHub.seeUpcoming": "Kommende Termine ansehen",
+  "organizerDetail.seriesHubs": "Regelmäßige Kurse"
 }

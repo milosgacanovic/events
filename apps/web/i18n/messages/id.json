@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} di {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} online bersama {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
-  "eventDetail.seo.kindFallback": "Acara tari"
+  "eventDetail.seo.kindFallback": "Acara tari",
+  "cityPage.title": "Acara tari sadar di {city}",
+  "cityPage.lead": "Kelas dan acara tari sadar yang akan datang di {city}, lengkap dengan tanggal, waktu, dan penyelenggara.",
+  "cityPage.practices": "Praktik: {practices}.",
+  "cityPage.stats": "Daftar: {series} · Penyelenggara: {hosts}",
+  "cityPage.upcomingHeading": "Kelas dan acara yang akan datang",
+  "cityPage.next": "Berikutnya: {date}",
+  "cityPage.hostsHeading": "Penyelenggara di {city}",
+  "cityPage.allEvents": "Semua acara",
+  "cityPage.empty": "Saat ini tidak ada acara mendatang di sini.",
+  "seriesHub.allDates": "Semua tanggal",
+  "seriesHub.upcomingHeading": "Tanggal mendatang",
+  "seriesHub.upcomingCount": "Tanggal mendatang: {count}",
+  "seriesHub.empty": "Saat ini tidak ada tanggal mendatang.",
+  "seriesHub.moreInCity": "Acara lain di {city}",
+  "seriesHub.seeUpcoming": "Lihat tanggal mendatang",
+  "organizerDetail.seriesHubs": "Kelas rutin"
 }

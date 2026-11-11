@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} in {place} on {date}.",
   "eventDetail.seo.leadOnlineHost": "Online {kind} with {host} on {date}.",
   "eventDetail.seo.leadOnlineNoHost": "Online {kind} on {date}.",
-  "eventDetail.seo.kindFallback": "Dance event"
+  "eventDetail.seo.kindFallback": "Dance event",
+  "cityPage.title": "Conscious dance events in {city}",
+  "cityPage.lead": "Upcoming conscious dance classes and events in {city}, with dates, times and hosts.",
+  "cityPage.practices": "Practices: {practices}.",
+  "cityPage.stats": "Listings: {series} · Hosts: {hosts}",
+  "cityPage.upcomingHeading": "Upcoming classes and events",
+  "cityPage.next": "Next: {date}",
+  "cityPage.hostsHeading": "Hosts in {city}",
+  "cityPage.allEvents": "All events",
+  "cityPage.empty": "No upcoming events here right now.",
+  "seriesHub.allDates": "All dates",
+  "seriesHub.upcomingHeading": "Upcoming dates",
+  "seriesHub.upcomingCount": "Upcoming dates: {count}",
+  "seriesHub.empty": "No upcoming dates right now.",
+  "seriesHub.moreInCity": "More events in {city}",
+  "seriesHub.seeUpcoming": "See upcoming dates",
+  "organizerDetail.seriesHubs": "Regular classes"
 }

@@ -15,7 +15,12 @@ export async function GET() {
     return new Response("Service Unavailable", { status: 503, headers: { "Cache-Control": "no-store" } });
   }
   const chunkCount = Math.max(Math.ceil(items.length / EVENT_SITEMAP_CHUNK_SIZE), 1);
-  const locations = [`${siteBase}/sitemap-pages.xml`, `${siteBase}/sitemap-hosts.xml`];
+  const locations = [
+    `${siteBase}/sitemap-pages.xml`,
+    `${siteBase}/sitemap-hosts.xml`,
+    `${siteBase}/sitemap-cities.xml`,
+    `${siteBase}/sitemap-series.xml`,
+  ];
 
   for (let page = 1; page <= chunkCount; page += 1) {
     locations.push(`${siteBase}/sitemap-events-${page}.xml`);

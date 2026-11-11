@@ -12,6 +12,15 @@ vi.mock("../db/eventRepo", () => ({
   eventHasOrganizers: vi.fn().mockResolvedValue(true),
 }));
 
+// SEO landing-page lookups on the detail endpoint (city page, series hub).
+vi.mock("../db/cityRepo", () => ({
+  getCityPagePath: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("../db/seriesHubRepo", () => ({
+  getCurrentHubSlug: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("../db/locationRepo", () => ({
   getEventDefaultLocation: vi.fn(),
   setEventDefaultLocation: vi.fn(),

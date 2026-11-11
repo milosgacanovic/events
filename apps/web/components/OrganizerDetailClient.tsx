@@ -87,6 +87,8 @@ export type OrganizerDetail = {
   canEdit?: boolean;
   /** Thin-host policy: false → the page renders noindex. */
   seo?: { indexable: boolean };
+  /** Hub pages of this host's recurring series (Proposal A1). */
+  seriesHubs?: Array<{ slug: string; title: string }>;
 };
 
 // Date in the event's own zone: deterministic on server and client, and the
@@ -723,6 +725,20 @@ export function OrganizerDetailClient({ slug, initialData, initialUpcoming, serv
           </div>
         );
       })()}
+
+      {(data.seriesHubs?.length ?? 0) > 0 && (
+        <div className="org-more-upcoming">
+          <div className="meta org-more-upcoming-label">{t("organizerDetail.seriesHubs")}</div>
+          <div className="org-past-events">
+            {data.seriesHubs!.map((hub) => (
+              <Link key={hub.slug} className="org-past-event-row" href={`/series/${hub.slug}`}>
+                <span>{hub.title}</span>
+                <span className="meta">{t("seriesHub.allDates")} <span className="dir-arrow" aria-hidden="true">→</span></span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <h3>{t("organizerDetail.pastEvents")}</h3>
       {pastLoaded && pastHits.length === 0 && (

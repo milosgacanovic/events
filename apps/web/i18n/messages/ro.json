@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind} în {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} online cu {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
-  "eventDetail.seo.kindFallback": "Eveniment de dans"
+  "eventDetail.seo.kindFallback": "Eveniment de dans",
+  "cityPage.title": "Evenimente de dans conștient în {city}",
+  "cityPage.lead": "Cursuri și evenimente viitoare de dans conștient în {city}, cu date, ore și organizatori.",
+  "cityPage.practices": "Practici: {practices}.",
+  "cityPage.stats": "Anunțuri: {series} · Organizatori: {hosts}",
+  "cityPage.upcomingHeading": "Cursuri și evenimente viitoare",
+  "cityPage.next": "Următoarea: {date}",
+  "cityPage.hostsHeading": "Organizatori în {city}",
+  "cityPage.allEvents": "Toate evenimentele",
+  "cityPage.empty": "Momentan nu există evenimente viitoare aici.",
+  "seriesHub.allDates": "Toate datele",
+  "seriesHub.upcomingHeading": "Date viitoare",
+  "seriesHub.upcomingCount": "Date viitoare: {count}",
+  "seriesHub.empty": "Momentan nu există date viitoare.",
+  "seriesHub.moreInCity": "Mai multe evenimente în {city}",
+  "seriesHub.seeUpcoming": "Vezi datele viitoare",
+  "organizerDetail.seriesHubs": "Cursuri regulate"
 }

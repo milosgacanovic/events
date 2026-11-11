@@ -17,6 +17,7 @@ import mapRoutes from "./routes/map";
 import metaRoutes from "./routes/meta";
 import metricsRoute from "./routes/metrics";
 import organizerRoutes from "./routes/organizers";
+import seoPageRoutes from "./routes/seoPages";
 import profileRoutes from "./routes/profile";
 import alertRoutes from "./routes/alerts";
 import applicationRoutes from "./routes/applications";
@@ -263,6 +264,7 @@ async function buildServer() {
     await api.register(adminContentRoutes);
     await api.register(eventRoutes);
     await api.register(organizerRoutes);
+    await api.register(seoPageRoutes);
     await api.register(profileRoutes);
     await api.register(alertRoutes);
     await api.register(mapRoutes);

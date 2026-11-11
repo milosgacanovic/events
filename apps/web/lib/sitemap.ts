@@ -110,6 +110,46 @@ export async function getOrganizerSitemapItems(): Promise<EventSitemapItem[]> {
   return getAllOrganizerSitemapItemsCached();
 }
 
+type LandingSitemapResponse = {
+  items: Array<{ slug: string; countryCode?: string; lastmod?: string | null }>;
+};
+
+// City pages (Proposal B) and series hubs (Proposal A1). Unlike events and
+// hosts these can legitimately be empty (before the owner-reviewed seed), so
+// an empty list is cached; only an unreachable API throws.
+async function fetchLandingSitemap(path: string): Promise<LandingSitemapResponse["items"]> {
+  for (const base of getServerApiBaseCandidates()) {
+    const response = await fetch(`${base}${path}`, { next: { revalidate: 600 } }).catch(() => null);
+    if (!response || !response.ok) continue;
+    const payload = (await response.json()) as LandingSitemapResponse;
+    return payload.items ?? [];
+  }
+  throw new Error(`${path}: API unreachable`);
+}
+
+const getCitySitemapItemsCached = unstable_cache(async (): Promise<EventSitemapItem[]> => {
+  const items = await fetchLandingSitemap("/seo/sitemap/cities");
+  return items
+    .filter((item) => item.countryCode && item.slug)
+    .map((item) => ({ slug: `${item.countryCode}/${item.slug}`, lastmod: normalizeIsoDate(item.lastmod ?? undefined) }));
+}, ["cities-sitemap-items-v1"], { revalidate: 600 });
+
+/** slug is "<country>/<city>" (path under /events/in/). */
+export async function getCitySitemapItems(): Promise<EventSitemapItem[]> {
+  return getCitySitemapItemsCached();
+}
+
+const getSeriesSitemapItemsCached = unstable_cache(async (): Promise<EventSitemapItem[]> => {
+  const items = await fetchLandingSitemap("/seo/sitemap/series");
+  return items
+    .filter((item) => item.slug)
+    .map((item) => ({ slug: item.slug, lastmod: normalizeIsoDate(item.lastmod ?? undefined) }));
+}, ["series-sitemap-items-v1"], { revalidate: 600 });
+
+export async function getSeriesSitemapItems(): Promise<EventSitemapItem[]> {
+  return getSeriesSitemapItemsCached();
+}
+
 export function getSiteBase(): string {
   return siteBase;
 }

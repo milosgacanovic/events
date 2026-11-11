@@ -142,6 +142,9 @@ def main():
     host_fail = [r["url"] for r in host_checks if not host_links_to(r["host"], r["url"])]
     # Thin-host policy: the hosts sitemap lists only indexable host pages.
     hosts_total, hosts_checked, hosts_noindex = noindex_in_sitemap("sitemap-hosts", "hosts", 10)
+    # Landing pages (city pages, series hubs): every listed page indexable.
+    cities_total, cities_checked, cities_noindex = noindex_in_sitemap("sitemap-cities", "events/in", 5)
+    series_total, series_checked, series_noindex = noindex_in_sitemap("sitemap-series", "series", 5)
 
     print(f"Event URLs in sitemaps: {len(urls)} | sampled: {len(sample)} | fetch errors: {len(rows) - n}")
     results = [
@@ -158,6 +161,8 @@ def main():
         ("JSON-LD image present", f"{count('has_image')}/{n}", count("has_image") == n),
         ("host pages linking back to event", f"{len(host_checks) - len(host_fail)}/{len(host_checks)}", not host_fail),
         (f"noindex host pages in hosts sitemap ({hosts_total} listed)", f"{len(hosts_noindex)}/{hosts_checked}", not hosts_noindex),
+        (f"noindex city pages in cities sitemap ({cities_total} listed)", f"{len(cities_noindex)}/{cities_checked}", not cities_noindex),
+        (f"noindex series hubs in series sitemap ({series_total} listed)", f"{len(series_noindex)}/{series_checked}", not series_noindex),
     ]
     failed = False
     for name, value, passed in results:
@@ -170,8 +175,8 @@ def main():
         print(f"      entity-encoding bug: {r['url']}")
     for url in host_fail:
         print(f"      host page missing link to: {url}")
-    for url in hosts_noindex:
-        print(f"      noindex page in hosts sitemap: {url}")
+    for url in hosts_noindex + cities_noindex + series_noindex:
+        print(f"      noindex page in sitemap: {url}")
     sys.exit(1 if failed else 0)
 
 

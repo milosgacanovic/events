@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} ონლაინ, წამყვანი: {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} ონლაინ, {date}.",
-  "eventDetail.seo.kindFallback": "საცეკვაო ღონისძიება"
+  "eventDetail.seo.kindFallback": "საცეკვაო ღონისძიება",
+  "cityPage.title": "ცნობიერი ცეკვის ღონისძიებები: {city}",
+  "cityPage.lead": "ცნობიერი ცეკვის მომავალი გაკვეთილები და ღონისძიებები – {city}: თარიღები, დრო და ორგანიზატორები.",
+  "cityPage.practices": "პრაქტიკები: {practices}.",
+  "cityPage.stats": "ჩანაწერები: {series} · ორგანიზატორები: {hosts}",
+  "cityPage.upcomingHeading": "მომავალი გაკვეთილები და ღონისძიებები",
+  "cityPage.next": "შემდეგი: {date}",
+  "cityPage.hostsHeading": "ორგანიზატორები: {city}",
+  "cityPage.allEvents": "ყველა ღონისძიება",
+  "cityPage.empty": "ამჟამად აქ მომავალი ღონისძიებები არ არის.",
+  "seriesHub.allDates": "ყველა თარიღი",
+  "seriesHub.upcomingHeading": "მომავალი თარიღები",
+  "seriesHub.upcomingCount": "მომავალი თარიღები: {count}",
+  "seriesHub.empty": "ამჟამად მომავალი თარიღები არ არის.",
+  "seriesHub.moreInCity": "მეტი ღონისძიება: {city}",
+  "seriesHub.seeUpcoming": "მომავალი თარიღების ნახვა",
+  "organizerDetail.seriesHubs": "რეგულარული გაკვეთილები"
 }

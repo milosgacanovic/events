@@ -4505,3 +4505,94 @@ img[loading="lazy"] {
     font-size: 0.78rem;
   }
 }
+
+/* ── SEO landing pages: city pages (/events/in/…) and series hubs (/series/…) ── */
+.seo-landing {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.seo-landing-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.seo-landing-header h1 {
+  margin: 0;
+}
+
+.seo-landing-lead {
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+.seo-landing-heading {
+  font-size: 1.1rem;
+  margin: 20px 0 4px;
+}
+
+.seo-landing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.seo-landing-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.seo-landing-row:last-child,
+.seo-landing-dates li:last-child .org-past-event-row {
+  border-bottom: none;
+}
+
+.seo-landing-row-title {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.seo-landing-row-title:hover,
+.seo-landing-row-hosts a:hover,
+.seo-landing-row-hub:hover {
+  color: var(--accent);
+}
+
+.seo-landing-row-hosts a,
+.seo-landing-row-hub {
+  color: inherit;
+}
+
+.seo-landing-hosts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.seo-landing-hosts a {
+  color: var(--ink);
+}
+
+.event-detail-hub-banner {
+  display: block;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Text arrows (← back, → forward) mirror in RTL locales. */
+[dir="rtl"] .dir-arrow {
+  display: inline-block;
+  transform: scaleX(-1);
+}

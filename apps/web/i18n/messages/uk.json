@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} онлайн, веде {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} онлайн, {date}.",
-  "eventDetail.seo.kindFallback": "Танцювальна подія"
+  "eventDetail.seo.kindFallback": "Танцювальна подія",
+  "cityPage.title": "Події усвідомленого танцю: {city}",
+  "cityPage.lead": "Майбутні заняття та події усвідомленого танцю — {city}: дати, час і організатори.",
+  "cityPage.practices": "Практики: {practices}.",
+  "cityPage.stats": "Записи: {series} · Організатори: {hosts}",
+  "cityPage.upcomingHeading": "Майбутні заняття та події",
+  "cityPage.next": "Наступне: {date}",
+  "cityPage.hostsHeading": "Організатори: {city}",
+  "cityPage.allEvents": "Усі події",
+  "cityPage.empty": "Наразі тут немає майбутніх подій.",
+  "seriesHub.allDates": "Усі дати",
+  "seriesHub.upcomingHeading": "Найближчі дати",
+  "seriesHub.upcomingCount": "Найближчі дати: {count}",
+  "seriesHub.empty": "Наразі немає найближчих дат.",
+  "seriesHub.moreInCity": "Інші події: {city}",
+  "seriesHub.seeUpcoming": "Переглянути найближчі дати",
+  "organizerDetail.seriesHubs": "Регулярні заняття"
 }

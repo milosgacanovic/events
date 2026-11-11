@@ -1376,5 +1376,21 @@
   "eventDetail.seo.leadNoHost": "{kind}, {place}, {date}.",
   "eventDetail.seo.leadOnlineHost": "{kind} online, vedie {host}, {date}.",
   "eventDetail.seo.leadOnlineNoHost": "{kind} online, {date}.",
-  "eventDetail.seo.kindFallback": "Tanečné podujatie"
+  "eventDetail.seo.kindFallback": "Tanečné podujatie",
+  "cityPage.title": "Podujatia vedomého tanca: {city}",
+  "cityPage.lead": "Nadchádzajúce lekcie a podujatia vedomého tanca – {city}: termíny, časy a organizátori.",
+  "cityPage.practices": "Praxe: {practices}.",
+  "cityPage.stats": "Položky: {series} · Organizátori: {hosts}",
+  "cityPage.upcomingHeading": "Nadchádzajúce lekcie a podujatia",
+  "cityPage.next": "Ďalší: {date}",
+  "cityPage.hostsHeading": "Organizátori: {city}",
+  "cityPage.allEvents": "Všetky podujatia",
+  "cityPage.empty": "Momentálne tu nie sú žiadne nadchádzajúce podujatia.",
+  "seriesHub.allDates": "Všetky termíny",
+  "seriesHub.upcomingHeading": "Nadchádzajúce termíny",
+  "seriesHub.upcomingCount": "Nadchádzajúce termíny: {count}",
+  "seriesHub.empty": "Momentálne žiadne nadchádzajúce termíny.",
+  "seriesHub.moreInCity": "Ďalšie podujatia: {city}",
+  "seriesHub.seeUpcoming": "Zobraziť nadchádzajúce termíny",
+  "organizerDetail.seriesHubs": "Pravidelné lekcie"
 }
