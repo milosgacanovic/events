@@ -705,6 +705,7 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
     city: string | null;
     country_code: string | null;
     status: "draft" | "published" | "archived";
+    entityType: "person" | "organization";
     created_at: string;
     updated_at: string;
   }>(
@@ -724,6 +725,7 @@ export async function getAdminOrganizerById(pool: Pool, organizerId: string) {
         o.city,
         o.country_code,
         o.status,
+        o.entity_type as "entityType",
         o.created_at,
         o.updated_at
       from organizers o

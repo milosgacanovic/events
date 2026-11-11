@@ -44,6 +44,7 @@ export type HostFormState = {
   name: string;
   descriptionHtml: string;
   websiteUrl: string;
+  entityType: "person" | "organization";
   imageUrl: string;
   tags: string;
   languages: string[];
@@ -72,6 +73,7 @@ export type AdminOrganizerDetailResponse = {
   description_html?: string | null;
   website_url: string | null;
   external_url: string | null;
+  entityType?: "person" | "organization";
   image_url: string | null;
   avatar_path: string | null;
   tags: string[];
@@ -115,6 +117,7 @@ export function hostFormStateFromApi(data: AdminOrganizerDetailResponse): HostFo
     name: data.name,
     descriptionHtml: descHtml,
     websiteUrl: data.website_url ?? "",
+    entityType: data.entityType === "organization" ? "organization" : "person",
     imageUrl: data.avatar_path ?? data.image_url ?? "",
     tags: (data.tags ?? []).join(", "),
     languages: data.languages ?? [],
@@ -143,6 +146,7 @@ export function newHostFormState(): HostFormState {
     name: "",
     descriptionHtml: "",
     websiteUrl: "",
+    entityType: "person",
     imageUrl: "",
     tags: "",
     languages: [],
@@ -369,6 +373,7 @@ export function HostForm({
       descriptionJson: { html: form.descriptionHtml, text: descText },
       descriptionHtml: form.descriptionHtml,
       websiteUrl: form.websiteUrl || null,
+      entityType: form.entityType,
       imageUrl: image.imageUrl,
       avatarPath: image.avatarPath,
       tags,
@@ -480,6 +485,7 @@ export function HostForm({
         descriptionJson: { html: form.descriptionHtml, text: descText },
         descriptionHtml: form.descriptionHtml,
         websiteUrl: form.websiteUrl || null,
+        entityType: form.entityType,
         imageUrl: image.imageUrl,
         avatarPath: image.avatarPath,
         tags,
@@ -589,6 +595,19 @@ export function HostForm({
         <div>
           <label>{t("manage.hostForm.websiteUrl")}</label>
           <input value={form.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} placeholder="https://..." />
+        </div>
+
+        <div>
+          <label htmlFor="host-entity-type">{t("manage.hostForm.entityType")}</label>
+          <select
+            id="host-entity-type"
+            value={form.entityType}
+            onChange={(e) => update("entityType", e.target.value === "organization" ? "organization" : "person")}
+          >
+            <option value="person">{t("manage.hostForm.entityTypePerson")}</option>
+            <option value="organization">{t("manage.hostForm.entityTypeOrganization")}</option>
+          </select>
+          <span className="meta" style={{ fontSize: "0.75rem" }}>{t("manage.hostForm.entityTypeHint")}</span>
         </div>
       </div>
 

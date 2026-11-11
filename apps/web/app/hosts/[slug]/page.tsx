@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
+import type { EventCardHit } from "../../../components/EventCard";
 import { OrganizerDetailClient, type OrganizerDetail } from "../../../components/OrganizerDetailClient";
 import { apiBase } from "../../../lib/api";
+import { HOST_EVENTS_PAGE_SIZE } from "../../../lib/hostEvents";
 import { htmlToPlainText } from "../../../lib/htmlToPlainText";
 import { toDisplayNamesLocale } from "../../../lib/i18n/languageLabels";
 
@@ -21,13 +23,40 @@ function isHostPublished(detail: OrganizerDetail): boolean {
   return !status || status === "published";
 }
 
-function getDescription(detail: OrganizerDetail): string {
+function getBioText(detail: OrganizerDetail, maxLength: number): string {
   const descJson = detail.organizer.description_json as Record<string, unknown> | null;
   const rawHtml = detail.organizer.descriptionHtml ?? (typeof descJson?.html === "string" ? descJson.html : "") ?? "";
   // Decodes entities exactly once; the old tag-only strip left "&amp;" in the
   // text, which React escaped again → "&amp;amp;" in the meta description.
-  const text = htmlToPlainText(rawHtml, 160);
-  return text || `${detail.organizer.name} — conscious dance host on DanceResource`;
+  return htmlToPlainText(rawHtml, maxLength);
+}
+
+function getDescription(detail: OrganizerDetail): string {
+  return getBioText(detail, 160) || `${detail.organizer.name} — conscious dance host on DanceResource`;
+}
+
+function absoluteUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/")) return `${SITE_ORIGIN}${url}`;
+  return undefined;
+}
+
+type HostUpcomingPage = { organizerId: string; hits: EventCardHit[]; totalHits: number };
+
+// First page of the host's upcoming events, fetched on the server with the
+// same query the client uses, so the initial HTML contains real
+// <a href="/events/…"> links (the list used to render client-side only).
+async function fetchUpcomingFirstPage(organizerId: string): Promise<HostUpcomingPage | null> {
+  const params = new URLSearchParams({
+    organizerId,
+    page: "1",
+    pageSize: String(HOST_EVENTS_PAGE_SIZE),
+    sort: "date_asc",
+  });
+  const res = await fetchServerJson<{ hits: EventCardHit[]; totalHits: number }>(`/events/search?${params.toString()}`);
+  if (!res || !Array.isArray(res.hits)) return null;
+  return { organizerId, hits: res.hits, totalHits: res.totalHits ?? res.hits.length };
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -62,6 +91,9 @@ export default function HostDetailPage({ params }: { params: { slug: string } })
 
 async function HostDetailPageServer({ slug }: { slug: string }) {
   const detail = await fetchServerJson<OrganizerDetail>(`/organizers/${slug}`);
+  const initialUpcoming = detail && isHostPublished(detail)
+    ? await fetchUpcomingFirstPage(detail.organizer.id)
+    : null;
 
   const cookieStore = cookies();
   const locale = cookieStore.get("dr_locale")?.value ?? "en";
@@ -91,16 +123,20 @@ async function HostDetailPageServer({ slug }: { slug: string }) {
 
   const websiteUrl = detail?.organizer.websiteUrl ?? detail?.organizer.website_url ?? null;
   const externalUrl = detail?.organizer.externalUrl ?? detail?.organizer.external_url ?? null;
-  const sameAs = [websiteUrl, externalUrl].filter((u): u is string => Boolean(u));
+  const sameAs = Array.from(new Set([websiteUrl, externalUrl].filter((u): u is string => Boolean(u))));
+  // Only the host's own bio goes into structured data — the generic fallback
+  // used for the meta description is not visible on the page.
+  const bio = detail ? getBioText(detail, 500) : "";
   const jsonLd = detail && isHostPublished(detail)
     ? {
         "@context": "https://schema.org",
-        "@type": "Organization",
+        // Set per host by an editor (default person); see migration 062.
+        "@type": detail.organizer.entityType === "organization" ? "Organization" : "Person",
         name: detail.organizer.name,
         url: `${SITE_ORIGIN}/hosts/${slug}`,
         ...(sameAs.length ? { sameAs } : {}),
-        image: detail.organizer.imageUrl ?? detail.organizer.avatar_path ?? undefined,
-        description: getDescription(detail),
+        image: absoluteUrl(detail.organizer.imageUrl ?? detail.organizer.avatar_path),
+        ...(bio ? { description: bio } : {}),
         address:
           detail.organizer.city || detail.organizer.country_code || detail.organizer.countryCode
             ? {
@@ -117,7 +153,12 @@ async function HostDetailPageServer({ slug }: { slug: string }) {
       {jsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}
-      <OrganizerDetailClient slug={slug} initialData={detail} serverTranslations={serverTranslations} />
+      <OrganizerDetailClient
+        slug={slug}
+        initialData={detail}
+        initialUpcoming={initialUpcoming}
+        serverTranslations={serverTranslations}
+      />
     </>
   );
 }

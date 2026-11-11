@@ -9,7 +9,7 @@ import { sanitizeDescriptionHtml } from "../utils/sanitizeHtml";
 const ORGANIZER_SELECT_COLUMNS = `
   id, slug, name, external_source, external_id, description_json, description_html,
   website_url, external_url, tags, languages, city, country_code, image_url,
-  avatar_path, status, detached_from_import, detached_at, detached_by_user_id,
+  avatar_path, status, entity_type, detached_from_import, detached_at, detached_by_user_id,
   created_at, updated_at
 `;
 
@@ -30,6 +30,7 @@ type OrganizerRow = {
   image_url: string | null;
   avatar_path: string | null;
   status: "published" | "draft" | "archived";
+  entity_type: "person" | "organization";
   detached_from_import: boolean;
   detached_at: string | null;
   detached_by_user_id: string | null;
@@ -618,9 +619,10 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
         country_code,
         image_url,
         avatar_path,
-        status
+        status,
+        entity_type
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       returning *
     `,
     [
@@ -639,6 +641,7 @@ export async function createOrganizer(pool: Pool, input: CreateOrganizerInput) {
       imageUrl,
       input.avatarPath ?? imageUrl,
       input.status,
+      input.entityType ?? "person",
     ],
   );
     const created = result.rows[0];
@@ -702,6 +705,7 @@ export async function updateOrganizer(pool: Pool, id: string, input: UpdateOrgan
     image_url: imageUrl,
     avatar_path: input.avatarPath ?? imageUrl,
     status: input.status,
+    entity_type: input.entityType,
   };
 
   if (input.slug) {

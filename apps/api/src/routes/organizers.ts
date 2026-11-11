@@ -89,7 +89,13 @@ function sanitizeLanguageCodes(values: unknown): string[] {
     .filter((value) => languageTagPattern.test(value));
 }
 
-function mapOrganizerSearchItem(item: Record<string, unknown>) {
+function toEntityType(value: unknown): "person" | "organization" {
+  return value === "organization" ? "organization" : "person";
+}
+
+function mapOrganizerSearchItem(rawItem: Record<string, unknown>) {
+  // entity_type is exposed as camelCase entityType only.
+  const { entity_type: entityTypeRaw, ...item } = rawItem;
   const roleKeys = Array.isArray(item.role_keys)
     ? item.role_keys.filter((value): value is string => typeof value === "string")
     : [];
@@ -113,11 +119,12 @@ function mapOrganizerSearchItem(item: Record<string, unknown>) {
       : [],
     roleKeys,
     roleKey: roleKeys[0] ?? null,
+    entityType: toEntityType(entityTypeRaw),
   };
 }
 
 function mapOrganizerDetail(result: Record<string, unknown>) {
-  const organizer = (result.organizer ?? {}) as Record<string, unknown>;
+  const { entity_type: entityTypeRaw, ...organizer } = (result.organizer ?? {}) as Record<string, unknown>;
   const roleKeys = Array.isArray(organizer.role_keys)
     ? organizer.role_keys.filter((value): value is string => typeof value === "string")
     : [];
@@ -163,6 +170,7 @@ function mapOrganizerDetail(result: Record<string, unknown>) {
       tags: Array.isArray(organizer.tags) ? organizer.tags : [],
       roleKeys,
       roleKey: roleKeys[0] ?? null,
+      entityType: toEntityType(entityTypeRaw),
     },
     practiceCategoryIds: Array.isArray(result.practiceCategoryIds)
       ? result.practiceCategoryIds.filter((value): value is string => typeof value === "string")

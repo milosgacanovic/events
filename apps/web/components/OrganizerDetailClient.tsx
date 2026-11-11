@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DOMPurify from "dompurify";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { fetchJson } from "../lib/api";
+import { HOST_EVENTS_PAGE_SIZE } from "../lib/hostEvents";
 import { stripDangerousHtml } from "../lib/sanitizeForSsr";
 import { labelForLanguageCode, toDisplayNamesLocale} from "../lib/i18n/languageLabels";
 import { toTitleCase } from "../lib/filterHelpers";
@@ -21,7 +22,6 @@ type EventSearchResponse = {
   totalHits: number;
 };
 
-const HOST_EVENTS_PAGE_SIZE = 10;
 
 export type OrganizerServerTranslations = {
   locale: string;
@@ -45,6 +45,7 @@ export type OrganizerDetail = {
     tags: string[];
     languages: string[];
     status?: string;
+    entityType?: "person" | "organization";
     city?: string | null;
     country_code?: string | null;
     countryCode?: string | null;
@@ -199,9 +200,12 @@ function extractDescriptionSections(value: unknown): DescriptionSections {
 
 import { getRoleLabel } from "../lib/filterHelpers";
 
-export function OrganizerDetailClient({ slug, initialData, serverTranslations }: {
+export function OrganizerDetailClient({ slug, initialData, initialUpcoming, serverTranslations }: {
   slug: string;
   initialData?: OrganizerDetail | null;
+  // First page of upcoming events, fetched by the server component so the
+  // links are in the initial HTML. Later pages still load client-side.
+  initialUpcoming?: { organizerId: string; hits: EventCardHit[]; totalHits: number } | null;
   serverTranslations?: OrganizerServerTranslations;
 }) {
   const { locale, t } = useI18n();
@@ -281,11 +285,14 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
 
   const organizerId = data?.organizer.id;
 
-  const [upcomingHits, setUpcomingHits] = useState<EventCardHit[]>([]);
-  const [upcomingTotal, setUpcomingTotal] = useState(0);
+  const seeded = initialUpcoming && initialUpcoming.organizerId === initialData?.organizer.id ? initialUpcoming : null;
+  const [upcomingHits, setUpcomingHits] = useState<EventCardHit[]>(seeded?.hits ?? []);
+  const [upcomingTotal, setUpcomingTotal] = useState(seeded?.totalHits ?? 0);
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [upcomingLoading, setUpcomingLoading] = useState(false);
-  const [upcomingLoaded, setUpcomingLoaded] = useState(false);
+  const [upcomingLoaded, setUpcomingLoaded] = useState(Boolean(seeded));
+  // Organizer whose page 1 came from the server; skip refetching it once.
+  const seededOrganizerRef = useRef<string | null>(seeded?.organizerId ?? null);
 
   const [pastHits, setPastHits] = useState<EventCardHit[]>([]);
   const [pastTotal, setPastTotal] = useState(0);
@@ -295,18 +302,21 @@ export function OrganizerDetailClient({ slug, initialData, serverTranslations }:
 
   useEffect(() => {
     if (!organizerId) return;
-    setUpcomingHits([]);
-    setUpcomingTotal(0);
-    setUpcomingPage(1);
-    setUpcomingLoaded(false);
     setPastHits([]);
     setPastTotal(0);
     setPastPage(1);
     setPastLoaded(false);
+    if (seededOrganizerRef.current === organizerId) return;
+    seededOrganizerRef.current = null;
+    setUpcomingHits([]);
+    setUpcomingTotal(0);
+    setUpcomingPage(1);
+    setUpcomingLoaded(false);
   }, [organizerId]);
 
   useEffect(() => {
     if (!organizerId) return;
+    if (upcomingPage === 1 && seededOrganizerRef.current === organizerId) return;
     let active = true;
     setUpcomingLoading(true);
     const params = new URLSearchParams({

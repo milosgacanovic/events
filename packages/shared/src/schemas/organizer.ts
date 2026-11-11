@@ -8,6 +8,10 @@ const organizerSchemaBase = z.object({
   descriptionHtml: z.string().max(100000).nullable().optional(),
   websiteUrl: z.string().url().nullable().optional(),
   externalUrl: z.string().url().nullable().optional(),
+  // schema.org type of the host page: an individual teacher (Person) or a
+  // studio/venue/collective/festival (Organization). Omitted = leave as is
+  // on update; the DB default is "person".
+  entityType: z.enum(["person", "organization"]).optional(),
   tags: z.array(z.string().min(1)).default([]),
   languages: z.array(z.string().min(2).max(16)).default([]),
   avatarPath: z.string().nullable().optional(),
