@@ -42,6 +42,7 @@ function loadAnyAscii(): Promise<AnyAscii> {
 
 const NAMED_ENTITIES: Record<string, string> = {
   amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: " ", ndash: "-", mdash: "-",
+  reg: "®", trade: "™", copy: "©",
 };
 
 // Imported titles sometimes still carry entities ("A &amp; B"), which used to
@@ -63,7 +64,8 @@ function decodeEntities(value: string): string {
 export async function toSlugPart(value: string | null | undefined): Promise<string> {
   if (!value) return "";
   const anyAscii = await loadAnyAscii();
-  const ascii = anyAscii(decodeEntities(value).normalize("NFC"));
+  // Trademark signs transliterate to "(R)"/"TM" ("5Rhythms®" → "5rhythmsr"); drop them.
+  const ascii = anyAscii(decodeEntities(value).normalize("NFC").replace(/[®™©℠℗]/g, ""));
   return slugify(ascii, { lower: true, strict: true, trim: true });
 }
 

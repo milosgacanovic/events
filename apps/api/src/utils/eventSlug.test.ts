@@ -94,6 +94,11 @@ describe("generateEventSlug (new events)", () => {
     expect(await toSlugPart("Breath &amp; Movement")).toBe("breath-and-movement");
   });
 
+  it("drops trademark signs instead of transliterating them", async () => {
+    expect(await toSlugPart("5Rhythms® Waves")).toBe("5rhythms-waves");
+    expect(await toSlugPart("Open Floor™ Lab &reg;")).toBe("open-floor-lab");
+  });
+
   it("drops the city for online events when none is given and keeps slugs bounded", async () => {
     const slug = await generateEventSlug(
       { title: "A".repeat(10) + " " + "very long title words ".repeat(10), city: null, organizerName: null },
