@@ -1,0 +1,142 @@
+# SEO round 3 — delivery report
+
+Handoff: `/opt/dr-admin/uploads/inbox/1794314428024_f0d8fc057ce5_handoff.md`.
+Work was committed straight to `main` and deployed blue/green, so each "PR" below is a set of
+commits rather than a GitHub pull request. The importer work lives in `milosgacanovic/dr-events-importer`.
+Audit: `python3 scripts/seo_audit.py --seed N` (now also daily at 04:30 UTC via `scripts/seo-audit-cron.sh`).
+
+| PR | Task | Commits (events) | Commits (importer) | Status |
+|---|---|---|---|---|
+| 1 | Sitemaps = indexable pages only; JSON-LD offsets; self-canonicals | `2ed6671`, `1524552`, `2eeb7c1` | — | deployed 2026-11-10 |
+| 2 | Unique titles + meta descriptions; sibling links | `01bcd41` | — | deployed 2026-11-10 |
+| 3 | Text cleaning, importer descriptions, image fallback | `cfc937a` | `b68bbba`, `f3993bf`, `1b82443` | deployed; backfill applied 2026-11-11 |
+| 4 | Host pages: server-rendered event links, Person/Organization | `e2d5f6d`, `0f22f3c` | `5c0cea8` (bio paragraphs) | deployed 2026-11-11 |
+| 5 | Slugs for new events, transliteration, slug history | `abbe121` | — | deployed 2026-11-11 |
+| — | Proposals A–C design note | `3115a18` (`docs/seo-proposals-round3.md`) | — | awaiting owner decision |
+
+---
+
+## PR 1 — Tasks 1, 2 (and Task 4's self-canonical)
+
+**Root cause.** The sitemap and the page decided indexability separately, so sitemaps listed pages the page
+itself marked `noindex`; JSON-LD dates had no UTC offset; recurring siblings canonicalised to another page.
+
+**Fix.** One predicate, `packages/shared/src/seo/indexability.ts` (`isEventIndexable`), used by the event page and
+`GET /api/seo/sitemap/events`. Multi-sibling series index the siblings starting within 60 days plus the series'
+earliest upcoming sibling (owner decision). Every live occurrence page is self-canonical; JSON-LD dates carry the
+event's zone offset. `offers` intentionally not emitted: there are no price fields (owner decision), and the audit
+reports it as INFO.
+
+**Files.** `packages/shared/src/seo/indexability.ts`, `apps/api/src/db/eventRepo.ts`, `apps/api/src/routes/events.ts`,
+`apps/web/lib/sitemap.ts`, `apps/web/app/sitemap.xml/route.ts`, `apps/web/app/events/[slug]/page.tsx`,
+`apps/web/lib/datetime.ts`, `scripts/seo_audit.py`.
+
+**Evidence (after, 2026-11-11).**
+```
+pulse-47               index, follow  canonical=/events/pulse-47               startDate=2026-11-26T19:00:00+00:00
+source-in-motion-37    index, follow  canonical=/events/source-in-motion-37    startDate=2026-11-11T18:30:00-06:00
+emerging-waves-1234    index, follow  canonical=/events/emerging-waves-1234    startDate=2026-11-13T18:30:00+08:00
+body-prayers-10        noindex, follow (past) — not in any sitemap
+```
+
+## PR 2 — Tasks 3, 4
+
+**Root cause.** Titles were the bare event title, so series and same-named events collided (hundreds of `Sweat Your Prayers` pages, e.g. `sweat-your-prayers-429`).
+
+**Fix.** `apps/web/lib/eventSeo.ts`: `Title with Host · City · Date`, date in the event's zone and locale
+(`apps/web/lib/seoDate.ts`), and a visible subtitle carrying the same facts. Meta descriptions are built from real fields only.
+Sibling dates are listed as links in the "Upcoming" list. The title limit was raised to 70 because the handoff's own examples run 66–67 characters.
+
+**Evidence (after).**
+```
+Pulse with Christian de Sousa · Totnes · Thu 26 Nov 2026
+Friday evening in Paris center · Paris · Fri 13 Nov 2026
+Sweat Your Prayers · Cologne / Koeln · Fri 13 Nov 2026
+```
+
+## PR 3 — Task 5
+
+**Root cause.** Several text paths stripped tags differently and double-escaped entities (`&amp;amp;`). Importer
+descriptions carried 5Rhythms policy boilerplate (`Registration Policy … No prerequisites required.`), WordPress nav
+menus (osho_himalayas), and ecstaticdance.org's redesign (~2026-10-25) made the scraper copy the whole page:
+buttons, sidebar, donate footer.
+
+**Fix.**
+- Web: one `htmlToPlainText` (decodes entities once, breaks at block boundaries). Thin descriptions get a visible factual summary. Image fallback chain.
+- Importer: the `DescriptionCleaner` keeps 5Rhythms registration and refund text as one line each (owner decision) and drops nav menus. The ecstaticdance scraper parses the new "edl" layout.
+- Backfill (`scripts/backfill_published_descriptions.php`, dry run shown to the owner first) re-queued 10,263 events on 2026-11-11.
+
+**Evidence (after).** `hosts/chiara-pietroboni` meta: `sharing &amp; offering` (single-escaped; it was `&amp;amp;`).
+`hosts/jup-jansonius` "mystery.Ilife": caused at import. The source has `mystery.<p>Ilife`, and the bio parser
+only broke at closing tags. Fixed in the importer (`5c0cea8`); it reaches DR with the next teacher-profile sync.
+
+## PR 4 — Task 6
+
+**Root cause.** The host page rendered its event list client-side only (the initial HTML had no `/events/` links),
+and every host was `Organization` JSON-LD.
+
+**Fix.**
+- The server fetches the first page of upcoming events (same query as the client) and seeds the cards.
+- `GET /api/organizers/:slug` returns `upcomingEvents`: every *indexable* upcoming event page of the host, using the sitemap's predicate and inputs. The page lists the ones not shown as cards as compact rows ("More upcoming dates", 35 locales), dated in each event's zone.
+- `organizers.entity_type` (`person` default | `organization`, migration 062), editable in the host form (35 locales). JSON-LD `@type` follows it.
+- `url`, absolute `image`, `sameAs` (website and profile), and `description` only from the host's own bio.
+
+**Files.** `db/migrations/062_organizers_entity_type.sql`, `apps/api/src/db/organizerRepo.ts`, `apps/api/src/db/adminRepo.ts`,
+`apps/api/src/routes/organizers.ts`, `packages/shared/src/schemas/organizer.ts`, `apps/web/app/hosts/[slug]/page.tsx`,
+`apps/web/components/OrganizerDetailClient.tsx`, `apps/web/components/manage/HostForm.tsx`, `apps/web/lib/hostEvents.ts`, i18n.
+
+**Evidence.** Before: 0 event links in the initial HTML (audit 1/5). After:
+```
+christian-de-sousa  event links in HTML: 9   "@type":"Person"
+jup-jansonius       event links in HTML: 54  (10 cards + 44 rows) "@type":"Person"
+jan-redsted         event links in HTML: 4   "@type":"Person"
+chiara-pietroboni   event links in HTML: 1   "@type":"Person"
+```
+**For the owner.** `temporary/host-type-review.csv` lists 61 hosts whose name or role looks like an organization
+(51 suggested organization, 5 person, 5 unsure). Nothing was auto-classified. Approve the list (or edit it) and it
+will be applied with one UPDATE.
+
+## PR 5 — Task 7
+
+**Root cause.** `slugify(title)` + `-2…-10` + random suffix. Non-Latin titles slugified to nothing → `item-NNN`;
+placeholders → `tbd`; entities → `-andamp-`.
+
+**Fix (new events only; existing URLs unchanged).**
+- `apps/api/src/utils/eventSlug.ts`: title + city, then + first organizer's surname, then a numeric suffix as the last resort.
+- Titles are transliterated with `any-ascii`. Placeholder or unusable titles fall back to city + organizer. Route words (`in`, `series`, …) are reserved.
+- `event_slug_history` + trigger (migration 063) records every slug change. `GET /api/events/:slug/redirect` resolves an old slug, and the event page answers with a permanent redirect (308).
+- Unit tests cover a generic collision, Hebrew, Serbian Cyrillic, Arabic, TBD, entities, length and reserved words (11 cases).
+
+**Examples.** `Emerging Waves`/Den Haag/Ana Freitas → `emerging-waves-den-haag`, then `emerging-waves-den-haag-freitas`;
+`ריקוד אקסטטי`/Tel Aviv → `rykvd-kstty-tel-aviv`; `Плес у Београду` → `ples-u-beogradu-beograd`; `TBD` → `den-haag-ana-freitas`.
+
+---
+
+## Audit output (production, 2026-11-11, after the last deploy)
+```
+seed 7:  all PASS (noindex-in-sitemap 0, non-self canonicals 0, missing JSON-LD 0, entity bugs 0,
+         duplicate titles 0, descriptions>=80 60/60, image 60/60, host links 5/5; offers INFO 0%)
+seed 1:  all PASS except entity-encoding 1 — ecstatic-dance-temple-andamp-cacao-…: the stored title itself
+         holds "&amp;" (double-encoded upstream). Importer fix 367dd8b decodes it; clears on its republish.
+```
+
+## Found along the way (fixed)
+- **Rollback.** `bg:rollback` switched Apache to the stopped colour (bg-deploy stops it after every deploy), so it would have taken the site down. It now starts the colour and waits for health first. `bg:cleanup` failed without `--env-file` and now refuses to stop the active colour. The API now exits on SIGTERM instead of being killed after 10 s.
+- **Rate limits.** The per-IP limits were global: Fastify had no `trustProxy`, so every visitor shared the Docker gateway IP. It now trusts the private-range proxies and evicts idle buckets.
+- **Daily report.** It flagged the stopped standby colour as WARN; the standby colour now reports OK (active-colour or OOM exits still warn).
+- **ecstaticdance.**
+  - 167 of 211 dates fell on a weekday the page never states. Dates are now weekday-checked, the site's own upcoming list is preferred, and a stale one-off is skipped instead of being given an invented date.
+  - Superseded and now-dateless future rows are cancelled.
+  - The timezone comes from the map pin when the city can't be geocoded.
+  - Double-encoded titles are decoded.
+- **Timezones (all sources).** About 1,000 upcoming in-person events were published as UTC.
+  - `PlaceResolver` never derived a zone for points cached by `resolveLatLon()`.
+  - The importer now records the zone each time was computed in (`events.timezone`, migration 0114), and the publisher prefers it.
+  - `scripts/backfill_event_timezones.php` (dry run first) re-queues already-published events.
+
+## Not done, and why
+- **Task 2 `offers`:** intentionally not emitted (no price data). Owner decision.
+- **Proposals A–C:** design note only, as the handoff requires.
+- **Organization classification:** waits for the owner's review of the list.
+- **Timezone republish backfill:** needs the owner's OK after its dry run.
+- **Existing slugs (`…-andamp-…`, `item-116`):** unchanged by rule ("no URL changes in this round"). The slug history now makes a future rename safe.
